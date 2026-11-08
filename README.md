@@ -60,9 +60,11 @@ Deploys run only after the `check` job passes. Fork pull requests run `check` wi
    pnpm --filter @civicdata/infra exec alchemy state bootstrap
    ```
 3. In GitHub, create the `preview` and `production` environments. In each, add the secret `CLOUDFLARE_API_TOKEN` and the variable `CLOUDFLARE_ACCOUNT_ID`. Limit `production` to the `main` branch.
-4. Before making the repository public:
-   - Add a ruleset on `main` that requires a pull request, the `check` and `dependency-review` checks, and code owner review, and that blocks force pushes.
-   - Under Actions settings, set the default `GITHUB_TOKEN` to read-only, and require approval for workflow runs from all outside collaborators.
-   - Turn on secret scanning with push protection, Dependabot alerts, and private vulnerability reporting.
+4. Protect the repository. Rulesets, dependency review, code scanning uploads and private vulnerability reporting need a public repository on GitHub's free plan. This repository has:
+   - A `main` ruleset: pull request required, the `check` and `dependency-review` checks must pass (from GitHub Actions only), squash merges only, linear history, and no force pushes or deletion. It requires no approvals while there is one maintainer, because GitHub doesn't let you approve your own pull request.
+   - A read-only default `GITHUB_TOKEN`, and approval required for workflow runs from all outside contributors.
+   - Secret scanning with push protection, Dependabot alerts, and private vulnerability reporting.
+
+To deploy your own stage from your machine, connect Cloudflare once with `pnpm --filter @civicdata/infra exec alchemy profile edit`, then run `pnpm --filter @civicdata/infra run deploy`. Keep the `run`: without it, pnpm runs its own `deploy` command instead of the script. The stage is named `live_<your user>` unless you pass `--stage`.
 
 Alchemy is a beta that breaks things between releases. Upgrade it on a branch and let that branch's preview stage deploy before you merge. Every machine and CI job must run the same Alchemy version against the state store.
