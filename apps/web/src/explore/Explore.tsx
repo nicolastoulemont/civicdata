@@ -14,6 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardFooter,
@@ -22,13 +23,14 @@ import {
 } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 
-import { About, retrieved } from "./About.tsx"
+import { About } from "./About.tsx"
 import { resolveQuery } from "./api.ts"
 import { ChartType } from "./ChartType.tsx"
+import { CopyLink } from "./CopyLink.tsx"
 import { Countries } from "./Countries.tsx"
 import { Data } from "./Data.tsx"
 import { withCountries, withIndicator } from "./edits.ts"
-import { countryName, transformLabel } from "./format.ts"
+import { attribution, countryName, period, transformLabel } from "./format.ts"
 import { Indicator } from "./Indicator.tsx"
 import { RankingChart } from "./RankingChart.tsx"
 import { ShowAs } from "./ShowAs.tsx"
@@ -36,12 +38,6 @@ import { TrendChart } from "./TrendChart.tsx"
 import { range, YearSelect, years } from "./Years.tsx"
 
 const isTrend = Schema.is(Trend)
-
-const period = (view: View) =>
-  Match.valueTags(view, {
-    Trend: ({ from, to }) => `${from}–${to}`,
-    Ranking: ({ year }) => `${year}`,
-  })
 
 const Controls = ({
   view,
@@ -153,6 +149,9 @@ export const Explore = ({ view, onChange }: { view: View; onChange: (view: View)
               ? period(view)
               : `${period(view)} · ${transformLabel(view)}`}
           </CardDescription>
+          <CardAction>
+            <CopyLink view={view} />
+          </CardAction>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <Controls view={view} name={query.data?.indicator.name} onChange={onChange} />
@@ -184,9 +183,7 @@ export const Explore = ({ view, onChange }: { view: View; onChange: (view: View)
           )}
         </CardContent>
         <CardFooter className="text-sm text-muted-foreground">
-          {query.data === undefined
-            ? "Source: World Bank"
-            : `Source: World Bank, ${[...new Set(query.data.sources.map((source) => source.dataset))].join(", ")}. Retrieved ${retrieved(query.data)}.`}
+          {query.data === undefined ? "Source: World Bank" : attribution(query.data)}
         </CardFooter>
       </Card>
       {query.data === undefined ? null : (

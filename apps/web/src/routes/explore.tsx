@@ -1,9 +1,16 @@
+import type { ResolvedView, View } from "@civicdata/domain"
+import type { QueryClient } from "@tanstack/react-query"
 import { createFileRoute, Link, notFound } from "@tanstack/react-router"
+import { createIsomorphicFn } from "@tanstack/react-start"
 
 import { buttonVariants } from "@/components/ui/button"
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { resolve } from "@/explore/api"
 import { Explore } from "@/explore/Explore"
-import { type Search, toSearch, toView } from "@/explore/search"
+import { inProcess } from "@/explore/inProcess"
+import { preview } from "@/explore/preview"
+import { type Search, toQuery, toSearch, toView } from "@/explore/search"
+import { origin } from "@/origin"
 
 const BrokenLink = () => (
   <main className="flex min-h-svh items-center justify-center p-6">
@@ -25,6 +32,24 @@ const BrokenLink = () => (
   </main>
 )
 
+// The indicator's name for the page title, or undefined when it is not known.
+// The server resolves the View, so link previews name the indicator. The
+// browser only reads Views it already resolved, so editing a chart never
+// waits on its title.
+const indicatorName = createIsomorphicFn()
+  .server(({ view }: { view: View; queryClient: QueryClient }) =>
+    resolve(view, inProcess).then(
+      (resolved) => resolved.indicator.name,
+      () => undefined,
+    ),
+  )
+  .client(
+    ({ view, queryClient }) =>
+      queryClient
+        .getQueriesData<ResolvedView>({ queryKey: ["resolve"] })
+        .find(([, resolved]) => resolved?.indicator.id === view.indicator)?.[1]?.indicator.name,
+  )
+
 const ExplorePage = () => {
   const view = toView(Route.useSearch())
   const navigate = Route.useNavigate()
@@ -44,6 +69,30 @@ export const Route = createFileRoute("/explore")({
       throw notFound()
     }
   },
+  loaderDeps: ({ search }) => search,
+  loader: async ({ deps, context: { queryClient } }) => {
+    const view = toView(deps)
+
+    return {
+      ...preview(view, await indicatorName({ view, queryClient })),
+      image: `${origin()}/explore.png${toQuery(view)}`,
+    }
+  },
+  head: ({ loaderData }) => ({
+    meta:
+      loaderData === undefined
+        ? []
+        : [
+            { title: `${loaderData.title} · civicdata` },
+            { name: "description", content: loaderData.description },
+            { property: "og:title", content: loaderData.title },
+            { property: "og:description", content: loaderData.description },
+            { property: "og:image", content: loaderData.image },
+            { property: "og:image:alt", content: loaderData.title },
+            { property: "og:image:width", content: "600" },
+            { property: "og:image:height", content: "315" },
+          ],
+  }),
   component: ExplorePage,
   notFoundComponent: BrokenLink,
 })

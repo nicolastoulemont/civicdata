@@ -1,19 +1,11 @@
 import type { ResolvedView } from "@civicdata/domain"
-import { DateTime } from "effect"
 import { ChevronDown } from "lucide-react"
 import { Fragment } from "react"
 
 import { buttonVariants } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
-// When the first series was retrieved; the others were fetched with it.
-export const retrieved = (resolved: ResolvedView) =>
-  DateTime.toDateUtc(resolved.sources[0].retrievedAt).toLocaleDateString("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  })
+import { retrieved } from "./format.ts"
 
 // Level 1: what the indicator measures and where it comes from.
 export const About = ({ resolved }: { resolved: ResolvedView }) => (
