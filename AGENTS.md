@@ -13,6 +13,15 @@ civicdata charts public data about countries (World Bank first, then Eurostat an
 - Effect 4.1 docs ship in `node_modules/effect/ai-docs` and its source in `node_modules/effect/src`. Read those before guessing an API; most web examples target 3.x or 4.0 prereleases. Modules live at `effect/http`, `effect/http-api` and `effect/ai`.
 - `typecheck` runs the Effect language service, and Effect warnings fail it. `allowedUnstableApis` in `tsconfig.base.json` lists the unstable modules we accept; add a module there as a deliberate choice, never to silence a diagnostic.
 
+## UI
+
+- Build all UI from shadcn components (Base UI primitives, style `base-nova`) in `apps/web/src/components/ui/`. Before writing UI, search for a matching component with `pnpm --filter @civicdata/web exec shadcn search @shadcn -q <term>`, add it with `pnpm --filter @civicdata/web exec shadcn add <name>`, then run `pnpm format`.
+- When no shadcn component fits, stop and ask the user what to use: a composition of existing components, a Base UI primitive, a third-party library, or a custom component. Do not hand-roll a component or add a UI library without that answer.
+- Component files are ours. Edit them until they pass typecheck and lint; `shadcn add --overwrite` discards those edits.
+- Style with the theme tokens defined in `apps/web/src/styles.css` (`bg-background`, `text-muted-foreground`, ...), never raw colors.
+- A link stays an `<a>` or router `<Link>` styled with `buttonVariants`. Base UI's `Button` forces button semantics and its docs forbid rendering a link through it.
+- Base UI's docs ship in `node_modules/@base-ui/react/docs`; `shadcn docs <component>` links a component's docs and examples.
+
 ## Tests
 
 - Backend tests use `@effect/vitest` and fake a service's dependencies with layers, following the Effect skill's `references/TESTING.md` (`TestService` / `testLayer`). An HTTP adapter's own tests fake its `HttpClient` layer with recorded responses.

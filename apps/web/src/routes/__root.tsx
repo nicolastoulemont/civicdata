@@ -1,5 +1,7 @@
 import { HeadContent, Outlet, Scripts, createRootRoute } from "@tanstack/react-router"
 
+import styles from "@/styles.css?url"
+
 const Root = () => (
   <html lang="en">
     <head>
@@ -19,6 +21,7 @@ export const Route = createRootRoute({
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "civicdata" },
     ],
+    links: [{ rel: "stylesheet", href: styles }],
   }),
   component: Root,
 })
