@@ -1,7 +1,8 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "lib": ["es2024", "dom"]
+    "lib": ["es2024", "dom"],
+    "resolveJsonModule": true
   },
   "include": ["src", "test", "vitest.config.ts"]
 }
