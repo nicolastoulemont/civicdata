@@ -1,9 +1,9 @@
 import {
-  type IndicatorId,
   IndicatorNotFound,
   Ranking,
   type ResolvedView,
   SourceUnavailable,
+  TransformNotApplicable,
   Trend,
   type View,
 } from "@civicdata/domain"
@@ -24,27 +24,18 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 import { About, retrieved } from "./About.tsx"
 import { resolveQuery } from "./api.ts"
+import { ChartType } from "./ChartType.tsx"
 import { Countries } from "./Countries.tsx"
 import { Data } from "./Data.tsx"
-import { countryName } from "./format.ts"
+import { withCountries, withIndicator } from "./edits.ts"
+import { countryName, transformLabel } from "./format.ts"
 import { Indicator } from "./Indicator.tsx"
 import { RankingChart } from "./RankingChart.tsx"
+import { ShowAs } from "./ShowAs.tsx"
 import { TrendChart } from "./TrendChart.tsx"
 import { range, YearSelect, years } from "./Years.tsx"
 
 const isTrend = Schema.is(Trend)
-
-const withIndicator = (view: View, indicator: IndicatorId) =>
-  Match.valueTags(view, {
-    Trend: (trend) => Trend.make({ ...trend, indicator }),
-    Ranking: (ranking) => Ranking.make({ ...ranking, indicator }),
-  })
-
-const withCountries = (view: View, countries: View["countries"]) =>
-  Match.valueTags(view, {
-    Trend: ({ indicator, from, to }) => Trend.make({ indicator, countries, from, to }),
-    Ranking: ({ indicator, year }) => Ranking.make({ indicator, countries, year }),
-  })
 
 const period = (view: View) =>
   Match.valueTags(view, {
@@ -58,19 +49,24 @@ const Controls = ({
   onChange,
 }: {
   view: View
-  name: string
+  // The indicator's name once loaded.
+  name: string | undefined
   onChange: (view: View) => void
 }) => {
   const all = years()
 
   return (
     <div className="flex flex-wrap items-end gap-4">
-      <div className="w-full">
-        <Indicator
-          current={{ indicator: view.indicator, name }}
-          onChange={(indicator) => onChange(withIndicator(view, indicator))}
-        />
+      <div className="flex w-full flex-wrap items-end gap-4">
+        <div className="min-w-64 flex-1">
+          <Indicator
+            current={{ indicator: view.indicator, name: name ?? view.indicator }}
+            onChange={(picked) => onChange(withIndicator(view, picked))}
+          />
+        </div>
+        <ChartType view={view} onChange={onChange} />
       </div>
+      <ShowAs view={view} name={name} onChange={onChange} />
       <div className="min-w-64 flex-1">
         <Countries
           selected={view.countries}
@@ -105,7 +101,15 @@ const Controls = ({
 }
 
 const Problem = ({ error, retry }: { error: Error; retry: () => void }) =>
-  error instanceof IndicatorNotFound ? (
+  error instanceof TransformNotApplicable ? (
+    <Alert variant="destructive">
+      <AlertTitle>This view does not apply to {error.indicator}</AlertTitle>
+      <AlertDescription>
+        Its values are percentages or rates, which cannot be shown per person, as growth or as an
+        index.
+      </AlertDescription>
+    </Alert>
+  ) : error instanceof IndicatorNotFound ? (
     <Alert variant="destructive">
       <AlertTitle>Unknown indicator</AlertTitle>
       <AlertDescription>The World Bank has no indicator {error.indicator}.</AlertDescription>
@@ -144,14 +148,14 @@ export const Explore = ({ view, onChange }: { view: View; onChange: (view: View)
           <CardTitle>
             <h1>{query.data?.indicator.name ?? view.indicator}</h1>
           </CardTitle>
-          <CardDescription>{period(view)}</CardDescription>
+          <CardDescription>
+            {transformLabel(view) === undefined
+              ? period(view)
+              : `${period(view)} · ${transformLabel(view)}`}
+          </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <Controls
-            view={view}
-            name={query.data?.indicator.name ?? view.indicator}
-            onChange={onChange}
-          />
+          <Controls view={view} name={query.data?.indicator.name} onChange={onChange} />
           {query.isPending ? <Skeleton className="h-80 w-full" /> : null}
           {query.isError ? (
             <Problem error={query.error} retry={() => void query.refetch()} />
@@ -182,7 +186,7 @@ export const Explore = ({ view, onChange }: { view: View; onChange: (view: View)
         <CardFooter className="text-sm text-muted-foreground">
           {query.data === undefined
             ? "Source: World Bank"
-            : `Source: World Bank, ${query.data.provenance.dataset}. Retrieved ${retrieved(query.data)}.`}
+            : `Source: World Bank, ${[...new Set(query.data.sources.map((source) => source.dataset))].join(", ")}. Retrieved ${retrieved(query.data)}.`}
         </CardFooter>
       </Card>
       {query.data === undefined ? null : (

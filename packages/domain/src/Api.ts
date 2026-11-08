@@ -2,7 +2,12 @@ import { Schema } from "effect"
 import { HttpApi, HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/http-api"
 
 import { CatalogEntry, SearchText } from "./Catalog.ts"
-import { CatalogUnavailable, IndicatorNotFound, SourceUnavailable } from "./Errors.ts"
+import {
+  CatalogUnavailable,
+  IndicatorNotFound,
+  SourceUnavailable,
+  TransformNotApplicable,
+} from "./Errors.ts"
 import { ResolvedView } from "./ResolvedView.ts"
 import { View } from "./View.ts"
 
@@ -15,7 +20,7 @@ class Views extends HttpApiGroup.make("views")
     HttpApiEndpoint.post("resolve", "/resolve", {
       payload: View,
       success: ResolvedView,
-      error: [IndicatorNotFound, SourceUnavailable],
+      error: [IndicatorNotFound, SourceUnavailable, TransformNotApplicable],
     }),
   )
   .prefix("/views") {}

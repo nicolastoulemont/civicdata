@@ -5,6 +5,7 @@ import {
   type ResolvedView,
   Ranking,
   SourceUnavailable,
+  TransformNotApplicable,
   Trend,
   Year,
 } from "@civicdata/domain"
@@ -18,44 +19,66 @@ import { Handlers } from "../src/Handlers.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 
 const population = IndicatorId.make("SP.POP.TOTL")
+const gdp = IndicatorId.make("NY.GDP.MKTP.CD")
+const unemployment = IndicatorId.make("SL.UEM.TOTL.ZS")
 
 // When the fake World Bank was asked; provenance must carry it through.
 const retrievedAt = DateTime.makeUnsafe("2026-11-01T09:30:00Z")
 
-const reported: ResolvedView["observations"] = [
-  { country: "FRA", year: Year.make(2019), value: 67_388_001 },
-  { country: "FRA", year: Year.make(2020), value: 67_571_107 },
-  { country: "DEU", year: Year.make(2019), value: 83_092_962 },
-  { country: "DEU", year: Year.make(2020), value: 83_160_871 },
-]
+const year = (value: number) => Year.make(value)
 
-// A World Bank that knows one indicator and answers like the real API: only
-// the requested countries and years, and nothing for a country it has no
-// value for.
+// What the fake World Bank publishes: a name and values per indicator.
+const published = new Map<IndicatorId, { name: string; values: ResolvedView["observations"] }>([
+  [
+    population,
+    {
+      name: "Population, total",
+      values: [
+        { country: "FRA", year: year(2019), value: 67_000_000 },
+        { country: "FRA", year: year(2020), value: 68_000_000 },
+        { country: "DEU", year: year(2019), value: 83_000_000 },
+        { country: "DEU", year: year(2020), value: 84_000_000 },
+      ],
+    },
+  ],
+  [
+    gdp,
+    {
+      name: "GDP (current US$)",
+      values: [
+        { country: "FRA", year: year(2020), value: 2_720_000_000_000 },
+        { country: "DEU", year: year(2020), value: 3_940_000_000_000 },
+      ],
+    },
+  ],
+  [unemployment, { name: "Unemployment, total (% of total labor force)", values: [] }],
+])
+
+// Answers like the real API: only the requested countries and years, and
+// nothing for a country it has no value for.
 const worldBank = Layer.succeed(
   WorldBank,
   WorldBank.of({
-    describe: (indicator) =>
-      indicator === population
-        ? Effect.succeed({
-            indicator: {
-              id: population,
-              name: "Population, total",
-              definition: "Midyear estimates.",
-            },
+    describe: (indicator) => {
+      const known = published.get(indicator)
+
+      return known === undefined
+        ? Effect.fail(new IndicatorNotFound({ indicator }))
+        : Effect.succeed({
+            indicator: { id: indicator, name: known.name, definition: "" },
             dataset: "World Development Indicators",
             retrievedAt,
           })
-        : Effect.fail(new IndicatorNotFound({ indicator })),
+    },
     observations: (query) =>
       Effect.succeed({
-        observations: reported.filter(
+        observations: (published.get(query.indicator)?.values ?? []).filter(
           (observation) =>
             query.countries.includes(observation.country) &&
             observation.year >= query.from &&
             observation.year <= query.to,
         ),
-        url: "https://api.worldbank.org/v2/country/FRA;DEU/indicator/SP.POP.TOTL",
+        url: `https://api.worldbank.org/v2/indicator/${query.indicator}`,
         retrievedAt,
       }),
     indicators: Effect.succeed([]),
@@ -99,8 +122,10 @@ describe("POST /api/views/resolve", () => {
       expect(resolved.indicator.name).toBe("Population, total")
       expect(resolved.observations).toHaveLength(4)
       expect(resolved.missing).toEqual(["ITA"])
-      expect(resolved.provenance.dataset).toBe("World Development Indicators")
-      expect(DateTime.formatIso(resolved.provenance.retrievedAt)).toBe("2026-11-01T09:30:00.000Z")
+      expect(resolved.sources.map((source) => source.dataset)).toEqual([
+        "World Development Indicators",
+      ])
+      expect(DateTime.formatIso(resolved.sources[0].retrievedAt)).toBe("2026-11-01T09:30:00.000Z")
     }).pipe(Effect.provide(serve(worldBank))),
   )
 
@@ -139,5 +164,45 @@ describe("POST /api/views/resolve", () => {
 
       expect(error).toBeInstanceOf(SourceUnavailable)
     }).pipe(Effect.provide(serve(down))),
+  )
+
+  it.effect("divides a total by population, citing both series", () =>
+    Effect.gen(function* () {
+      const client = yield* HttpApiTest.groups(Api, ["views"])
+
+      const resolved = yield* client.views.resolve({
+        payload: Ranking.make({
+          indicator: gdp,
+          countries: ["FRA", "DEU"],
+          year: year(2020),
+          transform: "PerPerson",
+        }),
+      })
+
+      expect(resolved.observations).toEqual([
+        { country: "FRA", year: 2020, value: 40_000 },
+        { country: "DEU", year: 2020, value: 3_940_000_000_000 / 84_000_000 },
+      ])
+      expect(resolved.sources.map((source) => source.indicator)).toEqual([gdp, population])
+    }).pipe(Effect.provide(serve(worldBank))),
+  )
+
+  it.effect("fails with TransformNotApplicable for a percentage per person", () =>
+    Effect.gen(function* () {
+      const client = yield* HttpApiTest.groups(Api, ["views"])
+
+      const error = yield* client.views
+        .resolve({
+          payload: Ranking.make({
+            indicator: unemployment,
+            countries: ["FRA"],
+            year: year(2020),
+            transform: "PerPerson",
+          }),
+        })
+        .pipe(Effect.flip)
+
+      expect(error).toBeInstanceOf(TransformNotApplicable)
+    }).pipe(Effect.provide(serve(worldBank))),
   )
 })
