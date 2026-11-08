@@ -21,7 +21,13 @@
     "plugins": [
       {
         "name": "@effect/language-service",
-        "allowedUnstableApis": ["effect/http", "effect/http-api", "@effect/vitest"]
+        "allowedUnstableApis": [
+          "effect/http",
+          "effect/http-api",
+          "effect/sql",
+          "@effect/sql-d1",
+          "@effect/vitest"
+        ]
       }
     ]
   }

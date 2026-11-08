@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev --filter=@civicdata/web",
+    "dev": "pnpm --filter @civicdata/infra run dev",
+    "dev:web": "turbo run dev --filter=@civicdata/web",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "lint": "oxlint --deny-warnings",

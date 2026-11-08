@@ -1,6 +1,8 @@
+import { Schema } from "effect"
 import { HttpApi, HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/http-api"
 
-import { IndicatorNotFound, SourceUnavailable } from "./Errors.ts"
+import { CatalogEntry, SearchText } from "./Catalog.ts"
+import { CatalogUnavailable, IndicatorNotFound, SourceUnavailable } from "./Errors.ts"
 import { ResolvedView } from "./ResolvedView.ts"
 import { View } from "./View.ts"
 
@@ -18,4 +20,18 @@ class Views extends HttpApiGroup.make("views")
   )
   .prefix("/views") {}
 
-export class Api extends HttpApi.make("civicdata").add(System).add(Views).prefix("/api") {}
+class Catalog extends HttpApiGroup.make("catalog")
+  .add(
+    HttpApiEndpoint.get("search", "/search", {
+      query: { q: SearchText },
+      success: Schema.Array(CatalogEntry),
+      error: [SourceUnavailable, CatalogUnavailable],
+    }),
+  )
+  .prefix("/catalog") {}
+
+export class Api extends HttpApi.make("civicdata")
+  .add(System)
+  .add(Views)
+  .add(Catalog)
+  .prefix("/api") {}

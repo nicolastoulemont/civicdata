@@ -6,6 +6,7 @@ import { TestClock } from "effect/testing"
 
 import { Cache } from "../src/Cache.ts"
 import { WorldBank } from "../src/WorldBank.ts"
+import catalog from "./fixtures/worldbank/catalog.json"
 import gaps from "./fixtures/worldbank/gaps.json"
 import unknownIndicator from "./fixtures/worldbank/indicator-unknown.json"
 import population from "./fixtures/worldbank/indicator.json"
@@ -17,6 +18,7 @@ const recorded = [
   [`${base}/indicator/SP.POP.TOTL?format=json`, population],
   [`${base}/indicator/NOT.A.REAL?format=json`, unknownIndicator],
   [`${base}/country/FRA;SSD/indicator/NY.GDP.PCAP.CD?format=json&date=2015:2016&per_page=4`, gaps],
+  [`${base}/indicator?format=json&source=2&per_page=20000`, catalog],
 ] as const
 
 const http = (respond: (url: string) => Response) =>
@@ -86,6 +88,18 @@ describe("WorldBank", () => {
       expect(series.url).toBe(
         `${base}/country/FRA;SSD/indicator/NY.GDP.PCAP.CD?format=json&date=2015:2016&per_page=4`,
       )
+    }).pipe(Effect.provide(recording)),
+  )
+
+  it.effect("lists the World Development Indicators with their definitions", () =>
+    Effect.gen(function* () {
+      const indicators = yield* (yield* WorldBank).indicators
+
+      expect(indicators).toHaveLength(6)
+      expect(indicators.find((indicator) => indicator.indicator === "SP.POP.TOTL")?.name).toBe(
+        "Population, total",
+      )
+      expect(indicators.every((indicator) => indicator.definition.length > 0)).toBe(true)
     }).pipe(Effect.provide(recording)),
   )
 

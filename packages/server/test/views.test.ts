@@ -13,6 +13,7 @@ import { DateTime, Effect, Layer } from "effect"
 import { HttpServer } from "effect/http"
 import { HttpApiTest } from "effect/http-api"
 
+import { Catalog } from "../src/Catalog.ts"
 import { Handlers } from "../src/Handlers.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 
@@ -57,6 +58,7 @@ const worldBank = Layer.succeed(
         url: "https://api.worldbank.org/v2/country/FRA;DEU/indicator/SP.POP.TOTL",
         retrievedAt,
       }),
+    indicators: Effect.succeed([]),
   }),
 )
 
@@ -65,11 +67,16 @@ const down = Layer.succeed(
   WorldBank.of({
     describe: () => Effect.fail(new SourceUnavailable({ source: "World Bank" })),
     observations: () => Effect.fail(new SourceUnavailable({ source: "World Bank" })),
+    indicators: Effect.fail(new SourceUnavailable({ source: "World Bank" })),
   }),
 )
 
+// These tests do not search, so the catalog is the one plain `pnpm dev` gets.
 const serve = (source: Layer.Layer<WorldBank>) =>
-  Layer.mergeAll(Handlers.pipe(Layer.provide(source)), HttpServer.layerServices)
+  Layer.mergeAll(
+    Handlers.pipe(Layer.provide(Catalog.unavailable), Layer.provide(source)),
+    HttpServer.layerServices,
+  )
 
 const trend = (overrides: Partial<Trend> = {}) =>
   Trend.make({
