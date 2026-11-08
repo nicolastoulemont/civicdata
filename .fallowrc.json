@@ -11,8 +11,13 @@
   // The workspace packages are private, so an export nothing in the repo uses
   // is dead even when it sits in a package entry point.
   "includeEntryExports": true,
-  // TanStack Router generates this file and decides what it exports.
-  "ignoreExports": [{ "file": "apps/web/src/routeTree.gen.ts", "exports": ["*"] }],
+  "ignoreExports": [
+    // TanStack Router generates this file and decides what it exports.
+    { "file": "apps/web/src/routeTree.gen.ts", "exports": ["*"] },
+    // shadcn components export every sub-part; pages use a few. An unused
+    // component file is still reported.
+    { "file": "apps/web/src/components/ui/**", "exports": ["*"] }
+  ],
   "effect": { "schemaExportsAsTypes": true },
   "rules": {
     "unused-effect-layers": "error",

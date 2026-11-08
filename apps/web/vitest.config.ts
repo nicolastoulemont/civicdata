@@ -3,6 +3,7 @@ import { defineConfig } from "vitest/config"
 // Separate from vite.config.ts, so tests render components without the Start
 // plugin's server build.
 export default defineConfig({
+  resolve: { tsconfigPaths: true },
   test: {
     environment: "happy-dom",
     // The app only calls its own origin (/api/...), so give the page one.
