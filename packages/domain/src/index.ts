@@ -1,6 +1,6 @@
 export { Api } from "./Api.ts"
 
-export { Country } from "./Country.ts"
+export { Country, countries } from "./Country.ts"
 
 export { IndicatorNotFound, SourceUnavailable } from "./Errors.ts"
 

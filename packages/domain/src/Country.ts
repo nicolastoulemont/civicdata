@@ -3,7 +3,7 @@ import { Schema } from "effect"
 // Generated on 2026-11-08 from https://api.worldbank.org/v2/country?format=json&per_page=400,
 // keeping the 217 entries whose region is not "Aggregates" (regions, income groups).
 // Regenerate when the World Bank adds or renames an economy.
-const countries = [
+export const countries = [
   { code: "ABW", name: "Aruba" },
   { code: "AFG", name: "Afghanistan" },
   { code: "AGO", name: "Angola" },
