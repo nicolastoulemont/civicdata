@@ -20,6 +20,13 @@ allowBuilds:
   # an optional dependency anyway.
   esbuild: false
 
+overrides:
+  # GHSA-g3hv-75wg-m249: minimatch below 11.0.1 can be driven into a denial of
+  # service by brace patterns. Only the shadcn CLI reaches it, through
+  # ts-morph, whose latest release still asks for ^10. ts-morph only calls
+  # minimatch(), which 11 keeps. Drop this once @ts-morph/common allows 11.
+  "@ts-morph/common>minimatch": ^11.0.1
+
 catalog:
   "@effect/vitest": 4.1.2
   "@types/react": ^19.3.0
