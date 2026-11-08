@@ -75,10 +75,12 @@ jobs:
           require-lockfile: true
       - run: pnpm --filter @civicdata/infra exec alchemy deploy --yes --stage "$STAGE"
       # The stack output comes from pull request code, so accept a bare https
-      # origin only before it reaches the comment.
+      # origin only before it reaches the comment. In CI, Alchemy writes its log
+      # lines to stdout, so silence them to leave only the JSON.
       - id: url
         run: |
-          url=$(pnpm --silent --filter @civicdata/infra exec alchemy state cat "civicdata/$STAGE/output" --no-input | jq -er .url)
+          output=$(pnpm --silent --filter @civicdata/infra exec alchemy state cat "civicdata/$STAGE/output" --log-level=none --no-input)
+          url=$(jq -er .url <<< "$output")
           if [[ ! "$url" =~ ^https://[A-Za-z0-9.-]+$ ]]; then
             echo "::error::Unexpected preview URL"
             exit 1
