@@ -16,8 +16,13 @@ const source = "World Bank"
 // The World Bank revises its indicator list a few times a year.
 const maxAge = 7 * 24 * 60 * 60 * 1000
 
-// D1 binds at most 100 parameters per statement: 20 rows of 5 columns.
-const rowsPerInsert = 20
+// Each insert binds one JSON array of entries, unpacked by SQLite's json_each,
+// so a load is a handful of round trips instead of one per 20 rows (D1 binds
+// at most 100 parameters per statement). 250 entries is about 250 KB, well
+// under D1's 2 MB limit for one bound value.
+const rowsPerInsert = 250
+
+const EntriesJson = Schema.fromJsonString(Schema.Array(CatalogEntry))
 
 // "youth unemploy" → `"youth"* "unemploy"*`: every word must match, as a
 // prefix, and quoting keeps FTS5 operators in user text inert.
@@ -79,15 +84,14 @@ export class Catalog extends Context.Service<Catalog, Interface>()("@civicdata/s
         const entries = yield* worldBank.indicators
 
         for (const chunk of Arr.chunksOf(entries, rowsPerInsert)) {
-          yield* sql`INSERT INTO catalog ${sql.insert(
-            Arr.map(chunk, (entry) => ({
-              source,
-              generation,
-              indicator: entry.indicator,
-              name: entry.name,
-              definition: entry.definition,
-            })),
-          )}`
+          const rows = yield* Schema.encodeEffect(EntriesJson)(chunk)
+
+          yield* sql`
+            INSERT INTO catalog (source, generation, indicator, name, definition)
+            SELECT ${source}, ${generation}, json_extract(value, '$.indicator'),
+              json_extract(value, '$.name'), json_extract(value, '$.definition')
+            FROM json_each(${rows})
+          `
         }
 
         yield* sql`

@@ -36,7 +36,10 @@ const published = [
 
 // A World Bank whose indicator list the test controls, counting the times it
 // was asked.
-const worldBank = (answers: { up: boolean }) => {
+const worldBank = (
+  answers: { up: boolean },
+  indicators: ReadonlyArray<CatalogEntry> = published,
+) => {
   let requests = 0
 
   const layer = Layer.succeed(
@@ -48,7 +51,7 @@ const worldBank = (answers: { up: boolean }) => {
         requests += 1
 
         return answers.up
-          ? Effect.succeed(published)
+          ? Effect.succeed(indicators)
           : Effect.fail(new SourceUnavailable({ source: "World Bank" }))
       }),
     }),
@@ -101,6 +104,18 @@ describe("Catalog", () => {
       expect(found.map((match) => match.indicator)).toEqual(["SP.DYN.LE00.IN"])
     }).pipe(Effect.provide(catalogOver(worldBank({ up: true }).layer))),
   )
+
+  it.effect("loads a catalog larger than one insert", () => {
+    const many = Array.from({ length: 600 }, (_, index) =>
+      entry(`TEST.${index}`, index === 599 ? "Last indicator loaded" : `Indicator ${index}`),
+    )
+
+    return Effect.gen(function* () {
+      const found = yield* (yield* Catalog).search("last loaded")
+
+      expect(found.map((match) => match.indicator)).toEqual(["TEST.599"])
+    }).pipe(Effect.provide(catalogOver(worldBank({ up: true }, many).layer)))
+  })
 
   it.effect("asks the World Bank again once the catalog is a week old", () => {
     const source = worldBank({ up: true })
