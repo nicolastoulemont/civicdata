@@ -1,6 +1,7 @@
-import { createFileRoute, Link } from "@tanstack/react-router"
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { ExternalLink } from "lucide-react"
 
+import { Ask } from "@/ask/Ask"
 import { buttonVariants } from "@/components/ui/button"
 import {
   Card,
@@ -10,7 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import type { Search } from "@/explore/search"
+import { type Search, toSearch } from "@/explore/search"
 
 const examples: ReadonlyArray<{ title: string; search: Search }> = [
   {
@@ -44,45 +45,52 @@ const examples: ReadonlyArray<{ title: string; search: Search }> = [
   },
 ]
 
-const Home = () => (
-  <main className="flex min-h-svh items-center justify-center p-6">
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle>
-          <h1>civicdata</h1>
-        </CardTitle>
-        <CardDescription>Ask about the state of a country and get a sourced chart.</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <ul className="flex flex-col gap-2">
-          {examples.map((example) => (
-            <li key={example.title}>
-              <Link
-                className={buttonVariants({
-                  variant: "link",
-                  className: "h-auto px-0 text-left whitespace-normal",
-                })}
-                to="/explore"
-                search={example.search}
-              >
-                {example.title}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </CardContent>
-      <CardFooter>
-        {/* Links stay <a> elements styled as buttons; Base UI's Button forces button semantics. */}
-        <a
-          className={buttonVariants({ variant: "outline" })}
-          href="https://github.com/nicolastoulemont/civicdata"
-        >
-          View the source
-          <ExternalLink data-icon="inline-end" aria-hidden />
-        </a>
-      </CardFooter>
-    </Card>
-  </main>
-)
+const Home = () => {
+  const navigate = useNavigate()
+
+  return (
+    <main className="flex min-h-svh items-center justify-center p-6">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>
+            <h1>civicdata</h1>
+          </CardTitle>
+          <CardDescription>
+            Ask about the state of a country and get a sourced chart, or open an example.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-6">
+          <Ask onAnswer={(view) => void navigate({ to: "/explore", search: toSearch(view) })} />
+          <ul className="flex flex-col gap-2">
+            {examples.map((example) => (
+              <li key={example.title}>
+                <Link
+                  className={buttonVariants({
+                    variant: "link",
+                    className: "h-auto px-0 text-left whitespace-normal",
+                  })}
+                  to="/explore"
+                  search={example.search}
+                >
+                  {example.title}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+        <CardFooter>
+          {/* Links stay <a> elements styled as buttons; Base UI's Button forces button semantics. */}
+          <a
+            className={buttonVariants({ variant: "outline" })}
+            href="https://github.com/nicolastoulemont/civicdata"
+          >
+            View the source
+            <ExternalLink data-icon="inline-end" aria-hidden />
+          </a>
+        </CardFooter>
+      </Card>
+    </main>
+  )
+}
 
 export const Route = createFileRoute("/")({ component: Home })

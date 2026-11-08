@@ -28,6 +28,8 @@ pnpm dev:web      # the web app alone in Node, no D1 or R2, no Cloudflare login 
 pnpm check        # format, lint, fallow, typecheck, test, build: what CI runs
 ```
 
+Questions on the home page go to an OpenAI model. To ask them locally, copy `packages/infra/.env.example` to `packages/infra/.env` (gitignored) and fill in `OPENAI_API_KEY`; `alchemy dev` reads that file when it starts, and a variable exported in your shell overrides it. Set `OPENAI_MODEL` there to try another model than the default in `packages/server/src/Agent.ts`. Without a key the app works and every question answers "The assistant is not available".
+
 `pnpm dev` runs `alchemy dev` for the `dev_<user>` stage. Alchemy emulates D1 and R2 locally and serves the web app from the Workers runtime with hot reload, so indicator search and the series cache work as deployed. It needs your Cloudflare login, because the stage's state lives in your Alchemy state store; nothing is deployed to your account. `pnpm dev:web` needs no login but runs in Node, where there is no D1 or R2: charts load uncached and indicator search answers "unavailable".
 
 `pnpm install` runs `effect-tsgo patch --typescript`, which patches TypeScript in `node_modules` so the editor loads the Effect plugin. Scripts call `effect-tsgo tsc`, so they don't depend on the patch.
@@ -62,7 +64,7 @@ Deploys run only after the `check` job passes. Fork pull requests run `check` wi
    ```sh
    pnpm --filter @civicdata/infra exec alchemy state bootstrap
    ```
-3. In GitHub, create the `preview` and `production` environments. In each, add the secret `CLOUDFLARE_API_TOKEN` and the variable `CLOUDFLARE_ACCOUNT_ID`. Limit `production` to the `main` branch.
+3. In GitHub, create the `preview` and `production` environments. In each, add the secrets `CLOUDFLARE_API_TOKEN` and `OPENAI_API_KEY` and the variable `CLOUDFLARE_ACCOUNT_ID`. Limit `production` to the `main` branch. Set a monthly budget on the OpenAI project behind the key: each Worker limits one visitor to five questions a minute, but nothing caps the total.
 4. Protect the repository. Rulesets, dependency review, code scanning uploads and private vulnerability reporting need a public repository on GitHub's free plan. This repository has:
    - A `main` ruleset: pull request required, the `check` and `dependency-review` checks must pass (from GitHub Actions only), squash merges only, linear history, and no force pushes or deletion. It requires no approvals while there is one maintainer, because GitHub doesn't let you approve your own pull request.
    - A read-only default `GITHUB_TOKEN`, and approval required for workflow runs from all outside contributors.

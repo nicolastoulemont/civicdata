@@ -14,6 +14,8 @@ import { DateTime, Effect, Layer } from "effect"
 import { HttpServer } from "effect/http"
 import { HttpApiTest } from "effect/http-api"
 
+import { Agent } from "../src/Agent.ts"
+import { AskLimit } from "../src/AskLimit.ts"
 import { Catalog } from "../src/Catalog.ts"
 import { Handlers } from "../src/Handlers.ts"
 import { WorldBank } from "../src/WorldBank.ts"
@@ -94,10 +96,16 @@ const down = Layer.succeed(
   }),
 )
 
-// These tests do not search, so the catalog is the one plain `pnpm dev` gets.
+// These tests neither search nor ask, so the catalog and the agent are the ones
+// plain `pnpm dev` gets.
 const serve = (source: Layer.Layer<WorldBank>) =>
   Layer.mergeAll(
-    Handlers.pipe(Layer.provide(Catalog.unavailable), Layer.provide(source)),
+    Handlers.pipe(
+      Layer.provide(Agent.unavailable),
+      Layer.provide(AskLimit.none),
+      Layer.provide(Catalog.unavailable),
+      Layer.provide(source),
+    ),
     HttpServer.layerServices,
   )
 
