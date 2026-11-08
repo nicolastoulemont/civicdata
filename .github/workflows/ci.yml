@@ -60,6 +60,8 @@ jobs:
     concurrency:
       group: deploy-pr-${{ github.event.pull_request.number }}
       cancel-in-progress: false
+    outputs:
+      url: ${{ steps.url.outputs.url }}
     env:
       STAGE: pr-${{ github.event.pull_request.number }}
       CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
@@ -72,6 +74,77 @@ jobs:
         with:
           require-lockfile: true
       - run: pnpm --filter @civicdata/infra exec alchemy deploy --yes --stage "$STAGE"
+      # The stack output comes from pull request code, so accept a bare https
+      # origin only before it reaches the comment.
+      - id: url
+        run: |
+          url=$(pnpm --silent --filter @civicdata/infra exec alchemy state cat "civicdata/$STAGE/output" --no-input | jq -er .url)
+          if [[ ! "$url" =~ ^https://[A-Za-z0-9.-]+$ ]]; then
+            echo "::error::Unexpected preview URL"
+            exit 1
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+  # The preview comment jobs hold the only write token, and they never check
+  # out or run pull request code.
+  preview-started:
+    needs: check
+    if: >-
+      github.event_name == 'pull_request'
+      && github.event.pull_request.head.repo.full_name == github.repository
+      && github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    env:
+      STATE: deploying
+      URL: ""
+    steps:
+      - &comment
+        name: Update the preview comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          SHA: ${{ github.event.pull_request.head.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          marker="<!-- civicdata-preview -->"
+          case "$STATE" in
+            deploying) status="🔵 Deploying" link="–" ;;
+            success) status="🟢 Ready" link="$URL" ;;
+            cancelled) status="🔴 Cancelled" link="–" ;;
+            *) status="🔴 Failed" link="–" ;;
+          esac
+          body="$marker
+          ### Preview
+
+          | Status | Preview | Commit | Logs |
+          | :-- | :-- | :-- | :-- |
+          | $status | $link | \`${SHA:0:7}\` | [Run]($RUN_URL) |"
+          ids=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
+            --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\"))) | .id")
+          id=${ids%%$'\n'*}
+          if [[ -n "$id" ]]; then
+            gh api -X PATCH "repos/$REPO/issues/comments/$id" -f body="$body" > /dev/null
+          else
+            gh api -X POST "repos/$REPO/issues/$PR/comments" -f body="$body" > /dev/null
+          fi
+
+  preview-status:
+    needs: [preview-started, preview]
+    # Runs after a failed or cancelled deploy too, so the comment never stays blue.
+    if: always() && needs.preview-started.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    env:
+      STATE: ${{ needs.preview.result }}
+      URL: ${{ needs.preview.outputs.url }}
+    steps:
+      - *comment
 
   production:
     needs: check
