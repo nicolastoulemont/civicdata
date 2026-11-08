@@ -1,29 +1,9 @@
-import { Api, type View } from "@civicdata/domain"
+import type { View } from "@civicdata/domain"
 import { keepPreviousData, queryOptions } from "@tanstack/react-query"
-import { Effect, type Layer } from "effect"
-import { FetchHttpClient, type HttpClient } from "effect/http"
-import { HttpApiClient } from "effect/http-api"
+
+import { call, page } from "@/api"
 
 import { toSearch } from "./search.ts"
-
-// Where API requests go. A relative base URL resolves against the page.
-export interface Transport {
-  readonly baseUrl: string | undefined
-  readonly layer: Layer.Layer<HttpClient.HttpClient>
-}
-
-const page: Transport = { baseUrl: undefined, layer: FetchHttpClient.layer }
-
-const call = <A, E>(
-  transport: Transport,
-  request: (api: HttpApiClient.ForApi<typeof Api>) => Effect.Effect<A, E>,
-) =>
-  Effect.runPromise(
-    HttpApiClient.make(Api, { baseUrl: transport.baseUrl }).pipe(
-      Effect.flatMap(request),
-      Effect.provide(transport.layer),
-    ),
-  )
 
 // Rejects with the API's typed error (IndicatorNotFound, SourceUnavailable,
 // TransformNotApplicable) or a transport error.
@@ -52,8 +32,3 @@ export const searchQuery = (text: string) =>
     placeholderData: keepPreviousData,
     staleTime: 60 * 60 * 1000,
   })
-
-// The chart the agent picks for a question. Rejects with NoChart,
-// AgentUnavailable, SourceUnavailable or CatalogUnavailable.
-export const ask = (question: string) =>
-  call(page, (api) => api.agent.ask({ payload: { question } }))

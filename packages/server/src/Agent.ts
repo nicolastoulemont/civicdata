@@ -1,24 +1,32 @@
 import {
   AgentUnavailable,
+  Answered,
   CatalogUnavailable,
   IndicatorId,
-  NoChart,
   Ranking,
+  Rejected as RejectedStep,
+  Searched,
   SourceUnavailable,
+  type Step,
   Transform,
   Trend,
+  Unanswered,
   View,
 } from "@civicdata/domain"
 import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai"
 import {
+  type Cause,
   Context,
   DateTime,
   Effect,
   Layer,
   Match,
+  Option,
+  Queue,
   Redacted,
   Schema,
   type SchemaIssue,
+  Stream,
   Struct,
 } from "effect"
 import { Chat, LanguageModel, Tool, Toolkit } from "effect/ai"
@@ -27,10 +35,16 @@ import { FetchHttpClient } from "effect/http"
 import { Catalog } from "./Catalog.ts"
 import { Resolver } from "./Resolver.ts"
 
+// Why an answer could not be given at all.
+type Failure = AgentUnavailable | SourceUnavailable | CatalogUnavailable
+
 interface Interface {
-  readonly ask: (
-    question: string,
-  ) => Effect.Effect<View, NoChart | AgentUnavailable | SourceUnavailable | CatalogUnavailable>
+  // A new chat that knows how to answer, with no questions yet.
+  readonly start: Effect.Effect<Chat.Chat>
+  // Answers a question asked in the chat, streaming what the agent does. The
+  // stream ends with Answered or Unanswered, and the chat then holds the
+  // question and the answer, so a follow-up can build on them.
+  readonly ask: (chat: Chat.Chat, question: string) => Stream.Stream<Step, Failure>
 }
 
 // Used when the deployment does not name a model in OPENAI_MODEL.
@@ -92,6 +106,10 @@ const ShowChart = Tool.make("show_chart", {
 })
 
 const Tools = Toolkit.make(SearchIndicators, ShowChart)
+
+// A chat leaves tool arguments undecoded; the search's are checked to report
+// what the agent searched for.
+const isSearch = Schema.is(SearchIndicators.parametersSchema)
 
 type Draft = typeof ShowChart.parametersSchema.Type
 
@@ -174,6 +192,36 @@ const ToolsLayer = Tools.toLayer(
   }),
 )
 
+// A chat leaves tool arguments undecoded ("opaque"); results are decoded.
+type Round = LanguageModel.GenerateTextResponse<Toolkit.Tools<typeof Tools>, "opaque">
+
+// What one round did: the searches it ran and the charts the data rejected,
+// in order, and the chart it showed, if any.
+const stepsOf = (round: Round) => {
+  const searched = round.toolCalls.flatMap((call) =>
+    call.name === "search_indicators" && isSearch(call.params)
+      ? [Searched.make({ text: call.params.text })]
+      : [],
+  )
+
+  const charts = round.toolResults.flatMap((result) =>
+    result.name === "show_chart" && !result.isFailure ? [result.result] : [],
+  )
+
+  const rejections = charts.flatMap((chart) =>
+    Match.valueTags(chart, {
+      Shown: () => [],
+      Rejected: ({ problem }) => [RejectedStep.make({ problem })],
+    }),
+  )
+
+  const shown = charts.flatMap((chart) =>
+    Match.valueTags(chart, { Shown: ({ view }) => [view], Rejected: () => [] }),
+  )
+
+  return { steps: [...searched, ...rejections], shown: Option.fromUndefinedOr(shown[0]) }
+}
+
 const instructions = (
   year: number,
 ) => `You turn a question about countries into one chart of World Bank data.
@@ -185,7 +233,9 @@ const instructions = (
    - Use a transform only when the question asks for one.
 3. If show_chart rejects the chart, fix what it names and call it again.
 
-If no World Bank indicator measures what the question asks, stop without calling show_chart.`
+If no World Bank indicator measures what the question asks, stop without calling show_chart.
+
+A later question can follow up on the last chart, e.g. "add Chile" or "now per person". Change what it asks for and keep the rest of that chart.`
 
 export class Agent extends Context.Service<Agent, Interface>()("@civicdata/server/Agent") {
   // Needs a LanguageModel, a Catalog and a Resolver.
@@ -195,34 +245,42 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
       const model = yield* LanguageModel.LanguageModel
       const toolkit = yield* Tools
 
-      const ask = Effect.fn("Agent.ask")(
-        function* (question: string) {
-          const now = yield* DateTime.now
+      const start = Effect.gen(function* () {
+        const now = yield* DateTime.now
 
-          const chat = yield* Chat.fromPrompt([
-            { role: "system", content: instructions(DateTime.getPartUtc(now, "year")) },
-            { role: "user", content: question },
-          ])
+        return yield* Chat.fromPrompt([
+          { role: "system", content: instructions(DateTime.getPartUtc(now, "year")) },
+        ])
+      })
 
+      // Each round is one model request and the tools it calls. Steps are
+      // reported once their round is done.
+      const answer = Effect.fn("Agent.answer")(
+        function* (
+          chat: Chat.Chat,
+          { question, queue }: { question: string; queue: Queue.Queue<Step, Failure | Cause.Done> },
+        ) {
           for (let round = 0; round < rounds; round += 1) {
-            const response = yield* chat.generateText({ prompt: [], toolkit })
+            const response = yield* chat.generateText({
+              prompt: round === 0 ? question : [],
+              toolkit,
+            })
 
-            const shown = response.toolResults.flatMap((result) =>
-              result.name === "show_chart" && !result.isFailure
-                ? Match.valueTags(result.result, {
-                    Shown: ({ view }) => [view],
-                    Rejected: () => [],
-                  })
-                : [],
-            )
+            const { steps, shown } = stepsOf(response)
 
-            if (shown[0] !== undefined) return shown[0]
+            Queue.offerAllUnsafe(queue, steps)
+
+            if (Option.isSome(shown)) {
+              Queue.offerUnsafe(queue, Answered.make({ view: shown.value }))
+
+              return
+            }
 
             // No tool call means the model answered in words: it found no chart.
             if (response.toolCalls.length === 0) break
           }
 
-          return yield* new NoChart()
+          Queue.offerUnsafe(queue, Unanswered.make({}))
         },
         Effect.provideService(LanguageModel.LanguageModel, model),
         Effect.catchTag("AiError", (error) =>
@@ -232,13 +290,18 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
         ),
       )
 
-      return Agent.of({ ask })
+      const ask = (chat: Chat.Chat, question: string) =>
+        Stream.callback<Step, Failure>((queue) =>
+          answer(chat, { question, queue }).pipe(Effect.andThen(Queue.end(queue))),
+        )
+
+      return Agent.of({ start, ask })
     }),
   ).pipe(Layer.provide(ToolsLayer))
 
   static readonly unavailable = Layer.succeed(
     Agent,
-    Agent.of({ ask: () => Effect.fail(new AgentUnavailable()) }),
+    Agent.of({ start: Chat.empty, ask: () => Stream.fail(new AgentUnavailable()) }),
   )
 
   // OpenAI, when the deployment has an OPENAI_API_KEY binding. Without one

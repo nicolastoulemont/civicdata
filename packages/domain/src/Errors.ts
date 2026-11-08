@@ -31,13 +31,6 @@ export class TransformNotApplicable extends Schema.TaggedError<
   { httpApiStatus: 422 },
 ) {}
 
-// The agent found no chart that answers the question.
-export class NoChart extends Schema.TaggedError<NoChart, { readonly brand: unique symbol }>()(
-  "NoChart",
-  {},
-  { httpApiStatus: 422 },
-) {}
-
 // The language model failed, refused, or is not configured in this runtime.
 export class AgentUnavailable extends Schema.TaggedError<
   AgentUnavailable,
@@ -49,3 +42,10 @@ export class TooManyQuestions extends Schema.TaggedError<
   TooManyQuestions,
   { readonly brand: unique symbol }
 >()("TooManyQuestions", {}, { httpApiStatus: 429 }) {}
+
+// The conversation is still answering an earlier question, e.g. asked from
+// another tab. Its history is kept in order, one question at a time.
+export class ConversationBusy extends Schema.TaggedError<
+  ConversationBusy,
+  { readonly brand: unique symbol }
+>()("ConversationBusy", {}, { httpApiStatus: 409 }) {}

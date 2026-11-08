@@ -126,7 +126,7 @@ const Problem = ({ error, retry }: { error: Error; retry: () => void }) =>
     </Alert>
   )
 
-const Chart = ({ resolved }: { resolved: ResolvedView }) =>
+export const Chart = ({ resolved }: { resolved: ResolvedView }) =>
   Match.valueTags(resolved.view, {
     Trend: (trend) => <TrendChart resolved={resolved} countries={trend.countries} />,
     Ranking: () => <RankingChart resolved={resolved} />,
