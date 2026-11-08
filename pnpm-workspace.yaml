@@ -1,0 +1,35 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Supply chain. The repo is public, so treat every dependency change as untrusted.
+# pnpm only installs versions published at least one day ago, which leaves the
+# registry time to pull a compromised release. Setting it explicitly turns on
+# minimumReleaseAgeStrict.
+minimumReleaseAge: 1440
+# Fail when a package loses the provenance or trusted publisher it had before.
+trustPolicy: no-downgrade
+# Transitive dependencies may not come from git or tarball URLs.
+blockExoticSubdeps: true
+# Install fails on any dependency build script not reviewed below.
+strictDepBuilds: true
+allowBuilds:
+  # Verifies the platform binary that Alchemy dev runs.
+  workerd: true
+  # Its postinstall only checks the platform binary, which pnpm installs as
+  # an optional dependency anyway.
+  esbuild: false
+
+catalog:
+  "@effect/vitest": 4.1.2
+  "@types/react": ^19.3.0
+  "@types/react-dom": ^19.2.0
+  effect: 4.1.2
+  react: ^19.3.1
+  react-dom: ^19.3.1
+  vitest: ^5.1.0
+
+# `effect-tsgo patch` (the root prepare script) rewrites the TypeScript binary
+# in node_modules so editors load the Effect plugin. A hardlinked file would
+# carry that write back into the shared store, so never hardlink.
+packageImportMethod: clone-or-copy

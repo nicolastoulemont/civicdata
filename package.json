@@ -1,0 +1,30 @@
+{
+  "name": "civicdata",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev --filter=@civicdata/web",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "lint": "oxlint --deny-warnings",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "fallow": "fallow",
+    "check": "pnpm format:check && pnpm lint && pnpm fallow && turbo run typecheck test build",
+    "prepare": "effect-tsgo patch --typescript"
+  },
+  "devDependencies": {
+    "@effect/tsgo": "0.67.4",
+    "fallow": "^3.40.0",
+    "oxfmt": "^0.76.0",
+    "oxlint": "^1.92.0",
+    "oxlint-tsgolint": "^7.0.2006",
+    "turbo": "^2.11.10",
+    "typescript": "7.0.2"
+  },
+  "engines": {
+    "node": ">=24.11.0"
+  },
+  "packageManager": "pnpm@12.18.0"
+}

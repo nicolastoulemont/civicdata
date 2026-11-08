@@ -1,0 +1,21 @@
+{
+  "name": "@civicdata/server",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "effect-tsgo tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@civicdata/domain": "workspace:*",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.6.0",
+    "@effect/vitest": "catalog:",
+    "vitest": "catalog:"
+  }
+}
