@@ -80,6 +80,23 @@
       "rules": {
         "no-restricted-imports": "off"
       }
+    },
+    {
+      "files": ["apps/web/src/components/ui/**"],
+      "rules": {
+        "anti-slop/no-runtime-typeof": "off",
+        "anti-slop/no-unknown-parameters": "off",
+        "anti-slop/require-safety-comment-for-type-assertion": "off",
+        "typescript/no-unsafe-type-assertion": "off",
+        "typescript/restrict-template-expressions": "off",
+        "no-shadow": "off",
+        "jsx-a11y/prefer-tag-over-role": "off",
+        "jsx-a11y/label-has-associated-control": "off",
+        "jsx-a11y/click-events-have-key-events": "off",
+        "jsx-a11y/no-noninteractive-element-interactions": "off",
+        "react/no-array-index-key": "off",
+        "react/jsx-no-constructed-context-values": "off"
+      }
     }
   ]
 }

@@ -9,6 +9,12 @@ packages:
 minimumReleaseAge: 1440
 # Fail when a package loses the provenance or trusted publisher it had before.
 trustPolicy: no-downgrade
+trustPolicyExclude:
+  # Recharts 3.8 pins 5.1.1. Its maintainer Mark Erikson (acemarke) published
+  # it by hand in June 2024 without the provenance 5.1.0 had; the published
+  # gitHead is the commit just before the "Release 5.1.1" version bump. 5.2.0+
+  # have provenance again. Checked 2026-11-08.
+  - reselect@5.1.1
 # Transitive dependencies may not come from git or tarball URLs.
 blockExoticSubdeps: true
 # Install fails on any dependency build script not reviewed below.

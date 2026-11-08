@@ -19,6 +19,9 @@
     { "file": "apps/web/src/components/ui/**", "exports": ["*"] }
   ],
   "effect": { "schemaExportsAsTypes": true },
+  // shadcn's generated components are kept close to upstream rather than
+  // restructured; complexity limits apply to our own code.
+  "health": { "ignore": ["apps/web/src/components/ui/**"] },
   "rules": {
     "unused-effect-layers": "error",
     "unused-tagged-errors": "error",

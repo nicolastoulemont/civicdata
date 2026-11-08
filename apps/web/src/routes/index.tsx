@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router"
+import { createFileRoute, Link } from "@tanstack/react-router"
 import { ExternalLink } from "lucide-react"
 
 import { buttonVariants } from "@/components/ui/button"
@@ -10,6 +10,39 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import type { Search } from "@/explore/search"
+
+const examples: ReadonlyArray<{ title: string; search: Search }> = [
+  {
+    title: "Population of the four largest EU economies since 2000",
+    search: {
+      chart: "trend",
+      indicator: "SP.POP.TOTL",
+      countries: "DEU,FRA,ITA,ESP",
+      from: 2000,
+      to: 2024,
+    },
+  },
+  {
+    title: "GDP per person in the G7, 2023",
+    search: {
+      chart: "ranking",
+      indicator: "NY.GDP.PCAP.CD",
+      countries: "USA,JPN,DEU,GBR,FRA,ITA,CAN",
+      year: 2023,
+    },
+  },
+  {
+    title: "Life expectancy in the Nordic countries since 1990",
+    search: {
+      chart: "trend",
+      indicator: "SP.DYN.LE00.IN",
+      countries: "NOR,SWE,DNK,FIN,ISL",
+      from: 1990,
+      to: 2023,
+    },
+  },
+]
 
 const Home = () => (
   <main className="flex min-h-svh items-center justify-center p-6">
@@ -20,8 +53,23 @@ const Home = () => (
         </CardTitle>
         <CardDescription>Ask about the state of a country and get a sourced chart.</CardDescription>
       </CardHeader>
-      <CardContent className="text-sm">
-        Every number comes from the World Bank, Eurostat or the OECD, with a link to its source.
+      <CardContent>
+        <ul className="flex flex-col gap-2">
+          {examples.map((example) => (
+            <li key={example.title}>
+              <Link
+                className={buttonVariants({
+                  variant: "link",
+                  className: "h-auto px-0 text-left whitespace-normal",
+                })}
+                to="/explore"
+                search={example.search}
+              >
+                {example.title}
+              </Link>
+            </li>
+          ))}
+        </ul>
       </CardContent>
       <CardFooter>
         {/* Links stay <a> elements styled as buttons; Base UI's Button forces button semantics. */}

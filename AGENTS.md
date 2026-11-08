@@ -17,7 +17,7 @@ civicdata charts public data about countries (World Bank first, then Eurostat an
 
 - Build all UI from shadcn components (Base UI primitives, style `base-nova`) in `apps/web/src/components/ui/`. Before writing UI, search for a matching component with `pnpm --filter @civicdata/web exec shadcn search @shadcn -q <term>`, add it with `pnpm --filter @civicdata/web exec shadcn add <name>`, then run `pnpm format`.
 - When no shadcn component fits, stop and ask the user what to use: a composition of existing components, a Base UI primitive, a third-party library, or a custom component. Do not hand-roll a component or add a UI library without that answer.
-- Component files are ours. Edit them until they pass typecheck and lint; `shadcn add --overwrite` discards those edits.
+- Component files are ours to edit for behavior and accessibility; `shadcn add --overwrite` discards those edits. They must typecheck, but `.oxlintrc.json` turns off the lint rules shadcn's code does not follow (runtime `typeof`, unchecked casts, wrapper roles) for `components/ui/**` only, and Fallow skips their complexity. App code keeps every rule.
 - Style with the theme tokens defined in `apps/web/src/styles.css` (`bg-background`, `text-muted-foreground`, ...), never raw colors.
 - A link stays an `<a>` or router `<Link>` styled with `buttonVariants`. Base UI's `Button` forces button semantics and its docs forbid rendering a link through it.
 - Base UI's docs ship in `node_modules/@base-ui/react/docs`; `shadcn docs <component>` links a component's docs and examples.
@@ -32,7 +32,7 @@ civicdata charts public data about countries (World Bank first, then Eurostat an
 ## Cloudflare Workers
 
 - Workers forbid timers, random values and I/O at module scope, outside a request. Build Effect runtimes and handlers on the first request, as `packages/server/src/index.ts` does.
-- App code reads bindings from `cloudflare:workers` and wraps each in its own Effect layer. Only `packages/infra` imports Alchemy (lint enforces it), and `apps/web/vite.config.ts` gets no Cloudflare plugin: Alchemy adds its own at build time.
+- App code reads bindings from `cloudflare:workers` and wraps each in its own Effect layer. Import it dynamically inside the layer and fall back when it is missing, as `Cache.layer` in `packages/server/src/Cache.ts` does: plain `pnpm dev` and the Node build run outside Workers, where the module does not exist (`apps/web/vite.config.ts` marks it external). Only `packages/infra` imports Alchemy (lint enforces it), and `vite.config.ts` gets no Cloudflare plugin: Alchemy adds its own at build time.
 
 ## Tooling gotchas
 
