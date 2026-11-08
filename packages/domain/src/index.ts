@@ -1,14 +1,24 @@
-export { Api } from "./Api.ts"
+export { Api, ConversationApi } from "./Api.ts"
 
 export { CatalogEntry } from "./Catalog.ts"
+
+export {
+  Answered,
+  ConversationId,
+  Rejected,
+  Searched,
+  Step,
+  Turn,
+  Unanswered,
+} from "./Conversation.ts"
 
 export { Country, countries } from "./Country.ts"
 
 export {
   AgentUnavailable,
   CatalogUnavailable,
+  ConversationBusy,
   IndicatorNotFound,
-  NoChart,
   SourceUnavailable,
   TooManyQuestions,
   TransformNotApplicable,

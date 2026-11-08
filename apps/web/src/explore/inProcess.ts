@@ -2,7 +2,7 @@ import { handle } from "@civicdata/server"
 import { Layer } from "effect"
 import { FetchHttpClient } from "effect/http"
 
-import type { Transport } from "./api.ts"
+import type { Transport } from "@/api"
 
 // Server only. Hands each request to the API handler in this Worker, so
 // rendering a page or a card never sends a request out and back in.

@@ -16,8 +16,13 @@
     { "file": "apps/web/src/routeTree.gen.ts", "exports": ["*"] },
     // shadcn components export every sub-part; pages use a few. An unused
     // component file is still reported.
-    { "file": "apps/web/src/components/ui/**", "exports": ["*"] }
+    { "file": "apps/web/src/components/ui/**", "exports": ["*"] },
+    // The Worker's entry: Cloudflare reads its default export and its Durable
+    // Object classes.
+    { "file": "apps/web/src/server.ts", "exports": ["*"] }
   ],
+  // Cloudflare calls a Durable Object's handlers.
+  "usedClassMembers": [{ "implements": "DurableObject", "members": ["fetch", "alarm"] }],
   "effect": { "schemaExportsAsTypes": true },
   // shadcn's generated components are kept close to upstream rather than
   // restructured; complexity limits apply to our own code. Build scripts run by

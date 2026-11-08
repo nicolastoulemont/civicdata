@@ -1,7 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 import { ExternalLink } from "lucide-react"
 
-import { Ask } from "@/ask/Ask"
 import { buttonVariants } from "@/components/ui/button"
 import {
   Card,
@@ -11,7 +10,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { type Search, toSearch } from "@/explore/search"
+import { QuestionForm } from "@/conversation/QuestionForm"
+import type { Search } from "@/explore/search"
 
 const examples: ReadonlyArray<{ title: string; search: Search }> = [
   {
@@ -60,7 +60,17 @@ const Home = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-6">
-          <Ask onAnswer={(view) => void navigate({ to: "/explore", search: toSearch(view) })} />
+          <QuestionForm
+            label="Ask about a country"
+            placeholder="How has life expectancy changed in Brazil?"
+            onAsk={(question) =>
+              void navigate({
+                to: "/c/$id",
+                params: { id: crypto.randomUUID() },
+                state: { question },
+              })
+            }
+          />
           <ul className="flex flex-col gap-2">
             {examples.map((example) => (
               <li key={example.title}>

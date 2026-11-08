@@ -1,10 +1,10 @@
-import { Api } from "@civicdata/domain"
+import { Api, type ConversationId } from "@civicdata/domain"
 import { Effect, Layer } from "effect"
+import { HttpServerRequest, HttpServerResponse } from "effect/http"
 import { HttpApiBuilder } from "effect/http-api"
 
-import { Agent } from "./Agent.ts"
-import { AskLimit } from "./AskLimit.ts"
 import { Catalog } from "./Catalog.ts"
+import { Conversations } from "./Conversations.ts"
 import { Resolver } from "./Resolver.ts"
 
 const System = HttpApiBuilder.group(Api, "system", (handlers) =>
@@ -31,23 +31,32 @@ const CatalogSearch = HttpApiBuilder.group(
   }),
 )
 
-const Ask = HttpApiBuilder.group(
+// A conversation's own Durable Object answers its requests, so they pass
+// through unread: the Worker only checks the id in the path.
+const ConversationRoutes = HttpApiBuilder.group(
   Api,
-  "agent",
+  "conversation",
   Effect.fn(function* (handlers) {
-    const agent = yield* Agent
-    const limit = yield* AskLimit
+    const conversations = yield* Conversations
 
-    // Cloudflare sets cf-connecting-ip to the visitor's address.
-    return handlers.handle("ask", ({ payload, request }) =>
-      limit
-        .count(request.headers["cf-connecting-ip"] ?? "unknown")
-        .pipe(Effect.andThen(agent.ask(payload.question))),
-    )
+    const forward = ({
+      params,
+      request,
+    }: {
+      params: { id: ConversationId }
+      request: HttpServerRequest.HttpServerRequest
+    }) =>
+      HttpServerRequest.toWeb(request).pipe(
+        Effect.orDie,
+        Effect.flatMap((web) => conversations.forward(params.id, web)),
+        Effect.map(HttpServerResponse.fromWeb),
+      )
+
+    return handlers.handleRaw("turns", forward).handleRaw("ask", forward)
   }),
 )
 
-// Every API route, needing a WorldBank, a Catalog, an Agent and an AskLimit.
-export const Handlers = Layer.mergeAll(System, Views, CatalogSearch, Ask).pipe(
+// Every API route, needing a WorldBank, a Catalog and Conversations.
+export const Handlers = Layer.mergeAll(System, Views, CatalogSearch, ConversationRoutes).pipe(
   Layer.provide(Resolver.layer),
 )

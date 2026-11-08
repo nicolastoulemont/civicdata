@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as ExploreDotpngRouteImport } from './routes/explore[.]png'
 import { Route as ApiSplatRouteImport } from './routes/api/$'
+import { Route as CIdRouteImport } from './routes/c.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -34,18 +35,25 @@ const ApiSplatRoute = ApiSplatRouteImport.update({
   path: '/api/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CIdRoute = CIdRouteImport.update({
+  id: '/c/$id',
+  path: '/c/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/explore': typeof ExploreRoute
   '/explore.png': typeof ExploreDotpngRoute
   '/api/$': typeof ApiSplatRoute
+  '/c/$id': typeof CIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/explore': typeof ExploreRoute
   '/explore.png': typeof ExploreDotpngRoute
   '/api/$': typeof ApiSplatRoute
+  '/c/$id': typeof CIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,14 @@ export interface FileRoutesById {
   '/explore': typeof ExploreRoute
   '/explore.png': typeof ExploreDotpngRoute
   '/api/$': typeof ApiSplatRoute
+  '/c/$id': typeof CIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/explore' | '/explore.png' | '/api/$'
+  fullPaths: '/' | '/explore' | '/explore.png' | '/api/$' | '/c/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/explore' | '/explore.png' | '/api/$'
-  id: '__root__' | '/' | '/explore' | '/explore.png' | '/api/$'
+  to: '/' | '/explore' | '/explore.png' | '/api/$' | '/c/$id'
+  id: '__root__' | '/' | '/explore' | '/explore.png' | '/api/$' | '/c/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +76,7 @@ export interface RootRouteChildren {
   ExploreRoute: typeof ExploreRoute
   ExploreDotpngRoute: typeof ExploreDotpngRoute
   ApiSplatRoute: typeof ApiSplatRoute
+  CIdRoute: typeof CIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -99,6 +109,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/c/$id': {
+      id: '/c/$id'
+      path: '/c/$id'
+      fullPath: '/c/$id'
+      preLoaderRoute: typeof CIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -107,6 +124,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExploreRoute: ExploreRoute,
   ExploreDotpngRoute: ExploreDotpngRoute,
   ApiSplatRoute: ApiSplatRoute,
+  CIdRoute: CIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

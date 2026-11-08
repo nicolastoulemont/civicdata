@@ -28,9 +28,9 @@ pnpm dev:web      # the web app alone in Node, no D1 or R2, no Cloudflare login 
 pnpm check        # format, lint, fallow, typecheck, test, build: what CI runs
 ```
 
-Questions on the home page go to an OpenAI model. To ask them locally, copy `packages/infra/.env.example` to `packages/infra/.env` (gitignored) and fill in `OPENAI_API_KEY`; `alchemy dev` reads that file when it starts, and a variable exported in your shell overrides it. Set `OPENAI_MODEL` there to try another model than the default in `packages/server/src/Agent.ts`. Without a key the app works and every question answers "The assistant is not available".
+A question on the home page opens a conversation at `/c/<id>`, where follow-ups like "add Mexico" change the last chart. Each conversation lives in its own Durable Object, which runs the agent and keeps the questions and charts until 30 days after the last question. The id is a random UUID made by the browser; whoever has the link can read the conversation. The agent runs on an OpenAI model. To ask them locally, copy `packages/infra/.env.example` to `packages/infra/.env` (gitignored) and fill in `OPENAI_API_KEY`; `alchemy dev` reads that file when it starts, and a variable exported in your shell overrides it. Set `OPENAI_MODEL` there to try another model than the default in `packages/server/src/Agent.ts`. Without a key the app works and every question answers "The assistant is not available".
 
-`pnpm dev` runs `alchemy dev` for the `dev_<user>` stage. Alchemy emulates D1 and R2 locally and serves the web app from the Workers runtime with hot reload, so indicator search and the series cache work as deployed. It needs your Cloudflare login, because the stage's state lives in your Alchemy state store; nothing is deployed to your account. `pnpm dev:web` needs no login but runs in Node, where there is no D1 or R2: charts load uncached and indicator search answers "unavailable".
+`pnpm dev` runs `alchemy dev` for the `dev_<user>` stage. Alchemy emulates D1, R2 and Durable Objects locally and serves the web app from the Workers runtime with hot reload, so indicator search and the series cache work as deployed. It needs your Cloudflare login, because the stage's state lives in your Alchemy state store; nothing is deployed to your account. `pnpm dev:web` needs no login but runs in Node, where there is no D1, R2 or Durable Object: charts load uncached, and indicator search and questions answer "unavailable".
 
 `pnpm install` runs `effect-tsgo patch --typescript`, which patches TypeScript in `node_modules` so the editor loads the Effect plugin. Scripts call `effect-tsgo tsc`, so they don't depend on the patch.
 
@@ -55,7 +55,7 @@ Questions on the home page go to an OpenAI model. To ask them locally, copy `pac
 | Pull request closed         | `pr-<n>` destroyed | `preview`          |
 | Push to `main`              | `prod`             | `production`       |
 
-Deploys run only after the `check` job passes. Fork pull requests run `check` without secrets and never deploy. Each stage gets its own Worker, D1 database and R2 bucket. The `prod` D1 database survives `alchemy destroy`.
+Deploys run only after the `check` job passes. Fork pull requests run `check` without secrets and never deploy. Each stage gets its own Worker, D1 database, R2 bucket and conversation Durable Objects. The `prod` D1 database survives `alchemy destroy`.
 
 ### One-time setup
 

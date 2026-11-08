@@ -42,6 +42,10 @@ export default Alchemy.Stack(
       env: {
         DB: database,
         CACHE: cache,
+        // One Durable Object per conversation, exported by apps/web/src/server.ts.
+        CONVERSATION: Cloudflare.DurableObject("Conversation", {
+          className: "ConversationObject",
+        }),
         // Every question costs model calls: five per visitor per minute.
         ASK_LIMIT: Cloudflare.RateLimit("AskLimit", {
           namespaceId: 1001,
