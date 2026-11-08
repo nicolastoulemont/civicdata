@@ -12,5 +12,3 @@ export const Indicator = Schema.Struct({
   name: Schema.NonEmptyString,
   definition: Schema.String,
 })
-
-export interface Indicator extends Schema.Schema.Type<typeof Indicator> {}

@@ -18,6 +18,9 @@ import { WorldBank } from "../src/WorldBank.ts"
 
 const population = IndicatorId.make("SP.POP.TOTL")
 
+// When the fake World Bank was asked; provenance must carry it through.
+const retrievedAt = DateTime.makeUnsafe("2026-11-01T09:30:00Z")
+
 const reported: ResolvedView["observations"] = [
   { country: "FRA", year: Year.make(2019), value: 67_388_001 },
   { country: "FRA", year: Year.make(2020), value: 67_571_107 },
@@ -40,6 +43,7 @@ const worldBank = Layer.succeed(
               definition: "Midyear estimates.",
             },
             dataset: "World Development Indicators",
+            retrievedAt,
           })
         : Effect.fail(new IndicatorNotFound({ indicator })),
     observations: (query) =>
@@ -51,6 +55,7 @@ const worldBank = Layer.succeed(
             observation.year <= query.to,
         ),
         url: "https://api.worldbank.org/v2/country/FRA;DEU/indicator/SP.POP.TOTL",
+        retrievedAt,
       }),
   }),
 )
@@ -88,7 +93,7 @@ describe("POST /api/views/resolve", () => {
       expect(resolved.observations).toHaveLength(4)
       expect(resolved.missing).toEqual(["ITA"])
       expect(resolved.provenance.dataset).toBe("World Development Indicators")
-      expect(DateTime.toEpochMillis(resolved.provenance.retrievedAt)).toBe(0)
+      expect(DateTime.formatIso(resolved.provenance.retrievedAt)).toBe("2026-11-01T09:30:00.000Z")
     }).pipe(Effect.provide(serve(worldBank))),
   )
 

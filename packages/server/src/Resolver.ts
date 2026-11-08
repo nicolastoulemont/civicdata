@@ -4,7 +4,7 @@ import {
   SourceUnavailable,
   type View,
 } from "@civicdata/domain"
-import { Context, DateTime, Effect, Layer, Match } from "effect"
+import { Context, Effect, Layer, Match } from "effect"
 
 import { WorldBank } from "./WorldBank.ts"
 
@@ -38,7 +38,6 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
           { concurrency: 2 },
         )
 
-        const retrievedAt = yield* DateTime.now
         const reported = new Set(series.observations.map((observation) => observation.country))
 
         return {
@@ -50,7 +49,7 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
             source: "World Bank" as const,
             dataset: described.dataset,
             url: series.url,
-            retrievedAt,
+            retrievedAt: series.retrievedAt,
           },
         }
       })

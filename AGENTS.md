@@ -32,7 +32,7 @@ civicdata charts public data about countries (World Bank first, then Eurostat an
 ## Cloudflare Workers
 
 - Workers forbid timers, random values and I/O at module scope, outside a request. Build Effect runtimes and handlers on the first request, as `packages/server/src/index.ts` does.
-- App code reads bindings from `cloudflare:workers` and wraps each in its own Effect layer. Only `packages/infra` imports Alchemy (lint enforces it), and `apps/web/vite.config.ts` gets no Cloudflare plugin: Alchemy adds its own at build time.
+- App code reads bindings from `cloudflare:workers` and wraps each in its own Effect layer. Import it dynamically inside the layer and fall back when it is missing, as `Cache.layer` in `packages/server/src/Cache.ts` does: plain `pnpm dev` and the Node build run outside Workers, where the module does not exist (`apps/web/vite.config.ts` marks it external). Only `packages/infra` imports Alchemy (lint enforces it), and `vite.config.ts` gets no Cloudflare plugin: Alchemy adds its own at build time.
 
 ## Tooling gotchas
 

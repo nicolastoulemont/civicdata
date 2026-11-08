@@ -1,9 +1,10 @@
 import { IndicatorId, IndicatorNotFound, SourceUnavailable, Year } from "@civicdata/domain"
 import { describe, expect, it } from "@effect/vitest"
-import { Effect, Fiber, Layer } from "effect"
+import { DateTime, Effect, Fiber, Layer, Option } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
 import { TestClock } from "effect/testing"
 
+import { Cache } from "../src/Cache.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 import gaps from "./fixtures/worldbank/gaps.json"
 import unknownIndicator from "./fixtures/worldbank/indicator-unknown.json"
@@ -18,17 +19,24 @@ const recorded = [
   [`${base}/country/FRA;SSD/indicator/NY.GDP.PCAP.CD?format=json&date=2015:2016&per_page=4`, gaps],
 ] as const
 
-const replay = (respond: (url: string) => Response) =>
-  WorldBank.layer.pipe(
-    Layer.provide(
-      Layer.succeed(
-        HttpClient.HttpClient,
-        HttpClient.make((request) =>
-          Effect.succeed(HttpClientResponse.fromWeb(request, respond(request.url))),
-        ),
-      ),
+const http = (respond: (url: string) => Response) =>
+  Layer.succeed(
+    HttpClient.HttpClient,
+    HttpClient.make((request) =>
+      Effect.succeed(HttpClientResponse.fromWeb(request, respond(request.url))),
     ),
   )
+
+const replay = (respond: (url: string) => Response) =>
+  WorldBank.layer.pipe(Layer.provide(http(respond)))
+
+const fromRecording = (url: string) => {
+  const match = recorded.find(([recordedUrl]) => recordedUrl === url)
+
+  return match === undefined
+    ? new Response("no recording", { status: 404 })
+    : Response.json(match[1])
+}
 
 const recording = replay((url) => {
   const match = recorded.find(([recordedUrl]) => recordedUrl === url)
@@ -109,4 +117,92 @@ describe("WorldBank", () => {
       expect(error).toBeInstanceOf(SourceUnavailable)
     }).pipe(Effect.provide(replay(() => Response.json({ unexpected: true })))),
   )
+})
+
+// The cached adapter over recorded responses, with an in-memory cache the
+// test can inspect and a count of the requests that reached the World Bank.
+const cachedRecording = () => {
+  const store = new Map<string, string>()
+  let requests = 0
+
+  const layer = WorldBank.cached.pipe(
+    Layer.provide(
+      http((url) => {
+        requests += 1
+
+        return fromRecording(url)
+      }),
+    ),
+    Layer.provide(
+      Layer.succeed(
+        Cache,
+        Cache.of({
+          get: (key) => Effect.sync(() => Option.fromNullishOr(store.get(key))),
+          put: (key, value) =>
+            Effect.sync(() => {
+              store.set(key, value)
+            }),
+        }),
+      ),
+    ),
+  )
+
+  return { layer, store, requests: () => requests }
+}
+
+describe("WorldBank.cached", () => {
+  it.effect("serves a repeat request from the cache with its original retrieval time", () => {
+    const world = cachedRecording()
+
+    return Effect.gen(function* () {
+      const worldBank = yield* WorldBank
+      const first = yield* worldBank.observations(gdp)
+
+      yield* TestClock.adjust("1 hour")
+
+      const second = yield* worldBank.observations({ ...gdp, countries: ["SSD", "FRA"] })
+
+      expect(world.requests()).toBe(1)
+      expect(second.observations).toEqual(first.observations)
+      expect(DateTime.toEpochMillis(second.retrievedAt)).toBe(
+        DateTime.toEpochMillis(first.retrievedAt),
+      )
+    }).pipe(Effect.provide(world.layer))
+  })
+
+  it.effect("asks the World Bank again once a stored result is a day old", () => {
+    const world = cachedRecording()
+
+    return Effect.gen(function* () {
+      const worldBank = yield* WorldBank
+      const first = yield* worldBank.observations(gdp)
+
+      yield* TestClock.adjust("25 hours")
+
+      const second = yield* worldBank.observations(gdp)
+
+      expect(world.requests()).toBe(2)
+      expect(DateTime.toEpochMillis(second.retrievedAt)).toBeGreaterThan(
+        DateTime.toEpochMillis(first.retrievedAt),
+      )
+    }).pipe(Effect.provide(world.layer))
+  })
+
+  it.effect("asks again when a stored entry no longer decodes", () => {
+    const world = cachedRecording()
+
+    return Effect.gen(function* () {
+      const worldBank = yield* WorldBank
+
+      yield* worldBank.describe(IndicatorId.make("SP.POP.TOTL"))
+
+      for (const key of world.store.keys())
+        world.store.set(key, `{"shape":"from an older release"}`)
+
+      const described = yield* worldBank.describe(IndicatorId.make("SP.POP.TOTL"))
+
+      expect(world.requests()).toBe(2)
+      expect(described.indicator.name).toBe("Population, total")
+    }).pipe(Effect.provide(world.layer))
+  })
 })

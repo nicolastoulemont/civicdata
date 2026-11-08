@@ -10,6 +10,8 @@ export default defineConfig({
       miniflare: {
         compatibilityDate: "2026-08-31",
         compatibilityFlags: ["new_module_registry"],
+        // A local R2 bucket under the binding name packages/infra gives the Worker.
+        r2Buckets: ["CACHE"],
       },
     }),
   ],
