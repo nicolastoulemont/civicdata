@@ -332,6 +332,9 @@ importers:
       '@civicdata/domain':
         specifier: workspace:*
         version: link:../domain
+      '@effect/sql-d1':
+        specifier: 4.1.2
+        version: 4.1.2(effect@4.1.2)
       effect:
         specifier: 'catalog:'
         version: 4.1.2
@@ -339,6 +342,9 @@ importers:
       '@cloudflare/vitest-plugin':
         specifier: ^1.6.0
         version: 1.6.0(@cloudflare/workers-types@5.20261107.1)(@types/node@26.6.6)(vitest@5.1.0(@types/node@26.6.6)(happy-dom@21.0.4)(msw@3.0.4(@types/node@26.6.6)(supports-color@10.2.2)(typescript@7.0.2)(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
+      '@cloudflare/workers-types':
+        specifier: ^5.20261107.1
+        version: 5.20261107.1
       '@effect/vitest':
         specifier: 'catalog:'
         version: 4.1.2(effect@4.1.2)(vitest@5.1.0(@types/node@26.6.6)(happy-dom@21.0.4)(msw@3.0.4(@types/node@26.6.6)(supports-color@10.2.2)(typescript@7.0.2)(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))

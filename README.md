@@ -27,6 +27,8 @@ pnpm dev          # vite dev server for apps/web, no Cloudflare bindings
 pnpm check        # format, lint, fallow, typecheck, test, build: what CI runs
 ```
 
+`pnpm dev` runs in Node, outside Workers, so it has no R2 or D1: charts work but load uncached, and indicator search answers "unavailable". For the full app, run `pnpm --filter @civicdata/infra run dev`. It serves the app from the Workers runtime against your own `dev_<user>` stage, which Alchemy deploys to your Cloudflare account.
+
 `pnpm install` runs `effect-tsgo patch --typescript`, which patches TypeScript in `node_modules` so the editor loads the Effect plugin. Scripts call `effect-tsgo tsc`, so they don't depend on the patch.
 
 ### Editor

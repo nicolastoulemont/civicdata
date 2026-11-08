@@ -34,4 +34,12 @@ describe("api", () => {
       expect(response.status).toBe(400)
     }),
   )
+
+  it.effect("rejects an indicator search shorter than two characters", () =>
+    Effect.gen(function* () {
+      const response = yield* send("/api/catalog/search?q=p")
+
+      expect(response.status).toBe(400)
+    }),
+  )
 })

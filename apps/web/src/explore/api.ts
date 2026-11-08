@@ -20,3 +20,18 @@ export const resolveQuery = (view: View) =>
     retry: false,
     placeholderData: keepPreviousData,
   })
+
+// Indicators matching what the user typed. Rejects with SourceUnavailable when
+// the World Bank catalog cannot be loaded, or CatalogUnavailable outside Workers.
+export const searchQuery = (text: string) =>
+  queryOptions({
+    queryKey: ["search", text],
+    queryFn: () =>
+      Effect.runPromise(
+        client.pipe(Effect.flatMap((api) => api.catalog.search({ query: { q: text } }))),
+      ),
+    enabled: text.length >= 2,
+    retry: false,
+    placeholderData: keepPreviousData,
+    staleTime: 60 * 60 * 1000,
+  })

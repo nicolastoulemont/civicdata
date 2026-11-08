@@ -1,4 +1,5 @@
 import {
+  CatalogUnavailable,
   IndicatorId,
   type ResolvedView,
   ResolvedView as ResolvedViewSchema,
@@ -19,6 +20,15 @@ import { network } from "../../test/network.ts"
 import { Explore } from "./Explore.tsx"
 
 const population = IndicatorId.make("SP.POP.TOTL")
+
+const catalog = [
+  { indicator: population, name: "Population, total", definition: "Midyear estimates." },
+  {
+    indicator: IndicatorId.make("SP.DYN.LE00.IN"),
+    name: "Life expectancy at birth, total (years)",
+    definition: "Years a newborn would live.",
+  },
+]
 
 const reported: ResolvedView["observations"] = [
   { country: "FRA", year: Year.make(2019), value: 67_388_001 },
@@ -43,7 +53,11 @@ const resolvedFor = (view: View): ResolvedView => {
 
   return {
     view,
-    indicator: { id: population, name: "Population, total", definition: "Midyear estimates." },
+    indicator: {
+      id: view.indicator,
+      name: catalog.find((entry) => entry.indicator === view.indicator)?.name ?? view.indicator,
+      definition: "",
+    },
     observations,
     missing: view.countries.filter(
       (country) => !observations.some((observation) => observation.country === country),
@@ -61,6 +75,12 @@ const worldBank = http.post("/api/views/resolve", async ({ request }) => {
   const view = Schema.decodeUnknownSync(View)(await request.json())
 
   return HttpResponse.json(Schema.encodeSync(ResolvedViewSchema)(resolvedFor(view)))
+})
+
+const search = http.get("/api/catalog/search", ({ request }) => {
+  const text = (new URL(request.url).searchParams.get("q") ?? "").toLowerCase()
+
+  return HttpResponse.json(catalog.filter((entry) => entry.name.toLowerCase().includes(text)))
 })
 
 // Stands in for the route, which keeps the View in the URL.
@@ -122,5 +142,50 @@ describe("Explore", () => {
 
     expect(await screen.findByText("The World Bank is not responding")).toBeDefined()
     expect(screen.getByRole("button", { name: "Retry" })).toBeDefined()
+  })
+
+  it("switches the chart to an indicator found by name", async () => {
+    network.use(worldBank, search)
+    const user = userEvent.setup()
+
+    show(trend)
+
+    const indicator = await screen.findByRole("combobox", { name: "Indicator" })
+
+    // Select the current indicator's name and type over it.
+    await user.tripleClick(indicator)
+    await user.keyboard("life")
+    await user.click(
+      await screen.findByRole("option", { name: "Life expectancy at birth, total (years)" }),
+    )
+
+    expect(
+      await screen.findByRole("heading", { name: "Life expectancy at birth, total (years)" }),
+    ).toBeDefined()
+  })
+
+  it("explains when indicator search is unavailable", async () => {
+    network.use(
+      worldBank,
+      http.get("/api/catalog/search", () =>
+        HttpResponse.json(Schema.encodeSync(CatalogUnavailable)(new CatalogUnavailable()), {
+          status: 503,
+        }),
+      ),
+    )
+    const user = userEvent.setup()
+
+    show(trend)
+
+    const indicator = await screen.findByRole("combobox", { name: "Indicator" })
+
+    // Select the current indicator's name and type over it.
+    await user.tripleClick(indicator)
+    await user.keyboard("life")
+
+    expect(await screen.findByRole("status")).toHaveProperty(
+      "textContent",
+      "Indicator search needs the Workers runtime (alchemy dev).",
+    )
   })
 })

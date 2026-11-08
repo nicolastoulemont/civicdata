@@ -1,4 +1,5 @@
 import {
+  type CatalogEntry,
   Country,
   Indicator,
   IndicatorId,
@@ -46,6 +47,8 @@ interface Interface {
   readonly observations: (
     query: Query,
   ) => Effect.Effect<Series, IndicatorNotFound | SourceUnavailable>
+  // Every World Development Indicators indicator, in one request.
+  readonly indicators: Effect.Effect<ReadonlyArray<CatalogEntry>, SourceUnavailable>
 }
 
 // The World Bank reports request errors with HTTP 200 and this body.
@@ -71,6 +74,9 @@ const DescribeBody = Schema.Union([
   Message,
   Schema.Tuple([Schema.Struct({}), Schema.Tuple([Metadata])]),
 ])
+
+// Asked with a page size above the ~1,500 indicators, so one page holds them all.
+const IndicatorsBody = Schema.Tuple([Schema.Struct({}), Schema.Array(Metadata)])
 
 // `null` rows means the query matched nothing.
 const ObservationsBody = Schema.Union([
@@ -139,7 +145,17 @@ const make = Effect.gen(function* () {
     }
   })
 
-  return WorldBank.of({ describe, observations })
+  const indicators = fetch(
+    `${base}/indicator?format=json&source=2&per_page=20000`,
+    IndicatorsBody,
+  ).pipe(
+    Effect.map(([, rows]) =>
+      rows.map((row) => ({ indicator: row.id, name: row.name, definition: row.sourceNote })),
+    ),
+    Effect.withSpan("WorldBank.indicators"),
+  )
+
+  return WorldBank.of({ describe, observations, indicators })
 })
 
 // World Bank indicators change a few times a year at most.
@@ -197,6 +213,8 @@ export class WorldBank extends Context.Service<WorldBank, Interface>()(
         describe: (indicator) =>
           remember(keys.described(indicator), DescribedJson, live.describe(indicator)),
         observations: (query) => remember(keys.series(query), SeriesJson, live.observations(query)),
+        // The catalog keeps its own copy in D1.
+        indicators: live.indicators,
       })
     }),
   )

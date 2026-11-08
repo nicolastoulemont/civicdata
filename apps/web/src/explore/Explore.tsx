@@ -1,4 +1,5 @@
 import {
+  type IndicatorId,
   IndicatorNotFound,
   Ranking,
   type ResolvedView,
@@ -22,15 +23,22 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 
 import { About, retrieved } from "./About.tsx"
+import { resolveQuery } from "./api.ts"
 import { Countries } from "./Countries.tsx"
 import { Data } from "./Data.tsx"
 import { countryName } from "./format.ts"
+import { Indicator } from "./Indicator.tsx"
 import { RankingChart } from "./RankingChart.tsx"
-import { resolveQuery } from "./resolve.ts"
 import { TrendChart } from "./TrendChart.tsx"
 import { range, YearSelect, years } from "./Years.tsx"
 
 const isTrend = Schema.is(Trend)
+
+const withIndicator = (view: View, indicator: IndicatorId) =>
+  Match.valueTags(view, {
+    Trend: (trend) => Trend.make({ ...trend, indicator }),
+    Ranking: (ranking) => Ranking.make({ ...ranking, indicator }),
+  })
 
 const withCountries = (view: View, countries: View["countries"]) =>
   Match.valueTags(view, {
@@ -44,11 +52,25 @@ const period = (view: View) =>
     Ranking: ({ year }) => `${year}`,
   })
 
-const Controls = ({ view, onChange }: { view: View; onChange: (view: View) => void }) => {
+const Controls = ({
+  view,
+  name,
+  onChange,
+}: {
+  view: View
+  name: string
+  onChange: (view: View) => void
+}) => {
   const all = years()
 
   return (
     <div className="flex flex-wrap items-end gap-4">
+      <div className="w-full">
+        <Indicator
+          current={{ indicator: view.indicator, name }}
+          onChange={(indicator) => onChange(withIndicator(view, indicator))}
+        />
+      </div>
       <div className="min-w-64 flex-1">
         <Countries
           selected={view.countries}
@@ -125,7 +147,11 @@ export const Explore = ({ view, onChange }: { view: View; onChange: (view: View)
           <CardDescription>{period(view)}</CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <Controls view={view} onChange={onChange} />
+          <Controls
+            view={view}
+            name={query.data?.indicator.name ?? view.indicator}
+            onChange={onChange}
+          />
           {query.isPending ? <Skeleton className="h-80 w-full" /> : null}
           {query.isError ? (
             <Problem error={query.error} retry={() => void query.refetch()} />

@@ -2,6 +2,7 @@ import { Api } from "@civicdata/domain"
 import { Effect, Layer } from "effect"
 import { HttpApiBuilder } from "effect/http-api"
 
+import { Catalog } from "./Catalog.ts"
 import { Resolver } from "./Resolver.ts"
 
 const System = HttpApiBuilder.group(Api, "system", (handlers) =>
@@ -18,5 +19,17 @@ const Views = HttpApiBuilder.group(
   }),
 )
 
-// Every API route, needing only the Resolver's dependencies.
-export const Handlers = Layer.mergeAll(System, Views).pipe(Layer.provide(Resolver.layer))
+const CatalogSearch = HttpApiBuilder.group(
+  Api,
+  "catalog",
+  Effect.fn(function* (handlers) {
+    const catalog = yield* Catalog
+
+    return handlers.handle("search", ({ query }) => catalog.search(query.q))
+  }),
+)
+
+// Every API route, needing a WorldBank and a Catalog.
+export const Handlers = Layer.mergeAll(System, Views, CatalogSearch).pipe(
+  Layer.provide(Resolver.layer),
+)
