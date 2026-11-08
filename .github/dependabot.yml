@@ -30,6 +30,6 @@ updates:
       tanstack:
         patterns: ["@tanstack/*"]
       oxc:
-        patterns: ["oxlint", "oxlint-tsgolint", "oxfmt"]
+        patterns: ["oxlint", "@oxlint/plugins", "oxlint-tsgolint", "oxfmt"]
       react:
         patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]

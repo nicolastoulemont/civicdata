@@ -13,6 +13,7 @@ export default Alchemy.Stack(
     const database = yield* Cloudflare.D1.Database("Database").pipe(
       Alchemy.RemovalPolicy.retain(stage === "prod"),
     )
+
     // Series cache. Every object can be fetched again from its source.
     const cache = yield* Cloudflare.R2.Bucket("Cache")
 

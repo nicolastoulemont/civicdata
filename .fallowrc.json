@@ -1,7 +1,39 @@
 {
   "$schema": "./node_modules/fallow/schema.json",
+  // Vendored code follows its upstream; see each folder's UPSTREAM.md.
+  "ignorePatterns": ["tools/oxlint/anti-slop/**", ".claude/**", ".agents/**"],
   "ignoreDependencies": [
     // The tsconfig plugin name. @effect/tsgo provides it.
-    "@effect/language-service"
-  ]
+    "@effect/language-service",
+    // Imported only by the vendored anti-slop rules, which are ignored above.
+    "@oxlint/plugins"
+  ],
+  // The workspace packages are private, so an export nothing in the repo uses
+  // is dead even when it sits in a package entry point.
+  "includeEntryExports": true,
+  // TanStack Router generates this file and decides what it exports.
+  "ignoreExports": [{ "file": "apps/web/src/routeTree.gen.ts", "exports": ["*"] }],
+  "effect": { "schemaExportsAsTypes": true },
+  "rules": {
+    "unused-effect-layers": "error",
+    "unused-tagged-errors": "error",
+    "unproduced-catch-tags": "error"
+  },
+  // Dependencies point one way: web -> server -> domain. Infra deploys the app
+  // and nothing imports it. A new package needs a zone before CI passes.
+  "boundaries": {
+    "zones": [
+      { "name": "domain", "patterns": ["packages/domain/**"] },
+      { "name": "server", "patterns": ["packages/server/**"] },
+      { "name": "web", "patterns": ["apps/web/**"] },
+      { "name": "infra", "patterns": ["packages/infra/**"] }
+    ],
+    "rules": [
+      { "from": "domain", "allow": [] },
+      { "from": "server", "allow": ["domain"] },
+      { "from": "web", "allow": ["server", "domain"] },
+      { "from": "infra", "allow": [] }
+    ],
+    "coverage": { "requireAllFiles": true }
+  }
 }
