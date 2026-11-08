@@ -188,4 +188,20 @@ describe("Explore", () => {
       "Indicator search needs D1: run `pnpm dev`, not `pnpm dev:web`.",
     )
   })
+
+  it("switches a trend to a ranking of its last year", async () => {
+    network.use(worldBank)
+    const user = userEvent.setup()
+
+    show(trend)
+
+    await screen.findByRole("heading", { name: "Population, total" })
+    await user.click(screen.getByRole("button", { name: "Bar chart ranking one year" }))
+
+    expect(
+      await screen.findByText("Bar chart ranking countries by Population, total"),
+    ).toBeDefined()
+    expect(screen.getByRole("combobox", { name: "Year" }).textContent).toContain("2020")
+    expect(screen.queryByRole("combobox", { name: "From" })).toBeNull()
+  })
 })

@@ -1,5 +1,4 @@
 import {
-  type IndicatorId,
   IndicatorNotFound,
   Ranking,
   type ResolvedView,
@@ -24,8 +23,10 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 import { About, retrieved } from "./About.tsx"
 import { resolveQuery } from "./api.ts"
+import { ChartType } from "./ChartType.tsx"
 import { Countries } from "./Countries.tsx"
 import { Data } from "./Data.tsx"
+import { withCountries, withIndicator } from "./edits.ts"
 import { countryName } from "./format.ts"
 import { Indicator } from "./Indicator.tsx"
 import { RankingChart } from "./RankingChart.tsx"
@@ -33,18 +34,6 @@ import { TrendChart } from "./TrendChart.tsx"
 import { range, YearSelect, years } from "./Years.tsx"
 
 const isTrend = Schema.is(Trend)
-
-const withIndicator = (view: View, indicator: IndicatorId) =>
-  Match.valueTags(view, {
-    Trend: (trend) => Trend.make({ ...trend, indicator }),
-    Ranking: (ranking) => Ranking.make({ ...ranking, indicator }),
-  })
-
-const withCountries = (view: View, countries: View["countries"]) =>
-  Match.valueTags(view, {
-    Trend: ({ indicator, from, to }) => Trend.make({ indicator, countries, from, to }),
-    Ranking: ({ indicator, year }) => Ranking.make({ indicator, countries, year }),
-  })
 
 const period = (view: View) =>
   Match.valueTags(view, {
@@ -65,11 +54,14 @@ const Controls = ({
 
   return (
     <div className="flex flex-wrap items-end gap-4">
-      <div className="w-full">
-        <Indicator
-          current={{ indicator: view.indicator, name }}
-          onChange={(indicator) => onChange(withIndicator(view, indicator))}
-        />
+      <div className="flex w-full flex-wrap items-end gap-4">
+        <div className="min-w-64 flex-1">
+          <Indicator
+            current={{ indicator: view.indicator, name }}
+            onChange={(indicator) => onChange(withIndicator(view, indicator))}
+          />
+        </div>
+        <ChartType view={view} onChange={onChange} />
       </div>
       <div className="min-w-64 flex-1">
         <Countries
