@@ -30,3 +30,22 @@ export class TransformNotApplicable extends Schema.TaggedError<
   { indicator: IndicatorId, transform: Transform },
   { httpApiStatus: 422 },
 ) {}
+
+// The agent found no chart that answers the question.
+export class NoChart extends Schema.TaggedError<NoChart, { readonly brand: unique symbol }>()(
+  "NoChart",
+  {},
+  { httpApiStatus: 422 },
+) {}
+
+// The language model failed, refused, or is not configured in this runtime.
+export class AgentUnavailable extends Schema.TaggedError<
+  AgentUnavailable,
+  { readonly brand: unique symbol }
+>()("AgentUnavailable", {}, { httpApiStatus: 503 }) {}
+
+// One visitor asked more questions in a minute than a deployment allows.
+export class TooManyQuestions extends Schema.TaggedError<
+  TooManyQuestions,
+  { readonly brand: unique symbol }
+>()("TooManyQuestions", {}, { httpApiStatus: 429 }) {}

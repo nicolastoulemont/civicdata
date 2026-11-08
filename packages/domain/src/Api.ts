@@ -3,11 +3,15 @@ import { HttpApi, HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/ht
 
 import { CatalogEntry, SearchText } from "./Catalog.ts"
 import {
+  AgentUnavailable,
   CatalogUnavailable,
   IndicatorNotFound,
+  NoChart,
   SourceUnavailable,
+  TooManyQuestions,
   TransformNotApplicable,
 } from "./Errors.ts"
+import { Question } from "./Question.ts"
 import { ResolvedView } from "./ResolvedView.ts"
 import { View } from "./View.ts"
 
@@ -35,8 +39,19 @@ class Catalog extends HttpApiGroup.make("catalog")
   )
   .prefix("/catalog") {}
 
+class Agent extends HttpApiGroup.make("agent")
+  .add(
+    HttpApiEndpoint.post("ask", "/ask", {
+      payload: Schema.Struct({ question: Question }),
+      success: View,
+      error: [NoChart, AgentUnavailable, SourceUnavailable, CatalogUnavailable, TooManyQuestions],
+    }),
+  )
+  .prefix("/agent") {}
+
 export class Api extends HttpApi.make("civicdata")
   .add(System)
   .add(Views)
   .add(Catalog)
+  .add(Agent)
   .prefix("/api") {}

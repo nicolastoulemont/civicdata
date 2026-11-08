@@ -52,3 +52,8 @@ export const searchQuery = (text: string) =>
     placeholderData: keepPreviousData,
     staleTime: 60 * 60 * 1000,
   })
+
+// The chart the agent picks for a question. Rejects with NoChart,
+// AgentUnavailable, SourceUnavailable or CatalogUnavailable.
+export const ask = (question: string) =>
+  call(page, (api) => api.agent.ask({ payload: { question } }))

@@ -5,9 +5,12 @@ export { CatalogEntry } from "./Catalog.ts"
 export { Country, countries } from "./Country.ts"
 
 export {
+  AgentUnavailable,
   CatalogUnavailable,
   IndicatorNotFound,
+  NoChart,
   SourceUnavailable,
+  TooManyQuestions,
   TransformNotApplicable,
 } from "./Errors.ts"
 
