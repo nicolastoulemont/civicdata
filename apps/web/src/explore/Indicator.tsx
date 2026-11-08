@@ -44,7 +44,7 @@ export const Indicator = ({
   onChange,
 }: {
   current: { readonly indicator: IndicatorId; readonly name: string }
-  onChange: (indicator: IndicatorId) => void
+  onChange: (picked: { readonly id: IndicatorId; readonly name: string }) => void
 }) => {
   const id = useId()
   const [text, setText] = useState("")
@@ -82,7 +82,8 @@ export const Indicator = ({
           setText(details.reason === "input-change" ? next : "")
         }
         onValueChange={(entry: CatalogEntry | null) => {
-          if (entry !== null && entry.indicator !== current.indicator) onChange(entry.indicator)
+          if (entry !== null && entry.indicator !== current.indicator)
+            onChange({ id: entry.indicator, name: entry.name })
         }}
       >
         <ComboboxInput id={id} placeholder="Search indicators" />

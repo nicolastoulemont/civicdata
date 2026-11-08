@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-import { countryName, formatValue } from "./format.ts"
+import { countryName, formatValue, transformLabel } from "./format.ts"
 
 const quote = (field: string) => `"${field.replaceAll('"', '""')}"`
 
@@ -51,19 +51,26 @@ export const Data = ({ resolved }: { resolved: ResolvedView }) => {
             <Download data-icon="inline-start" aria-hidden />
             Download CSV
           </a>
-          <a
-            className={buttonVariants({ variant: "link", size: "sm" })}
-            href={resolved.provenance.url}
-          >
-            Source request
-          </a>
+          {resolved.sources.map((source) => (
+            <a
+              key={source.indicator}
+              className={buttonVariants({ variant: "link", size: "sm" })}
+              href={source.url}
+            >
+              {source.indicator} request
+            </a>
+          ))}
         </div>
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Country</TableHead>
               <TableHead>Year</TableHead>
-              <TableHead className="text-right">Value</TableHead>
+              <TableHead className="text-right">
+                {transformLabel(resolved.view) === undefined
+                  ? "Value"
+                  : `Value (${transformLabel(resolved.view)})`}
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

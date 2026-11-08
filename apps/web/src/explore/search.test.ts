@@ -23,6 +23,13 @@ describe("explore URL", () => {
     expect(toSearch(toView(ranking))).toEqual(ranking)
   })
 
+  it("round-trips a transform", () => {
+    const indexed: Search = { ...trend, transform: "index" }
+
+    expect(toSearch(toView(indexed))).toEqual(indexed)
+    expect(toView(indexed).transform).toBe("Index")
+  })
+
   it.each([
     ["years that run backwards", { ...trend, from: 2022, to: 2000 }],
     ["an unknown country", { ...trend, countries: "FRA,XXX" }],

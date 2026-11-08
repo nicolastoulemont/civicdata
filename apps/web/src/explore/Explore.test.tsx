@@ -28,6 +28,11 @@ const catalog = [
     name: "Life expectancy at birth, total (years)",
     definition: "Years a newborn would live.",
   },
+  {
+    indicator: IndicatorId.make("SL.UEM.TOTL.ZS"),
+    name: "Unemployment, total (% of total labor force)",
+    definition: "Share of the labor force without work.",
+  },
 ]
 
 const reported: ResolvedView["observations"] = [
@@ -47,9 +52,14 @@ const resolvedFor = (view: View): ResolvedView => {
     Ranking: (ranking) => ({ from: ranking.year, to: ranking.year }),
   })
 
-  const observations = reported.filter(
-    ({ country, year }) => view.countries.includes(country) && year >= from && year <= to,
-  )
+  // Per person, the fake divides by a round million so the change is visible.
+  const observations = reported
+    .filter(({ country, year }) => view.countries.includes(country) && year >= from && year <= to)
+    .map(({ country, year, value }) => ({
+      country,
+      year,
+      value: view.transform === "PerPerson" ? value / 1_000_000 : value,
+    }))
 
   return {
     view,
@@ -62,12 +72,15 @@ const resolvedFor = (view: View): ResolvedView => {
     missing: view.countries.filter(
       (country) => !observations.some((observation) => observation.country === country),
     ),
-    provenance: {
-      source: "World Bank",
-      dataset: "World Development Indicators",
-      url: "https://api.worldbank.org/v2/country/FRA;DEU/indicator/SP.POP.TOTL",
-      retrievedAt: DateTime.makeUnsafe("2026-11-08T00:00:00Z"),
-    },
+    sources: [
+      {
+        indicator: view.indicator,
+        source: "World Bank",
+        dataset: "World Development Indicators",
+        url: `https://api.worldbank.org/v2/indicator/${view.indicator}`,
+        retrievedAt: DateTime.makeUnsafe("2026-11-08T00:00:00Z"),
+      },
+    ],
   }
 }
 
@@ -203,5 +216,32 @@ describe("Explore", () => {
     ).toBeDefined()
     expect(screen.getByRole("combobox", { name: "Year" }).textContent).toContain("2020")
     expect(screen.queryByRole("combobox", { name: "From" })).toBeNull()
+  })
+
+  it("shows a total per person", async () => {
+    network.use(worldBank)
+    const user = userEvent.setup()
+
+    show(trend)
+
+    await screen.findByRole("heading", { name: "Population, total" })
+    await user.click(screen.getByRole("button", { name: "Per person" }))
+    await user.click(screen.getByRole("button", { name: "Data" }))
+
+    expect(await screen.findByText("2019–2020 · per person")).toBeDefined()
+    expect(await screen.findByRole("columnheader", { name: "Value (per person)" })).toBeDefined()
+    expect(await screen.findByRole("cell", { name: "67.39" })).toBeDefined()
+  })
+
+  it("offers no transform for a percentage", async () => {
+    network.use(worldBank)
+
+    show(Trend.make({ ...trend, indicator: IndicatorId.make("SL.UEM.TOTL.ZS") }))
+
+    await screen.findByRole("heading", { name: "Unemployment, total (% of total labor force)" })
+
+    for (const name of ["Per person", "Growth", "Index"]) {
+      expect(screen.getByRole("button", { name })).toHaveProperty("disabled", true)
+    }
   })
 })
