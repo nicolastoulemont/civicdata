@@ -68,14 +68,21 @@ export class Catalog extends Context.Service<Catalog, Interface>()("@civicdata/s
       })
 
       const matches = SqlSchema.findAll({
-        Request: Schema.Struct({ match: Schema.String, generation: Schema.Int }),
+        Request: Schema.Struct({
+          match: Schema.String,
+          code: Schema.String,
+          generation: Schema.Int,
+        }),
         Result: CatalogEntry,
-        // bm25 weights follow the column order: a hit in the name counts ten
-        // times one in the definition, a hit in the indicator code five times.
-        execute: ({ match, generation }) => sql`
+        // Codes the user typed the start of come first: "SP.POP" also matches
+        // "Specialist ... population" by word prefixes. Then bm25, whose
+        // weights follow the column order: a hit in the name counts ten times
+        // one in the definition, a hit in the indicator code five times.
+        execute: ({ match, code, generation }) => sql`
           SELECT indicator, name, definition FROM catalog
           WHERE catalog MATCH ${match} AND source = ${source} AND generation = ${generation}
-          ORDER BY bm25(catalog, 0.0, 0.0, 5.0, 10.0, 1.0)
+          ORDER BY substr(lower(indicator), 1, length(${code})) = ${code} DESC,
+            bm25(catalog, 0.0, 0.0, 5.0, 10.0, 1.0)
           LIMIT 20
         `,
       })
@@ -131,7 +138,11 @@ export class Catalog extends Context.Service<Catalog, Interface>()("@civicdata/s
 
           if (match === undefined) return []
 
-          return yield* matches({ match, generation: yield* generation })
+          return yield* matches({
+            match,
+            code: text.trim().toLowerCase(),
+            generation: yield* generation,
+          })
         },
         // Database and row-decoding failures are defects: nothing a caller can fix.
         Effect.catchTags({ SqlError: Effect.die, SchemaError: Effect.die }),
