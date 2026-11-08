@@ -119,17 +119,17 @@ jobs:
         run: |
           marker="<!-- civicdata-preview -->"
           case "$STATE" in
-            deploying) status="🔵 Deploying" link="–" ;;
-            success) status="🟢 Ready" link="$URL" ;;
-            cancelled) status="🔴 Cancelled" link="–" ;;
-            *) status="🔴 Failed" link="–" ;;
+            deploying) status="🔵 Deploying" ;;
+            success) status="🟢 [Ready]($URL)" ;;
+            cancelled) status="🔴 Cancelled" ;;
+            *) status="🔴 Failed" ;;
           esac
           body="$marker
           ### Preview
 
-          | Status | Preview | Commit | Logs |
-          | :-- | :-- | :-- | :-- |
-          | $status | $link | \`${SHA:0:7}\` | [Run]($RUN_URL) |"
+          | Status | Commit | Logs |
+          | :-- | :-- | :-- |
+          | $status | \`${SHA:0:7}\` | [Run]($RUN_URL) |"
           ids=$(gh api "repos/$REPO/issues/$PR/comments" --paginate \
             --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | startswith(\"$marker\"))) | .id")
           id=${ids%%$'\n'*}
