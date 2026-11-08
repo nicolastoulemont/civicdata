@@ -1,0 +1,7 @@
+import { HttpApi, HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/http-api"
+
+class System extends HttpApiGroup.make("system", { topLevel: true }).add(
+  HttpApiEndpoint.get("health", "/health", { success: HttpApiSchema.NoContent }),
+) {}
+
+export class Api extends HttpApi.make("civicdata").add(System).prefix("/api") {}

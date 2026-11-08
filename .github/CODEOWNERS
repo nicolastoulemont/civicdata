@@ -1,0 +1,5 @@
+# Changes to CI, deploys and supply-chain settings need an owner's review.
+* @nicolastoulemont
+/.github/ @nicolastoulemont
+/packages/infra/ @nicolastoulemont
+/pnpm-workspace.yaml @nicolastoulemont

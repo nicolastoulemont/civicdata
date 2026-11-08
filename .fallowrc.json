@@ -1,0 +1,7 @@
+{
+  "$schema": "./node_modules/fallow/schema.json",
+  "ignoreDependencies": [
+    // The tsconfig plugin name. @effect/tsgo provides it.
+    "@effect/language-service"
+  ]
+}

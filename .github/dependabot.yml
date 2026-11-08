@@ -1,0 +1,35 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    # Matches pnpm's minimumReleaseAge, so Dependabot never proposes a version
+    # that pnpm would refuse to install.
+    cooldown:
+      default-days: 1
+    groups:
+      # @effect/tsgo patches one exact TypeScript build, so they move together.
+      # Dependabot uses the first matching group, so this comes before effect.
+      typescript:
+        patterns: ["typescript", "@effect/tsgo"]
+      effect:
+        patterns: ["effect", "@effect/*"]
+      alchemy:
+        patterns: ["alchemy", "@alchemy.run/*"]
+      tanstack:
+        patterns: ["@tanstack/*"]
+      oxc:
+        patterns: ["oxlint", "oxlint-tsgolint", "oxfmt"]
+      react:
+        patterns: ["react", "react-dom", "@types/react", "@types/react-dom"]
