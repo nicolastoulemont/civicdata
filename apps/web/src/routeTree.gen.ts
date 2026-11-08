@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ExploreRouteImport } from './routes/explore'
+import { Route as ExploreDotpngRouteImport } from './routes/explore[.]png'
 import { Route as ApiSplatRouteImport } from './routes/api/$'
 
 const IndexRoute = IndexRouteImport.update({
@@ -23,6 +24,11 @@ const ExploreRoute = ExploreRouteImport.update({
   path: '/explore',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ExploreDotpngRoute = ExploreDotpngRouteImport.update({
+  id: '/explore.png',
+  path: '/explore.png',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSplatRoute = ApiSplatRouteImport.update({
   id: '/api/$',
   path: '/api/$',
@@ -32,30 +38,34 @@ const ApiSplatRoute = ApiSplatRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/explore': typeof ExploreRoute
+  '/explore.png': typeof ExploreDotpngRoute
   '/api/$': typeof ApiSplatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/explore': typeof ExploreRoute
+  '/explore.png': typeof ExploreDotpngRoute
   '/api/$': typeof ApiSplatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/explore': typeof ExploreRoute
+  '/explore.png': typeof ExploreDotpngRoute
   '/api/$': typeof ApiSplatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/explore' | '/api/$'
+  fullPaths: '/' | '/explore' | '/explore.png' | '/api/$'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/explore' | '/api/$'
-  id: '__root__' | '/' | '/explore' | '/api/$'
+  to: '/' | '/explore' | '/explore.png' | '/api/$'
+  id: '__root__' | '/' | '/explore' | '/explore.png' | '/api/$'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ExploreRoute: typeof ExploreRoute
+  ExploreDotpngRoute: typeof ExploreDotpngRoute
   ApiSplatRoute: typeof ApiSplatRoute
 }
 
@@ -75,6 +85,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExploreRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/explore.png': {
+      id: '/explore.png'
+      path: '/explore.png'
+      fullPath: '/explore.png'
+      preLoaderRoute: typeof ExploreDotpngRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/$': {
       id: '/api/$'
       path: '/api/$'
@@ -88,6 +105,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ExploreRoute: ExploreRoute,
+  ExploreDotpngRoute: ExploreDotpngRoute,
   ApiSplatRoute: ApiSplatRoute,
 }
 export const routeTree = rootRouteImport

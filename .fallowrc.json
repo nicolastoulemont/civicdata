@@ -20,8 +20,9 @@
   ],
   "effect": { "schemaExportsAsTypes": true },
   // shadcn's generated components are kept close to upstream rather than
-  // restructured; complexity limits apply to our own code.
-  "health": { "ignore": ["apps/web/src/components/ui/**"] },
+  // restructured; complexity limits apply to our own code. Build scripts run by
+  // hand; tests check what they write (faces.gen.ts), not the scripts.
+  "health": { "ignore": ["apps/web/src/components/ui/**", "apps/web/scripts/**"] },
   "rules": {
     "unused-effect-layers": "error",
     "unused-tagged-errors": "error",

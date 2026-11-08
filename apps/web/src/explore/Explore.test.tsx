@@ -139,6 +139,23 @@ describe("Explore", () => {
     expect(table.getByRole("cell", { name: "59,438,851" })).toBeDefined()
   })
 
+  it("copies a link to the chart on screen", async () => {
+    const link =
+      "http://localhost:3000/explore?chart=trend&indicator=SP.POP.TOTL&countries=FRA,DEU&from=2019&to=2020"
+
+    const user = userEvent.setup()
+
+    network.use(worldBank)
+
+    window.history.replaceState(null, "", link)
+    show(trend)
+
+    await user.click(await screen.findByRole("button", { name: "Copy link" }))
+
+    expect(await screen.findByRole("button", { name: "Link copied" })).toBeDefined()
+    expect(await navigator.clipboard.readText()).toBe(link)
+  })
+
   it("explains when the World Bank is unavailable and offers a retry", async () => {
     network.use(
       http.post("/api/views/resolve", () =>

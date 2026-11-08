@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { type Search, toSearch, toView } from "./search.ts"
+import { fromUrl, type Search, toQuery, toSearch, toView } from "./search.ts"
 
 const trend: Search = {
   chart: "trend",
@@ -28,6 +28,15 @@ describe("explore URL", () => {
 
     expect(toSearch(toView(indexed))).toEqual(indexed)
     expect(toView(indexed).transform).toBe("Index")
+  })
+
+  it("reads a View back from the query string it writes", () => {
+    const view = toView({ ...trend, transform: "per-person" })
+
+    expect(toQuery(view)).toBe(
+      "?chart=trend&indicator=SP.POP.TOTL&countries=FRA%2CDEU&from=2000&to=2022&transform=per-person",
+    )
+    expect(fromUrl(new URL(`https://civicdata.example/explore.png${toQuery(view)}`))).toEqual(view)
   })
 
   it.each([
