@@ -185,7 +185,7 @@ describe("Explore", () => {
 
     expect(await screen.findByRole("status")).toHaveProperty(
       "textContent",
-      "Indicator search needs the Workers runtime (alchemy dev).",
+      "Indicator search needs D1: run `pnpm dev`, not `pnpm dev:web`.",
     )
   })
 })

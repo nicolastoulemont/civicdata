@@ -20,7 +20,7 @@ import { searchQuery } from "./api.ts"
 
 const problem = (error: Error) =>
   error instanceof CatalogUnavailable
-    ? "Indicator search needs the Workers runtime (alchemy dev)."
+    ? "Indicator search needs D1: run `pnpm dev`, not `pnpm dev:web`."
     : error instanceof SourceUnavailable
       ? "The World Bank catalog is not responding. Try again in a moment."
       : "Indicator search failed."

@@ -32,12 +32,13 @@ civicdata charts public data about countries (World Bank first, then Eurostat an
 ## Cloudflare Workers
 
 - Workers forbid timers, random values and I/O at module scope, outside a request. Build Effect runtimes and handlers on the first request, as `packages/server/src/index.ts` does.
-- App code reads bindings from `cloudflare:workers` and wraps each in its own Effect layer. Import it dynamically inside the layer and fall back when it is missing, as `Cache.layer` in `packages/server/src/Cache.ts` does: plain `pnpm dev` and the Node build run outside Workers, where the module does not exist (`apps/web/vite.config.ts` marks it external). Only `packages/infra` imports Alchemy (lint enforces it), and `vite.config.ts` gets no Cloudflare plugin: Alchemy adds its own at build time.
+- App code reads bindings from `cloudflare:workers` and wraps each in its own Effect layer. Import it dynamically inside the layer and fall back when it is missing, as `Cache.layer` in `packages/server/src/Cache.ts` does: `pnpm dev:web` and the Node build run outside Workers, where the module does not exist (`apps/web/vite.config.ts` marks it external). Only `packages/infra` imports Alchemy (lint enforces it), and `vite.config.ts` gets no Cloudflare plugin: Alchemy adds its own at build time.
 
 ## Tooling gotchas
 
 - pnpm refuses package versions published less than a day ago, and any dependency build script not listed under `allowBuilds` in `pnpm-workspace.yaml`. Review a build script before allowing it.
 - `pnpm deploy` is a pnpm built-in. Run the infra script with `pnpm --filter @civicdata/infra run deploy`.
+- `pnpm dev` runs `alchemy dev`, which emulates D1 and R2 locally (`create (local)` in its log). Stopping it can leave a child process listening on port 1337; free the port before restarting.
 - Run `pnpm check` before pushing; it is the CI gate.
 - Fallow enforces the package import direction (web -> server -> domain; nothing imports infra). A new package or top-level source folder needs a zone in `.fallowrc.json`, or `pnpm check` fails.
 
