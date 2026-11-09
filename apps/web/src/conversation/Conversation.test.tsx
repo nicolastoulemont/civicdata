@@ -24,7 +24,7 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router"
-import { getDefaultNormalizer, render, screen, within } from "@testing-library/react"
+import { fireEvent, getDefaultNormalizer, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Cause, DateTime, Schema } from "effect"
 import { http, HttpResponse } from "msw/http"
@@ -214,6 +214,31 @@ describe("Conversation", () => {
 
     expect(await screen.findAllByRole("heading", { name: "You" })).toHaveLength(2)
     expect(screen.getAllByRole("heading", { name: "civicdata" })).toHaveLength(2)
+  })
+
+  it("offers a named button after scrolling up, and returns to the latest answer", async () => {
+    network.use(turns([{ question: "What about happiness?", answer: Unanswered.make({}) }]))
+    show()
+    await screen.findByText("No World Bank indicator answers this question")
+    const viewport = screen.getByRole("region", { name: "Conversation" })
+    // happy-dom has no layout. Supply only the browser's geometry, keeping
+    // the rendered feature and its scroll handlers real.
+    Object.defineProperties(viewport, {
+      clientHeight: { configurable: true, value: 600 },
+      scrollHeight: { configurable: true, value: 1600 },
+    })
+    expect(screen.queryByRole("button", { name: "Scroll to end" })).toBeNull()
+    fireEvent.scroll(viewport, { target: { scrollTop: 1000 } })
+    fireEvent.scroll(viewport, { target: { scrollTop: 300 } })
+    expect(await screen.findByRole("button", { name: "Scroll to end" })).toBeDefined()
+    // Manual scrolling back to the end also resumes follow.
+    fireEvent.scroll(viewport, { target: { scrollTop: 1000 } })
+    expect(screen.queryByRole("button", { name: "Scroll to end" })).toBeNull()
+    fireEvent.scroll(viewport, { target: { scrollTop: 300 } })
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Scroll to end" }))
+    expect(viewport.scrollTop).toBe(1600)
+    expect(screen.queryByRole("button", { name: "Scroll to end" })).toBeNull()
+    expect(document.activeElement).toBe(viewport)
   })
 
   it("copies a question", async () => {
