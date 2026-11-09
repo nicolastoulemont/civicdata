@@ -9,7 +9,8 @@ interface ReplyProps {
   answer: Ending
 }
 
-// How the agent answered: a chart, a question back, or no indicator.
+// How the agent answered: a chart, a question back, no indicator, or nothing
+// because the person stopped it.
 export const Reply = ({ answer }: ReplyProps) =>
   Match.valueTags(answer, {
     Answered: ({ view, takeaway }) => <Answer view={view} takeaway={takeaway} />,
@@ -22,4 +23,5 @@ export const Reply = ({ answer }: ReplyProps) =>
         </AlertDescription>
       </Alert>
     ),
+    Stopped: () => <p className="text-sm text-muted-foreground">You stopped</p>,
   })

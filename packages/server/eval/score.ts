@@ -60,6 +60,7 @@ const endingOf = (ending: Ending) =>
     Answered: ({ view }) => `a ${partsOf(view).chart}`,
     Asked: ({ question }) => `the question "${question}"`,
     Unanswered: () => "no chart",
+    Stopped: () => "stopped",
   })
 
 const isAnswered = Schema.is(Answered)

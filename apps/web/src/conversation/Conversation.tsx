@@ -17,7 +17,7 @@ interface ConversationProps {
 // A conversation with the agent, newest question last. `first` is a question
 // to ask as soon as the conversation opens: the one typed on the home page.
 export const Conversation = ({ id, first }: ConversationProps) => {
-  const { turns, pending, failures, retry, answering, ask } = useConversation(id)
+  const { turns, pending, failures, retry, answering, stop, stopping, ask } = useConversation(id)
   const [dismissed, setDismissed] = useState<Error | null>(null)
   const sent = useRef(false)
 
@@ -61,7 +61,7 @@ export const Conversation = ({ id, first }: ConversationProps) => {
         <FollowUp
           pending={pending !== undefined}
           last={all.at(-1)?.answer}
-          answering={answering}
+          answering={answering ? { stop, stopping } : undefined}
           ask={ask}
         />
       </main>

@@ -12,6 +12,7 @@ const describe = (step: Step) =>
     Answered: () => "Found a chart",
     Asked: () => "Asked which you mean",
     Unanswered: () => "Found no indicator",
+    Stopped: () => "Stopped",
   })
 
 interface WorkProps {

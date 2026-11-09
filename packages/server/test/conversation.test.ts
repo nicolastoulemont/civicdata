@@ -14,6 +14,7 @@ import {
   Ranking,
   Rejected,
   Searched,
+  Stopped,
   TooManyQuestions,
   Trend,
   Unanswered,
@@ -239,6 +240,8 @@ const turns = Effect.flatMap(client, (api) => api.conversation.turns({ params: {
 
 // The answer in progress. Succeeds once the conversation has looked it up.
 const follow = Effect.flatMap(client, (api) => api.conversation.answer({ params: { id } }))
+
+const stop = Effect.flatMap(client, (api) => api.conversation.stop({ params: { id } }))
 
 const brazilTrend = Trend.make({
   indicator: lifeExpectancy,
@@ -717,6 +720,73 @@ describe("conversations", () => {
       }).pipe(Effect.provide(serveApi(model.layer)))
     }),
   )
+
+  it.effect("stops an answer mid-way and keeps its turn as stopped", () =>
+    Effect.gen(function* () {
+      const waiting = yield* Deferred.make<void>()
+      const seen = yield* Deferred.make<void>()
+      const reply = yield* Deferred.make<ReadonlyArray<Response.PartEncoded>>()
+
+      const model = scripted([
+        Effect.succeed(call("search_indicators", { text: "life expectancy" })),
+        Deferred.succeed(waiting, undefined).pipe(Effect.andThen(Deferred.await(reply))),
+      ])
+
+      const stopped = { question: "Life expectancy in Brazil", answer: Stopped.make({}) }
+
+      return yield* Effect.gen(function* () {
+        const steps = yield* ask("Life expectancy in Brazil").pipe(
+          Effect.flatMap((stream) =>
+            stream.pipe(
+              Stream.tap(() => Deferred.succeed(seen, undefined)),
+              Stream.runCollect,
+            ),
+          ),
+          Effect.forkChild,
+        )
+
+        // The visitor has seen the first step and the agent waits on the model.
+        yield* Deferred.await(seen)
+        yield* Deferred.await(waiting)
+        yield* stop
+
+        expect(yield* Fiber.join(steps)).toEqual([
+          Searched.make({ text: "life expectancy" }),
+          Stopped.make({}),
+        ])
+        expect(yield* turns).toEqual({ answered: [stopped] })
+
+        // The model's late reply is dropped: the agent was cut off.
+        yield* Deferred.succeed(reply, call("show_chart", brazil))
+        yield* Effect.yieldNow
+
+        expect(yield* turns).toEqual({ answered: [stopped] })
+        expect(model.prompts).toHaveLength(2)
+
+        // The next question is answered without the stopped one.
+        expect((yield* answer("Life expectancy in Mexico")).at(-1)).toEqual(Unanswered.make({}))
+        expect(model.prompts.at(-1)).not.toContain("Brazil")
+      }).pipe(Effect.provide(serveApi(model.layer)))
+    }),
+  )
+
+  it.effect("keeps an answer that ended before the stop", () => {
+    const model = scripted([Effect.succeed(call("show_chart", brazil))])
+
+    return Effect.gen(function* () {
+      yield* answer("Life expectancy in Brazil")
+      yield* stop
+
+      expect(yield* turns).toEqual({
+        answered: [
+          {
+            question: "Life expectancy in Brazil",
+            answer: Answered.make({ view: brazilTrend, takeaway }),
+          },
+        ],
+      })
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
 
   it.effect("passes a failed answer on to whoever follows it", () =>
     Effect.gen(function* () {

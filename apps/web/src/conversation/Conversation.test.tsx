@@ -10,6 +10,7 @@ import {
   Searched,
   SourceUnavailable,
   Step,
+  Stopped,
   TooManyQuestions,
   Trend,
   Turn,
@@ -343,6 +344,51 @@ describe("Conversation", () => {
     expect(await screen.findByText("No World Bank indicator answers this question")).toBeDefined()
     expect((await findComposer()).getAttribute("placeholder")).toBe(
       "Name what to measure and where",
+    )
+  })
+
+  it("stops an answer in progress and is ready for the next question", async () => {
+    const reply = answer()
+    const user = userEvent.setup()
+
+    network.use(
+      turns([]),
+      reply.handler,
+      // The server stops the answer, which ends its stream with Stopped.
+      http.delete(`/api/conversations/${id}/answer`, () => {
+        reply.send(message(Stopped.make({})))
+        reply.end()
+
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    show("Life expectancy in Brazil")
+
+    reply.send(message(Searched.make({ text: "life expectancy" })))
+    expect(await screen.findByText("Searched indicators for “life expectancy”")).toBeDefined()
+
+    // A draft takes the stop button's place until the box is empty again.
+    await user.type(await findComposer(), "Add Mexico")
+    expect(
+      screen.getByRole("button", { name: "Wait for the answer to send another question" }),
+    ).toBeDefined()
+    expect(screen.queryByRole("button", { name: "Stop" })).toBeNull()
+
+    await user.clear(await findComposer())
+    await user.click(screen.getByRole("button", { name: "Stop" }))
+
+    expect(await screen.findByText("You stopped")).toBeDefined()
+    expect(await findQuestion("Life expectancy in Brazil")).toBeDefined()
+    expect(screen.queryByRole("button", { name: "Stop" })).toBeNull()
+
+    const composer = await findComposer()
+
+    expect(document.activeElement).toBe(composer)
+    expect(composer.getAttribute("placeholder")).toBe("Ask again, or ask something else")
+
+    await user.type(composer, "Life expectancy in Mexico")
+    expect(screen.getByRole("button", { name: "Send" }).getAttribute("aria-disabled")).not.toBe(
+      "true",
     )
   })
 

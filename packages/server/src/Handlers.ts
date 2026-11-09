@@ -77,6 +77,7 @@ const ConversationRoutes = HttpApiBuilder.group(
       .handleRaw("turns", forward)
       .handleRaw("ask", forward)
       .handleRaw("answer", forward)
+      .handleRaw("stop", forward)
   }),
 )
 

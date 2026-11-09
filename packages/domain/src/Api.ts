@@ -79,7 +79,8 @@ const Steps = HttpApiSchema.StreamSse({
 // question; a conversation idle for 30 days is deleted and reads as empty.
 // An answer runs to the end and is kept even when nobody reads it: `answer`
 // streams the one in progress from its first step, and nothing when there is
-// none.
+// none. Only `stop` ends an answer early: it keeps the turn as Stopped, and
+// does nothing once the answer has ended.
 class Conversation extends HttpApiGroup.make("conversation")
   .add(
     HttpApiEndpoint.get("turns", "/:id", {
@@ -100,6 +101,13 @@ class Conversation extends HttpApiGroup.make("conversation")
     HttpApiEndpoint.get("answer", "/:id/answer", {
       params: { id: ConversationId },
       success: Steps,
+      error: AgentUnavailable,
+    }),
+  )
+  .add(
+    HttpApiEndpoint.delete("stop", "/:id/answer", {
+      params: { id: ConversationId },
+      success: HttpApiSchema.NoContent,
       error: AgentUnavailable,
     }),
   )
