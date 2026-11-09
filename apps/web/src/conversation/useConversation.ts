@@ -14,12 +14,14 @@ import { call, page } from "@/api"
 import { record } from "@/history/store"
 
 // The questions answered so far, and the one being answered, if any. Rejects
-// with AgentUnavailable where conversations cannot be reached.
+// with AgentUnavailable where conversations cannot be reached. Finished turns
+// never change, so they stay fresh until a question is asked.
 export const turnsQuery = (id: ConversationId) =>
   queryOptions({
     queryKey: ["conversation", id],
     queryFn: () => call(page, (api) => api.conversation.turns({ params: { id } })),
     retry: false,
+    staleTime: (query) => (query.state.data?.answering === undefined ? Infinity : 0),
   })
 
 const isEnding = Schema.is(Ending)

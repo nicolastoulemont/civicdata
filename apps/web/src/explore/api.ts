@@ -12,13 +12,15 @@ export const resolve = (view: View, transport = page) =>
 
 // Keyed by the URL form so equal Views share a cache entry. While an edited
 // View loads, the previous result stays on screen so the chart and the open
-// sections do not collapse.
+// sections do not collapse. A resolved View carries when its data was
+// retrieved, so it stays fresh.
 export const resolveQuery = (view: View) =>
   queryOptions({
     queryKey: ["resolve", toSearch(view)],
     queryFn: () => resolve(view),
     retry: false,
     placeholderData: keepPreviousData,
+    staleTime: Infinity,
   })
 
 // Indicators matching what the user typed. Rejects with SourceUnavailable when

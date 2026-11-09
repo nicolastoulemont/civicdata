@@ -3,6 +3,7 @@ import { createFileRoute, notFound, useLocation } from "@tanstack/react-router"
 import { Option, Schema } from "effect"
 
 import { Conversation } from "@/conversation/Conversation"
+import { preload } from "@/conversation/preload"
 
 const decodeId = Schema.decodeUnknownOption(ConversationId)
 
@@ -24,6 +25,8 @@ export const Route = createFileRoute("/_chat/c/$id")({
       },
       onSome: (id) => ({ id }),
     }),
+  // Runs on hover or focus of a link here, and on arrival.
+  loader: ({ context: { queryClient, id } }) => preload({ queryClient, id }),
   head: () => ({ meta: [{ title: "Conversation · civicdata" }] }),
   component: ConversationPage,
 })
