@@ -1,3 +1,4 @@
+/* oxlint-disable vitest/no-standalone-expect -- throwaway CI probe */
 import {
   Api,
   type Country,
