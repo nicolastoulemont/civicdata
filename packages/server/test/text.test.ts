@@ -45,6 +45,10 @@ describe("plain", () => {
     )
   })
 
+  it("leaves no tag that removing another one formed", () => {
+    expect(plain("<<b></b>script>alert(1)<</b>/script>")).toBe("alert(1)")
+  })
+
   it("leaves a comparison in plain text alone", () => {
     expect(plain("Children aged <5 years and adults >65")).toBe(
       "Children aged <5 years and adults >65",
