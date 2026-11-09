@@ -297,6 +297,20 @@ describe("Explore", () => {
     expect(screen.queryByRole("combobox", { name: "From" })).toBeNull()
   })
 
+  it("draws a trend's last year as a world map with a key", async () => {
+    network.use(worldBank)
+    const user = userEvent.setup()
+
+    show(trend)
+
+    await screen.findByRole("heading", { name: "Total population" })
+    await user.click(screen.getByRole("button", { name: "World map ranking one year" }))
+
+    expect(await screen.findByText("World map ranking countries by Total population")).toBeDefined()
+    expect(screen.getByText("No data")).toBeDefined()
+    expect(screen.getByRole("combobox", { name: "Year" }).textContent).toContain("2020")
+  })
+
   it("switches a trend to the change between its first and last years", async () => {
     network.use(worldBank)
     const user = userEvent.setup()

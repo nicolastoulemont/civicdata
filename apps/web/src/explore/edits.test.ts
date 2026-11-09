@@ -10,7 +10,7 @@ import {
 } from "@civicdata/domain"
 import { describe, expect, it } from "vitest"
 
-import { withAgainst, withChart, withIndicator } from "./edits.ts"
+import { withAgainst, withChart, withIndicator, withTransform } from "./edits.ts"
 
 const population = IndicatorId.make("SP.POP.TOTL")
 
@@ -84,6 +84,23 @@ describe("chart type edits", () => {
     expect(withChart(Trend.make({ ...base, transform: "Growth" }), "Change")).toEqual(
       Change.make(base),
     )
+  })
+
+  it("draws a trend's last year as a map, keeping it a map when its transform changes", () => {
+    const trend = Trend.make({
+      indicator: population,
+      countries: ["FRA"],
+      from: Year.make(2000),
+      to: Year.make(2022),
+    })
+
+    const map = withChart(trend, "Map")
+
+    expect(map).toEqual(
+      Ranking.make({ indicator: population, countries: ["FRA"], year: Year.make(2022), as: "Map" }),
+    )
+    expect(withTransform(map, "PerPerson")).toMatchObject({ as: "Map", transform: "PerPerson" })
+    expect(withChart(map, "Ranking")).not.toHaveProperty("as")
   })
 
   it("plots a chart's last year against GDP per person", () => {

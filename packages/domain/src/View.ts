@@ -40,12 +40,14 @@ export const Trend = Schema.TaggedStruct("Trend", {
 
 export interface Trend extends Schema.Schema.Type<typeof Trend> {}
 
-// One indicator for some countries in a single year, drawn as ranked bars.
-// A single year has no first year to index to.
+// One indicator for some countries in a single year, drawn as ranked bars,
+// or as a world map shaded by rank when `as` is "Map". A single year has no
+// first year to index to.
 export const Ranking = Schema.TaggedStruct("Ranking", {
   indicator: IndicatorId,
   countries: Countries,
   year: Year,
+  as: Schema.optionalKey(Schema.Literal("Map")),
   transform: Schema.optionalKey(Schema.Union([Schema.Literals(["PerPerson", "Growth"]), Ratio])),
 }).check(divides)
 

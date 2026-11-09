@@ -19,6 +19,7 @@ import { withTransform } from "./edits.ts"
 // ?chart=trend&indicator=SP.POP.TOTL&countries=FRA,DEU&from=2000&to=2022&transform=index
 // ?chart=relation&indicator=SP.DYN.LE00.IN&against=NY.GDP.PCAP.CD&countries=FRA,DEU&year=2022
 // A ratio names the indicator it divides by: &transform=ratio&per=NY.GDP.MKTP.CD
+// A ranking drawn as a world map adds &as=map.
 const Search = Schema.Union([
   Schema.Struct({
     chart: Schema.Literal("trend"),
@@ -36,6 +37,7 @@ const Search = Schema.Union([
     year: Year,
     transform: Schema.optionalKey(Schema.Literals(["per-person", "growth", "ratio"])),
     per: Schema.optionalKey(IndicatorId),
+    as: Schema.optionalKey(Schema.Literal("map")),
   }),
   Schema.Struct({
     chart: Schema.Literal("change"),
@@ -79,6 +81,10 @@ function transformParams(transform: Transform | undefined) {
   return { transform: toParam[transform] }
 }
 
+// A ranking drawn as a map as link parameters, none for bars.
+const drawnParams = (as: "Map" | undefined): { readonly as?: "map" } =>
+  as === undefined ? {} : { as: "map" }
+
 // The transform a link names. Throws when a ratio lacks the indicator it
 // divides by, or another transform names one.
 const transformOfParams = ({
@@ -110,9 +116,16 @@ export const toView = (search: Search): View =>
         transformOfParams(params),
       ),
     ),
-    Match.when({ chart: "ranking" }, ({ indicator, countries, year, ...params }) =>
+    Match.when({ chart: "ranking" }, ({ indicator, countries, year, as, ...params }) =>
       withTransform(
-        Ranking.make({ indicator, countries: countryList(countries.split(",")), year }),
+        as === undefined
+          ? Ranking.make({ indicator, countries: countryList(countries.split(",")), year })
+          : Ranking.make({
+              indicator,
+              countries: countryList(countries.split(",")),
+              year,
+              as: "Map",
+            }),
         transformOfParams(params),
       ),
     ),
@@ -138,12 +151,13 @@ export const toSearch = (view: View): Search =>
       to,
       ...transformParams(transform),
     }),
-    Ranking: ({ indicator, countries, year, transform }) => ({
+    Ranking: ({ indicator, countries, year, transform, as }) => ({
       chart: "ranking" as const,
       indicator,
       countries: countries.join(","),
       year,
       ...transformParams(transform),
+      ...drawnParams(as),
     }),
     Change: ({ indicator, countries, from, to, transform }) => ({
       chart: "change" as const,

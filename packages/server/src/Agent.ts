@@ -157,9 +157,9 @@ const ShowChart = Tool.make("show_chart", {
   description:
     "Show one chart of a World Bank indicator. The chart is checked against the data; when it is rejected, fix what the problem names and call again.",
   parameters: Schema.Struct({
-    chart: Schema.Literals(["trend", "ranking", "change", "relation"]).annotate({
+    chart: Schema.Literals(["trend", "ranking", "map", "change", "relation"]).annotate({
       description:
-        "trend: one line per country over a range of years. ranking: countries compared in one year. change: each country's value in two years, from and to. relation: one dot per country in one year, the indicator against another.",
+        "trend: one line per country over a range of years. ranking: countries compared in one year, as bars. map: a ranking drawn as a world map, for many countries. change: each country's value in two years, from and to. relation: one dot per country in one year, the indicator against another.",
     }),
     indicator: Schema.String.annotate({
       description: "An indicator code returned by search_indicators, e.g. SP.DYN.LE00.IN",
@@ -179,7 +179,7 @@ const ShowChart = Tool.make("show_chart", {
       description: "Last year of a trend or a change; null otherwise",
     }),
     year: Schema.NullOr(Schema.Int).annotate({
-      description: "The year of a ranking or a relation; null otherwise",
+      description: "The year of a ranking, a map or a relation; null otherwise",
     }),
     transform: Schema.NullOr(Schema.Literals(["PerPerson", "Growth", "Index", "Ratio"])).annotate({
       description:
@@ -230,6 +230,7 @@ const toView = Effect.fnUntraced(function* (draft: Draft) {
   const fields: Record<string, Draft[keyof Draft] | Ratio> = Match.value(draft.chart).pipe(
     Match.whenOr("trend", "change", () => ({ indicator, countries, from, to })),
     Match.when("ranking", () => ({ indicator, countries, year })),
+    Match.when("map", () => ({ indicator, countries, year, as: "Map" })),
     Match.when("relation", () => ({ indicator, against, countries, year })),
     Match.exhaustive,
   )
@@ -243,7 +244,7 @@ const toView = Effect.fnUntraced(function* (draft: Draft) {
     Match.when("trend", () =>
       decode(TrendFields).pipe(Effect.flatMap((made) => checked(Trend.makeEffect(made)))),
     ),
-    Match.when("ranking", () =>
+    Match.whenOr("ranking", "map", () =>
       decode(RankingFields).pipe(Effect.flatMap((made) => checked(Ranking.makeEffect(made)))),
     ),
     Match.when("change", () =>

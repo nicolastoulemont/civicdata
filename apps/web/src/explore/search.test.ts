@@ -24,6 +24,18 @@ describe("explore URL", () => {
     expect(toSearch(toView(ranking))).toEqual(ranking)
   })
 
+  it("round-trips a ranking drawn as a map", () => {
+    const map: Search = {
+      chart: "ranking",
+      indicator: "SP.POP.TOTL",
+      countries: "FRA,DEU",
+      year: 2020,
+      as: "map",
+    }
+
+    expect(toSearch(toView(map))).toEqual(map)
+  })
+
   it("round-trips a ratio with the indicator it divides by", () => {
     const ratio: Search = { ...trend, transform: "ratio", per: "NY.GDP.MKTP.CD" }
 
