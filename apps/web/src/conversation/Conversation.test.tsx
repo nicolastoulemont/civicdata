@@ -78,10 +78,10 @@ const resolve = http.post("/api/views/resolve", async ({ request }) => {
         name: "Life expectancy at birth, total (years)",
         definition: "",
       },
-      observations: [
-        { country: "BRA", year: Year.make(2000), value: 70.1 },
-        { country: "BRA", year: Year.make(2001), value: 70.4 },
-      ],
+      observations: view.countries.flatMap((country) => [
+        { country, year: Year.make(2000), value: 70.1 },
+        { country, year: Year.make(2001), value: 70.4 },
+      ]),
       missing: [],
       dimensions: [],
       disagreements: [],
@@ -261,7 +261,6 @@ describe("Conversation", () => {
       await screen.findByRole("heading", { name: "Life expectancy at birth (years)" }),
     ).toBeDefined()
     expect(screen.getByText("Life expectancy in Brazil rose.")).toBeDefined()
-    expect(screen.getByRole("link", { name: "Open in the explorer" })).toBeDefined()
     expect(screen.queryByText("Searched for “life expectancy”: 1 found")).toBeNull()
   })
 
@@ -641,26 +640,91 @@ describe("Conversation", () => {
     expect(await navigator.clipboard.readText()).toBe("What about happiness?")
   })
 
-  it("links an answer's chart in the explorer, and copies that link", async () => {
-    const link =
-      "http://localhost:3000/explore?chart=trend&indicator=SP.DYN.LE00.IN&countries=BRA&from=2000&to=2001"
-
+  it("changes an answer's chart where it is, and copies a link to the changed chart", async () => {
     const user = userEvent.setup()
 
+    network.use(
+      turns([
+        {
+          question: "Life expectancy in Brazil",
+          answer: Answered.make({ view: brazil, takeaway: "Life expectancy in Brazil rose." }),
+        },
+      ]),
+      resolve,
+    )
+    show()
+
+    expect(await screen.findByText("Brazil · 2000–2001")).toBeDefined()
+    expect(screen.queryByRole("combobox", { name: "Countries" })).toBeNull()
+
+    await user.click(screen.getByRole("button", { name: "Change" }))
+    await user.type(screen.getByRole("combobox", { name: "Countries" }), "Argen")
+    await user.click(await screen.findByRole("option", { name: "Argentina" }))
+
+    expect(await screen.findByText("Brazil and Argentina · 2000–2001")).toBeDefined()
+    expect(screen.getByText("Life expectancy in Brazil rose.").className).toContain(
+      "text-muted-foreground",
+    )
+    expect(screen.getByText("This describes the chart before your changes.")).toBeDefined()
+    expect(screen.getByRole("button", { name: "Explain this chart" })).toBeDefined()
+
+    await user.click(screen.getByRole("tab", { name: "Data" }))
+    expect(
+      await within(await screen.findByRole("table")).findAllByRole("cell", { name: "Argentina" }),
+    ).toHaveLength(2)
+
+    await user.click(screen.getByRole("button", { name: "Copy link" }))
+    expect(await screen.findByRole("button", { name: "Link copied" })).toBeDefined()
+    expect(await navigator.clipboard.readText()).toBe(
+      "http://localhost:3000/explore?chart=trend&indicator=SP.DYN.LE00.IN&countries=BRA%2CARG&from=2000&to=2001",
+    )
+    expect(screen.queryByRole("link", { name: /explorer/ })).toBeNull()
+  })
+
+  it("loads a trend's whole history only once its chart is being changed", async () => {
+    const asked: Array<Year> = []
+
+    network.use(
+      turns([{ question: "Life expectancy in Brazil", answer: Answered.make({ view: brazil }) }]),
+      // Records the first year asked for, then lets `resolve` answer.
+      http.post("/api/views/resolve", async ({ request }) => {
+        asked.push(Schema.decodeUnknownSync(Trend)(await request.clone().json()).from)
+      }),
+      resolve,
+    )
+    show()
+
+    await screen.findByText("Brazil · 2000–2001")
+    expect(asked).toEqual([2000])
+
+    await userEvent.setup().click(screen.getByRole("button", { name: "Change" }))
+
+    expect(await screen.findByRole("slider", { name: "First year" })).toBeDefined()
+    expect(asked).toEqual([2000, 1960])
+  })
+
+  it("holds the view where the reader changes a chart, instead of following the end", async () => {
     network.use(
       turns([{ question: "Life expectancy in Brazil", answer: Answered.make({ view: brazil }) }]),
       resolve,
     )
     show()
 
-    expect(
-      (await screen.findByRole("link", { name: "Open in the explorer" })).getAttribute("href"),
-    ).toBe(link.replace("http://localhost:3000", ""))
+    const change = await screen.findByRole("button", { name: "Change" })
+    const viewport = screen.getByRole("region", { name: "Conversation" })
+    // happy-dom has no layout: the conversation is taller than its viewport.
+    Object.defineProperties(viewport, {
+      clientHeight: { configurable: true, value: 600 },
+      scrollHeight: { configurable: true, value: 1600 },
+    })
+    fireEvent.scroll(viewport, { target: { scrollTop: 1000 } })
+    expect(screen.queryByRole("button", { name: "Scroll to end" })).toBeNull()
 
-    await user.click(screen.getByRole("button", { name: "Copy link" }))
+    await userEvent.setup().click(change)
 
-    expect(await screen.findByRole("button", { name: "Link copied" })).toBeDefined()
-    expect(await navigator.clipboard.readText()).toBe(link)
+    expect(await screen.findByRole("combobox", { name: "Countries" })).toBeDefined()
+    expect(screen.getByRole("button", { name: "Scroll to end" })).toBeDefined()
+    expect(viewport.scrollTop).toBe(1000)
   })
 
   it("asks a follow-up below the earlier turns", async () => {

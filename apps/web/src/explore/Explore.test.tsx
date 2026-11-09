@@ -198,7 +198,7 @@ interface PageProps {
 const Page = ({ initial }: PageProps) => {
   const [view, setView] = useState(initial)
 
-  return <Explore view={view} onChange={setView} />
+  return <Explore view={view} onChange={setView} heading="h1" changing />
 }
 
 const show = (view: View) =>
@@ -261,7 +261,7 @@ describe("Explore", () => {
         expect(figure.getByText(name)).toBeDefined()
       }
 
-      await userEvent.setup().click(screen.getByRole("button", { name: "Data" }))
+      await userEvent.setup().click(screen.getByRole("tab", { name: "Data" }))
       const table = within(await screen.findByRole("table"))
 
       for (const name of names) expect(table.getAllByRole("cell", { name })).toHaveLength(2)
@@ -277,7 +277,7 @@ describe("Explore", () => {
     show(trend)
 
     expect(await screen.findByRole("heading", { name: "Total population" })).toBeDefined()
-    await user.click(screen.getByRole("button", { name: "About this data" }))
+    await user.click(screen.getByRole("tab", { name: "About" }))
     expect(await screen.findByText("Population, total")).toBeDefined()
   })
 
@@ -288,7 +288,7 @@ describe("Explore", () => {
     show(trend)
 
     expect(await screen.findByRole("heading", { name: "Total population" })).toBeDefined()
-    await user.click(screen.getByRole("button", { name: "Data" }))
+    await user.click(screen.getByRole("tab", { name: "Data" }))
     expect(
       within(await screen.findByRole("table")).queryByRole("cell", { name: "Italy" }),
     ).toBeNull()
@@ -378,7 +378,7 @@ describe("Explore", () => {
         "Source: Eurostat, Population on 1 January. Retrieved 8 November 2026.",
       ),
     ).toBeDefined()
-    await user.click(screen.getByRole("button", { name: "About this data" }))
+    await user.click(screen.getByRole("tab", { name: "About" }))
     expect(
       (await screen.findByRole("link", { name: "ESTAT,TPS00001,1.0" })).getAttribute("href"),
     ).toBe("https://ec.europa.eu/eurostat/databrowser/view/tps00001/default/table")
@@ -486,7 +486,7 @@ describe("Explore", () => {
       "Break in series: Germany 2020",
     )
 
-    await user.click(screen.getByRole("button", { name: "Data" }))
+    await user.click(screen.getByRole("tab", { name: "Data" }))
 
     expect(
       within(await screen.findByRole("table")).getAllByRole("cell", { name: "provisional" }),
@@ -623,7 +623,7 @@ describe("Explore", () => {
     expect(
       await screen.findByText("Change in Total population between 2019 and 2020, by country"),
     ).toBeDefined()
-    expect(screen.getByText("2019 and 2020")).toBeDefined()
+    expect(screen.getByText("France and Germany · 2019 and 2020")).toBeDefined()
     expect(screen.getByRole("button", { name: "Per person" })).toBeDefined()
     expect(screen.queryByRole("button", { name: "Growth" })).toBeNull()
   })
@@ -647,7 +647,7 @@ describe("Explore", () => {
     expect(screen.getByRole("combobox", { name: "Against" })).toBeDefined()
     expect(screen.queryByRole("group", { name: "Show as" })).toBeNull()
 
-    await user.click(screen.getByRole("button", { name: "Data" }))
+    await user.click(screen.getByRole("tab", { name: "Data" }))
 
     const table = within(await screen.findByRole("table"))
 
@@ -669,7 +669,7 @@ describe("Explore", () => {
     act(() => first.focus())
     await user.keyboard("{ArrowLeft}")
 
-    expect(await screen.findByText("2018–2020")).toBeDefined()
+    expect(await screen.findByText("France and Germany · 2018–2020")).toBeDefined()
     expect(screen.getByRole("combobox", { name: "From" }).textContent).toContain("2018")
   })
 
@@ -681,9 +681,9 @@ describe("Explore", () => {
 
     await screen.findByRole("heading", { name: "Total population" })
     await user.click(screen.getByRole("button", { name: "Per person" }))
-    await user.click(screen.getByRole("button", { name: "Data" }))
+    await user.click(screen.getByRole("tab", { name: "Data" }))
 
-    expect(await screen.findByText("2019–2020 · per person")).toBeDefined()
+    expect(await screen.findByText("France and Germany · 2019–2020 · per person")).toBeDefined()
     expect(await screen.findByRole("columnheader", { name: "Value (per person)" })).toBeDefined()
     expect(await screen.findByRole("cell", { name: "67.39" })).toBeDefined()
   })
@@ -697,10 +697,12 @@ describe("Explore", () => {
     await screen.findByRole("heading", { name: "Total population" })
     await user.click(screen.getByRole("button", { name: "Ratio" }))
 
-    expect(await screen.findByText("2019–2020 · per GDP (current US$)")).toBeDefined()
+    expect(
+      await screen.findByText("France and Germany · 2019–2020 · per GDP (current US$)"),
+    ).toBeDefined()
     expect(screen.getByRole("combobox", { name: "Per" })).toBeDefined()
 
-    await user.click(screen.getByRole("button", { name: "Data" }))
+    await user.click(screen.getByRole("tab", { name: "Data" }))
 
     expect(await screen.findByRole("link", { name: "NY.GDP.MKTP.CD request" })).toBeDefined()
     expect(screen.getByRole("link", { name: "SP.POP.TOTL request" })).toBeDefined()
@@ -781,7 +783,7 @@ describe("Explore", () => {
     show(trend)
 
     await screen.findByRole("heading", { name: "Total population" })
-    await user.click(screen.getByRole("button", { name: "About this data" }))
+    await user.click(screen.getByRole("tab", { name: "About" }))
 
     expect(
       within(await screen.findByRole("region", { name: "Why it matters" })).getByText(

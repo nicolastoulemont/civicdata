@@ -1,4 +1,5 @@
 import {
+  type Answered,
   Change,
   type Dimension,
   DimensionsMissing,
@@ -17,7 +18,7 @@ import {
 } from "@civicdata/domain"
 import { useQuery } from "@tanstack/react-query"
 import { Match } from "effect"
-import { lazy, Suspense } from "react"
+import { lazy, Suspense, use, useState } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -31,6 +32,9 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Toggle } from "@/components/ui/toggle"
+import { Hold } from "@/hold"
 
 import { About } from "./About.tsx"
 import { resolveQuery } from "./api.ts"
@@ -49,11 +53,13 @@ import {
   indicatorNames,
   named,
   period,
+  picks,
   subject,
   transformLabel,
 } from "./format.ts"
 import { Indicator } from "./Indicator.tsx"
 import type { Paired } from "./points.ts"
+import { places } from "./preview.ts"
 import { RankingChart } from "./RankingChart.tsx"
 import { RelationChart } from "./RelationChart.tsx"
 import { ShowAs } from "./ShowAs.tsx"
@@ -274,8 +280,8 @@ const RankingMap = lazy(() =>
   import("./RankingMap.tsx").then((module) => ({ default: module.RankingMap })),
 )
 
-// The trend on screen with its whole history, to pick its years over. The
-// explorer has one; an answer does not.
+// The trend on screen with its whole history, to pick its years over, while
+// the chart is being changed.
 interface Picking {
   readonly trend: Trend
   readonly history: History
@@ -310,7 +316,7 @@ interface ChartProps {
 
 // The chart, and under it the values its source flags and where other
 // sources disagree.
-export const Chart = ({ resolved, picking }: ChartProps) => (
+const Chart = ({ resolved, picking }: ChartProps) => (
   <div className="space-y-3">
     {"against" in resolved ? (
       <RelationChart resolved={resolved} />
@@ -339,10 +345,17 @@ const historyOf = (view: View) => {
   )
 }
 
+interface PickingOptions {
+  // Whether the controls are open. The history loads only then, so a
+  // conversation with several trends asks for none until one is changed.
+  enabled: boolean
+  onChange: (view: View) => void
+}
+
 // What the trend chart needs to pick a trend's years over its whole history,
 // once that history has loaded. Only a trend picks its years; the history
 // query is the same for every year picked, so it loads once.
-const usePicking = (view: View, onChange: (view: View) => void): Picking | undefined => {
+const usePicking = (view: View, { enabled, onChange }: PickingOptions): Picking | undefined => {
   const trend = Match.value(view).pipe(
     Match.tag("Trend", (shown) => shown),
     Match.orElse(() => undefined),
@@ -350,10 +363,10 @@ const usePicking = (view: View, onChange: (view: View) => void): Picking | undef
 
   const history = useQuery({
     ...resolveQuery(historyOf(view)),
-    enabled: trend !== undefined,
+    enabled: enabled && trend !== undefined,
   })
 
-  return trend === undefined || history.data === undefined
+  return !enabled || trend === undefined || history.data === undefined
     ? undefined
     : {
         trend,
@@ -365,85 +378,159 @@ const usePicking = (view: View, onChange: (view: View) => void): Picking | undef
       }
 }
 
-interface ExploreProps {
+// The About tab's headings sit one level below the card's title.
+const below = { h1: "h2", h3: "h4" } as const
+
+// The line under the title: where, when, as what, and which series.
+const describe = (view: View, resolved: ResolvedView | undefined) => {
+  const shows = transformLabel(view, indicatorNames(resolved === undefined ? [] : [resolved]))
+
+  return [
+    places(view),
+    period(view),
+    ...(shows === undefined ? [] : [shows]),
+    ...(resolved === undefined ? [] : picks(resolved)),
+  ].join(" · ")
+}
+
+interface SectionsProps {
   view: View
+  resolved: ResolvedView
+  // Whether the chart is the previous one, shown while the changed one loads.
+  stale: boolean
+  picking: Picking | undefined
+  heading: "h1" | "h3"
   onChange: (view: View) => void
 }
 
-// The explorer for one View. The route keeps the View in the URL; this
-// component reports edits through `onChange`.
-export const Explore = ({ view, onChange }: ExploreProps) => {
+// The chart, the table behind it, and what the indicator measures, a tab
+// each. A tab mounts only while open, so About asks for its notes then.
+const Sections = ({ view, resolved, stale, picking, heading, onChange }: SectionsProps) => {
+  const hold = use(Hold)
+
+  return (
+    <Tabs defaultValue="chart" onValueChange={hold}>
+      <TabsList>
+        <TabsTrigger value="chart">Chart</TabsTrigger>
+        <TabsTrigger value="data">Data</TabsTrigger>
+        <TabsTrigger value="about">About</TabsTrigger>
+      </TabsList>
+      <TabsContent value="chart" className="flex flex-col gap-4">
+        {resolved.missing.length > 0 ? (
+          <Alert>
+            <AlertTitle>No data for {resolved.missing.map(countryName).join(", ")}</AlertTitle>
+            <AlertDescription>
+              {named(sourceOf(view.indicator))} has no values for {period(view)}.
+            </AlertDescription>
+          </Alert>
+        ) : null}
+        <div
+          aria-busy={stale}
+          className={stale ? "opacity-50 transition-opacity" : "transition-opacity"}
+        >
+          <Chart resolved={resolved} picking={picking} />
+        </div>
+      </TabsContent>
+      <TabsContent value="data">
+        <Data resolved={resolved} />
+      </TabsContent>
+      <TabsContent value="about">
+        <About
+          resolved={resolved}
+          heading={below[heading]}
+          onSwitch={(entry) =>
+            onChange(withIndicator(view, { id: entry.indicator, name: entry.name }))
+          }
+        />
+      </TabsContent>
+    </Tabs>
+  )
+}
+
+interface ExploreProps {
+  view: View
+  onChange: (view: View) => void
+  // The card's title: the page's own heading on /explore, or a heading under
+  // the question in a conversation.
+  heading: "h1" | "h3"
+  // Whether the controls start open.
+  changing?: boolean
+  // The chart the agent answered with and its takeaway, in a conversation.
+  agent?: typeof Answered.Type | undefined
+}
+
+// The explorer card for one View: its chart, the table behind it and what it
+// measures, with the controls to change it. The caller keeps the View; this
+// component reports changes through `onChange`. Every change holds a
+// conversation's scrolling where it is, so the card stays under the pointer.
+export const Explore = ({
+  view,
+  onChange,
+  heading: Heading,
+  changing: initial = false,
+  agent,
+}: ExploreProps) => {
+  const hold = use(Hold)
+  const [changing, setChanging] = useState(initial)
+
+  const change = (next: View) => {
+    hold()
+    onChange(next)
+  }
+
   const query = useQuery(resolveQuery(view))
   const known = indicatorNames(query.data === undefined ? [] : [query.data])
-  const picking = usePicking(view, onChange)
+  const picking = usePicking(view, { enabled: changing, onChange: change })
 
   const dimensions =
     query.data?.dimensions ??
     (query.error instanceof DimensionsMissing ? query.error.dimensions : [])
 
   return (
-    <main className="mx-auto flex max-w-5xl flex-col gap-4 p-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <h1>{subject(view, known)}</h1>
-          </CardTitle>
-          <CardDescription>
-            {transformLabel(view, known) === undefined
-              ? period(view)
-              : `${period(view)} · ${transformLabel(view, known)}`}
-          </CardDescription>
-          <CardAction>
-            <CopyLink view={view} />
-          </CardAction>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <Controls view={view} known={known} dimensions={dimensions} onChange={onChange} />
-          {query.isPending ? <Skeleton className="h-80 w-full" /> : null}
-          {query.isError ? (
-            <Problem error={query.error} retry={() => void query.refetch()} />
-          ) : null}
-          {query.data === undefined ? null : (
-            <>
-              {query.data.missing.length > 0 ? (
-                <Alert>
-                  <AlertTitle>
-                    No data for {query.data.missing.map(countryName).join(", ")}
-                  </AlertTitle>
-                  <AlertDescription>
-                    {named(sourceOf(view.indicator))} has no values for {period(view)}.
-                  </AlertDescription>
-                </Alert>
-              ) : null}
-              <div
-                aria-busy={query.isPlaceholderData}
-                className={
-                  query.isPlaceholderData ? "opacity-50 transition-opacity" : "transition-opacity"
-                }
-              >
-                <Chart resolved={query.data} picking={picking} />
-              </div>
-              <Takeaway view={view} />
-            </>
-          )}
-        </CardContent>
-        <CardFooter className="text-sm text-muted-foreground">
-          {query.data === undefined
-            ? `Source: ${sourceOf(view.indicator)}`
-            : attribution(query.data)}
-        </CardFooter>
-      </Card>
-      {query.data === undefined ? null : (
-        <>
-          <About
-            resolved={query.data}
-            onSwitch={(entry) =>
-              onChange(withIndicator(view, { id: entry.indicator, name: entry.name }))
-            }
-          />
-          <Data resolved={query.data} />
-        </>
-      )}
-    </main>
+    <Card>
+      <CardHeader>
+        <CardTitle>
+          <Heading>{subject(view, known)}</Heading>
+        </CardTitle>
+        <CardDescription>{describe(view, query.data)}</CardDescription>
+        <CardAction className="flex flex-wrap justify-end gap-2">
+          <Toggle
+            variant="outline"
+            size="sm"
+            pressed={changing}
+            onPressedChange={(pressed) => {
+              hold()
+              setChanging(pressed)
+            }}
+          >
+            Change
+          </Toggle>
+          <CopyLink view={view} />
+        </CardAction>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-4">
+        {changing ? (
+          <Controls view={view} known={known} dimensions={dimensions} onChange={change} />
+        ) : null}
+        {query.isPending ? <Skeleton className="h-80 w-full" /> : null}
+        {query.isError ? <Problem error={query.error} retry={() => void query.refetch()} /> : null}
+        {query.data === undefined ? null : (
+          <>
+            <Takeaway view={view} agent={agent} />
+            <Sections
+              view={view}
+              resolved={query.data}
+              stale={query.isPlaceholderData}
+              picking={picking}
+              heading={Heading}
+              onChange={change}
+            />
+          </>
+        )}
+      </CardContent>
+      <CardFooter className="text-sm text-muted-foreground">
+        {query.data === undefined ? `Source: ${sourceOf(view.indicator)}` : attribution(query.data)}
+      </CardFooter>
+    </Card>
   )
 }

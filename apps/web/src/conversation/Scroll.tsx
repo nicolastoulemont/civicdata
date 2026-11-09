@@ -1,20 +1,10 @@
 import { ArrowDown } from "lucide-react"
-import {
-  createContext,
-  type ReactNode,
-  useCallback,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react"
+import { type ReactNode, useCallback, useLayoutEffect, useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button"
+import { Hold } from "@/hold"
 
 import { type Follow, followScroll } from "./scroll.ts"
-
-// Holds the view where it is, as scrolling up does: a row the reader opens
-// stays under their pointer instead of following the end.
-export const Hold = createContext<() => void>(() => {})
 
 interface ScrollProps {
   children: ReactNode

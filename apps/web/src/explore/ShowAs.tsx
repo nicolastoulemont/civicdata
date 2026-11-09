@@ -49,6 +49,7 @@ export const ShowAs = ({ view, name, onChange }: ShowAsProps) => {
   return (
     <ToggleGroup
       aria-label="Show as"
+      className="flex-wrap"
       variant="outline"
       value={[transform === undefined ? "Values" : kindOf(transform)]}
       onValueChange={(next: Array<string>) => {

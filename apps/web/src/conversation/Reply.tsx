@@ -13,7 +13,7 @@ interface ReplyProps {
 // because the person stopped it.
 export const Reply = ({ answer }: ReplyProps) =>
   Match.valueTags(answer, {
-    Answered: ({ view, takeaway }) => <Answer view={view} takeaway={takeaway} />,
+    Answered: (answered) => <Answer agent={answered} />,
     Asked: ({ question }) => <p>{question}</p>,
     Unanswered: () => (
       <Alert>
