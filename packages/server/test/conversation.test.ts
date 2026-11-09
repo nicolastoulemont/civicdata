@@ -17,7 +17,7 @@ import {
   Year,
 } from "@civicdata/domain"
 import { describe, expect, it } from "@effect/vitest"
-import { DateTime, Deferred, Effect, Fiber, Layer, Schema, Stream } from "effect"
+import { DateTime, Deferred, Effect, Fiber, Layer, Option, Schema, Stream } from "effect"
 import { AiError, LanguageModel, type Response } from "effect/ai"
 import { HttpRouter, HttpServer } from "effect/http"
 import { HttpApiTest } from "effect/http-api"
@@ -179,6 +179,9 @@ const answer = (question: string) => ask(question).pipe(Effect.flatMap(Stream.ru
 
 const turns = Effect.flatMap(client, (api) => api.conversation.turns({ params: { id } }))
 
+// The answer in progress. Succeeds once the conversation has looked it up.
+const follow = Effect.flatMap(client, (api) => api.conversation.answer({ params: { id } }))
+
 const brazilTrend = Trend.make({
   indicator: lifeExpectancy,
   countries: ["BRA"],
@@ -194,19 +197,21 @@ describe("conversations", () => {
     ])
 
     return Effect.gen(function* () {
-      expect(yield* turns).toEqual([])
+      expect(yield* turns).toEqual({ answered: [] })
 
       expect(yield* answer("How has life expectancy changed in Brazil?")).toEqual([
         Searched.make({ text: "life expectancy" }),
         Answered.make({ view: brazilTrend }),
       ])
 
-      expect(yield* turns).toEqual([
-        {
-          question: "How has life expectancy changed in Brazil?",
-          answer: Answered.make({ view: brazilTrend }),
-        },
-      ])
+      expect(yield* turns).toEqual({
+        answered: [
+          {
+            question: "How has life expectancy changed in Brazil?",
+            answer: Answered.make({ view: brazilTrend }),
+          },
+        ],
+      })
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
@@ -225,7 +230,7 @@ describe("conversations", () => {
         Answered.make({ view: Trend.make({ ...brazilTrend, countries: ["BRA", "MEX"] }) }),
       )
       expect(model.prompts[1]).toContain("Life expectancy in Brazil")
-      expect((yield* turns).map((turn) => turn.question)).toEqual([
+      expect((yield* turns).answered.map((turn) => turn.question)).toEqual([
         "Life expectancy in Brazil",
         "Add Mexico",
       ])
@@ -252,7 +257,7 @@ describe("conversations", () => {
       expect(last).not.toContain("First question")
       expect(last).toContain("Second question")
       expect(last).toContain("Fifth question")
-      expect((yield* turns).map((turn) => turn.question)).toEqual(questions)
+      expect((yield* turns).answered.map((turn) => turn.question)).toEqual(questions)
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
@@ -294,9 +299,9 @@ describe("conversations", () => {
 
     return Effect.gen(function* () {
       expect(yield* answer("What is the meaning of life?")).toEqual([Unanswered.make({})])
-      expect(yield* turns).toEqual([
-        { question: "What is the meaning of life?", answer: Unanswered.make({}) },
-      ])
+      expect(yield* turns).toEqual({
+        answered: [{ question: "What is the meaning of life?", answer: Unanswered.make({}) }],
+      })
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
@@ -355,10 +360,12 @@ describe("conversations", () => {
         Answered.make({ view: brazilTrend }),
       )
       expect(model.prompts[1]).toContain("Which measure?")
-      expect(yield* turns).toEqual([
-        { question: "How long do people live in Brazil?", answer: asked },
-        { question: "Life expectancy", answer: Answered.make({ view: brazilTrend }) },
-      ])
+      expect(yield* turns).toEqual({
+        answered: [
+          { question: "How long do people live in Brazil?", answer: asked },
+          { question: "Life expectancy", answer: Answered.make({ view: brazilTrend }) },
+        ],
+      })
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
@@ -377,7 +384,7 @@ describe("conversations", () => {
       const error = yield* answer("Life expectancy in Brazil").pipe(Effect.flip)
 
       expect(error).toBeInstanceOf(AgentUnavailable)
-      expect(yield* turns).toEqual([])
+      expect(yield* turns).toEqual({ answered: [] })
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
@@ -399,6 +406,67 @@ describe("conversations", () => {
         yield* Deferred.succeed(reply, call("search_indicators", { text: "life expectancy" }))
 
         expect((yield* Fiber.join(first)).at(-1)).toEqual(Answered.make({ view: brazilTrend }))
+      }).pipe(Effect.provide(serveApi(model.layer)))
+    }),
+  )
+
+  it.effect("finishes and keeps an answer the visitor stopped reading", () =>
+    Effect.gen(function* () {
+      const reply = yield* Deferred.make<ReadonlyArray<Response.PartEncoded>>()
+
+      const model = scripted([
+        Effect.succeed(call("search_indicators", { text: "life expectancy" })),
+        Deferred.await(reply),
+      ])
+
+      const searched = Searched.make({ text: "life expectancy" })
+      const answered = Answered.make({ view: brazilTrend })
+
+      return yield* Effect.gen(function* () {
+        // The visitor reads the first step, then closes the tab.
+        expect(
+          yield* ask("Life expectancy in Brazil").pipe(Effect.flatMap(Stream.runHead)),
+        ).toEqual(Option.some(searched))
+
+        expect(yield* turns).toEqual({ answered: [], answering: "Life expectancy in Brazil" })
+
+        // Coming back, they follow the answer from its first step.
+        const following = yield* follow
+
+        yield* Deferred.succeed(reply, call("show_chart", brazil))
+
+        expect(yield* Stream.runCollect(following)).toEqual([searched, answered])
+        expect(yield* turns).toEqual({
+          answered: [{ question: "Life expectancy in Brazil", answer: answered }],
+        })
+        expect(yield* follow.pipe(Effect.flatMap(Stream.runCollect))).toEqual([])
+      }).pipe(Effect.provide(serveApi(model.layer)))
+    }),
+  )
+
+  it.effect("passes a failed answer on to whoever follows it", () =>
+    Effect.gen(function* () {
+      const reply = yield* Deferred.make<ReadonlyArray<Response.PartEncoded>, AiError.AiError>()
+      const model = scripted([Deferred.await(reply)])
+
+      return yield* Effect.gen(function* () {
+        const steps = yield* ask("Life expectancy in Brazil")
+        const following = yield* follow
+
+        yield* Deferred.fail(
+          reply,
+          new AiError.AiError({
+            module: "OpenAI",
+            method: "generateText",
+            reason: new AiError.UnknownError({ description: "upstream 500" }),
+          }),
+        )
+
+        expect(yield* Stream.runCollect(steps).pipe(Effect.flip)).toBeInstanceOf(AgentUnavailable)
+        expect(yield* Stream.runCollect(following).pipe(Effect.flip)).toBeInstanceOf(
+          AgentUnavailable,
+        )
+        expect(yield* turns).toEqual({ answered: [] })
       }).pipe(Effect.provide(serveApi(model.layer)))
     }),
   )

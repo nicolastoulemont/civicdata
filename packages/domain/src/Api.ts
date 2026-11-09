@@ -2,7 +2,7 @@ import { Schema } from "effect"
 import { HttpApi, HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/http-api"
 
 import { CatalogEntry, SearchText } from "./Catalog.ts"
-import { ConversationId, Question, Step, Turn } from "./Conversation.ts"
+import { ConversationId, Question, Step, Turns } from "./Conversation.ts"
 import {
   AgentUnavailable,
   CatalogUnavailable,
@@ -39,15 +39,23 @@ class Catalog extends HttpApiGroup.make("catalog")
   )
   .prefix("/catalog") {}
 
+// An answer's steps as they happen. Once the stream has started, a failure
+// arrives in it rather than as an HTTP status.
+const Steps = HttpApiSchema.StreamSse({
+  data: Step,
+  error: Schema.Union([AgentUnavailable, SourceUnavailable, CatalogUnavailable]),
+})
+
 // One conversation with the agent. Its turns are empty until the first
 // question; a conversation idle for 30 days is deleted and reads as empty.
-// An answer streams its steps. Once the stream has started, a failure arrives
-// in it rather than as an HTTP status.
+// An answer runs to the end and is kept even when nobody reads it: `answer`
+// streams the one in progress from its first step, and nothing when there is
+// none.
 class Conversation extends HttpApiGroup.make("conversation")
   .add(
     HttpApiEndpoint.get("turns", "/:id", {
       params: { id: ConversationId },
-      success: Schema.Array(Turn),
+      success: Turns,
       error: AgentUnavailable,
     }),
   )
@@ -55,11 +63,15 @@ class Conversation extends HttpApiGroup.make("conversation")
     HttpApiEndpoint.post("ask", "/:id/questions", {
       params: { id: ConversationId },
       payload: Schema.Struct({ question: Question }),
-      success: HttpApiSchema.StreamSse({
-        data: Step,
-        error: Schema.Union([AgentUnavailable, SourceUnavailable, CatalogUnavailable]),
-      }),
+      success: Steps,
       error: [AgentUnavailable, TooManyQuestions, ConversationBusy],
+    }),
+  )
+  .add(
+    HttpApiEndpoint.get("answer", "/:id/answer", {
+      params: { id: ConversationId },
+      success: Steps,
+      error: AgentUnavailable,
     }),
   )
   .prefix("/conversations") {}
