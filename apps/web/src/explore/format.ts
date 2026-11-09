@@ -1,6 +1,7 @@
 import {
   type Country,
   countries,
+  type Flag,
   type IndicatorId,
   type ResolvedView,
   type Source,
@@ -19,6 +20,13 @@ const full = new Intl.NumberFormat("en", { maximumFractionDigits: 2 })
 export const formatCompact = (value: number) => compact.format(value)
 
 export const formatValue = (value: number) => full.format(value)
+
+// What a flag says about a value, as a reader would put it.
+export const flagLabels: Record<Flag, string> = {
+  Provisional: "Provisional",
+  Estimated: "Estimated",
+  Break: "Break in series",
+}
 
 // The years a View covers: "2000–2022" for a trend, "2000 and 2022" for a
 // change, or "2020" for a single year.

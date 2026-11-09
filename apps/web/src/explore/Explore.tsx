@@ -41,6 +41,7 @@ import { Countries } from "./Countries.tsx"
 import { Data } from "./Data.tsx"
 import { Dimensions } from "./Dimensions.tsx"
 import { withAgainst, withCountries, withIndicator, withPer, withTransform } from "./edits.ts"
+import { Flags } from "./Flags.tsx"
 import {
   attribution,
   countryName,
@@ -300,18 +301,23 @@ const Single = ({
     Change: (change) => <ChangeChart resolved={resolved} change={change} />,
   })
 
+// The chart, and under it the values its source flags.
 export const Chart = ({
   resolved,
   picking,
 }: {
   resolved: ResolvedView
   picking?: Picking | undefined
-}) =>
-  "against" in resolved ? (
-    <RelationChart resolved={resolved} />
-  ) : (
-    <Single resolved={resolved} picking={picking} />
-  )
+}) => (
+  <div className="space-y-3">
+    {"against" in resolved ? (
+      <RelationChart resolved={resolved} />
+    ) : (
+      <Single resolved={resolved} picking={picking} />
+    )}
+    <Flags resolved={resolved} />
+  </div>
+)
 
 // A trend's whole history: every year the World Bank could have, with the
 // trend's transform. An index starts at the first year shown, so the history

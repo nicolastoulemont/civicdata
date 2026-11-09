@@ -1,4 +1,4 @@
-import type { Country, ResolvedView } from "@civicdata/domain"
+import type { Country, Flag, ResolvedView } from "@civicdata/domain"
 import { ChevronDown, Download } from "lucide-react"
 
 import { buttonVariants } from "@/components/ui/button"
@@ -12,12 +12,18 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-import { countryName, formatValue, indicatorNames, transformLabel } from "./format.ts"
+import { countryName, flagLabels, formatValue, indicatorNames, transformLabel } from "./format.ts"
 
 const quote = (field: string) => `"${field.replaceAll('"', '""')}"`
 
 const valueOf = (observations: ResolvedView["observations"], country: Country) =>
   observations.find((observation) => observation.country === country)?.value
+
+const flagsOf = (observations: ResolvedView["observations"], country: Country) =>
+  observations.find((observation) => observation.country === country)?.flags ?? []
+
+const flagged = (flags: ReadonlyArray<Flag>) =>
+  [...new Set(flags)].map((flag) => flagLabels[flag].toLowerCase()).join(", ")
 
 // The table behind the chart: a value column per indicator it plots, headed
 // by the indicator's title, with a row per country and year.
@@ -39,6 +45,10 @@ const tableOf = (resolved: ResolvedView) => {
           valueOf(resolved.observations, country),
           valueOf(resolved.against.observations, country),
         ],
+        flags: [
+          ...flagsOf(resolved.observations, country),
+          ...flagsOf(resolved.against.observations, country),
+        ],
       })),
     }
   }
@@ -51,15 +61,26 @@ const tableOf = (resolved: ResolvedView) => {
       .toSorted(
         (left, right) => order(left.country) - order(right.country) || left.year - right.year,
       )
-      .map(({ country, year, value }) => ({ country, year, values: [value] })),
+      .map(({ country, year, value, flags }) => ({
+        country,
+        year,
+        values: [value],
+        flags: flags ?? [],
+      })),
   }
 }
 
 const csv = ({ columns, rows }: ReturnType<typeof tableOf>) =>
   [
-    ["country_code", "country", "year", ...columns.map((column) => column.id)].join(","),
-    ...rows.map(({ country, year, values }) =>
-      [country, quote(countryName(country)), year, ...values.map((value) => value ?? "")].join(","),
+    ["country_code", "country", "year", ...columns.map((column) => column.id), "flags"].join(","),
+    ...rows.map(({ country, year, values, flags }) =>
+      [
+        country,
+        quote(countryName(country)),
+        year,
+        ...values.map((value) => value ?? ""),
+        quote(flagged(flags)),
+      ].join(","),
     ),
   ].join("\n")
 
@@ -106,10 +127,11 @@ export const Data = ({ resolved }: { resolved: ResolvedView }) => {
                   {column.title}
                 </TableHead>
               ))}
+              <TableHead>Flags</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {table.rows.map(({ country, year, values }) => (
+            {table.rows.map(({ country, year, values, flags }) => (
               <TableRow key={`${country}-${year}`}>
                 <TableCell>{countryName(country)}</TableCell>
                 <TableCell>{year}</TableCell>
@@ -118,6 +140,7 @@ export const Data = ({ resolved }: { resolved: ResolvedView }) => {
                     {value === undefined ? "No data" : formatValue(value)}
                   </TableCell>
                 ))}
+                <TableCell className="text-muted-foreground">{flagged(flags)}</TableCell>
               </TableRow>
             ))}
           </TableBody>

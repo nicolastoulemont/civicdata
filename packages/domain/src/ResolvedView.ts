@@ -6,11 +6,19 @@ import { Indicator, IndicatorId } from "./Indicator.ts"
 import { Source } from "./Source.ts"
 import { Change, Ranking, Relation, Trend, Year } from "./View.ts"
 
+// How a source qualifies a value: provisional until its final release,
+// estimated rather than measured, or the first after a break in series, when
+// the source changed how it measures.
+const Flag = Schema.Literals(["Provisional", "Estimated", "Break"])
+
+export type Flag = typeof Flag.Type
+
 // One value of an indicator, as the source published it or after a transform.
 export const Observation = Schema.Struct({
   country: Country,
   year: Year,
   value: Schema.Finite,
+  flags: Schema.optionalKey(Schema.NonEmptyArray(Flag)),
 })
 
 export interface Observation extends Schema.Schema.Type<typeof Observation> {}

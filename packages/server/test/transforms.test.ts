@@ -18,6 +18,17 @@ describe("transforms", () => {
     ).toEqual([{ country: "FRA", year: 2020, value: 50 }])
   })
 
+  it("keeps the flags of every value a growth rate comes from", () => {
+    expect(
+      growth([
+        { country: "FRA", year: year(2019), value: 100, flags: ["Break"] },
+        { country: "FRA", year: year(2020), value: 110, flags: ["Provisional"] },
+      ]),
+    ).toEqual([
+      { country: "FRA", year: 2020, value: expect.closeTo(10, 9), flags: ["Provisional", "Break"] },
+    ])
+  })
+
   it("computes growth only where the previous year has a value", () => {
     expect(
       growth([

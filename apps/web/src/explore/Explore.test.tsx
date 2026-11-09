@@ -350,6 +350,52 @@ describe("Explore", () => {
     expect(screen.queryByText("Choose which series to show")).toBeNull()
   })
 
+  it("lists the values a source flags under the chart and in the data table", async () => {
+    network.use(
+      http.post("/api/views/resolve", async ({ request }) => {
+        const view = Schema.decodeUnknownSync(Trend)(await request.json())
+        const resolved = resolvedFor(view)
+
+        return HttpResponse.json(
+          Schema.encodeSync(ResolvedViewSchema)({
+            view,
+            title: resolved.title,
+            indicator: resolved.indicator,
+            missing: resolved.missing,
+            dimensions: resolved.dimensions,
+            sources: resolved.sources,
+            // France's values are provisional; Germany's series breaks in 2020.
+            observations: resolved.observations.map(({ country, year, value }) =>
+              country === "FRA"
+                ? { country, year, value, flags: ["Provisional"] as const }
+                : year === 2020
+                  ? { country, year, value, flags: ["Break"] as const }
+                  : { country, year, value },
+            ),
+          }),
+        )
+      }),
+    )
+    const user = userEvent.setup()
+
+    show(trend)
+
+    const flagged = within(await screen.findByRole("list", { name: "Flagged values" }))
+
+    expect(flagged.getByText("Provisional:").parentElement?.textContent).toBe(
+      "Provisional: France 2019–2020",
+    )
+    expect(flagged.getByText("Break in series:").parentElement?.textContent).toBe(
+      "Break in series: Germany 2020",
+    )
+
+    await user.click(screen.getByRole("button", { name: "Data" }))
+
+    expect(
+      within(await screen.findByRole("table")).getAllByRole("cell", { name: "provisional" }),
+    ).toHaveLength(2)
+  })
+
   it("switches the chart to an indicator found by name", async () => {
     network.use(worldBank, search)
     const user = userEvent.setup()
