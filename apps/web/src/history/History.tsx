@@ -1,6 +1,6 @@
 import { Link, useParams } from "@tanstack/react-router"
 import { DateTime } from "effect"
-import { SquarePen } from "lucide-react"
+import { Settings, SquarePen } from "lucide-react"
 import { useEffect, useId, useState } from "react"
 
 import { buttonVariants } from "@/components/ui/button"
@@ -43,8 +43,8 @@ const GitHub = () => (
 )
 
 // The sidebar: a link to start a conversation, then the conversations asked
-// in this browser, newest first, and a link to the source at the bottom. A
-// drawer on phones.
+// in this browser, newest first, and links to the source and to Settings at
+// the bottom. A drawer on phones.
 export const History = () => {
   const entries = useEntries()
   const { id } = useParams({ strict: false })
@@ -82,7 +82,7 @@ export const History = () => {
           </SidebarGroup>
         </nav>
       </SidebarContent>
-      <SidebarFooter>
+      <SidebarFooter className="flex-row gap-1">
         <Tooltip>
           {/* Links stay <a> elements styled as buttons; Base UI's Button forces button semantics. */}
           <TooltipTrigger
@@ -97,6 +97,22 @@ export const History = () => {
             <GitHub />
           </TooltipTrigger>
           <TooltipContent side="right">View the source on GitHub</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Link
+                className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
+                to="."
+                search={(prev) => ({ ...prev, settings: "appearance" })}
+                onClick={() => setOpenMobile(false)}
+                aria-label="Settings"
+              />
+            }
+          >
+            <Settings aria-hidden />
+          </TooltipTrigger>
+          <TooltipContent side="right">Settings</TooltipContent>
         </Tooltip>
       </SidebarFooter>
       <SidebarRail />

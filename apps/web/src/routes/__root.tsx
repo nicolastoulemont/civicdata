@@ -2,11 +2,13 @@ import type { QueryClient } from "@tanstack/react-query"
 import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from "@tanstack/react-router"
 
 import { origin } from "@/origin"
+import { script } from "@/settings/appearance"
 
 import styles from "@/styles.css?url"
 
+// The head script sets data-theme on <html> before React hydrates it.
 const Root = () => (
-  <html lang="en">
+  <html lang="en" suppressHydrationWarning>
     <head>
       <HeadContent />
     </head>
@@ -43,6 +45,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           ]),
     ],
     links: [{ rel: "stylesheet", href: styles }],
+    // Applies the stored appearance before first paint; the server cannot read
+    // browser storage.
+    scripts: [{ children: script }],
   }),
   component: Root,
 })
