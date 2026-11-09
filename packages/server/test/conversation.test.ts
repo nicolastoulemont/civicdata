@@ -5,20 +5,38 @@ import {
   Asked,
   Change,
   ConversationBusy,
+  Checked,
   ConversationId,
-  Described,
+  Definition,
+  DimensionId,
   Dimensions,
+  Dropped,
+  Failed,
+  Fetch,
+  Fetched,
   IndicatorId,
   IndicatorNotFound,
   Located,
+  Lookup,
+  put,
   Ranking,
+  Read,
   Rejected,
+  Rejection,
+  Running,
+  Search,
   Searched,
   sourceOf,
   SourceUnavailable,
+  type Step,
+  StepId,
   Stopped,
+  Takeaway,
+  Thinking,
+  Thought,
   TooManyQuestions,
   Trend,
+  Turns,
   Unanswered,
   type View,
   Year,
@@ -139,13 +157,19 @@ type Arguments = Readonly<
   >
 >
 
+type Name =
+  | "search_indicators"
+  | "describe_indicator"
+  | "find_countries"
+  | "show_chart"
+  | "ask_user"
+
+// A tool call, with an id of its own when an answer calls the tool twice.
 const call = (
-  name: "search_indicators" | "describe_indicator" | "find_countries" | "show_chart" | "ask_user",
+  name: Name,
   params: Arguments,
-): ReadonlyArray<Response.PartEncoded> => [
-  { type: "tool-call", id: `call-${name}`, name, params },
-  finish,
-]
+  { step = `call-${name}` }: { step?: string } = {},
+): ReadonlyArray<Response.PartEncoded> => [{ type: "tool-call", id: step, name, params }, finish]
 
 const brazil = {
   chart: "trend",
@@ -302,12 +326,57 @@ const follow = Effect.flatMap(client, (api) => api.conversation.answer({ params:
 
 const stop = Effect.flatMap(client, (api) => api.conversation.stop({ params: { id } }))
 
+const encodeTurns = Schema.encodeSync(Schema.toCodecJson(Turns))
+
+const isDefinition = Schema.is(Definition)
+
 const brazilTrend = Trend.make({
   indicator: lifeExpectancy,
   countries: ["BRA"],
   from: Year.make(2000),
   to: Year.make(2002),
 })
+
+const running = Running.make({})
+
+// The model deciding in a round: running, then done once a tool starts or it answers.
+const thinking = (round: number) => {
+  const step = StepId.make(`thinking-${round}`)
+
+  return [
+    Thinking.make({ id: step, state: running }),
+    Thinking.make({ id: step, state: Thought.make({}) }),
+  ]
+}
+
+// A search for life expectancy, which finds one World Bank indicator.
+const searched = (
+  state: typeof Search.Type.state = Searched.make({
+    count: 1,
+    top: [{ indicator: lifeExpectancy, name: "Life expectancy at birth, total (years)" }],
+  }),
+) => Search.make({ id: StepId.make("call-search_indicators"), text: "life expectancy", state })
+
+interface Chart {
+  readonly step?: string
+  readonly view?: View
+}
+
+// Brazil's life expectancy fetched: three values, 2000 to 2002.
+const fetched = (
+  state: typeof Fetch.Type.state = Fetched.make({ values: 3 }),
+  { step = "call-show_chart", view = brazilTrend }: Chart = {},
+) => Fetch.make({ id: StepId.make(step), view, state })
+
+// The takeaway written and checked, with no number in it.
+const wrote = (state: typeof Takeaway.Type.state = Checked.make({ numbers: 0 })) =>
+  Takeaway.make({ id: StepId.make("takeaway"), state })
+
+const isThinking = Schema.is(Thinking)
+
+// Each step as it last was, in the order they started, without the model's thinking.
+const log = (steps: ReadonlyArray<Step>) =>
+  steps.reduce(put<Step>, []).filter((step) => !isThinking(step))
 
 describe("conversations", () => {
   it.effect("streams the steps of an answer and keeps the question with its chart", () => {
@@ -319,8 +388,17 @@ describe("conversations", () => {
     return Effect.gen(function* () {
       expect(yield* turns).toEqual({ answered: [] })
 
+      // Each round thinks before its tools, and each tool reports running,
+      // then done with what it found.
       expect(yield* answer("How has life expectancy changed in Brazil?")).toEqual([
-        Searched.make({ text: "life expectancy", found: ["World Bank"] }),
+        ...thinking(0),
+        searched(running),
+        searched(),
+        ...thinking(1),
+        fetched(running),
+        fetched(),
+        wrote(running),
+        wrote(),
         Answered.make({ view: brazilTrend, takeaway }),
       ])
 
@@ -329,7 +407,7 @@ describe("conversations", () => {
           {
             question: "How has life expectancy changed in Brazil?",
             answer: Answered.make({ view: brazilTrend, takeaway }),
-            steps: [Searched.make({ text: "life expectancy", found: ["World Bank"] })],
+            steps: [searched(), fetched(), wrote()],
             took: Duration.zero,
           },
         ],
@@ -392,23 +470,31 @@ describe("conversations", () => {
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
-  it.effect("reports a rejected chart and the one that replaced it", () => {
+  it.effect("reports why the data rejected a chart, and the one that replaced it", () => {
     const model = scripted([
       // An aggregate instead of a country, then years with no data.
-      Effect.succeed(call("show_chart", { ...brazil, countries: ["LCN"] })),
-      Effect.succeed(call("show_chart", { ...brazil, from: 1960, to: 1961 })),
-      Effect.succeed(call("show_chart", brazil)),
+      Effect.succeed(call("show_chart", { ...brazil, countries: ["LCN"] }, { step: "chart-1" })),
+      Effect.succeed(call("show_chart", { ...brazil, from: 1960, to: 1961 }, { step: "chart-2" })),
+      Effect.succeed(call("show_chart", brazil, { step: "chart-3" })),
     ])
 
     return Effect.gen(function* () {
       const steps = yield* answer("Life expectancy in Brazil")
 
-      expect(steps.map(Schema.is(Rejected))).toEqual([true, true, false])
-      expect(steps.at(-1)).toEqual(Answered.make({ view: brazilTrend, takeaway }))
-      expect(steps[1]).toEqual(
-        Rejected.make({
-          problem: "The World Bank has no values for these countries and years. Try other years.",
+      // A chart that is not one at all is the model's to fix; people see
+      // only the charts the data was fetched for.
+      expect(log(steps)).toEqual([
+        fetched(Rejected.make({ reason: Rejection.cases.NoValues.make({}) }), {
+          step: "chart-2",
+          view: Trend.make({ ...brazilTrend, from: Year.make(1960), to: Year.make(1961) }),
         }),
+        fetched(undefined, { step: "chart-3" }),
+        wrote(),
+        Answered.make({ view: brazilTrend, takeaway }),
+      ])
+      expect(model.prompts[1]).toContain("LCN")
+      expect(model.prompts[2]).toContain(
+        "The World Bank has no values for these countries and years. Try other years.",
       )
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
@@ -425,7 +511,7 @@ describe("conversations", () => {
     })
 
     return Effect.gen(function* () {
-      expect(yield* answer("Life expectancy in Brazil")).toEqual([answered])
+      expect((yield* answer("Life expectancy in Brazil")).at(-1)).toEqual(answered)
       // Brazil's line runs from 70 in 2000 to 72 in 2002.
       expect(model.prompts[1]).toContain(
         '"first":{"year":2000,"value":70},"last":{"year":2002,"value":72}',
@@ -444,13 +530,18 @@ describe("conversations", () => {
     ])
 
     return Effect.gen(function* () {
-      expect(yield* answer("Life expectancy in Brazil")).toEqual([
+      expect(log(yield* answer("Life expectancy in Brazil")).slice(-2)).toEqual([
+        // 70, 2000, 72 and 2002.
+        wrote(Checked.make({ numbers: 4 })),
         Answered.make({
           view: brazilTrend,
           takeaway: "Life expectancy in Brazil rose from 70 years in 2000 to 72 in 2002.",
         }),
       ])
-      expect(yield* answer("Show it again")).toEqual([Answered.make({ view: brazilTrend })])
+      expect(log(yield* answer("Show it again")).slice(-2)).toEqual([
+        wrote(Dropped.make({})),
+        Answered.make({ view: brazilTrend }),
+      ])
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
@@ -467,7 +558,8 @@ describe("conversations", () => {
     ])
 
     return Effect.gen(function* () {
-      expect(yield* answer("Life expectancy in Brazil")).toEqual([
+      expect(log(yield* answer("Life expectancy in Brazil")).slice(-2)).toEqual([
+        wrote(Failed.make({ reason: new AgentUnavailable() })),
         Answered.make({ view: brazilTrend }),
       ])
       expect((yield* turns).answered[0]?.answer).toEqual(Answered.make({ view: brazilTrend }))
@@ -492,14 +584,14 @@ describe("conversations", () => {
       const change = { ...brazil, chart: "change", from: 2000, to: 2002 }
 
       const model = scripted([
-        Effect.succeed(call("show_chart", { ...change, transform: "Index" })),
-        Effect.succeed(call("show_chart", change)),
+        Effect.succeed(call("show_chart", { ...change, transform: "Index" }, { step: "chart-1" })),
+        Effect.succeed(call("show_chart", change, { step: "chart-2" })),
       ])
 
       return Effect.gen(function* () {
         const steps = yield* answer("How much did life expectancy in Brazil change since 2000?")
 
-        expect(steps.map(Schema.is(Rejected))).toEqual([true, false])
+        expect(model.prompts[1]).toContain("Index")
         expect(steps.at(-1)).toEqual(
           Answered.make({
             view: Change.make({
@@ -561,9 +653,9 @@ describe("conversations", () => {
     ])
 
     return Effect.gen(function* () {
-      const [step] = yield* answer("Life expectancy against life expectancy in Brazil")
+      yield* answer("Life expectancy against life expectancy in Brazil")
 
-      expect(Schema.is(Rejected)(step)).toBe(true)
+      expect(model.prompts[1]).toContain("against must be another indicator")
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
@@ -573,12 +665,9 @@ describe("conversations", () => {
     ])
 
     return Effect.gen(function* () {
-      const [step] = yield* answer("Life expectancy per life expectancy in Brazil")
+      yield* answer("Life expectancy per life expectancy in Brazil")
 
-      expect(Schema.is(Rejected)(step)).toBe(true)
-      expect(step).toMatchObject({
-        problem: expect.stringContaining("a ratio must divide by another indicator"),
-      })
+      expect(model.prompts[1]).toContain("a ratio must divide by another indicator")
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
@@ -594,26 +683,35 @@ describe("conversations", () => {
       }
 
       const model = scripted([
-        Effect.succeed(call("show_chart", unemployment)),
+        Effect.succeed(call("show_chart", unemployment, { step: "chart-1" })),
         Effect.succeed(
-          call("show_chart", {
-            ...unemployment,
-            dimensions: [
-              { dimension: "age", code: "Y15-74" },
-              { dimension: "unit", code: "PC_ACT" },
-              { dimension: "sex", code: "T" },
-            ],
-          }),
+          call(
+            "show_chart",
+            {
+              ...unemployment,
+              dimensions: [
+                { dimension: "age", code: "Y15-74" },
+                { dimension: "unit", code: "PC_ACT" },
+                { dimension: "sex", code: "T" },
+              ],
+            },
+            { step: "chart-2" },
+          ),
         ),
       ])
 
       return Effect.gen(function* () {
         const steps = yield* answer("Unemployment in France")
-        const [first] = steps
 
-        expect(Schema.is(Rejected)(first) ? first.problem : "").toContain(
-          "sex (F Females, M Males, T Total)",
-        )
+        expect(log(steps)[0]).toMatchObject({
+          id: "chart-1",
+          state: Rejected.make({
+            reason: Rejection.cases.OpenDimensions.make({
+              open: [DimensionId.make("age"), DimensionId.make("unit"), DimensionId.make("sex")],
+            }),
+          }),
+        })
+        expect(model.prompts[1]).toContain("sex (F Females, M Males, T Total)")
         expect(steps.at(-1)).toEqual(
           Answered.make({
             view: Trend.make({
@@ -634,7 +732,10 @@ describe("conversations", () => {
     const model = scripted([Effect.succeed(words("No World Bank indicator measures that."))])
 
     return Effect.gen(function* () {
-      expect(yield* answer("What is the meaning of life?")).toEqual([Unanswered.make({})])
+      expect(yield* answer("What is the meaning of life?")).toEqual([
+        ...thinking(0),
+        Unanswered.make({}),
+      ])
       expect(yield* turns).toEqual({
         answered: [
           {
@@ -654,10 +755,19 @@ describe("conversations", () => {
       Effect.succeed(call("show_chart", brazil)),
     ])
 
+    const read = (state: typeof Definition.Type.state) =>
+      Definition.make({
+        id: StepId.make("call-describe_indicator"),
+        indicator: lifeExpectancy,
+        state,
+      })
+
     return Effect.gen(function* () {
-      expect(yield* answer("Life expectancy in Brazil")).toEqual([
-        Described.make({ indicator: lifeExpectancy }),
-        Answered.make({ view: brazilTrend, takeaway }),
+      const steps = yield* answer("Life expectancy in Brazil")
+
+      expect(steps.slice(2, 4)).toEqual([
+        read(running),
+        read(Read.make({ name: "Life expectancy at birth, total (years)" })),
       ])
       expect(model.prompts[1]).toContain("The number of years a newborn infant would live.")
     }).pipe(Effect.provide(serveApi(model.layer)))
@@ -665,17 +775,54 @@ describe("conversations", () => {
 
   it.effect("searches every source, or one the model names, and reports which each found", () => {
     const model = scripted([
-      Effect.succeed(call("search_indicators", { text: "unemployment", source: null })),
-      Effect.succeed(call("search_indicators", { text: "unemployment", source: "Eurostat" })),
-      Effect.succeed(call("search_indicators", { text: "happiness", source: null })),
+      Effect.succeed(
+        call("search_indicators", { text: "unemployment", source: null }, { step: "search-1" }),
+      ),
+      Effect.succeed(
+        call(
+          "search_indicators",
+          { text: "unemployment", source: "Eurostat" },
+          { step: "search-2" },
+        ),
+      ),
+      Effect.succeed(
+        call("search_indicators", { text: "happiness", source: null }, { step: "search-3" }),
+      ),
       Effect.succeed(words("No indicator measures that.")),
     ])
 
+    const eurostatUnemployment = {
+      indicator: IndicatorId.make("ESTAT,UNE_RT_A,1.0"),
+      name: "Unemployment by sex and age - annual data",
+    }
+
     return Effect.gen(function* () {
-      expect(yield* answer("Unemployment in France")).toEqual([
-        Searched.make({ text: "unemployment", found: ["Eurostat", "OECD"] }),
-        Searched.make({ text: "unemployment", source: "Eurostat", found: ["Eurostat"] }),
-        Searched.make({ text: "happiness", found: [] }),
+      expect(log(yield* answer("Unemployment in France"))).toEqual([
+        Search.make({
+          id: StepId.make("search-1"),
+          text: "unemployment",
+          state: Searched.make({
+            count: 2,
+            top: [
+              eurostatUnemployment,
+              {
+                indicator: IndicatorId.make("OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M,1.0"),
+                name: "Monthly unemployment rates",
+              },
+            ],
+          }),
+        }),
+        Search.make({
+          id: StepId.make("search-2"),
+          text: "unemployment",
+          source: "Eurostat",
+          state: Searched.make({ count: 1, top: [eurostatUnemployment] }),
+        }),
+        Search.make({
+          id: StepId.make("search-3"),
+          text: "happiness",
+          state: Searched.make({ count: 0, top: [] }),
+        }),
         Unanswered.make({}),
       ])
       // The model reads each match's source.
@@ -690,8 +837,12 @@ describe("conversations", () => {
     ])
 
     return Effect.gen(function* () {
-      expect((yield* answer("Unemployment in France"))[0]).toEqual(
-        Described.make({ indicator: IndicatorId.make("ESTAT,UNE_RT_A,1.0") }),
+      expect(log(yield* answer("Unemployment in France"))[0]).toEqual(
+        Definition.make({
+          id: StepId.make("call-describe_indicator"),
+          indicator: IndicatorId.make("ESTAT,UNE_RT_A,1.0"),
+          state: Read.make({ name: "Unemployment by sex and age - annual data" }),
+        }),
       )
       expect(model.prompts[1]).toContain('"name":"Unemployment by sex and age - annual data"')
       expect(model.prompts[1]).toContain('"source":"Eurostat"')
@@ -729,11 +880,11 @@ describe("conversations", () => {
     )
 
     return Effect.gen(function* () {
-      expect((yield* answer("Unemployment in France"))[0]).toEqual(
-        Rejected.make({
-          problem:
-            "Eurostat has no annual values for these countries and years. Try other years, or another dataflow if this one is quarterly or monthly only.",
-        }),
+      expect(log(yield* answer("Unemployment in France"))[0]).toMatchObject({
+        state: Rejected.make({ reason: Rejection.cases.NoValues.make({}) }),
+      })
+      expect(model.prompts[1]).toContain(
+        "Eurostat has no annual values for these countries and years. Try other years, or another dataflow if this one is quarterly or monthly only.",
       )
     }).pipe(Effect.provide(serveApi(model.layer, { sdmx: quarterly })))
   })
@@ -763,13 +914,22 @@ describe("conversations", () => {
   ] as const
 
   for (const { source, indicator, options } of unavailable) {
-    it.effect(`fails the answer with SourceUnavailable when ${source} is unreachable`, () => {
+    it.effect(`fails the step, then the answer, when ${source} is unreachable`, () => {
       const model = scripted([Effect.succeed(call("describe_indicator", { indicator }))])
 
       return Effect.gen(function* () {
-        const error = yield* answer("Unemployment in France").pipe(Effect.flip)
+        const seen: Array<Step> = []
+
+        const error = yield* ask("Unemployment in France").pipe(
+          Effect.flatMap(Stream.runForEach((step) => Effect.sync(() => seen.push(step)))),
+          Effect.flip,
+        )
 
         expect(error).toEqual(new SourceUnavailable({ source }))
+        expect(seen.at(-1)).toMatchObject({
+          indicator,
+          state: Failed.make({ reason: new SourceUnavailable({ source }) }),
+        })
         expect(yield* turns).toEqual({ answered: [] })
       }).pipe(Effect.provide(serveApi(model.layer, options)))
     })
@@ -782,8 +942,17 @@ describe("conversations", () => {
     ])
 
     return Effect.gen(function* () {
-      expect((yield* answer("Life expectancy in Ivory Coast and Korea"))[0]).toEqual(
-        Located.make({ names: ["Ivory Coast", "Korea"] }),
+      expect(log(yield* answer("Life expectancy in Ivory Coast and Korea"))[0]).toEqual(
+        Lookup.make({
+          id: StepId.make("call-find_countries"),
+          names: ["Ivory Coast", "Korea"],
+          state: Located.make({
+            places: [
+              { name: "Ivory Coast", countries: ["CIV"] },
+              { name: "Korea", countries: ["KOR", "PRK"] },
+            ],
+          }),
+        }),
       )
       // Both Koreas match, so the model sees the name is ambiguous.
       expect(model.prompts[1]).toContain("CIV")
@@ -809,7 +978,7 @@ describe("conversations", () => {
     })
 
     return Effect.gen(function* () {
-      expect(yield* answer("How long do people live in Brazil?")).toEqual([asked])
+      expect(log(yield* answer("How long do people live in Brazil?"))).toEqual([asked])
 
       expect((yield* answer("Life expectancy")).at(-1)).toEqual(
         Answered.make({ view: brazilTrend, takeaway }),
@@ -826,7 +995,7 @@ describe("conversations", () => {
           {
             question: "Life expectancy",
             answer: Answered.make({ view: brazilTrend, takeaway }),
-            steps: [],
+            steps: [fetched(), wrote()],
             took: Duration.zero,
           },
         ],
@@ -846,9 +1015,21 @@ describe("conversations", () => {
     ])
 
     return Effect.gen(function* () {
-      const error = yield* answer("Life expectancy in Brazil").pipe(Effect.flip)
+      const seen: Array<Step> = []
+
+      const error = yield* ask("Life expectancy in Brazil").pipe(
+        Effect.flatMap(Stream.runForEach((step) => Effect.sync(() => seen.push(step)))),
+        Effect.flip,
+      )
 
       expect(error).toBeInstanceOf(AgentUnavailable)
+      expect(seen).toEqual([
+        thinking(0)[0],
+        Thinking.make({
+          id: StepId.make("thinking-0"),
+          state: Failed.make({ reason: new AgentUnavailable() }),
+        }),
+      ])
       expect(yield* turns).toEqual({ answered: [] })
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
@@ -889,14 +1070,13 @@ describe("conversations", () => {
         Deferred.await(reply),
       ])
 
-      const searched = Searched.make({ text: "life expectancy", found: ["World Bank"] })
       const answered = Answered.make({ view: brazilTrend, takeaway })
 
       return yield* Effect.gen(function* () {
         // The visitor reads the first step, then closes the tab.
         expect(
           yield* ask("Life expectancy in Brazil").pipe(Effect.flatMap(Stream.runHead)),
-        ).toEqual(Option.some(searched))
+        ).toEqual(Option.some(thinking(0)[0]))
 
         expect(yield* turns).toEqual({
           answered: [],
@@ -908,13 +1088,18 @@ describe("conversations", () => {
 
         yield* Deferred.succeed(reply, call("show_chart", brazil))
 
-        expect(yield* Stream.runCollect(following)).toEqual([searched, answered])
+        expect(log(yield* Stream.runCollect(following))).toEqual([
+          searched(),
+          fetched(),
+          wrote(),
+          answered,
+        ])
         expect(yield* turns).toEqual({
           answered: [
             {
               question: "Life expectancy in Brazil",
               answer: answered,
-              steps: [searched],
+              steps: [searched(), fetched(), wrote()],
               took: Duration.zero,
             },
           ],
@@ -938,7 +1123,7 @@ describe("conversations", () => {
       const stopped = {
         question: "Life expectancy in Brazil",
         answer: Stopped.make({}),
-        steps: [Searched.make({ text: "life expectancy", found: ["World Bank"] })],
+        steps: [searched()],
         took: Duration.seconds(6),
       }
 
@@ -959,8 +1144,9 @@ describe("conversations", () => {
         yield* TestClock.adjust("6 seconds")
         yield* stop
 
-        expect(yield* Fiber.join(steps)).toEqual([
-          Searched.make({ text: "life expectancy", found: ["World Bank"] }),
+        // The model was thinking: that step ends as stopped, then the answer.
+        expect((yield* Fiber.join(steps)).slice(-2)).toEqual([
+          Thinking.make({ id: StepId.make("thinking-1"), state: Stopped.make({}) }),
           Stopped.make({}),
         ])
         expect(yield* turns).toEqual({ answered: [stopped] })
@@ -979,6 +1165,53 @@ describe("conversations", () => {
     }),
   )
 
+  it.effect("stops the step running when the answer stops, and keeps it as stopped", () =>
+    Effect.gen(function* () {
+      const seen = yield* Deferred.make<void>()
+
+      // A World Bank that never answers a definition.
+      const slow = Layer.succeed(
+        WorldBank,
+        WorldBank.of({
+          describe: () => Effect.never,
+          observations: () => Effect.die("no observations in this test"),
+          indicators: Effect.succeed([]),
+        }),
+      )
+
+      const model = scripted([
+        Effect.succeed(call("describe_indicator", { indicator: lifeExpectancy })),
+      ])
+
+      const read = Definition.make({
+        id: StepId.make("call-describe_indicator"),
+        indicator: lifeExpectancy,
+        state: Stopped.make({}),
+      })
+
+      return yield* Effect.gen(function* () {
+        const steps = yield* ask("Life expectancy in Brazil").pipe(
+          Effect.flatMap((stream) =>
+            stream.pipe(
+              Stream.tap((step) =>
+                isDefinition(step) ? Deferred.succeed(seen, undefined) : Effect.void,
+              ),
+              Stream.runCollect,
+            ),
+          ),
+          Effect.forkChild,
+        )
+
+        // The visitor sees the agent reading the definition, and stops it.
+        yield* Deferred.await(seen)
+        yield* stop
+
+        expect((yield* Fiber.join(steps)).slice(-2)).toEqual([read, Stopped.make({})])
+        expect((yield* turns).answered[0]?.steps).toEqual([read])
+      }).pipe(Effect.provide(serveApi(model.layer, { worldBank: slow })))
+    }),
+  )
+
   it.effect("keeps an answer that ended before the stop", () => {
     const model = scripted([Effect.succeed(call("show_chart", brazil))])
 
@@ -991,7 +1224,7 @@ describe("conversations", () => {
           {
             question: "Life expectancy in Brazil",
             answer: Answered.make({ view: brazilTrend, takeaway }),
-            steps: [],
+            steps: [fetched(), wrote()],
             took: Duration.zero,
           },
         ],
@@ -1033,8 +1266,14 @@ describe("conversations", () => {
               question,
               answer: Answered.make({ view: brazilTrend, takeaway }),
               steps: [
-                Searched.make({ text: "life expectancy", found: ["World Bank"] }),
-                Described.make({ indicator: lifeExpectancy }),
+                searched(),
+                Definition.make({
+                  id: StepId.make("call-describe_indicator"),
+                  indicator: lifeExpectancy,
+                  state: Read.make({ name: "Life expectancy at birth, total (years)" }),
+                }),
+                fetched(),
+                wrote(),
               ],
               took: Duration.seconds(8),
             },
@@ -1061,6 +1300,33 @@ describe("conversations", () => {
       expect(yield* turns).toEqual({
         answered: [{ question: "What is the meaning of life?", answer: Unanswered.make({}) }],
       })
+    }).pipe(Effect.provide(serveApi(scripted([]).layer, { storage: fake })))
+  })
+
+  it.effect("reads turns saved before steps had states as they were saved", () => {
+    // A turn as the transcript held it then.
+    const turn = `{
+      "question": "Life expectancy in Brazil",
+      "answer": { "_tag": "Unanswered" },
+      "steps": [
+        { "_tag": "Searched", "text": "life expectancy", "found": ["World Bank"] },
+        { "_tag": "Described", "indicator": "SP.DYN.LE00.IN" },
+        { "_tag": "Located", "names": ["Ivory Coast"] },
+        { "_tag": "Rejected", "problem": "The World Bank has no values for these years." }
+      ],
+      "took": 4000
+    }`
+
+    const { fake } = memoryStorage(
+      new Map([["conversation", `{ "chat": "[]", "turns": [${turn}] }`]]),
+    )
+
+    const sent = Schema.decodeUnknownSync(Schema.fromJsonString(Schema.Json))(
+      `{ "answered": [${turn}] }`,
+    )
+
+    return Effect.gen(function* () {
+      expect(encodeTurns(yield* turns)).toEqual(sent)
     }).pipe(Effect.provide(serveApi(scripted([]).layer, { storage: fake })))
   })
 

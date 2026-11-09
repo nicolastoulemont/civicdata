@@ -1,9 +1,11 @@
 import {
   Answered,
   ConversationId,
+  Ended,
   IndicatorId,
   ResolvedView,
   Searched,
+  StepId,
   Trend,
   type Turn,
   Turns,
@@ -17,6 +19,7 @@ import {
   RouterProvider,
 } from "@tanstack/react-router"
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { DateTime, Duration, Schema } from "effect"
 import { http, HttpResponse } from "msw/http"
 import { describe, expect, it, onTestFinished } from "vitest"
@@ -42,7 +45,13 @@ const brazil = Trend.make({
 const charted: Turn = {
   question: "How has life expectancy changed in Brazil?",
   answer: Answered.make({ view: brazil, takeaway: "Life expectancy in Brazil rose." }),
-  steps: [Searched.make({ text: "life expectancy" })],
+  steps: [
+    Ended.cases.Search.make({
+      id: StepId.make("search-1"),
+      text: "life expectancy",
+      state: Searched.make({ count: 0, top: [] }),
+    }),
+  ],
   took: Duration.seconds(8),
 }
 
@@ -185,6 +194,49 @@ describe("persist", () => {
       ),
     ).toBeDefined()
     await waitFor(() => expect(reload.sent.turns).toBe(true))
+  })
+
+  it("restores a conversation saved before steps had states", async () => {
+    const { store, values } = memory()
+
+    const answer = JSON.stringify(
+      Schema.encodeSync(Schema.toCodecJson(Answered))(Answered.make({ view: brazil })),
+    )
+
+    const saved = `{
+      "answered": [
+        {
+          "question": "How has life expectancy changed in Brazil?",
+          "answer": ${answer},
+          "steps": [{ "_tag": "Searched", "text": "life expectancy", "found": ["World Bank"] }],
+          "took": 8000
+        }
+      ]
+    }`
+
+    network.use(
+      http.get(
+        `/api/conversations/${id}`,
+        () => new HttpResponse(saved, { headers: { "content-type": "application/json" } }),
+      ),
+      resolve,
+    )
+    show(store)
+    await findChart()
+    await waitFor(() => expect(values.size).toBe(2))
+    cleanup()
+
+    const reload = hanging()
+
+    network.use(reload.handler)
+    show(store)
+
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Worked for 8s" }))
+    expect(
+      within(screen.getByRole("list", { name: "Steps" })).getByText(
+        "Searched indicators for “life expectancy”: World Bank",
+      ),
+    ).toBeDefined()
   })
 
   it("loads from the network when a saved conversation has an older shape", async () => {

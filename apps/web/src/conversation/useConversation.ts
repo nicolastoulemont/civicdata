@@ -1,10 +1,11 @@
 import {
   type ConversationId,
+  Ended,
   Ending,
+  put,
   type Step,
   TooManyQuestions,
   type Turns,
-  Work,
 } from "@civicdata/domain"
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { DateTime, Effect, Option, Result, Schema, Stream } from "effect"
@@ -26,7 +27,7 @@ export const turnsQuery = (id: ConversationId) =>
 
 const isEnding = Schema.is(Ending)
 
-const isWork = Schema.is(Work)
+const isEnded = Schema.is(Ended)
 
 // Passes each step of an answer to `onStep`, then resolves with how it ended:
 // its last step. An answer the server was not giving has no steps.
@@ -75,7 +76,8 @@ type QuestionError = Result.Result.Failure<
   Awaited<ReturnType<typeof ask>> | Awaited<ReturnType<typeof follow>>
 >
 
-// A question whose answer failed, with the steps the agent took before it.
+// A question whose answer failed, with the steps the agent took before it,
+// each as it last was.
 export interface Failure {
   readonly question: string
   readonly steps: ReadonlyArray<Step>
@@ -84,10 +86,11 @@ export interface Failure {
   readonly retryAt: number
 }
 
-// One conversation: its turns, the answer in progress with the steps so far,
-// and how to ask the next question. A finished answer joins the turns. The
-// server finishes an answer even when the page leaves, so the page follows one
-// it finds in progress, and asks the server again when an answer is cut off.
+// One conversation: its turns, the answer in progress with its steps so far,
+// each as it last was, and how to ask the next question. A finished answer
+// joins the turns. The server finishes an answer even when the page leaves,
+// so the page follows one it finds in progress, and asks the server again
+// when an answer is cut off.
 export const useConversation = (id: ConversationId) => {
   const queryClient = useQueryClient()
   const conversation = useQuery(turnsQuery(id))
@@ -102,11 +105,11 @@ export const useConversation = (id: ConversationId) => {
       if (via === "ask") record(id, question)
     },
     mutationFn: async ({ question, via }: Pending) => {
-      const seen: Array<Step> = []
+      let seen: ReadonlyArray<Step> = []
 
       const onStep = (step: Step) => {
-        seen.push(step)
-        setSteps([...seen])
+        seen = put(seen, step)
+        setSteps(seen)
       }
 
       setSteps([])
@@ -133,7 +136,7 @@ export const useConversation = (id: ConversationId) => {
                   : {
                       answered: [
                         ...(previous?.answered ?? []),
-                        { question, answer, steps: seen.filter(isWork) },
+                        { question, answer, steps: seen.filter(isEnded) },
                       ],
                     },
               )

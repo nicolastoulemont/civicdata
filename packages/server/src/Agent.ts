@@ -4,32 +4,46 @@ import {
   Asked,
   CatalogUnavailable,
   Change,
-  Described,
+  Checked,
+  Definition,
   type Dimension,
   type DimensionsMissing,
+  Dropped,
+  Failed,
+  Fetch,
+  Fetched,
   IndicatorId,
   type IndicatorNotFound,
   kindOf,
   Located,
   locate,
+  Lookup,
   Ranking,
   Ratio,
-  Rejected as RejectedStep,
+  Read,
+  Rejected,
+  Rejection,
   Relation,
   type ResolvedView,
+  Running,
+  Search,
   Searched,
   Source,
   SourceUnavailable,
   sourceOf,
   type Step,
+  StepId,
+  Takeaway,
+  Thinking,
+  Thought,
   type TransformNotApplicable,
   Trend,
   Unanswered,
   View,
+  type Work,
 } from "@civicdata/domain"
 import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai"
 import {
-  Array as Arr,
   type Cause,
   Context,
   DateTime,
@@ -40,6 +54,7 @@ import {
   Queue,
   Redacted,
   Ref,
+  Result,
   Schema,
   type SchemaIssue,
   Stream,
@@ -108,6 +123,40 @@ const forget = (prompt: Prompt.Prompt) => {
       ])
 }
 
+// Where a tool reports its step while it runs: to the answer that called it.
+class Report extends Context.Service<Report, (step: Work) => Effect.Effect<void>>()(
+  "@civicdata/server/Agent/Report",
+) {}
+
+// Why a step failed.
+type Reason = typeof Failed.Type.reason
+
+// Runs a tool's work as one step, reported running, then as `done` says from
+// its result, or failed with its error. `at` makes the step in a state.
+const reported = Effect.fnUntraced(function* <A, E extends Reason, R>(
+  work: Effect.Effect<A, E, R>,
+  {
+    at,
+    done,
+  }: {
+    readonly at: (state: typeof Running.Type | typeof Failed.Type) => Work
+    readonly done: (result: A) => Work
+  },
+) {
+  const report = yield* Report
+
+  yield* report(at(Running.make({})))
+
+  const result = yield* work.pipe(Effect.tapError((reason) => report(at(Failed.make({ reason })))))
+
+  yield* report(done(result))
+
+  return result
+})
+
+// A tool call's step id. A chat always passes the call's id.
+const stepOf = (id: string | undefined, tool: string) => StepId.make(id ?? tool)
+
 const SearchIndicators = Tool.make("search_indicators", {
   description:
     "Search the indicators of the World Bank, Eurostat and the OECD by words in their name or definition, or by code. Returns up to 10 matches, best first, each with its source.",
@@ -128,15 +177,16 @@ const SearchIndicators = Tool.make("search_indicators", {
     }),
   ),
   failure: Schema.Union([SourceUnavailable, CatalogUnavailable]),
+  dependencies: [Report],
 })
 
 // What show_chart tells the model: the chart was shown with a summary of its
 // values, or why it was not. describe_indicator also answers Rejected for a
 // code that does not exist.
 const Shown = Schema.TaggedStruct("Shown", { view: View, data: Summary })
-const Rejected = Schema.TaggedStruct("Rejected", { problem: Schema.String })
+const Refused = Schema.TaggedStruct("Rejected", { problem: Schema.String })
 
-const Definition = Schema.TaggedStruct("Definition", {
+const Defined = Schema.TaggedStruct("Definition", {
   indicator: IndicatorId,
   source: Source,
   name: Schema.String,
@@ -152,8 +202,9 @@ const DescribeIndicator = Tool.make("describe_indicator", {
       description: "An indicator code returned by search_indicators",
     }),
   }),
-  success: Schema.Union([Definition, Rejected]),
+  success: Schema.Union([Defined, Refused]),
   failure: SourceUnavailable,
+  dependencies: [Report],
 })
 
 const FindCountries = Tool.make("find_countries", {
@@ -170,6 +221,7 @@ const FindCountries = Tool.make("find_countries", {
       matches: Schema.Array(Schema.Struct({ code: Schema.String, name: Schema.String })),
     }),
   ),
+  dependencies: [Report],
 })
 
 const AskUser = Tool.make("ask_user", {
@@ -226,17 +278,15 @@ const ShowChart = Tool.make("show_chart", {
         "For a Eurostat or OECD indicator, the code of each dimension its series differ by, e.g. [{ dimension: 'sex', code: 'T' }]. A rejection lists the dimensions and their codes. null for World Bank indicators.",
     }),
   }),
-  success: Schema.Union([Shown, Rejected]),
+  success: Schema.Union([Shown, Refused]),
   failure: SourceUnavailable,
+  dependencies: [Report],
 })
 
 const Tools = Toolkit.make(SearchIndicators, DescribeIndicator, FindCountries, ShowChart, AskUser)
 
-// A chat leaves tool arguments undecoded; they are checked again to report
-// what the agent did.
-const isSearch = Schema.is(SearchIndicators.parametersSchema)
-const isDescribe = Schema.is(DescribeIndicator.parametersSchema)
-const isFind = Schema.is(FindCountries.parametersSchema)
+// A chat leaves tool arguments undecoded; ask_user's are checked again to
+// show its question.
 const isAsk = Schema.is(AskUser.parametersSchema)
 const isShown = Schema.is(Shown)
 
@@ -301,7 +351,22 @@ const toView = Effect.fnUntraced(function* (draft: Draft) {
   )
 })
 
-const rejected = (problem: string) => Rejected.make({ problem })
+const rejected = (problem: string) => Refused.make({ problem })
+
+// The takeaway written for a chart, and how its step ended.
+interface Written {
+  readonly answered: typeof Answered.Type
+  readonly state: typeof Takeaway.Type.state
+}
+
+// A chart the data cannot show: why, for people, and what to fix, for the model.
+interface Refusal {
+  readonly reason: Rejection
+  readonly problem: string
+}
+
+const refuse = (reason: Rejection, problem: string): Result.Result<ResolvedView, Refusal> =>
+  Result.fail({ reason, problem })
 
 // A trend ends at the latest year it has values for. Told only the current
 // year, the model asks for years the World Bank has not published yet. A
@@ -341,8 +406,24 @@ const ToolsLayer = Tools.toLayer(
     const sdmx = yield* Sdmx
 
     return Tools.of({
-      search_indicators: ({ text, source }) =>
-        catalog.search(text, { source: source ?? undefined }).pipe(
+      search_indicators: ({ text, source }, { toolCallId }) => {
+        const id = stepOf(toolCallId, "search_indicators")
+
+        const at = (state: typeof Search.Type.state) =>
+          source === null
+            ? Search.make({ id, text, state })
+            : Search.make({ id, text, source, state })
+
+        return reported(catalog.search(text, { source: source ?? undefined }), {
+          at,
+          done: (entries) =>
+            at(
+              Searched.make({
+                count: entries.length,
+                top: entries.slice(0, 5).map(({ indicator, name }) => ({ indicator, name })),
+              }),
+            ),
+        }).pipe(
           Effect.map((entries) =>
             entries.slice(0, 10).map(({ indicator, name, definition }) => ({
               indicator,
@@ -351,14 +432,27 @@ const ToolsLayer = Tools.toLayer(
               definition: definition.slice(0, 300),
             })),
           ),
-        ),
-      describe_indicator: ({ indicator }) =>
+        )
+      },
+      // A code that is not an indicator's is the model's mistake, told to it
+      // alone; one that names no indicator fails the step.
+      describe_indicator: ({ indicator }, { toolCallId }) =>
         Schema.decodeEffect(IndicatorId)(indicator).pipe(
-          Effect.flatMap((id) =>
-            sourceOf(id) === "World Bank" ? worldBank.describe(id) : sdmx.describe(id),
-          ),
+          Effect.flatMap((id) => {
+            const at = (state: typeof Definition.Type.state) =>
+              Definition.make({
+                id: stepOf(toolCallId, "describe_indicator"),
+                indicator: id,
+                state,
+              })
+
+            return reported(
+              sourceOf(id) === "World Bank" ? worldBank.describe(id) : sdmx.describe(id),
+              { at, done: (described) => at(Read.make({ name: described.indicator.name })) },
+            )
+          }),
           Effect.map((described) =>
-            Definition.make({
+            Defined.make({
               indicator: described.indicator.id,
               source: sourceOf(described.indicator.id),
               name: described.indicator.name,
@@ -372,52 +466,99 @@ const ToolsLayer = Tools.toLayer(
               Effect.succeed(rejected(`There is no indicator ${indicator}. Search for one.`)),
           }),
         ),
-      find_countries: ({ names }) =>
-        Effect.succeed(
-          names.map((name) => ({
-            name,
-            matches: locate(name).map((country) => ({ code: country.code, name: country.name })),
-          })),
-        ),
-      // The question is shown when the round ends; see `stepsOf`.
+      find_countries: ({ names }, { toolCallId }) => {
+        const at = (state: typeof Lookup.Type.state) =>
+          Lookup.make({ id: stepOf(toolCallId, "find_countries"), names, state })
+
+        const places = names.map((name) => ({ name, countries: locate(name) }))
+
+        return reported(Effect.succeed(places), {
+          at,
+          done: (found) =>
+            at(
+              Located.make({
+                places: found.map(({ name, countries }) => ({
+                  name,
+                  countries: countries.map(({ code }) => code),
+                })),
+              }),
+            ),
+        }).pipe(
+          Effect.map((found) =>
+            found.map(({ name, countries }) => ({
+              name,
+              matches: countries.map((country) => ({ code: country.code, name: country.name })),
+            })),
+          ),
+        )
+      },
+      // The question is shown when the round ends; see `endingOf`.
       ask_user: () =>
         Effect.succeed("The question is shown to the person. Their reply is the next message."),
       // Accepts only a View that decodes and resolves to at least one value.
       // Mistakes go back to the model to fix; an unreachable source fails
-      // the question.
-      show_chart: (draft) =>
+      // the question. A View that does not decode is the model's mistake,
+      // told to it alone; one the data cannot show is reported with why.
+      show_chart: (draft, { toolCallId }) =>
         toView(draft).pipe(
-          Effect.flatMap((view) =>
-            resolver
-              .resolve(view)
-              .pipe(
-                Effect.map((resolved) =>
-                  resolved.observations.length === 0
-                    ? rejected(noValues(sourceOf(view.indicator)))
-                    : Shown.make({ view: trim(resolved), data: summarize(resolved) }),
-                ),
+          Effect.flatMap((view) => {
+            const at = (state: typeof Fetch.Type.state) =>
+              Fetch.make({ id: stepOf(toolCallId, "show_chart"), view, state })
+
+            const fetched: Effect.Effect<
+              Result.Result<ResolvedView, Refusal>,
+              SourceUnavailable
+            > = resolver.resolve(view).pipe(
+              Effect.map((resolved) =>
+                resolved.observations.length === 0
+                  ? refuse(Rejection.cases.NoValues.make({}), noValues(sourceOf(view.indicator)))
+                  : Result.succeed(resolved),
               ),
-          ),
-          Effect.catchTags({
-            SchemaError: (error) => Effect.succeed(rejected(error.message)),
-            IndicatorNotFound: ({ indicator }) =>
-              Effect.succeed(rejected(`There is no indicator ${indicator}. Search for one.`)),
-            TransformNotApplicable: ({ indicator, transform }) =>
-              Effect.succeed(
-                rejected(
-                  `${indicator} is a percentage or rate; ${kindOf(transform)} does not apply to it.`,
-                ),
+              Effect.catchTags({
+                IndicatorNotFound: ({ indicator }) =>
+                  Effect.succeed(
+                    refuse(
+                      Rejection.cases.NoIndicator.make({ indicator }),
+                      `There is no indicator ${indicator}. Search for one.`,
+                    ),
+                  ),
+                TransformNotApplicable: ({ indicator, transform }) =>
+                  Effect.succeed(
+                    refuse(
+                      Rejection.cases.NotApplicable.make({}),
+                      `${indicator} is a percentage or rate; ${kindOf(transform)} does not apply to it.`,
+                    ),
+                  ),
+                DimensionsMissing: ({ indicator, dimensions, open }) =>
+                  Effect.succeed(
+                    refuse(
+                      Rejection.cases.OpenDimensions.make({ open }),
+                      `${indicator} holds several series. Pass one code for each of these dimensions: ${dimensions
+                        .filter((dimension) => open.includes(dimension.id))
+                        .map(listed)
+                        .join("; ")}.`,
+                    ),
+                  ),
+              }),
+            )
+
+            return reported(fetched, {
+              at,
+              done: Result.match({
+                onSuccess: ({ observations }) => at(Fetched.make({ values: observations.length })),
+                onFailure: ({ reason }) => at(Rejected.make({ reason })),
+              }),
+            }).pipe(
+              Effect.map(
+                Result.match({
+                  onSuccess: (resolved) =>
+                    Shown.make({ view: trim(resolved), data: summarize(resolved) }),
+                  onFailure: ({ problem }) => rejected(problem),
+                }),
               ),
-            DimensionsMissing: ({ indicator, dimensions, open }) =>
-              Effect.succeed(
-                rejected(
-                  `${indicator} holds several series. Pass one code for each of these dimensions: ${dimensions
-                    .filter((dimension) => open.includes(dimension.id))
-                    .map(listed)
-                    .join("; ")}.`,
-                ),
-              ),
+            )
           }),
+          Effect.catchTag("SchemaError", (error) => Effect.succeed(rejected(error.message))),
         ),
     })
   }),
@@ -425,57 +566,6 @@ const ToolsLayer = Tools.toLayer(
 
 // A chat leaves tool arguments undecoded ("opaque"); results are decoded.
 type Round = LanguageModel.GenerateTextResponse<Toolkit.Tools<typeof Tools>, "opaque">
-
-const isIndicator = Schema.is(IndicatorId)
-
-// The search a call made: its text, the source it narrowed to, and the
-// sources it found indicators from, best first, once it answered.
-const searchedBy = (
-  round: Round,
-  { id, text, source }: { id: string; text: string; source: Source | null },
-) => {
-  const fields: SearchedFields = { text }
-
-  const [found] = round.toolResults.flatMap((result) =>
-    result.id === id && result.name === "search_indicators" && !result.isFailure
-      ? [Arr.dedupe(result.result.map((match) => match.source))]
-      : [],
-  )
-
-  if (source !== null) fields.source = source
-
-  if (found !== undefined) fields.found = found
-
-  return Searched.make(fields)
-}
-
-// A search step's fields, each set once known.
-interface SearchedFields {
-  text: string
-  source?: Source
-  found?: ReadonlyArray<Source>
-}
-
-// What one tool call of a round tells the person while the agent works.
-const stepOf =
-  (round: Round) =>
-  (call: Round["toolCalls"][number]): ReadonlyArray<Step> => {
-    if (call.name === "search_indicators" && isSearch(call.params)) {
-      return [searchedBy(round, { id: call.id, ...call.params })]
-    }
-
-    if (call.name === "describe_indicator" && isDescribe(call.params)) {
-      return isIndicator(call.params.indicator)
-        ? [Described.make({ indicator: call.params.indicator })]
-        : []
-    }
-
-    if (call.name === "find_countries" && isFind(call.params)) {
-      return [Located.make({ names: call.params.names })]
-    }
-
-    return []
-  }
 
 // The question the agent asked the person in this round, if any.
 const askedIn = (round: Round) =>
@@ -491,28 +581,16 @@ const askedIn = (round: Round) =>
     })[0],
   )
 
-// What one round did, in order, and how it ended the answer, if it did: with
-// the chart it showed or, failing that, the question it asked.
-const stepsOf = (round: Round) => {
-  const charts = round.toolResults.flatMap((result) =>
-    result.name === "show_chart" && !result.isFailure ? [result.result] : [],
+// How one round ended the answer, if it did: with the chart it showed or,
+// failing that, the question it asked.
+const endingOf = (round: Round) => {
+  const shown = round.toolResults.flatMap((result) =>
+    result.name === "show_chart" && !result.isFailure && isShown(result.result)
+      ? [result.result]
+      : [],
   )
 
-  const rejections = charts.flatMap((chart) =>
-    Match.valueTags(chart, {
-      Shown: () => [],
-      Rejected: ({ problem }) => [RejectedStep.make({ problem })],
-    }),
-  )
-
-  const shown = charts.flatMap((chart) =>
-    Match.valueTags(chart, { Shown: (result) => [result], Rejected: () => [] }),
-  )
-
-  return {
-    steps: [...round.toolCalls.flatMap(stepOf(round)), ...rejections],
-    ending: Option.orElse(Option.fromUndefinedOr(shown[0]), () => askedIn(round)),
-  }
+  return Option.orElse(Option.fromUndefinedOr(shown[0]), () => askedIn(round))
 }
 
 const instructions = (
@@ -561,67 +639,116 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
       })
 
       // The chart's takeaway, written by the model from the data show_chart
-      // returned. A model that fails or writes one that fails the check leaves
-      // the chart without one.
+      // returned, and how its step ended. A model that fails or writes one
+      // that fails the check leaves the chart without one.
       const takeaway = Effect.fn("Agent.takeaway")(
         function* (chat: Chat.Chat, { view, data }: typeof Shown.Type) {
           const response = yield* chat.generateText({ prompt: [], toolkit, toolChoice: "none" })
 
           return Option.match(check(response.text, data), {
-            onNone: () => Answered.make({ view }),
-            onSome: (text) => Answered.make({ view, takeaway: text }),
+            onNone: (): Written => ({
+              answered: Answered.make({ view }),
+              state: Dropped.make({}),
+            }),
+            onSome: ({ text, numbers }): Written => ({
+              answered: Answered.make({ view, takeaway: text }),
+              state: Checked.make({ numbers }),
+            }),
           })
         },
         Effect.provideService(LanguageModel.LanguageModel, model),
         (effect, _chat, { view }) =>
           Effect.catchTag(effect, "AiError", (error) =>
             Effect.logWarning("Language model failed on a takeaway", error.reason).pipe(
-              Effect.as(Answered.make({ view })),
+              Effect.as<Written>({
+                answered: Answered.make({ view }),
+                state: Failed.make({ reason: new AgentUnavailable() }),
+              }),
             ),
           ),
       )
 
-      // Each round is one model request and the tools it calls. Steps are
-      // reported once their round is done.
-      const answer = Effect.fn("Agent.answer")(
-        function* (
-          chat: Chat.Chat,
-          { question, queue }: { question: string; queue: Queue.Queue<Step, Failure | Cause.Done> },
-        ) {
+      // Each round is one model request and the tools it calls. The round's
+      // Thinking step runs while the model decides, and ends when a tool
+      // reports its step or the model answers. Each tool reports its step as
+      // it starts and as it ends.
+      const answer = Effect.fn("Agent.answer")(function* (
+        chat: Chat.Chat,
+        { question, queue }: { question: string; queue: Queue.Queue<Step, Failure | Cause.Done> },
+      ) {
+        const send = (step: Step) => Effect.sync(() => Queue.offerUnsafe(queue, step))
+
+        const thinking = yield* Ref.make(Option.none<StepId>())
+
+        // Ends the Thinking step, if one runs, in `state`.
+        const think = (state: typeof Thinking.Type.state) =>
+          Ref.getAndSet(thinking, Option.none()).pipe(
+            Effect.flatMap(
+              Option.match({
+                onNone: () => Effect.void,
+                onSome: (id) => send(Thinking.make({ id, state })),
+              }),
+            ),
+          )
+
+        const report = Report.of((step) => think(Thought.make({})).pipe(Effect.andThen(send(step))))
+
+        const decided = Effect.gen(function* () {
           yield* Ref.update(chat.history, forget)
 
           for (let round = 0; round < rounds; round += 1) {
+            const id = StepId.make(`thinking-${round}`)
+
+            yield* Ref.set(thinking, Option.some(id))
+            yield* send(Thinking.make({ id, state: Running.make({}) }))
+
             const response = yield* chat.generateText({
               prompt: round === 0 ? question : [],
               toolkit,
             })
 
-            const { steps, ending } = stepsOf(response)
+            yield* think(Thought.make({}))
 
-            Queue.offerAllUnsafe(queue, steps)
+            const ending = endingOf(response)
 
-            if (Option.isSome(ending)) {
-              Queue.offerUnsafe(
-                queue,
-                isShown(ending.value) ? yield* takeaway(chat, ending.value) : ending.value,
-              )
-
-              return
-            }
+            if (Option.isSome(ending)) return ending.value
 
             // No tool call means the model answered in words: it found no chart.
             if (response.toolCalls.length === 0) break
           }
 
-          Queue.offerUnsafe(queue, Unanswered.make({}))
-        },
-        Effect.provideService(LanguageModel.LanguageModel, model),
-        Effect.catchTag("AiError", (error) =>
-          Effect.logWarning("Language model failed", error.reason).pipe(
-            Effect.andThen(Effect.fail(new AgentUnavailable())),
+          return Unanswered.make({})
+        })
+
+        // A shown chart gets its takeaway before the answer ends.
+        const answered = Effect.gen(function* () {
+          const ending = yield* decided
+
+          if (isShown(ending)) {
+            const id = StepId.make("takeaway")
+
+            yield* send(Takeaway.make({ id, state: Running.make({}) }))
+
+            const written = yield* takeaway(chat, ending)
+
+            yield* send(Takeaway.make({ id, state: written.state }))
+            yield* send(written.answered)
+          } else {
+            yield* send(ending)
+          }
+        })
+
+        yield* answered.pipe(
+          Effect.provideService(Report, report),
+          Effect.provideService(LanguageModel.LanguageModel, model),
+          Effect.catchTag("AiError", (error) =>
+            Effect.logWarning("Language model failed", error.reason).pipe(
+              Effect.andThen(think(Failed.make({ reason: new AgentUnavailable() }))),
+              Effect.andThen(Effect.fail(new AgentUnavailable())),
+            ),
           ),
-        ),
-      )
+        )
+      })
 
       const ask = (chat: Chat.Chat, question: string) =>
         Stream.callback<Step, Failure>((queue) =>
@@ -644,7 +771,7 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
 
           return Option.match(check(response.text, data), {
             onNone: () => Answered.make({ view }),
-            onSome: (text) => Answered.make({ view, takeaway: text }),
+            onSome: ({ text }) => Answered.make({ view, takeaway: text }),
           })
         },
         Effect.catchTag("AiError", (error) =>

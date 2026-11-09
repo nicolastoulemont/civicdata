@@ -1,5 +1,5 @@
-import { Ending, type Source, type Step, type Work } from "@civicdata/domain"
-import { Duration, Match, Schema } from "effect"
+import { Ending, type Source, type Step, type Turn } from "@civicdata/domain"
+import { Duration, Match, Predicate, Schema } from "effect"
 import {
   BookOpen,
   ChartLine,
@@ -34,9 +34,30 @@ const searched = (
   return `${asked}: ${found.length === 0 ? "none found" : found.join(", ")}`
 }
 
-// What a step did, and its icon.
-const describe = (step: Step) =>
+// A step a turn keeps: one that ended, or one saved before steps had states.
+type Saved = NonNullable<Turn["steps"]>[number]
+
+// What a step did, and its icon. Thinking has no line of its own: "Finding a
+// chart…" covers it.
+const describe = (step: Step | Saved) =>
   Match.valueTags(step, {
+    Thinking: () => undefined,
+    Search: ({ text, source, state }) => ({
+      icon: Search,
+      text: Predicate.isTagged(state, "Done")
+        ? `${searched(text, { source })}: ${state.count} found`
+        : searched(text, { source }),
+    }),
+    Definition: ({ indicator, state }) => ({
+      icon: BookOpen,
+      text: `Read the definition of ${Predicate.isTagged(state, "Done") ? state.name : indicator}`,
+    }),
+    Lookup: ({ names }) => ({ icon: MapPin, text: `Looked up ${names.join(", ")}` }),
+    Fetch: ({ state }) =>
+      Predicate.isTagged(state, "Rejected")
+        ? { icon: TriangleAlert, text: "Tried a chart the data cannot show" }
+        : { icon: ChartLine, text: "Fetched the chart's data" },
+    Takeaway: () => ({ icon: ChartLine, text: "Wrote the takeaway" }),
     Searched: ({ text, source, found }) => ({
       icon: Search,
       text: searched(text, { source, found }),
@@ -69,7 +90,7 @@ const Line = ({ icon: Icon, children }: LineProps) => (
 )
 
 interface StepsProps {
-  steps: ReadonlyArray<Step>
+  steps: ReadonlyArray<Step | Saved>
   children?: ReactNode
 }
 
@@ -77,12 +98,12 @@ interface StepsProps {
 export const Steps = ({ steps, children }: StepsProps) => (
   <ol aria-label="Steps" className="flex flex-col gap-1 text-sm text-muted-foreground">
     {steps.map((step, index) => {
-      const { icon, text } = describe(step)
+      const line = describe(step)
 
-      return (
-        // oxlint-disable-next-line react/no-array-index-key -- steps are only appended
-        <Line key={index} icon={icon}>
-          {text}
+      return line === undefined ? null : (
+        // oxlint-disable-next-line react/no-array-index-key -- a step keeps its place as it changes
+        <Line key={index} icon={line.icon}>
+          {line.text}
         </Line>
       )
     })}
@@ -136,7 +157,7 @@ export const Working = ({ steps, started }: WorkingProps) => {
 }
 
 interface WorkedProps {
-  steps: ReadonlyArray<Work>
+  steps: ReadonlyArray<Saved>
   took: Duration.Duration | undefined
 }
 
