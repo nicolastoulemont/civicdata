@@ -1,0 +1,224 @@
+{
+  "data": {
+    "dataflows": [
+      {
+        "id": "DSD_LFS@DF_IALFS_UNE_M",
+        "version": "1.0",
+        "agencyID": "OECD.SDD.TPS",
+        "isFinal": true,
+        "name": "Monthly unemployment rates",
+        "names": { "en": "Monthly unemployment rates" },
+        "description": "<p>The infra-annual dataflow on the monthly unemployment rate is a subset of the infra-annual labour statistics database, which contains predominantly monthly and quarterly statistics on the unemployed population by age groups (15+, 15-24, 25-54, 55-64, 15-64 and 15-74 where available) and sex and associated statistical methodological information and associated statistical methodological information, for the OECD member countries and for selected other economies. </p><p>The unemployment rate is calculated as the number of unemployed persons as a percentage of the labour force (i.e., the unemployed plus those in employment). The unemployed are persons in their working age who, in the reference period, do not have a job; are available for work; and, have taken specific steps to find a job. </p><p>Chile, Costa Rica, and the United Kingdom publish Labour Force Survey (LFS) data using a rolling quarter methodology. The OECD treats the middle month of the rolling quarter as the reference month. As a result, the publication of monthly LFS data for these countries may be delayed by one month or more relative to the OECD reference month.</p><p>The infra-annual labour statistics compiled for all OECD member countries, are drawn from Labour Force Surveys based on definition provided by the 19th Conference of Labour Statisticians in 2013. The uniform application of these definitions across all OECD member countries results in estimates that are internationally comparable.</p>",
+        "descriptions": {
+          "en": "<p>The infra-annual dataflow on the monthly unemployment rate is a subset of the infra-annual labour statistics database, which contains predominantly monthly and quarterly statistics on the unemployed population by age groups (15+, 15-24, 25-54, 55-64, 15-64 and 15-74 where available) and sex and associated statistical methodological information and associated statistical methodological information, for the OECD member countries and for selected other economies. </p><p>The unemployment rate is calculated as the number of unemployed persons as a percentage of the labour force (i.e., the unemployed plus those in employment). The unemployed are persons in their working age who, in the reference period, do not have a job; are available for work; and, have taken specific steps to find a job. </p><p>Chile, Costa Rica, and the United Kingdom publish Labour Force Survey (LFS) data using a rolling quarter methodology. The OECD treats the middle month of the rolling quarter as the reference month. As a result, the publication of monthly LFS data for these countries may be delayed by one month or more relative to the OECD reference month.</p><p>The infra-annual labour statistics compiled for all OECD member countries, are drawn from Labour Force Surveys based on definition provided by the 19th Conference of Labour Statisticians in 2013. The uniform application of these definitions across all OECD member countries results in estimates that are internationally comparable.</p>"
+        },
+        "annotations": [
+          { "type": "NonProductionDataflow", "text": "true", "texts": { "en": "true" } },
+          { "id": "@SDMX", "title": "REF_AREA,AGE", "type": "LAYOUT_ROW" },
+          { "id": "@SDMX", "title": "TIME_PERIOD", "type": "LAYOUT_COLUMN" },
+          { "id": "@SDMX", "title": "MEASURE,UNIT_MEASURE", "type": "LAYOUT_ROW_SECTION" },
+          {
+            "id": "@SDMX",
+            "title": "OBS_STATUS=A,UNIT_MULT=0,TRANSFORMATION=_Z,ACTIVITY=_Z",
+            "type": "NOT_DISPLAYED"
+          },
+          {
+            "id": "@SDMX",
+            "title": "FREQ=M,LASTNPERIODS=13,MEASURE=UNE_M,AGE=Y_GE15,SEX=_T,ADJUSTMENT=Y,TRANSFORMATION=_Z",
+            "type": "DEFAULT"
+          },
+          {
+            "title": "COMBINED_MEASURE:MEASURE,ACTIVITY;COMBINED_UNIT_MEASURE:UNIT_MEASURE,UNIT_MULT,ADJUSTMENT",
+            "type": "COMBINED_CONCEPTS",
+            "text": "COMBINED_MEASURE:Measure;COMBINED_UNIT_MEASURE:Unit of measure",
+            "texts": { "en": "COMBINED_MEASURE:Measure;COMBINED_UNIT_MEASURE:Unit of measure" }
+          }
+        ],
+        "structure": "urn:sdmx:org.sdmx.infomodel.datastructure.DataStructure=OECD.SDD.TPS:DSD_LFS(1.0)"
+      }
+    ],
+    "dataStructures": [
+      {
+        "id": "DSD_LFS",
+        "version": "1.0",
+        "agencyID": "OECD.SDD.TPS",
+        "isFinal": true,
+        "name": "Labour force statistics",
+        "names": { "en": "Labour force statistics" },
+        "annotations": [
+          {
+            "title": "urn:sdmx:org.sdmx.infomodel.metadatastructure.MetadataStructure=OECD:MSD_REF_METADATA(1.0)",
+            "type": "METADATA"
+          }
+        ],
+        "dataStructureComponents": {
+          "attributeList": {
+            "id": "AttributeDescriptor",
+            "attributes": [
+              {
+                "id": "BASE_PER",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SDD.TPS:CS_LFS(1.0).BASE_PER",
+                "localRepresentation": {
+                  "textFormat": {
+                    "textType": "ObservationalTimePeriod",
+                    "isSequence": false,
+                    "isMultiLingual": false
+                  }
+                },
+                "assignmentStatus": "Conditional",
+                "attributeRelationship": { "dimensions": ["UNIT_MEASURE"] }
+              },
+              {
+                "id": "OBS_STATUS",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SDD.TPS:CS_LFS(1.0).OBS_STATUS",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=SDMX:CL_OBS_STATUS(2.2)"
+                },
+                "assignmentStatus": "Conditional",
+                "attributeRelationship": { "primaryMeasure": "OBS_VALUE" }
+              },
+              {
+                "id": "UNIT_MULT",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SDD.TPS:CS_LFS(1.0).UNIT_MULT",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=SDMX:CL_UNIT_MULT(1.1)"
+                },
+                "assignmentStatus": "Mandatory",
+                "attributeRelationship": { "dimensions": ["UNIT_MEASURE"] }
+              },
+              {
+                "id": "DECIMALS",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SDD.TPS:CS_LFS(1.0).DECIMALS",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=SDMX:CL_DECIMALS(1.0)"
+                },
+                "assignmentStatus": "Conditional",
+                "attributeRelationship": { "dimensions": ["UNIT_MEASURE"] }
+              }
+            ]
+          },
+          "dimensionList": {
+            "id": "DimensionDescriptor",
+            "dimensions": [
+              {
+                "id": "REF_AREA",
+                "position": 0,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SDD.TPS:CS_LFS(1.0).REF_AREA",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD:CL_AREA(1.1)"
+                }
+              },
+              {
+                "id": "MEASURE",
+                "position": 1,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SDD.TPS:CS_LFS(1.0).MEASURE",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD.SDD.TPS:CL_MEASURE_LFS_TPS(1.0)"
+                }
+              },
+              {
+                "id": "UNIT_MEASURE",
+                "position": 2,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SDD.TPS:CS_LFS(1.0).UNIT_MEASURE",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD:CL_UNIT_MEASURE(1.2)"
+                }
+              },
+              {
+                "id": "TRANSFORMATION",
+                "position": 3,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SDD.TPS:CS_LFS(1.0).TRANSFORMATION",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD:CL_TRANSFORMATION(1.1)"
+                }
+              },
+              {
+                "id": "ADJUSTMENT",
+                "position": 4,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SDD.TPS:CS_LFS(1.0).ADJUSTMENT",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD:CL_ADJUSTMENT(1.0)"
+                }
+              },
+              {
+                "id": "SEX",
+                "position": 5,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SDD.TPS:CS_LFS(1.0).SEX",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD:CL_SEX(1.0)"
+                }
+              },
+              {
+                "id": "AGE",
+                "position": 6,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SDD.TPS:CS_LFS(1.0).AGE",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD:CL_AGE(1.0)"
+                }
+              },
+              {
+                "id": "ACTIVITY",
+                "position": 7,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SDD.TPS:CS_LFS(1.0).ACTIVITY",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD:CL_ACTIVITY_ISIC4(1.0)"
+                }
+              },
+              {
+                "id": "FREQ",
+                "position": 8,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SDD.TPS:CS_LFS(1.0).FREQ",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=SDMX:CL_FREQ(2.1)"
+                }
+              }
+            ],
+            "timeDimensions": [
+              {
+                "id": "TIME_PERIOD",
+                "position": 9,
+                "type": "TimeDimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SDD.TPS:CS_LFS(1.0).TIME_PERIOD",
+                "localRepresentation": {
+                  "textFormat": {
+                    "textType": "ObservationalTimePeriod",
+                    "isSequence": false,
+                    "isMultiLingual": false
+                  }
+                }
+              }
+            ]
+          },
+          "measureList": {
+            "id": "MeasureDescriptor",
+            "primaryMeasure": {
+              "id": "OBS_VALUE",
+              "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SDD.TPS:CS_LFS(1.0).OBS_VALUE",
+              "localRepresentation": {
+                "textFormat": { "textType": "Double", "isSequence": false, "isMultiLingual": false }
+              }
+            }
+          }
+        }
+      }
+    ]
+  },
+  "meta": {
+    "schema": "https://raw.githubusercontent.com/sdmx-twg/sdmx-json/develop/structure-message/tools/schemas/1.0/sdmx-json-structure-schema.json",
+    "contentLanguages": ["en"],
+    "id": "IDREF6012",
+    "prepared": "2026-11-09T09:51:39Z",
+    "test": false,
+    "sender": { "id": "Unknown" },
+    "receiver": [{ "id": "Unknown" }]
+  }
+}

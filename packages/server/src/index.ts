@@ -6,6 +6,7 @@ import { HttpApiBuilder } from "effect/http-api"
 import { Catalog } from "./Catalog.ts"
 import { Conversations } from "./Conversations.ts"
 import { Handlers } from "./Handlers.ts"
+import { Sdmx } from "./Sdmx.ts"
 import { WorldBank } from "./WorldBank.ts"
 
 export { ConversationObject } from "./ConversationObject.ts"
@@ -15,6 +16,7 @@ const Live = HttpApiBuilder.layer(Api).pipe(
   Layer.provide(Conversations.live),
   Layer.provide(Catalog.live),
   Layer.provide(WorldBank.live),
+  Layer.provide(Sdmx.live),
   Layer.provide(HttpServer.layerServices),
 )
 

@@ -1,6 +1,7 @@
 import {
   Api,
   Change,
+  DimensionsMissing,
   IndicatorId,
   IndicatorNotFound,
   type ResolvedView,
@@ -20,8 +21,15 @@ import { HttpApiTest } from "effect/http-api"
 import { Catalog } from "../src/Catalog.ts"
 import { Conversations } from "../src/Conversations.ts"
 import { Handlers } from "../src/Handlers.ts"
+import { Sdmx } from "../src/Sdmx.ts"
 import { titles } from "../src/titles.gen.ts"
 import { WorldBank } from "../src/WorldBank.ts"
+import { http, offline } from "./fakes.ts"
+import populationFlow from "./fixtures/eurostat/population-flow.json"
+import uncovered from "./fixtures/eurostat/population-uncovered.xml?raw"
+import populations from "./fixtures/eurostat/population.csv?raw"
+import unemploymentFlow from "./fixtures/eurostat/unemployment-flow.json"
+import unemploymentRates from "./fixtures/eurostat/unemployment.csv?raw"
 
 const population = IndicatorId.make("SP.POP.TOTL")
 const gdp = IndicatorId.make("NY.GDP.MKTP.CD")
@@ -105,14 +113,50 @@ const down = Layer.succeed(
   }),
 )
 
+const eurostat = "https://ec.europa.eu/eurostat/api/dissemination"
+
+// Eurostat as recorded on 2026-11-09: population on 1 January for France and
+// Greece, refused with the United States, which it does not cover; and
+// unemployment rates for France, which come in several series.
+const recordedEurostat = Sdmx.layer.pipe(
+  Layer.provide(
+    http(
+      (url) =>
+        new Map([
+          [
+            `${eurostat}/sdmx/2.1/dataflow/ESTAT/TPS00001/1.0?format=JSON`,
+            Response.json(populationFlow),
+          ],
+          [
+            `${eurostat}/sdmx/2.1/dataflow/ESTAT/UNE_RT_A/1.0?format=JSON`,
+            Response.json(unemploymentFlow),
+          ],
+          [
+            `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/TPS00001/1.0/*?c[geo]=FR,EL,US&c[freq]=A&c[TIME_PERIOD]=ge:2019+le:2021&compress=false`,
+            new Response(uncovered, { status: 400 }),
+          ],
+          [
+            `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/TPS00001/1.0/*?c[geo]=FR,EL&c[freq]=A&c[TIME_PERIOD]=ge:2019+le:2021&compress=false`,
+            new Response(populations),
+          ],
+          [
+            `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/UNE_RT_A/1.0/*?c[geo]=FR&c[freq]=A&c[TIME_PERIOD]=ge:2024+le:2024&compress=false`,
+            new Response(unemploymentRates),
+          ],
+        ]).get(url) ?? new Response("no recording", { status: 500 }),
+    ),
+  ),
+)
+
 // These tests neither search nor ask, so the catalog and the conversations are
 // the ones plain `pnpm dev:web` gets.
-const serve = (source: Layer.Layer<WorldBank>) =>
+const serve = (source: Layer.Layer<WorldBank>, sdmx = Sdmx.layer.pipe(Layer.provide(offline))) =>
   Layer.mergeAll(
     Handlers.pipe(
       Layer.provide(Conversations.unavailable),
       Layer.provide(Catalog.unavailable),
       Layer.provide(source),
+      Layer.provide(sdmx),
     ),
     HttpServer.layerServices,
   )
@@ -321,5 +365,52 @@ describe("POST /api/views/resolve", () => {
 
       expect(error).toBeInstanceOf(TransformNotApplicable)
     }).pipe(Effect.provide(serve(worldBank))),
+  )
+
+  it.effect("resolves a Eurostat dataflow and credits Eurostat", () =>
+    Effect.gen(function* () {
+      const client = yield* HttpApiTest.groups(Api, ["views"])
+
+      const resolved = yield* client.views.resolve({
+        payload: trend({
+          indicator: IndicatorId.make("ESTAT,TPS00001,1.0"),
+          countries: ["FRA", "GRC", "USA"],
+          from: year(2019),
+          to: year(2021),
+        }),
+      })
+
+      expect(resolved.indicator.name).toBe("Population on 1 January")
+      expect(resolved.observations).toHaveLength(6)
+      expect(resolved.missing).toEqual(["USA"])
+      expect(resolved.sources).toEqual([
+        {
+          indicator: "ESTAT,TPS00001,1.0",
+          name: "Population on 1 January",
+          source: "Eurostat",
+          dataset: "Population on 1 January",
+          url: `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/TPS00001/1.0/*?c[geo]=FR,EL&c[freq]=A&c[TIME_PERIOD]=ge:2019+le:2021&compress=false`,
+          retrievedAt: expect.anything(),
+        },
+      ])
+    }).pipe(Effect.provide(serve(worldBank, recordedEurostat))),
+  )
+
+  it.effect("fails with DimensionsMissing for a dataflow with several series", () =>
+    Effect.gen(function* () {
+      const client = yield* HttpApiTest.groups(Api, ["views"])
+
+      const error = yield* client.views
+        .resolve({
+          payload: Ranking.make({
+            indicator: IndicatorId.make("ESTAT,UNE_RT_A,1.0"),
+            countries: ["FRA"],
+            year: year(2024),
+          }),
+        })
+        .pipe(Effect.flip)
+
+      expect(error).toBeInstanceOf(DimensionsMissing)
+    }).pipe(Effect.provide(serve(worldBank, recordedEurostat))),
   )
 })

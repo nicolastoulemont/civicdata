@@ -346,6 +346,12 @@ const ToolsLayer = Tools.toLayer(
                   `${indicator} is a percentage or rate; ${kindOf(transform)} does not apply to it.`,
                 ),
               ),
+            DimensionsMissing: ({ indicator, dimensions }) =>
+              Effect.succeed(
+                rejected(
+                  `${indicator} holds several series that differ by ${dimensions.join(", ")}. Choose another indicator.`,
+                ),
+              ),
           }),
         ),
     })

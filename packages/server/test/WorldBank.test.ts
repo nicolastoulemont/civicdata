@@ -1,11 +1,10 @@
 import { IndicatorId, IndicatorNotFound, SourceUnavailable, Year } from "@civicdata/domain"
 import { describe, expect, it } from "@effect/vitest"
-import { DateTime, Effect, Fiber, Layer, Option } from "effect"
-import { HttpClient, HttpClientResponse } from "effect/http"
+import { DateTime, Effect, Fiber, Layer } from "effect"
 import { TestClock } from "effect/testing"
 
-import { Cache } from "../src/Cache.ts"
 import { WorldBank } from "../src/WorldBank.ts"
+import { http, memory } from "./fakes.ts"
 import catalog from "./fixtures/worldbank/catalog.json"
 import gaps from "./fixtures/worldbank/gaps.json"
 import unknownIndicator from "./fixtures/worldbank/indicator-unknown.json"
@@ -20,14 +19,6 @@ const recorded = [
   [`${base}/country/FRA;SSD/indicator/NY.GDP.PCAP.CD?format=json&date=2015:2016&per_page=4`, gaps],
   [`${base}/indicator?format=json&source=2&per_page=20000`, catalog],
 ] as const
-
-const http = (respond: (url: string) => Response) =>
-  Layer.succeed(
-    HttpClient.HttpClient,
-    HttpClient.make((request) =>
-      Effect.succeed(HttpClientResponse.fromWeb(request, respond(request.url))),
-    ),
-  )
 
 const replay = (respond: (url: string) => Response) =>
   WorldBank.layer.pipe(Layer.provide(http(respond)))
@@ -136,7 +127,7 @@ describe("WorldBank", () => {
 // The cached adapter over recorded responses, with an in-memory cache the
 // test can inspect and a count of the requests that reached the World Bank.
 const cachedRecording = () => {
-  const store = new Map<string, string>()
+  const { store, layer: cache } = memory()
   let requests = 0
 
   const layer = WorldBank.cached.pipe(
@@ -147,18 +138,7 @@ const cachedRecording = () => {
         return fromRecording(url)
       }),
     ),
-    Layer.provide(
-      Layer.succeed(
-        Cache,
-        Cache.of({
-          get: (key) => Effect.sync(() => Option.fromNullishOr(store.get(key))),
-          put: (key, value) =>
-            Effect.sync(() => {
-              store.set(key, value)
-            }),
-        }),
-      ),
-    ),
+    Layer.provide(cache),
   )
 
   return { layer, store, requests: () => requests }

@@ -1,4 +1,5 @@
 import {
+  DimensionsMissing,
   IndicatorNotFound,
   SourceUnavailable,
   TransformNotApplicable,
@@ -31,7 +32,11 @@ export const respond = async (request: Request) => {
       headers: { "content-type": "image/png", "cache-control": "public, max-age=86400" },
     })
   } catch (error) {
-    if (error instanceof IndicatorNotFound || error instanceof TransformNotApplicable)
+    if (
+      error instanceof IndicatorNotFound ||
+      error instanceof TransformNotApplicable ||
+      error instanceof DimensionsMissing
+    )
       return status(404)
 
     if (error instanceof SourceUnavailable) return status(502)

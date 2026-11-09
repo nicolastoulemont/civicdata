@@ -31,8 +31,10 @@ import { serve } from "../src/ConversationObject.ts"
 import { Conversations } from "../src/Conversations.ts"
 import { Handlers } from "../src/Handlers.ts"
 import { Resolver } from "../src/Resolver.ts"
+import { Sdmx } from "../src/Sdmx.ts"
 import { Transcript } from "../src/Transcript.ts"
 import { WorldBank } from "../src/WorldBank.ts"
+import { offline } from "./fakes.ts"
 
 const lifeExpectancy = IndicatorId.make("SP.DYN.LE00.IN")
 
@@ -144,6 +146,9 @@ const scripted = (turns: ReadonlyArray<Turn>) => {
   return { layer, prompts }
 }
 
+// The agent searches the World Bank catalog only, so it never reaches an SDMX source.
+const sdmx = Sdmx.layer.pipe(Layer.provide(offline))
+
 // The API as the Worker serves it, with each conversation answered in this
 // process the way its Durable Object would, from memory.
 const serveApi = (model: Layer.Layer<LanguageModel.LanguageModel>, limit = AskLimit.none) =>
@@ -161,6 +166,7 @@ const serveApi = (model: Layer.Layer<LanguageModel.LanguageModel>, limit = AskLi
                     Layer.provide(Resolver.layer),
                     Layer.provide(catalog),
                     Layer.provide(worldBank),
+                    Layer.provide(sdmx),
                   ),
                 ),
                 Layer.provide(limit),
@@ -170,6 +176,7 @@ const serveApi = (model: Layer.Layer<LanguageModel.LanguageModel>, limit = AskLi
       ),
       Layer.provide(catalog),
       Layer.provide(worldBank),
+      Layer.provide(sdmx),
     ),
     HttpServer.layerServices,
   )
