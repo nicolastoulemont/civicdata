@@ -2,20 +2,26 @@ import {
   Api,
   Ballot,
   Country,
+  covers,
   Day,
   type Election,
   End,
   type Government,
   Party,
-  type Politics as PoliticalRecords,
+  Politics as PoliticalRecords,
   PoliticsUnavailable,
   Publisher,
   type Year,
+  yearOf,
+  yearsOf,
 } from "@civicdata/domain"
 import { D1Client } from "@effect/sql-d1"
 import { Array as Arr, Context, Effect, Layer, Schema } from "effect"
 import { HttpApiBuilder } from "effect/http-api"
 import { SqlClient, SqlSchema } from "effect/sql"
+
+import events from "./official/events.json"
+import reforms from "./official/reforms.json"
 
 interface Query {
   readonly countries: ReadonlyArray<Country>
@@ -24,8 +30,9 @@ interface Query {
 }
 
 interface Interface {
-  // The governments of the countries in office during any of the years, and
-  // their elections held in them, oldest first per country.
+  // The governments of the countries in office during any of the years,
+  // their elections held in them, oldest first per country, and the events
+  // and reforms of the years that concern any of them.
   readonly records: (query: Query) => Effect.Effect<PoliticalRecords, PoliticsUnavailable>
 }
 
@@ -195,8 +202,10 @@ const lastDay = (government: Government) =>
     Open: () => government.start,
   })
 
-// The governments of every EU and OECD member, from the publishers'
-// published generations, in sequence per country (see `sequence`).
+// The governments and elections of every EU and OECD member, from the
+// publishers' published generations, in sequence per country (see
+// `sequence`), with the events and reforms checked by hand (see
+// official/README.md).
 export class Politics extends Context.Service<Politics, Interface>()("@civicdata/server/Politics") {
   static readonly layer = Layer.effect(
     Politics,
@@ -204,6 +213,9 @@ export class Politics extends Context.Service<Politics, Interface>()("@civicdata
       const sql = yield* SqlClient.SqlClient
 
       yield* politicsTables
+
+      const history = yield* Schema.decodeUnknownEffect(PoliticalRecords.fields.events)(events)
+      const reformed = yield* Schema.decodeUnknownEffect(PoliticalRecords.fields.reforms)(reforms)
 
       // The datasets published so far, of either kind.
       const published = SqlSchema.findAll({
@@ -266,6 +278,21 @@ export class Politics extends Context.Service<Politics, Interface>()("@civicdata
                 (election) =>
                   election.date <= last && (election.lastRound ?? election.date) >= first,
               ),
+            ),
+            events: history.filter((event) => {
+              const years = yearsOf(event.when)
+
+              return (
+                countries.some((country) => covers(event.scope, country)) &&
+                years.from <= to &&
+                (years.to ?? to) >= from
+              )
+            }),
+            reforms: reformed.filter(
+              (reform) =>
+                countries.includes(reform.country) &&
+                yearOf(reform.date) >= from &&
+                yearOf(reform.date) <= to,
             ),
           }
         },

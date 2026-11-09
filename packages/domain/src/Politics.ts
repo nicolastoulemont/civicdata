@@ -1,6 +1,7 @@
 import { Schema, SchemaGetter } from "effect"
 
 import { Country } from "./Country.ts"
+import { IndicatorId } from "./Indicator.ts"
 import { Year } from "./View.ts"
 
 // A calendar day as its publisher writes it: 2011-12-21.
@@ -131,10 +132,195 @@ const Election = Schema.Struct({
 
 export interface Election extends Schema.Schema.Type<typeof Election> {}
 
-// The political records of some countries over some years.
+// A date as precise as its source gives it: a year (1973), a month
+// (2010-05) or a day (1990-10-03). A missing month or day is never filled in.
+export const Moment = Schema.String.check(
+  Schema.makeFilter((moment: string) => {
+    const [, month] = /^\d{4}(?:-(\d{2}))?$/.exec(moment) ?? []
+
+    return (
+      moment.length === 4 ||
+      (month !== undefined && Number(month) >= 1 && Number(month) <= 12) ||
+      Schema.is(Day)(moment) ||
+      "a year, YYYY-MM or YYYY-MM-DD"
+    )
+  }),
+).pipe(Schema.brand("Moment"))
+
+export type Moment = typeof Moment.Type
+
+// A moment its source gives as approximate: "about 1973".
+const Dated = Schema.Struct({ date: Moment, approximate: Schema.Boolean })
+
+// When an event happened: at one moment, or over a period. A period without
+// an end (`to` null) is still going on.
+export const When = Schema.TaggedUnion({
+  Point: { at: Dated },
+  Period: { from: Dated, to: Schema.NullOr(Dated) },
+})
+
+export type When = typeof When.Type
+
+// The countries an event concerns: every country, or those listed.
+export const Scope = Schema.TaggedUnion({
+  World: {},
+  Countries: { countries: Schema.NonEmptyArray(Country).check(Schema.isUnique()) },
+})
+
+export type Scope = typeof Scope.Type
+
+const Slug = Schema.String.check(Schema.isPattern(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/))
+
+// A page that establishes a record, and who published it.
+const Reference = Schema.Struct({
+  publisher: Schema.NonEmptyString,
+  title: Schema.NonEmptyString,
+  url: Schema.String.check(Schema.isPattern(/^https:\/\/[^\s/?#]+\.[^\s/?#]+(?:[/?#]\S*)?$/)),
+})
+
+const Sources = Schema.NonEmptyArray(Reference)
+
+// How an event is classified, as countries-comparison's history catalogue
+// (docs/history.md there) defines each scale. Each describes the event, not
+// its effect on any figure.
+const Kind = Schema.Literals(["event", "programme", "trend", "statistical-break"])
+
+const Reach = Schema.Literals(["national", "cross-border", "european", "worldwide"])
+
+const Relation = Schema.Literals(["eu-specific", "eu-adjacent", "global-context"])
+
+const Topic = Schema.Literals([
+  "economy",
+  "fiscal",
+  "institutions",
+  "defence",
+  "health",
+  "society",
+  "energy",
+  "environment",
+  "territory",
+])
+
+// A statistical break changes how figures are measured; it alone has the
+// "measurement" impact, outside the historical scale.
+const Impact = Schema.Literals([
+  "world-shaping",
+  "structural",
+  "bounded",
+  "unassessed",
+  "measurement",
+])
+
+// The last day a moment covers: 1975 runs to 1975-12-31.
+const lastDay = (moment: Moment) => `${moment}${"-12-31".slice(moment.length - 4)}`
+
+// A major event, programme or statistical break, with the countries it
+// concerns and its sources. Its summary says what happened, never what it
+// did to a line on a chart.
+const Event = Schema.Struct({
+  id: Slug,
+  name: Schema.NonEmptyString,
+  when: When,
+  scope: Scope,
+  summary: Schema.NonEmptyString,
+  sources: Sources,
+  kind: Kind,
+  reach: Reach,
+  relation: Relation,
+  topics: Schema.NonEmptyArray(Topic).check(Schema.isUnique()),
+  impact: Schema.Struct({ level: Impact, reason: Schema.NonEmptyString }),
+}).check(
+  Schema.makeFilter(
+    (event) =>
+      (event.kind === "statistical-break") === (event.impact.level === "measurement") ||
+      "a statistical break, and only one, has the measurement impact",
+  ),
+  Schema.makeFilter(
+    ({ when }) =>
+      When.match(when, {
+        Point: () => true,
+        Period: ({ from, to }) => to === null || from.date <= lastDay(to.date),
+      }) || "a period must end on or after its start",
+  ),
+)
+
+export interface Event extends Schema.Schema.Type<typeof Event> {}
+
+// The year a moment falls in: an annual chart's place for it.
+export const yearOf = (moment: Moment) => Number(moment.slice(0, 4))
+
+// The first and last year an event spans. One still going on has no last year.
+export const yearsOf = (when: When): { readonly from: number; readonly to: number | null } =>
+  When.match(when, {
+    Point: ({ at }) => ({ from: yearOf(at.date), to: yearOf(at.date) }),
+    Period: ({ from, to }) => ({
+      from: yearOf(from.date),
+      to: to === null ? null : yearOf(to.date),
+    }),
+  })
+
+// Whether an event concerns a country.
+export const covers = (scope: Scope, country: Country) =>
+  Scope.match(scope, {
+    World: () => true,
+    Countries: ({ countries }) => countries.includes(country),
+  })
+
+// The policy areas reforms belong to.
+export const PolicyArea = Schema.Literals(["pensions"])
+
+export type PolicyArea = typeof PolicyArea.Type
+
+// The indicators of each policy area: a reform shows on their charts only.
+// Pensions are Eurostat's and the OECD's pension spending, beneficiaries,
+// replacement rates, entitlements and pensioners' poverty, and the OECD's
+// pension system and asset-backed pension series. The World Bank publishes
+// no pension series.
+export const areas: Record<PolicyArea, ReadonlySet<IndicatorId>> = {
+  pensions: new Set(
+    [
+      "ESTAT,TPS00103,1.0",
+      "ESTAT,SPR_EXP_PENS,1.0",
+      "ESTAT,SPR_EXP_FOL,1.0",
+      "ESTAT,SPR_PNS_BEN,1.0",
+      "ESTAT,ILC_PNP3,1.0",
+      "ESTAT,TESPN070,1.0",
+      "ESTAT,ILC_PNS6,1.0",
+      "ESTAT,TESPN100,1.0",
+      "ESTAT,NASA_10_PENS1,1.0",
+      "OECD.ELS.SPD,DSD_PAG@DF_PAG,1.0",
+      "OECD.ELS.SPD,DSD_PAG@DF_PRR,1.0",
+      "OECD.ELS.SPD,DSD_PAG@DF_PW,1.0",
+      "OECD.ELS.SPD,DSD_PAG@DF_DPS,1.0",
+      "OECD.SDD.NAD,DSD_NAPENS@DF_TABLE29,1.0",
+      "OECD.DAF.CM,DSD_FP@DF_FPS,1.0",
+    ].map((code) => IndicatorId.make(code)),
+  ),
+}
+
+// A national policy reform, on the day it was adopted or the day its main
+// provisions took effect, as `milestone` says. Its date is a year or a day,
+// as its source gives it.
+const Reform = Schema.Struct({
+  id: Slug,
+  country: Country,
+  area: PolicyArea,
+  date: Moment,
+  milestone: Schema.Literals(["adopted", "in-force"]),
+  name: Schema.NonEmptyString,
+  summary: Schema.NonEmptyString,
+  sources: Sources,
+})
+
+export interface Reform extends Schema.Schema.Type<typeof Reform> {}
+
+// The political records of some countries over some years: their
+// governments and elections, the events that concern them, and their reforms.
 export const Politics = Schema.Struct({
   governments: Schema.Array(Government),
   elections: Schema.Array(Election),
+  events: Schema.Array(Event),
+  reforms: Schema.Array(Reform),
 })
 
 export interface Politics extends Schema.Schema.Type<typeof Politics> {}

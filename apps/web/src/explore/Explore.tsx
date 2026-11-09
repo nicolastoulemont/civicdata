@@ -1,5 +1,6 @@
 import {
   type Answered,
+  areas,
   Change,
   type Dimension,
   DimensionsMissing,
@@ -60,7 +61,7 @@ import {
 } from "./format.ts"
 import { Indicator } from "./Indicator.tsx"
 import type { Paired } from "./points.ts"
-import { archives, officialPages, Overlay } from "./politics.ts"
+import { archives, cited, officialPages, Overlay } from "./politics.ts"
 import { places } from "./preview.ts"
 import { RankingChart } from "./RankingChart.tsx"
 import { RelationChart } from "./RelationChart.tsx"
@@ -305,6 +306,8 @@ const Single = ({ resolved, picking, politics }: SingleProps) =>
         history={picking?.history}
         governments={politics?.governments}
         elections={politics?.elections}
+        events={politics?.events}
+        reforms={politics?.reforms}
       />
     ),
     Ranking: (ranking) =>
@@ -474,7 +477,13 @@ const Sections = ({
 const overlayNames: Record<Overlay, { toggle: string; records: string }> = {
   elections: { toggle: "Elections", records: "election" },
   governments: { toggle: "Governments", records: "government" },
+  events: { toggle: "Events", records: "event" },
 }
+
+// The overlays whose records PPEG and ParlGov keep for each country, so a
+// country without any has no records rather than nothing that happened.
+const archived = (overlays: ReadonlyArray<Overlay>) =>
+  overlays.filter((overlay) => overlay !== "events")
 
 // The records the chart shows, as a reader would name them: "election or
 // government records".
@@ -491,17 +500,21 @@ interface OverlaysProps {
   onOverlays: (overlays: ReadonlyArray<Overlay>) => void
 }
 
-// The toggles that draw elections and governments over a trend, and what the
-// chart cannot show: a country without records says so, since no band or
-// marker would read as nothing happening.
+// The toggles that draw elections, governments and events over a trend, and
+// what the chart cannot show: a country without election or government
+// records says so, since no band or marker would read as nothing happening.
+// Events are few by design, so a country with none has nothing to say.
 const Overlays = ({ trend, overlays, records, failed, onOverlays }: OverlaysProps) => {
   const hold = use(Hold)
 
   if (trend === undefined) return null
 
+  const kept = archived(overlays)
+
   const unrecorded = trend.countries.filter(
     (country) =>
       records !== undefined &&
+      kept.length > 0 &&
       ![...records.governments, ...records.elections].some((record) => record.country === country),
   )
 
@@ -529,14 +542,16 @@ const Overlays = ({ trend, overlays, records, failed, onOverlays }: OverlaysProp
       </div>
       {failed ? (
         <Alert>
-          <AlertTitle>Election and government records are unavailable</AlertTitle>
+          <AlertTitle>
+            {recordsNamed(overlays).replace(/^./, (first) => first.toUpperCase())} are unavailable
+          </AlertTitle>
           <AlertDescription>Try again later.</AlertDescription>
         </Alert>
       ) : null}
       {unrecorded.length > 0 ? (
         <Alert>
           <AlertTitle>
-            No {recordsNamed(overlays)} for {unrecorded.map(countryName).join(", ")}
+            No {recordsNamed(kept)} for {unrecorded.map(countryName).join(", ")}
           </AlertTitle>
           <AlertDescription>
             PPEG and ParlGov record the elections and governments of EU and OECD members, each from
@@ -554,9 +569,45 @@ interface CreditsProps {
   records: Politics | undefined
 }
 
-// The sources of the elections and governments on a chart, as each asks to
-// be cited. Nothing while the chart shows neither.
-const Credits = ({ overlays, records }: CreditsProps) => {
+interface EventCreditsProps {
+  records: Politics | undefined
+}
+
+// The pages the events and reforms on a chart cite, numbered as their lines
+// in the chart's tooltip say. Nothing while the chart shows none.
+const EventCredits = ({ records }: EventCreditsProps) => {
+  const pages = cited([...(records?.events ?? []), ...(records?.reforms ?? [])])
+
+  return pages.length === 0 ? null : (
+    <>
+      {" Events: sources "}
+      {pages.map((page, index) => (
+        <Fragment key={page.url}>
+          {index === 0 ? "" : " "}
+          <a
+            className="underline underline-offset-4"
+            href={page.url}
+            aria-label={`${index + 1}, ${page.publisher}: ${page.title}`}
+            title={`${page.publisher}: ${page.title}`}
+          >
+            {index + 1}
+          </a>
+        </Fragment>
+      ))}
+      .
+    </>
+  )
+}
+
+interface ArchiveCreditsProps {
+  // The overlays on whose records the archives keep.
+  overlays: ReadonlyArray<Overlay>
+  records: Politics | undefined
+}
+
+// The archives the elections and governments on a chart come from, and the
+// official pages checked by hand after them.
+const ArchiveCredits = ({ overlays, records }: ArchiveCreditsProps) => {
   if (overlays.length === 0) return null
 
   const pages = officialPages([...(records?.governments ?? []), ...(records?.elections ?? [])])
@@ -590,10 +641,35 @@ const Credits = ({ overlays, records }: CreditsProps) => {
   )
 }
 
-const nothing: Politics = { governments: [], elections: [] }
+// The sources of the elections, governments and events on a chart, as each
+// asks to be cited. Nothing while the chart shows none of them.
+const Credits = ({ overlays, records }: CreditsProps) => (
+  <>
+    <ArchiveCredits overlays={archived(overlays)} records={records} />
+    {overlays.includes("events") ? <EventCredits records={records} /> : null}
+  </>
+)
 
-// The elections and governments a card draws over its chart: only a trend's,
-// and only those whose overlay is on.
+const nothing: Politics = { governments: [], elections: [], events: [], reforms: [] }
+
+interface ShownOptions {
+  overlays: ReadonlyArray<Overlay>
+  indicator: IndicatorId
+}
+
+// The records of the overlays on. A reform shows only on a chart of its
+// policy area.
+const shownOf = (loaded: Politics, { overlays, indicator }: ShownOptions): Politics => ({
+  governments: overlays.includes("governments") ? loaded.governments : nothing.governments,
+  elections: overlays.includes("elections") ? loaded.elections : nothing.elections,
+  events: overlays.includes("events") ? loaded.events : nothing.events,
+  reforms: overlays.includes("events")
+    ? loaded.reforms.filter((reform) => areas[reform.area].has(indicator))
+    : nothing.reforms,
+})
+
+// The elections, governments and events a card draws over its chart: only a
+// trend's, and only those whose overlay is on.
 const usePolitics = (view: View, overlays: ReadonlyArray<Overlay>) => {
   const trend = Match.value(view).pipe(
     Match.tag("Trend", (shown) => shown),
@@ -610,10 +686,7 @@ const usePolitics = (view: View, overlays: ReadonlyArray<Overlay>) => {
     records:
       loaded === undefined
         ? undefined
-        : {
-            governments: on.includes("governments") ? loaded.governments : nothing.governments,
-            elections: on.includes("elections") ? loaded.elections : nothing.elections,
-          },
+        : shownOf(loaded, { overlays: on, indicator: view.indicator }),
     failed: on.length > 0 && query.isError,
   }
 }

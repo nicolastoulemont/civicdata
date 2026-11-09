@@ -31,6 +31,10 @@ const records = (countries: readonly [Country, ...Array<Country>], from: number,
     client.politics.records({ query: { countries, from: Year.make(from), to: Year.make(to) } }),
   )
 
+// The ids of the events of a country's years.
+const eventsOf = (country: Country, { from, to }: { from: number; to: number }) =>
+  records([country], from, to).pipe(Effect.map(({ events }) => events.map((event) => event.id)))
+
 const heads = (governments: ReadonlyArray<Government>) =>
   governments.map((government) => government.head)
 
@@ -75,7 +79,7 @@ describe("politics", () => {
     Effect.gen(function* () {
       yield* build(1)
 
-      expect(yield* records(["BRA"], 2000, 2020)).toEqual({ governments: [], elections: [] })
+      expect(yield* records(["BRA"], 2000, 2020)).toMatchObject({ governments: [], elections: [] })
     }).pipe(Effect.provide(serve(recorded()))),
   )
 
@@ -189,6 +193,54 @@ describe("politics", () => {
           citation: { publisher: "Official" },
         },
         { country: "EST", ballot: "president-indirect", date: "2026-09-02", lastRound: null },
+      ])
+    }).pipe(Effect.provide(serve(recorded()))),
+  )
+
+  it.effect("answers the events of the years that concern the countries, with sources", () =>
+    Effect.gen(function* () {
+      yield* build(1)
+
+      const { events } = yield* records(["FRA"], 1970, 1995)
+
+      expect(events.map((event) => event.id)).toEqual([
+        "oil-shock-1973",
+        "oil-shock-1979",
+        "maastricht-signature",
+        "maastricht-force",
+      ])
+      expect(events[0]).toMatchObject({
+        name: "First oil shock and recession",
+        sources: [{ url: expect.stringMatching(/^https:/) }],
+      })
+    }).pipe(Effect.provide(serve(recorded()))),
+  )
+
+  it.effect("answers a worldwide event for any country, and others only where they apply", () =>
+    Effect.gen(function* () {
+      yield* build(1)
+
+      expect(yield* eventsOf("BRA", { from: 2019, to: 2021 })).toEqual(["covid-emergency"])
+      // German reunification concerns Germany only.
+      expect(yield* eventsOf("FRA", { from: 1990, to: 1990 })).toEqual([])
+      expect(yield* eventsOf("DEU", { from: 1990, to: 1990 })).toEqual(["german-reunification"])
+      // Still going on, so in every year since it began.
+      expect(yield* eventsOf("UKR", { from: 2025, to: 2025 })).toEqual(["ukraine-invasion"])
+    }).pipe(Effect.provide(serve(recorded()))),
+  )
+
+  it.effect("answers the reforms the countries adopted or put in force in the years", () =>
+    Effect.gen(function* () {
+      yield* build(1)
+
+      const { reforms } = yield* records(["FRA", "SWE"], 1999, 2010)
+
+      expect(
+        reforms.map(({ country, name, date, milestone }) => ({ country, name, date, milestone })),
+      ).toEqual([
+        { country: "FRA", name: "Fillon reform", date: "2003-08-21", milestone: "adopted" },
+        { country: "FRA", name: "Woerth reform", date: "2010-11-09", milestone: "adopted" },
+        { country: "SWE", name: "NDC system starts", date: "1999-01-01", milestone: "in-force" },
       ])
     }).pipe(Effect.provide(serve(recorded()))),
   )

@@ -57,15 +57,24 @@ export {
 export { Indicator, IndicatorId, IndicatorNotes } from "./Indicator.ts"
 
 export {
+  areas,
   Ballot,
+  covers,
   Day,
   type Election,
   End,
+  type Event,
   type Government,
   members,
+  Moment,
   Party,
   Politics,
   Publisher,
+  type Reform,
+  Scope,
+  When,
+  yearOf,
+  yearsOf,
 } from "./Politics.ts"
 
 export { type Flag, Observation, ResolvedView } from "./ResolvedView.ts"
