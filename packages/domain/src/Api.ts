@@ -13,6 +13,7 @@ import {
   TooManyQuestions,
   TransformNotApplicable,
 } from "./Errors.ts"
+import { IndicatorId, IndicatorNotes } from "./Indicator.ts"
 import { ResolvedView } from "./ResolvedView.ts"
 import { View } from "./View.ts"
 
@@ -46,6 +47,16 @@ class Views extends HttpApiGroup.make("views")
     }),
   )
   .prefix("/views") {}
+
+class Indicators extends HttpApiGroup.make("indicators")
+  .add(
+    HttpApiEndpoint.get("notes", "/:indicator/notes", {
+      params: { indicator: IndicatorId },
+      success: IndicatorNotes,
+      error: [IndicatorNotFound, SourceUnavailable],
+    }),
+  )
+  .prefix("/indicators") {}
 
 class Catalog extends HttpApiGroup.make("catalog")
   .add(
@@ -97,6 +108,7 @@ class Conversation extends HttpApiGroup.make("conversation")
 export class Api extends HttpApi.make("civicdata")
   .add(System)
   .add(Views)
+  .add(Indicators)
   .add(Catalog)
   .add(Conversation)
   .prefix("/api") {}

@@ -24,6 +24,7 @@ import { AskLimit } from "../src/AskLimit.ts"
 import { Catalog } from "../src/Catalog.ts"
 import { Conversations } from "../src/Conversations.ts"
 import { Handlers } from "../src/Handlers.ts"
+import { Notes } from "../src/Notes.ts"
 import { Sdmx } from "../src/Sdmx.ts"
 import { titles } from "../src/titles.gen.ts"
 import { WorldBank } from "../src/WorldBank.ts"
@@ -183,11 +184,15 @@ const recordedEurostat = Sdmx.layer.pipe(
   ),
 )
 
+// These tests read no indicator notes.
+const notes = Layer.succeed(Notes, Notes.of({ get: () => Effect.die("no notes in these tests") }))
+
 // These tests neither search nor ask, so the catalog, the conversations and
 // the agent are the ones plain `pnpm dev:web` gets.
 const serve = (source: Layer.Layer<WorldBank>, sdmx = Sdmx.layer.pipe(Layer.provide(offline))) =>
   Layer.mergeAll(
     Handlers.pipe(
+      Layer.provide(notes),
       Layer.provide(Conversations.unavailable),
       Layer.provide(Agent.unavailable),
       Layer.provide(AskLimit.none),

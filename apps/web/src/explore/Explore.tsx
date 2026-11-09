@@ -435,7 +435,12 @@ export const Explore = ({ view, onChange }: ExploreProps) => {
       </Card>
       {query.data === undefined ? null : (
         <>
-          <About resolved={query.data} />
+          <About
+            resolved={query.data}
+            onSwitch={(entry) =>
+              onChange(withIndicator(view, { id: entry.indicator, name: entry.name }))
+            }
+          />
           <Data resolved={query.data} />
         </>
       )}

@@ -32,6 +32,7 @@ import { Catalog } from "../src/Catalog.ts"
 import { serve } from "../src/ConversationObject.ts"
 import { Conversations } from "../src/Conversations.ts"
 import { Handlers } from "../src/Handlers.ts"
+import { Notes } from "../src/Notes.ts"
 import { Resolver } from "../src/Resolver.ts"
 import { Sdmx } from "../src/Sdmx.ts"
 import { Transcript } from "../src/Transcript.ts"
@@ -188,6 +189,9 @@ const sdmx = Sdmx.layer.pipe(
   ),
 )
 
+// These tests read no indicator notes.
+const notes = Layer.succeed(Notes, Notes.of({ get: () => Effect.die("no notes in these tests") }))
+
 // The API as the Worker serves it, with each conversation answered in this
 // process the way its Durable Object would, from memory.
 const serveApi = (model: Layer.Layer<LanguageModel.LanguageModel>, limit = AskLimit.none) => {
@@ -215,6 +219,7 @@ const serveApi = (model: Layer.Layer<LanguageModel.LanguageModel>, limit = AskLi
       ),
       Layer.provide(agent),
       Layer.provide(limit),
+      Layer.provide(notes),
       Layer.provide(catalog),
       Layer.provide(worldBank),
       Layer.provide(sdmx),
