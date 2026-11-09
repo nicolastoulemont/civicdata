@@ -7,9 +7,10 @@ import {
   Relation,
   Trend,
   Unanswered,
+  type View,
   Year,
 } from "@civicdata/domain"
-import { Schema } from "effect"
+import { Array as Arr, Schema } from "effect"
 import { describe, expect, it } from "vitest"
 
 import { Expected, score } from "../eval/score.ts"
@@ -18,16 +19,20 @@ const lifeExpectancy = IndicatorId.make("SP.DYN.LE00.IN")
 
 // Life expectancy in Brazil and Mexico, 2005 to 2025: right for the case below
 // unless a test changes it.
-const trend = (changes: Partial<Trend> = {}) =>
-  Answered.make({
-    view: Trend.make({
-      indicator: lifeExpectancy,
-      countries: ["BRA", "MEX"],
-      from: Year.make(2005),
-      to: Year.make(2025),
-      ...changes,
-    }),
+const brazilAndMexico = (changes: Partial<Trend> = {}) =>
+  Trend.make({
+    indicator: lifeExpectancy,
+    countries: ["BRA", "MEX"],
+    from: Year.make(2005),
+    to: Year.make(2025),
+    ...changes,
   })
+
+// An answer of these charts, in order.
+const charted = (...views: Arr.NonEmptyReadonlyArray<View>) =>
+  Answered.make({ charts: Arr.map(views, (view) => ({ view })) })
+
+const trend = (changes: Partial<Trend> = {}) => charted(brazilAndMexico(changes))
 
 const expected = Expected.Trend({ indicators: ["SP.DYN.LE00.IN"], countries: ["MEX", "BRA"] })
 
@@ -52,9 +57,9 @@ describe("score", () => {
   })
 
   it("rejects a ranking where a trend is expected", () => {
-    const ranking = Answered.make({
-      view: Ranking.make({ indicator: lifeExpectancy, countries: ["BRA"], year: Year.make(2020) }),
-    })
+    const ranking = charted(
+      Ranking.make({ indicator: lifeExpectancy, countries: ["BRA"], year: Year.make(2020) }),
+    )
 
     expect(score([expected], ranking)).toEqual(["a ranking, want a trend"])
   })
@@ -68,21 +73,19 @@ describe("score", () => {
 
     const map = Expected.Map({ ...expected, year: 2020 })
 
-    expect(score([map], Answered.make({ view: Ranking.make({ ...ranking, as: "Map" }) }))).toEqual(
-      [],
-    )
-    expect(score([map], Answered.make({ view: ranking }))).toEqual(["a ranking, want a map"])
+    expect(score([map], charted(Ranking.make({ ...ranking, as: "Map" })))).toEqual([])
+    expect(score([map], charted(ranking))).toEqual(["a ranking, want a map"])
   })
 
   it("scores the indicator a relation plots against", () => {
-    const relation = Answered.make({
-      view: Relation.make({
+    const relation = charted(
+      Relation.make({
         indicator: lifeExpectancy,
         against: IndicatorId.make("NY.GDP.PCAP.CD"),
         countries: ["BRA", "MEX"],
         year: Year.make(2020),
       }),
-    })
+    )
 
     expect(
       score([Expected.Relation({ ...expected, against: ["NY.GDP.PCAP.CD"] })], relation),
@@ -90,6 +93,24 @@ describe("score", () => {
     expect(
       score([Expected.Relation({ ...expected, against: ["NY.GDP.PCAP.KD"] })], relation),
     ).toEqual(["against NY.GDP.PCAP.CD, want NY.GDP.PCAP.KD"])
+  })
+
+  describe("several charts", () => {
+    const mexico = brazilAndMexico({ countries: ["MEX"] })
+    const both = Expected.Charts({ charts: [expected, { ...expected, countries: ["MEX"] }] })
+
+    it("accepts the charts a case lists, in its order", () => {
+      expect(score([both], charted(brazilAndMexico(), mexico))).toEqual([])
+      expect(score([both], charted(mexico, brazilAndMexico()))).toEqual([
+        "chart 1: countries MEX, want MEX, BRA",
+        "chart 2: countries BRA, MEX, want MEX",
+      ])
+    })
+
+    it("counts a chart missing, and one too many", () => {
+      expect(score([both], charted(brazilAndMexico()))).toEqual(["1 chart, want 2"])
+      expect(score([expected], charted(brazilAndMexico(), mexico))).toEqual(["2 charts, want 1"])
+    })
   })
 
   it("scores against the closest of the answers a case accepts", () => {

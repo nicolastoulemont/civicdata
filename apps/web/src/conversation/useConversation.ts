@@ -1,5 +1,6 @@
 import {
   Answered,
+  type ChartIndex,
   type ConversationId,
   Ended,
   Ending,
@@ -221,30 +222,48 @@ export const useConversation = (id: ConversationId) => {
   }
 }
 
-// The turn showing `view`: changed to it, or back when it is the agent's chart.
-const showing = (turn: Turn, view: View): Turn =>
-  isAnswered(turn.answer) && toQuery(turn.answer.view) === toQuery(view)
-    ? Struct.omit(turn, ["shown"])
-    : Struct.assign(turn, { shown: view })
+// The turn showing `view` in place of its chart at `chart`: changed to it, or
+// back when it is the agent's chart there. A turn changed back at every place
+// keeps no changes.
+const showing = (turn: Turn, { chart, view }: { chart: ChartIndex; view: View }): Turn => {
+  const charts = isAnswered(turn.answer) ? turn.answer.charts : []
 
-// Keeps the chart a person changed a turn's chart to, one save at a time and
-// in order. While a save runs, `variables` holds the chart to show; once the
-// server keeps it, the saved conversation shows it too. Rejects with
-// TurnNotFound, NoChart or AgentUnavailable, and the turn keeps its chart.
-export const useShow = (id: ConversationId, turn: TurnIndex) => {
+  const shown = charts.map((agent, place) =>
+    place === chart
+      ? toQuery(agent.view) === toQuery(view)
+        ? null
+        : view
+      : (turn.shown?.[place] ?? null),
+  )
+
+  return shown.every((each) => each === null)
+    ? Struct.omit(turn, ["shown"])
+    : Struct.assign(turn, { shown })
+}
+
+// Keeps the chart a person changed one of a turn's charts to, one save at a
+// time and in order. While a save runs, `variables` holds the chart to show;
+// once the server keeps it, the saved conversation shows it too. Rejects with
+// TurnNotFound, NoChart or AgentUnavailable, and the chart stays as it was.
+export const useShow = (
+  id: ConversationId,
+  { turn, chart }: { turn: TurnIndex; chart: ChartIndex },
+) => {
   const queryClient = useQueryClient()
 
   return useMutation({
-    scope: { id: `conversation-${id}-turn-${turn}` },
+    scope: { id: `conversation-${id}-turn-${turn}-chart-${chart}` },
     mutationFn: (view: View) =>
-      call(page, (api) => api.conversation.show({ params: { id, turn }, payload: view })),
+      call(page, (api) => api.conversation.show({ params: { id, turn, chart }, payload: view })),
     onSuccess: (_, view) =>
       queryClient.setQueryData(turnsQuery(id).queryKey, (previous?: Turns) =>
         previous === undefined
           ? previous
           : Struct.evolve(previous, {
               answered: (answered) =>
-                answered.map((each, index) => (index === turn ? showing(each, view) : each)),
+                answered.map((each, index) =>
+                  index === turn ? showing(each, { chart, view }) : each,
+                ),
             }),
       ),
   })

@@ -44,7 +44,9 @@ const brazil = Trend.make({
 // A turn with its work log, which a restored conversation keeps.
 const charted: Turn = {
   question: "How has life expectancy changed in Brazil?",
-  answer: Answered.make({ view: brazil, takeaway: "Life expectancy in Brazil rose." }),
+  answer: Answered.make({
+    charts: [{ view: brazil, takeaway: "Life expectancy in Brazil rose." }],
+  }),
   steps: [
     Ended.cases.Search.make({
       id: StepId.make("search-1"),
@@ -203,7 +205,7 @@ describe("persist", () => {
     network.use(
       turns({ answered: [charted] }),
       http.put(
-        `/api/conversations/${id}/turns/0/chart`,
+        `/api/conversations/${id}/turns/0/charts/0`,
         () => new HttpResponse(null, { status: 204 }),
       ),
       resolve,
@@ -230,7 +232,9 @@ describe("persist", () => {
     const { store, values } = memory()
 
     const answer = JSON.stringify(
-      Schema.encodeSync(Schema.toCodecJson(Answered))(Answered.make({ view: brazil })),
+      Schema.encodeSync(Schema.toCodecJson(Answered))(
+        Answered.make({ charts: [{ view: brazil }] }),
+      ),
     )
 
     const saved = `{

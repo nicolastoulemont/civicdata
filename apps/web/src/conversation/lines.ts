@@ -15,7 +15,7 @@ import {
   transformOf,
   type View,
 } from "@civicdata/domain"
-import { Match } from "effect"
+import { Match, Predicate } from "effect"
 import {
   BookOpen,
   Brain,
@@ -264,7 +264,11 @@ export const lineOf = (step: Step | Saved): Line | undefined =>
       line("Done", { icon: BookOpen, text: `Read the definition of ${indicator}` }),
     Located: ({ names }) => line("Done", { icon: MapPin, text: `Looked up ${names.join(", ")}` }),
     Rejected: ({ problem }) => line("Done", { icon: ChartLine, text: retried, more: [problem] }),
-    Answered: () => line("Done", { icon: ChartLine, text: "Found a chart" }),
+    Answered: ({ charts }) =>
+      line("Done", {
+        icon: ChartLine,
+        text: charts.length === 1 ? "Found a chart" : `Found ${charts.length} charts`,
+      }),
     Asked: () => line("Done", { icon: MessageCircleQuestion, text: "Asked which you mean" }),
     Unanswered: () => line("Done", { icon: SearchX, text: "Found no indicator" }),
     Stopped: () => line("Stopped", { icon: CircleStop, text: "Stopped" }),
@@ -277,7 +281,9 @@ const lookups: Noun = ["lookup", "lookups"]
 const charts: Noun = ["chart", "charts"]
 const summaries: Noun = ["summary", "summaries"]
 
-const kindOf = (step: Saved): Noun =>
+// The kind of work a step did. Only a chart the data could show counts as
+// one: a chart tried and rejected, or cut off, is none.
+const kindOf = (step: Saved): Noun | undefined =>
   Match.valueTags(step, {
     Search: () => searches,
     Searched: () => searches,
@@ -285,17 +291,19 @@ const kindOf = (step: Saved): Noun =>
     Described: () => definitions,
     Lookup: () => lookups,
     Located: () => lookups,
-    Fetch: () => charts,
-    Rejected: () => charts,
+    Fetch: ({ state }) => (Predicate.isTagged(state, "Done") ? charts : undefined),
+    Rejected: () => undefined,
     Takeaway: () => summaries,
   })
 
 // The two kinds of work the agent did most, most first, a tie going to the
-// kind it did first: "2 searches, 1 definition".
+// kind it did first: "3 searches, 2 charts".
 export const tally = (steps: ReadonlyArray<Saved>) => {
   const counts = new Map<Noun, number>()
 
-  for (const kind of steps.map(kindOf)) counts.set(kind, (counts.get(kind) ?? 0) + 1)
+  for (const kind of steps.map(kindOf)) {
+    if (kind !== undefined) counts.set(kind, (counts.get(kind) ?? 0) + 1)
+  }
 
   return [...counts]
     .toSorted(([, a], [, b]) => b - a)

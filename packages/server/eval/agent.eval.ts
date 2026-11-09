@@ -1,4 +1,4 @@
-import { TurnIndex } from "@civicdata/domain"
+import { ChartIndex, TurnIndex } from "@civicdata/domain"
 import { assert, layer } from "@effect/vitest"
 import { env } from "cloudflare:workers"
 import { Array as Arr, Clock, Effect, Layer, Predicate, Schedule, Stream } from "effect"
@@ -31,15 +31,18 @@ const Live = Layer.merge(Agent.live.pipe(Layer.provide(Resolver.layer)), Built).
 )
 
 // Asks the questions in one conversation, as a person would, and returns the
-// last turn. A case's `shown` chart replaces the answer before the last
-// question, as when a person changes it.
+// last turn. A case's `shown` chart replaces the first chart of the answer
+// before the last question, as when a person changes it.
 const answer = Effect.fn("eval.answer")(
   function* ({ questions, shown }: Case) {
     const conversation = yield* Conversation
 
     for (const [turn, question] of questions.entries()) {
       if (shown !== undefined && turn === questions.length - 1) {
-        yield* conversation.show(TurnIndex.make(turn - 1), shown)
+        yield* conversation.show(TurnIndex.make(turn - 1), {
+          chart: ChartIndex.make(0),
+          view: shown,
+        })
       }
 
       yield* Stream.runDrain(yield* conversation.ask(question))

@@ -2,7 +2,15 @@ import { Schema } from "effect"
 import { HttpApi, HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/http-api"
 
 import { CatalogEntry, SearchText } from "./Catalog.ts"
-import { Answered, ConversationId, Question, Step, TurnIndex, Turns } from "./Conversation.ts"
+import {
+  Chart,
+  ChartIndex,
+  ConversationId,
+  Question,
+  Step,
+  TurnIndex,
+  Turns,
+} from "./Conversation.ts"
 import {
   AgentUnavailable,
   CatalogUnavailable,
@@ -39,7 +47,7 @@ class Views extends HttpApiGroup.make("views")
   .add(
     HttpApiEndpoint.post("explain", "/explain", {
       payload: View,
-      success: Answered,
+      success: Chart,
       error: [
         AgentUnavailable,
         TooManyQuestions,
@@ -97,8 +105,9 @@ const Steps = HttpApiSchema.StreamSse({
 // streams the one in progress from its first step, and nothing when there is
 // none. Only `stop` ends an answer early: it keeps the turn as Stopped, and
 // does nothing once the answer has ended. `show` keeps the chart a person
-// changed a turn's chart to, and the next question builds on it; showing the
-// agent's own chart changes the turn back. It works while an answer runs.
+// changed one of a turn's charts to, and the next question builds on it;
+// showing the agent's own chart changes it back. It works while an answer
+// runs.
 class Conversation extends HttpApiGroup.make("conversation")
   .add(
     HttpApiEndpoint.get("turns", "/:id", {
@@ -130,8 +139,8 @@ class Conversation extends HttpApiGroup.make("conversation")
     }),
   )
   .add(
-    HttpApiEndpoint.put("show", "/:id/turns/:turn/chart", {
-      params: { id: ConversationId, turn: TurnIndex },
+    HttpApiEndpoint.put("show", "/:id/turns/:turn/charts/:chart", {
+      params: { id: ConversationId, turn: TurnIndex, chart: ChartIndex },
       payload: View,
       success: HttpApiSchema.NoContent,
       error: [AgentUnavailable, TurnNotFound, NoChart],

@@ -1,6 +1,6 @@
 import {
   AgentUnavailable,
-  type Answered,
+  type Chart,
   type View,
   SourceUnavailable,
   TooManyQuestions,
@@ -27,7 +27,7 @@ const problemOf = (error: Error) =>
         ? `${named(error.source)} is not responding`
         : "The chart could not be explained"
 
-type Explained = typeof Answered.Type
+type Explained = Chart
 
 // What the agent has said about the chart on screen: nothing yet, its
 // takeaway, a takeaway withheld because it cited numbers not in the data, or

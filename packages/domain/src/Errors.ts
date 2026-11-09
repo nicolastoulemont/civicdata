@@ -75,11 +75,11 @@ export class TurnNotFound extends Schema.TaggedError<
   { readonly brand: unique symbol }
 >()("TurnNotFound", { turn: Schema.Int }, { httpApiStatus: 404 }) {}
 
-// The turn did not end with a chart: the agent asked back, found no
-// indicator, or was stopped.
+// The turn has no chart at this place: the agent drew fewer, asked back,
+// found no indicator, or was stopped.
 export class NoChart extends Schema.TaggedError<NoChart, { readonly brand: unique symbol }>()(
   "NoChart",
-  { turn: Schema.Int },
+  { turn: Schema.Int, chart: Schema.Int },
   { httpApiStatus: 409 },
 ) {}
 

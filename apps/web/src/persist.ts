@@ -17,7 +17,7 @@ import { createStore, del, entries, get, set } from "idb-keyval"
 export type Store = AsyncStorage<unknown>
 
 // Bump when a saved shape changes, so older saves are dropped unread.
-const buster = "2"
+const buster = "3"
 
 // The server deletes a conversation 30 days after its last question.
 const maxAge = 30 * 24 * 60 * 60 * 1000

@@ -172,7 +172,7 @@ export const Worked = ({ steps, took }: WorkedProps) => {
       <CollapsibleTrigger
         className={cn("group/fold text-sm text-muted-foreground tabular-nums", trigger)}
       >
-        {`${time} · ${tally(steps)}`}
+        {[time, tally(steps)].filter((part) => part !== "").join(" · ")}
         <ChevronRight aria-hidden className={chevron} />
       </CollapsibleTrigger>
       <CollapsibleContent>

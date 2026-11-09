@@ -65,12 +65,16 @@ const unanswered = (question: string): Turn => ({ question, answer: Unanswered.m
 const answered = (question: string): Turn => ({
   question,
   answer: Answered.make({
-    view: Trend.make({
-      indicator: IndicatorId.make("SP.DYN.LE00.IN"),
-      countries: ["BRA"],
-      from: Year.make(2000),
-      to: Year.make(2001),
-    }),
+    charts: [
+      {
+        view: Trend.make({
+          indicator: IndicatorId.make("SP.DYN.LE00.IN"),
+          countries: ["BRA"],
+          from: Year.make(2000),
+          to: Year.make(2001),
+        }),
+      },
+    ],
   }),
 })
 
