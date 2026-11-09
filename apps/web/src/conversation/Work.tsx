@@ -5,10 +5,10 @@ import { Brain, ChevronRight, CircleAlert } from "lucide-react"
 import { type ReactNode, use, useEffect, useState } from "react"
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Hold } from "@/hold"
 
 import { elapsed } from "./elapsed.ts"
 import { type Line, lineOf, type Saved, tally } from "./lines.ts"
-import { Hold } from "./Scroll.tsx"
 
 const isEnding = Schema.is(Ending)
 

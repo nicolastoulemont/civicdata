@@ -1,89 +1,17 @@
-import { sourceOf, type View } from "@civicdata/domain"
-import { useQuery } from "@tanstack/react-query"
-import { Link } from "@tanstack/react-router"
+import type { Answered } from "@civicdata/domain"
+import { useState } from "react"
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { buttonVariants } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
-import { resolveQuery } from "@/explore/api"
-import { CopyLink } from "@/explore/CopyLink"
-import { Chart } from "@/explore/Explore"
-import {
-  attribution,
-  indicatorNames,
-  period,
-  picks,
-  subject,
-  transformLabel,
-} from "@/explore/format"
-import { places } from "@/explore/preview"
-import { toSearch } from "@/explore/search"
-
-import { Actions } from "./Row.tsx"
+import { Explore } from "@/explore/Explore"
 
 interface AnswerProps {
-  view: View
-  takeaway: string | undefined
+  agent: typeof Answered.Type
 }
 
-// The chart that answered a question, with what the agent says it shows and
-// its source, then links to change it in the explorer and to share it.
-export const Answer = ({ view, takeaway }: AnswerProps) => {
-  const query = useQuery(resolveQuery(view))
-  const known = indicatorNames(query.data === undefined ? [] : [query.data])
-  const shows = transformLabel(view, known)
+// The chart that answered a question, in the explorer card so it can be
+// changed where it is. Changes stay in the page: a reload shows the agent's
+// chart again.
+export const Answer = ({ agent }: AnswerProps) => {
+  const [view, setView] = useState(agent.view)
 
-  return (
-    <>
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <h3>{subject(view, known)}</h3>
-          </CardTitle>
-          <CardDescription>
-            {[
-              places(view),
-              period(view),
-              ...(shows === undefined ? [] : [shows]),
-              ...(query.data === undefined ? [] : picks(query.data)),
-            ].join(" · ")}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          {takeaway === undefined ? null : <p>{takeaway}</p>}
-          {query.isPending ? <Skeleton className="h-64 w-full" /> : null}
-          {query.isError ? (
-            <Alert variant="destructive">
-              <AlertTitle>The data could not be loaded</AlertTitle>
-              <AlertDescription>Open the chart in the explorer to try again.</AlertDescription>
-            </Alert>
-          ) : null}
-          {query.data === undefined ? null : <Chart resolved={query.data} />}
-        </CardContent>
-        <CardFooter className="text-sm text-muted-foreground">
-          {query.data === undefined
-            ? `Source: ${sourceOf(view.indicator)}`
-            : attribution(query.data)}
-        </CardFooter>
-      </Card>
-      <Actions>
-        <Link
-          className={buttonVariants({ variant: "outline", size: "sm" })}
-          to="/explore"
-          search={toSearch(view)}
-        >
-          Open in the explorer
-        </Link>
-        <CopyLink view={view} />
-      </Actions>
-    </>
-  )
+  return <Explore view={view} onChange={setView} heading="h3" agent={agent} />
 }

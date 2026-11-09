@@ -56,7 +56,16 @@ const ExplorePage = () => {
   const view = toView(Route.useSearch())
   const navigate = Route.useNavigate()
 
-  return <Explore view={view} onChange={(next) => void navigate({ search: toSearch(next) })} />
+  return (
+    <main className="mx-auto flex max-w-5xl flex-col gap-4 p-6">
+      <Explore
+        view={view}
+        onChange={(next) => void navigate({ search: toSearch(next) })}
+        heading="h1"
+        changing
+      />
+    </main>
+  )
 }
 
 export const Route = createFileRoute("/explore")({

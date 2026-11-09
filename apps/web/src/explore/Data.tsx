@@ -1,8 +1,7 @@
 import type { Country, Flag, ResolvedView } from "@civicdata/domain"
-import { ChevronDown, Download } from "lucide-react"
+import { Download } from "lucide-react"
 
 import { buttonVariants } from "@/components/ui/button"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import {
   Table,
   TableBody,
@@ -88,68 +87,60 @@ interface DataProps {
   resolved: ResolvedView
 }
 
-// Level 3: every observation behind the chart, as a table and a CSV, with the
+// Every observation behind the chart, as a table and a CSV, with the
 // exact request made to the source.
 export const Data = ({ resolved }: DataProps) => {
   const table = tableOf(resolved)
 
   return (
-    <Collapsible className="rounded-lg border">
-      <CollapsibleTrigger
-        className={buttonVariants({ variant: "ghost", className: "w-full justify-between" })}
-      >
-        Data
-        <ChevronDown aria-hidden />
-      </CollapsibleTrigger>
-      <CollapsibleContent className="space-y-3 px-4 pb-4">
-        <div className="flex flex-wrap gap-2">
+    <div className="space-y-3">
+      <div className="flex flex-wrap gap-2">
+        <a
+          className={buttonVariants({ variant: "outline", size: "sm" })}
+          href={`data:text/csv;charset=utf-8,${encodeURIComponent(csv(table))}`}
+          download={`${resolved.indicator.id}.csv`}
+        >
+          <Download data-icon="inline-start" aria-hidden />
+          Download CSV
+        </a>
+        {resolved.sources.map((source) => (
           <a
-            className={buttonVariants({ variant: "outline", size: "sm" })}
-            href={`data:text/csv;charset=utf-8,${encodeURIComponent(csv(table))}`}
-            download={`${resolved.indicator.id}.csv`}
+            key={source.indicator}
+            className={buttonVariants({ variant: "link", size: "sm" })}
+            href={source.url}
           >
-            <Download data-icon="inline-start" aria-hidden />
-            Download CSV
+            {source.indicator} request
           </a>
-          {resolved.sources.map((source) => (
-            <a
-              key={source.indicator}
-              className={buttonVariants({ variant: "link", size: "sm" })}
-              href={source.url}
-            >
-              {source.indicator} request
-            </a>
-          ))}
-        </div>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Country</TableHead>
-              <TableHead>Year</TableHead>
-              {table.columns.map((column) => (
-                <TableHead key={column.id} className="text-right">
-                  {column.title}
-                </TableHead>
-              ))}
-              <TableHead>Flags</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {table.rows.map(({ country, year, values, flags }) => (
-              <TableRow key={`${country}-${year}`}>
-                <TableCell>{countryName(country)}</TableCell>
-                <TableCell>{year}</TableCell>
-                {values.map((value, index) => (
-                  <TableCell key={table.columns[index]?.id} className="text-right tabular-nums">
-                    {value === undefined ? "No data" : formatValue(value)}
-                  </TableCell>
-                ))}
-                <TableCell className="text-muted-foreground">{flagged(flags)}</TableCell>
-              </TableRow>
+        ))}
+      </div>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Country</TableHead>
+            <TableHead>Year</TableHead>
+            {table.columns.map((column) => (
+              <TableHead key={column.id} className="text-right">
+                {column.title}
+              </TableHead>
             ))}
-          </TableBody>
-        </Table>
-      </CollapsibleContent>
-    </Collapsible>
+            <TableHead>Flags</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {table.rows.map(({ country, year, values, flags }) => (
+            <TableRow key={`${country}-${year}`}>
+              <TableCell>{countryName(country)}</TableCell>
+              <TableCell>{year}</TableCell>
+              {values.map((value, index) => (
+                <TableCell key={table.columns[index]?.id} className="text-right tabular-nums">
+                  {value === undefined ? "No data" : formatValue(value)}
+                </TableCell>
+              ))}
+              <TableCell className="text-muted-foreground">{flagged(flags)}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   )
 }

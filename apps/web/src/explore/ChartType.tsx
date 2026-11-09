@@ -28,6 +28,7 @@ interface ChartTypeProps {
 export const ChartType = ({ view, onChange }: ChartTypeProps) => (
   <ToggleGroup
     aria-label="Chart type"
+    className="flex-wrap"
     variant="outline"
     value={[chartOf(view)]}
     onValueChange={(next: Array<string>) => {
