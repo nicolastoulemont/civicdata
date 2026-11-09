@@ -210,7 +210,7 @@ const isSearch = Schema.is(SearchIndicators.parametersSchema)
 const isDescribe = Schema.is(DescribeIndicator.parametersSchema)
 const isFind = Schema.is(FindCountries.parametersSchema)
 const isAsk = Schema.is(AskUser.parametersSchema)
-const isAnswered = Schema.is(Answered)
+const isShown = Schema.is(Shown)
 
 type Draft = typeof ShowChart.parametersSchema.Type
 
@@ -438,7 +438,7 @@ const stepsOf = (round: Round) => {
   )
 
   const shown = charts.flatMap((chart) =>
-    Match.valueTags(chart, { Shown: ({ view }) => [Answered.make({ view })], Rejected: () => [] }),
+    Match.valueTags(chart, { Shown: (result) => [result], Rejected: () => [] }),
   )
 
   return {
@@ -458,7 +458,7 @@ const instructions = (
    - Without years in the question, a trend covers the last 20 years and a ranking the latest year with data. It is ${year} now; most indicators have values up to ${year - 2}.
    - Use a transform only when the question asks for one.
 3. If show_chart rejects the chart, fix what it names and call it again.
-4. Once show_chart shows the chart, write its takeaway: two short sentences on what the chart shows, read from the data show_chart returns. Write no numbers or years. Say which way each country moves, which is highest or lowest, or how the two indicators go together.
+4. Once show_chart shows the chart, write its takeaway: two short sentences of plain text, without Markdown, on what the chart shows, read from the data show_chart returns. Say which way each country moves, which is highest or lowest, or how the two indicators go together. Take every number and year from that data, rounded if you like; never work one out, such as a difference, a ratio or an average.
 
 If no World Bank indicator measures what the question asks, stop without calling show_chart.
 
@@ -486,19 +486,19 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
       // returned. A model that fails or writes one that fails the check leaves
       // the chart without one.
       const explain = Effect.fn("Agent.explain")(
-        function* (chat: Chat.Chat, answered: typeof Answered.Type) {
+        function* (chat: Chat.Chat, { view, data }: typeof Shown.Type) {
           const response = yield* chat.generateText({ prompt: [], toolkit, toolChoice: "none" })
 
-          return Option.match(check(response.text), {
-            onNone: () => answered,
-            onSome: (takeaway) => Answered.make({ ...answered, takeaway }),
+          return Option.match(check(response.text, data), {
+            onNone: () => Answered.make({ view }),
+            onSome: (takeaway) => Answered.make({ view, takeaway }),
           })
         },
         Effect.provideService(LanguageModel.LanguageModel, model),
-        (effect, _chat, answered) =>
+        (effect, _chat, { view }) =>
           Effect.catchTag(effect, "AiError", (error) =>
             Effect.logWarning("Language model failed on a takeaway", error.reason).pipe(
-              Effect.as(answered),
+              Effect.as(Answered.make({ view })),
             ),
           ),
       )
@@ -525,7 +525,7 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
             if (Option.isSome(ending)) {
               Queue.offerUnsafe(
                 queue,
-                isAnswered(ending.value) ? yield* explain(chat, ending.value) : ending.value,
+                isShown(ending.value) ? yield* explain(chat, ending.value) : ending.value,
               )
 
               return

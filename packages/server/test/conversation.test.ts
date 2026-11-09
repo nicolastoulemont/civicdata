@@ -361,16 +361,23 @@ describe("conversations", () => {
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
-  it.effect("shows the chart without a takeaway that cites a number", () => {
+  it.effect("keeps a takeaway's numbers only when they come from the charted values", () => {
     const model = scripted([
       Effect.succeed(call("show_chart", brazil)),
-      Effect.succeed(words("Life expectancy in Brazil reached 72 years.")),
+      Effect.succeed(words("Life expectancy in Brazil rose from 70 years in 2000 to 72 in 2002.")),
+      Effect.succeed(call("show_chart", brazil)),
+      // 72 - 70, worked out by the model.
+      Effect.succeed(words("Life expectancy in Brazil rose by 2 years.")),
     ])
 
     return Effect.gen(function* () {
       expect(yield* answer("Life expectancy in Brazil")).toEqual([
-        Answered.make({ view: brazilTrend }),
+        Answered.make({
+          view: brazilTrend,
+          takeaway: "Life expectancy in Brazil rose from 70 years in 2000 to 72 in 2002.",
+        }),
       ])
+      expect(yield* answer("Show it again")).toEqual([Answered.make({ view: brazilTrend })])
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
