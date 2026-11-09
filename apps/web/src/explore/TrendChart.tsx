@@ -127,8 +127,10 @@ const Politics = ({ terms: all, elections, events, reforms, countries, year }: P
     ...happening(events, { countries, shown: year, pages }),
   ]
 
+  // As wide as fits on a phone, so a busy year wraps less and stays inside
+  // the card.
   return lines.length === 0 ? null : (
-    <ul className="grid max-w-72 gap-1 border-t pt-1.5 text-muted-foreground">
+    <ul className="grid max-w-[min(24rem,calc(100vw-5rem))] gap-1 border-t pt-1.5 text-muted-foreground">
       {lines.map((line) => (
         <li key={line}>{line}</li>
       ))}
