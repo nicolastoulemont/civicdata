@@ -8,8 +8,8 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router"
-import { render, screen, waitFor, within } from "@testing-library/react"
-import userEvent from "@testing-library/user-event"
+import { act, render, screen, waitFor, within } from "@testing-library/react"
+import userEvent, { type UserEvent } from "@testing-library/user-event"
 import { Schema } from "effect"
 import { http, HttpResponse } from "msw/http"
 import { afterEach, expect, it } from "vitest"
@@ -21,22 +21,37 @@ import { Route as HomeRoute } from "./index"
 
 const encodeTurns = Schema.encodeSync(Schema.toCodecJson(Turns))
 const encodeStep = Schema.encodeSync(Schema.fromJsonString(Schema.toCodecJson(Step)))
+const decodeAsk = Schema.decodeUnknownSync(Schema.Struct({ question: Schema.String }))
 
 afterEach(() => localStorage.clear())
 
-it("opens a conversation from home with the question shown and the composer ready", async () => {
-  const question = "What about happiness in Brazil?"
+// The agent finds no indicator for any question. The server saves each
+// question as a turn, and records it in `asked`.
+const serve = () => {
+  const asked: Array<string> = []
+
   network.use(
-    http.get("/api/conversations/:id", () => HttpResponse.json(encodeTurns({ answered: [] }))),
-    http.post(
-      "/api/conversations/:id/questions",
-      () =>
-        new HttpResponse(`event: message\ndata: ${encodeStep(Unanswered.make({}))}\n\n`, {
-          headers: { "content-type": "text/event-stream" },
+    http.get("/api/conversations/:id", () =>
+      HttpResponse.json(
+        encodeTurns({
+          answered: asked.map((question) => ({ question, answer: Unanswered.make({}) })),
         }),
+      ),
     ),
+    http.post("/api/conversations/:id/questions", async ({ request }) => {
+      asked.push(decodeAsk(await request.json()).question)
+
+      return new HttpResponse(`event: message\ndata: ${encodeStep(Unanswered.make({}))}\n\n`, {
+        headers: { "content-type": "text/event-stream" },
+      })
+    }),
   )
 
+  return asked
+}
+
+// Home and the conversation page under the chat layout, starting at home.
+const open = () => {
   const Chat = ChatRoute.options.component
   const Home = HomeRoute.options.component
   const Conversation = ConversationRoute.options.component
@@ -77,9 +92,21 @@ it("opens a conversation from home with the question shown and the composer read
     </QueryClientProvider>,
   )
 
-  const user = userEvent.setup()
+  return router
+}
+
+const ask = async (user: UserEvent, question: string) => {
   await user.type(await screen.findByRole("textbox", { name: "Ask about a country" }), question)
   await user.click(screen.getByRole("button", { name: "Send" }))
+}
+
+it("opens a conversation from home with the question shown and the composer ready", async () => {
+  const question = "What about happiness in Brazil?"
+  serve()
+  const router = open()
+  const user = userEvent.setup()
+
+  await ask(user, question)
 
   await waitFor(() => expect(router.state.location.pathname).toMatch(/^\/c\/[\da-f-]+$/))
   const timeline = await screen.findByRole("list", { name: "Questions and answers" })
@@ -92,4 +119,26 @@ it("opens a conversation from home with the question shown and the composer read
   expect(screen.getByRole("button", { name: "Send" }).getAttribute("aria-disabled")).not.toBe(
     "true",
   )
+})
+
+it("shows the saved turn without asking again when going back to a conversation", async () => {
+  const question = "What about happiness in Brazil?"
+  const asked = serve()
+  const router = open()
+  const user = userEvent.setup()
+
+  await ask(user, question)
+  expect(await screen.findByText("No World Bank indicator answers this question")).toBeDefined()
+
+  await user.click(screen.getByRole("link", { name: "New conversation" }))
+  expect(await screen.findByRole("textbox", { name: "Ask about a country" })).toBeDefined()
+
+  act(() => router.history.back())
+
+  const timeline = await screen.findByRole("list", { name: "Questions and answers" })
+  expect(
+    await within(timeline).findByText("No World Bank indicator answers this question"),
+  ).toBeDefined()
+  expect(within(timeline).getAllByText(question)).toHaveLength(1)
+  expect(asked).toEqual([question])
 })
