@@ -23,7 +23,7 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router"
-import { render, screen } from "@testing-library/react"
+import { render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Cause, DateTime, Schema } from "effect"
 import { http, HttpResponse } from "msw/http"
@@ -139,6 +139,10 @@ const show = (first?: string) => {
   )
 }
 
+// A question in the timeline, not in the header that repeats the first one.
+const findQuestion = async (text: string) =>
+  within(await screen.findByRole("list", { name: "Questions and answers" })).findByText(text)
+
 const typeFollowUp = async (text: string) => {
   const user = userEvent.setup()
 
@@ -153,7 +157,13 @@ describe("Conversation", () => {
     network.use(turns([]), reply.handler, resolve)
     show("How has life expectancy changed in Brazil?")
 
-    expect(await screen.findByText("How has life expectancy changed in Brazil?")).toBeDefined()
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "How has life expectancy changed in Brazil?",
+      }),
+    ).toBeDefined()
+    expect(await findQuestion("How has life expectancy changed in Brazil?")).toBeDefined()
 
     reply.send(message(Searched.make({ text: "life expectancy" })))
     expect(await screen.findByText("Searched indicators for “life expectancy”")).toBeDefined()
@@ -168,6 +178,57 @@ describe("Conversation", () => {
     expect(screen.queryByText("Searched indicators for “life expectancy”")).toBeNull()
   })
 
+  it("heads each question and answer with who wrote it, for screen readers", async () => {
+    network.use(
+      turns([
+        { question: "Life expectancy in Brazil", answer: Answered.make({ view: brazil }) },
+        { question: "What about happiness?", answer: Unanswered.make({}) },
+      ]),
+      resolve,
+    )
+    show()
+
+    expect(await screen.findAllByRole("heading", { name: "You" })).toHaveLength(2)
+    expect(screen.getAllByRole("heading", { name: "civicdata" })).toHaveLength(2)
+  })
+
+  it("copies a question", async () => {
+    const user = userEvent.setup()
+
+    network.use(
+      turns([{ question: "What about happiness?", answer: Unanswered.make({}) }]),
+      resolve,
+    )
+    show()
+
+    await user.click(await screen.findByRole("button", { name: "Copy question" }))
+
+    expect(await screen.findByRole("button", { name: "Copied" })).toBeDefined()
+    expect(await navigator.clipboard.readText()).toBe("What about happiness?")
+  })
+
+  it("links an answer's chart in the explorer, and copies that link", async () => {
+    const link =
+      "http://localhost:3000/explore?chart=trend&indicator=SP.DYN.LE00.IN&countries=BRA&from=2000&to=2001"
+
+    const user = userEvent.setup()
+
+    network.use(
+      turns([{ question: "Life expectancy in Brazil", answer: Answered.make({ view: brazil }) }]),
+      resolve,
+    )
+    show()
+
+    expect(
+      (await screen.findByRole("link", { name: "Open in the explorer" })).getAttribute("href"),
+    ).toBe(link.replace("http://localhost:3000", ""))
+
+    await user.click(screen.getByRole("button", { name: "Copy link" }))
+
+    expect(await screen.findByRole("button", { name: "Link copied" })).toBeDefined()
+    expect(await navigator.clipboard.readText()).toBe(link)
+  })
+
   it("asks a follow-up below the earlier turns", async () => {
     const reply = answer()
 
@@ -178,14 +239,20 @@ describe("Conversation", () => {
     )
     show()
 
-    expect(await screen.findByText("Life expectancy in Brazil")).toBeDefined()
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Life expectancy in Brazil" }),
+    ).toBeDefined()
 
     await typeFollowUp("What about happiness?")
     reply.send(message(Unanswered.make({})))
     reply.end()
 
-    expect(await screen.findByText("What about happiness?")).toBeDefined()
+    expect(await findQuestion("What about happiness?")).toBeDefined()
     expect(await screen.findByText("No World Bank indicator answers this question")).toBeDefined()
+    // The header still names the conversation by its first question.
+    expect(
+      screen.getByRole("heading", { level: 1, name: "Life expectancy in Brazil" }),
+    ).toBeDefined()
   })
 
   it("offers the choices the agent asked about, and sends the one picked", async () => {
@@ -230,7 +297,7 @@ describe("Conversation", () => {
     network.use(turns([], "Life expectancy in Brazil"), reply.handler, resolve)
     show()
 
-    expect(await screen.findByText("Life expectancy in Brazil")).toBeDefined()
+    expect(await findQuestion("Life expectancy in Brazil")).toBeDefined()
     expect(screen.getByRole("button", { name: "Ask" }).hasAttribute("disabled")).toBe(true)
 
     reply.send(message(Searched.make({ text: "life expectancy" })))
