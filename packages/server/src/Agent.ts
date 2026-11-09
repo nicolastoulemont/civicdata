@@ -29,12 +29,13 @@ import {
   Option,
   Queue,
   Redacted,
+  Ref,
   Schema,
   type SchemaIssue,
   Stream,
   Struct,
 } from "effect"
-import { Chat, LanguageModel, Tool, Toolkit } from "effect/ai"
+import { Chat, LanguageModel, Prompt, Tool, Toolkit } from "effect/ai"
 import { FetchHttpClient } from "effect/http"
 
 import { Catalog } from "./Catalog.ts"
@@ -59,6 +60,29 @@ const defaultModel = "gpt-6.1-terra"
 // Model turns before the agent gives up on a question. Each turn is one model
 // request, so this also caps what one question can cost.
 const rounds = 6
+
+// Earlier questions the model is sent again with a new one. Older questions,
+// with everything the agent did to answer them, leave the chat, so a long
+// conversation costs no more per question than a short one.
+const recall = 3
+
+// The chat's instructions and its last `recall` questions. Each question
+// starts with the person's message, so the cut never splits a tool call from
+// its result.
+const forget = (prompt: Prompt.Prompt) => {
+  const questions = prompt.content.flatMap((message, index) =>
+    message.role === "user" ? [index] : [],
+  )
+
+  const first = questions.at(-recall)
+
+  return first === undefined
+    ? prompt
+    : Prompt.fromMessages([
+        ...prompt.content.filter((message) => message.role === "system"),
+        ...prompt.content.slice(first),
+      ])
+}
 
 const SearchIndicators = Tool.make("search_indicators", {
   description:
@@ -392,6 +416,8 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
           chat: Chat.Chat,
           { question, queue }: { question: string; queue: Queue.Queue<Step, Failure | Cause.Done> },
         ) {
+          yield* Ref.update(chat.history, forget)
+
           for (let round = 0; round < rounds; round += 1) {
             const response = yield* chat.generateText({
               prompt: round === 0 ? question : [],
