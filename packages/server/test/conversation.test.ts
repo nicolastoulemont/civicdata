@@ -168,7 +168,7 @@ type Name =
 const call = (
   name: Name,
   params: Arguments,
-  step = `call-${name}`,
+  { step = `call-${name}` }: { step?: string } = {},
 ): ReadonlyArray<Response.PartEncoded> => [{ type: "tool-call", id: step, name, params }, finish]
 
 const brazil = {
@@ -473,9 +473,9 @@ describe("conversations", () => {
   it.effect("reports why the data rejected a chart, and the one that replaced it", () => {
     const model = scripted([
       // An aggregate instead of a country, then years with no data.
-      Effect.succeed(call("show_chart", { ...brazil, countries: ["LCN"] }, "chart-1")),
-      Effect.succeed(call("show_chart", { ...brazil, from: 1960, to: 1961 }, "chart-2")),
-      Effect.succeed(call("show_chart", brazil, "chart-3")),
+      Effect.succeed(call("show_chart", { ...brazil, countries: ["LCN"] }, { step: "chart-1" })),
+      Effect.succeed(call("show_chart", { ...brazil, from: 1960, to: 1961 }, { step: "chart-2" })),
+      Effect.succeed(call("show_chart", brazil, { step: "chart-3" })),
     ])
 
     return Effect.gen(function* () {
@@ -584,8 +584,8 @@ describe("conversations", () => {
       const change = { ...brazil, chart: "change", from: 2000, to: 2002 }
 
       const model = scripted([
-        Effect.succeed(call("show_chart", { ...change, transform: "Index" }, "chart-1")),
-        Effect.succeed(call("show_chart", change, "chart-2")),
+        Effect.succeed(call("show_chart", { ...change, transform: "Index" }, { step: "chart-1" })),
+        Effect.succeed(call("show_chart", change, { step: "chart-2" })),
       ])
 
       return Effect.gen(function* () {
@@ -683,7 +683,7 @@ describe("conversations", () => {
       }
 
       const model = scripted([
-        Effect.succeed(call("show_chart", unemployment, "chart-1")),
+        Effect.succeed(call("show_chart", unemployment, { step: "chart-1" })),
         Effect.succeed(
           call(
             "show_chart",
@@ -695,7 +695,7 @@ describe("conversations", () => {
                 { dimension: "sex", code: "T" },
               ],
             },
-            "chart-2",
+            { step: "chart-2" },
           ),
         ),
       ])
@@ -775,11 +775,19 @@ describe("conversations", () => {
 
   it.effect("searches every source, or one the model names, and reports which each found", () => {
     const model = scripted([
-      Effect.succeed(call("search_indicators", { text: "unemployment", source: null }, "search-1")),
       Effect.succeed(
-        call("search_indicators", { text: "unemployment", source: "Eurostat" }, "search-2"),
+        call("search_indicators", { text: "unemployment", source: null }, { step: "search-1" }),
       ),
-      Effect.succeed(call("search_indicators", { text: "happiness", source: null }, "search-3")),
+      Effect.succeed(
+        call(
+          "search_indicators",
+          { text: "unemployment", source: "Eurostat" },
+          { step: "search-2" },
+        ),
+      ),
+      Effect.succeed(
+        call("search_indicators", { text: "happiness", source: null }, { step: "search-3" }),
+      ),
       Effect.succeed(words("No indicator measures that.")),
     ])
 
