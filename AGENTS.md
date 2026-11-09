@@ -1,6 +1,6 @@
 # AGENTS.md
 
-civicdata charts public data about countries (World Bank first, then Eurostat and OECD). The README covers layout, commands and deploys. This file covers what the code does not show.
+civicdata charts public data about countries from the World Bank, Eurostat and the OECD. The README covers what the app does, its sources, layout and commands; `docs/catalog.md` covers the catalog and political-records builds, and `docs/deploys.md` covers deploys. This file covers what the code does not show.
 
 ## Product rules
 
