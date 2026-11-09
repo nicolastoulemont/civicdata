@@ -17,6 +17,9 @@
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
   --color-message-surface: var(--message-surface);
+  --color-chart-6: var(--chart-6);
+  --color-chart-other: var(--chart-other);
+  --color-chart-faint: var(--chart-faint);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -70,11 +73,14 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
+  --chart-1: #2a78d6;
+  --chart-2: #eb6834;
+  --chart-3: #1baf7a;
+  --chart-4: #6250d6;
+  --chart-5: #e87ba4;
+  --chart-6: #008300;
+  --chart-other: color-mix(in oklab, var(--foreground) 45%, var(--card));
+  --chart-faint: color-mix(in oklab, var(--foreground) 12%, var(--card));
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
@@ -85,9 +91,7 @@
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
 
-  /* Near-black canvas, cards lifted one step, white-alpha hairlines. The chart
-     ramp mirrors the light one: chart-1 sits closest to the surface and chart-5
-     stands out most, so a map's lowest shade still recedes. */
+  /* Near-black canvas, cards lifted one step, white-alpha hairlines. */
   @variant dark {
     color-scheme: dark;
     --background: oklch(0.145 0 0);
@@ -109,11 +113,12 @@
     --border: oklch(1 0 0 / 8%);
     --input: oklch(1 0 0 / 12%);
     --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.4 0 0);
-    --chart-2: oklch(0.55 0 0);
-    --chart-3: oklch(0.67 0 0);
-    --chart-4: oklch(0.79 0 0);
-    --chart-5: oklch(0.92 0 0);
+    --chart-1: #3987e5;
+    --chart-2: #d95926;
+    --chart-3: #199e70;
+    --chart-4: #9085e9;
+    --chart-5: #d55181;
+    --chart-6: #008300;
     --sidebar: oklch(0.18 0 0);
     --sidebar-foreground: oklch(0.97 0 0);
     --sidebar-primary: oklch(0.922 0 0);

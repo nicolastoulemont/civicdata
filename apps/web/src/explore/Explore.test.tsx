@@ -20,7 +20,7 @@ import userEvent from "@testing-library/user-event"
 import { DateTime, Match, Schema } from "effect"
 import { http, HttpResponse } from "msw/http"
 import { useState } from "react"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import { network } from "../../test/network.ts"
 import { Explore } from "./Explore.tsx"
@@ -216,6 +216,60 @@ const trend = Trend.make({
 })
 
 describe("Explore", () => {
+  it("names all seven countries in the legend and table when the palette overflows", async () => {
+    const countries = ["FRA", "DEU", "ITA", "ESP", "GBR", "USA", "JPN"] as const
+
+    const names = [
+      "France",
+      "Germany",
+      "Italy",
+      "Spain",
+      "United Kingdom",
+      "United States",
+      "Japan",
+    ]
+
+    const view = Trend.make({ ...trend, countries })
+
+    network.use(
+      notes,
+      search,
+      http.post("/api/views/resolve", () =>
+        HttpResponse.json(
+          Schema.encodeSync(ResolvedViewSchema)({
+            ...resolvedFor(view),
+            missing: [],
+            observations: countries.flatMap((country, index) => [
+              { country, year: Year.make(2019), value: 10 + index },
+              { country, year: Year.make(2020), value: 20 + index },
+            ]),
+          }),
+        ),
+      ),
+    )
+
+    const bounds = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockReturnValue(new DOMRect(0, 0, 800, 320))
+
+    try {
+      show(view)
+
+      const figure = within(await screen.findByRole("figure"))
+
+      for (const name of names) {
+        expect(figure.getByText(name)).toBeDefined()
+      }
+
+      await userEvent.setup().click(screen.getByRole("button", { name: "Data" }))
+      const table = within(await screen.findByRole("table"))
+
+      for (const name of names) expect(table.getAllByRole("cell", { name })).toHaveLength(2)
+    } finally {
+      bounds.mockRestore()
+    }
+  })
+
   it("titles the chart in plain words and keeps the official name", async () => {
     network.use(worldBank, notes, search)
     const user = userEvent.setup()

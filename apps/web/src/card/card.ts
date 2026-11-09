@@ -16,13 +16,23 @@ import { places } from "@/explore/preview"
 import { around, ticks } from "@/explore/scale"
 import * as world from "@/explore/world"
 
-import { type Canvas, canvas, fill, type Ink, line, png, rect, series, text } from "./canvas.ts"
+import {
+  type Canvas,
+  canvas,
+  fill,
+  type Ink,
+  line,
+  png,
+  rect,
+  series,
+  mapInks,
+  text,
+} from "./canvas.ts"
 import { body, label, title } from "./faces.gen.ts"
 import { fit, measure, wrap } from "./font.ts"
 
 // Link-preview cards are 600 by 315: the smallest size Facebook shows as a
-// large card, and small enough to draw within the 10 ms of CPU a request gets
-// on Workers Free. Text stays a little larger than half of 1200 by 630 would
+// large card. Text stays a little larger than half of 1200 by 630 would
 // give, so labels remain readable.
 const width = 600
 const height = 315
@@ -137,7 +147,7 @@ const drawTrend = (image: Canvas, resolved: ResolvedView, trend: Trend, box: Box
   const lines = trend.countries
     .map((country, index) => ({
       name: countryName(country),
-      ink: series[index % series.length] ?? "chart-1",
+      ink: series[index] ?? "chart-other",
       points: resolved.observations
         .filter((observation) => observation.country === country)
         .toSorted((left, right) => left.year - right.year),
@@ -260,9 +270,9 @@ const drawChange = (image: Canvas, resolved: ResolvedView, change: Change, box: 
 
   const key = { x: box.left + names + 12, y: box.top + 13 }
 
-  line(image, [key.x, key.y - 4], [key.x, key.y - 4], { ink: "chart-2", width: 7 })
+  line(image, [key.x, key.y - 4], [key.x, key.y - 4], { ink: "chart-other", width: 7 })
   text(image, label, `${change.from}`, { x: key.x + 8, y: key.y, ink: "muted" })
-  line(image, [key.x + 48, key.y - 4], [key.x + 48, key.y - 4], { ink: "chart-5", width: 7 })
+  line(image, [key.x + 48, key.y - 4], [key.x + 48, key.y - 4], { ink: "chart-1", width: 7 })
   text(image, label, `${change.to}`, { x: key.x + 56, y: key.y, ink: "muted" })
 
   for (const [index, each] of shown.entries()) {
@@ -277,8 +287,8 @@ const drawChange = (image: Canvas, resolved: ResolvedView, change: Change, box: 
       align: "end",
     })
     line(image, [from, middle], [to, middle], { ink: "border", width: 2 })
-    line(image, [from, middle], [from, middle], { ink: "chart-2", width: 7 })
-    line(image, [to, middle], [to, middle], { ink: "chart-5", width: 7 })
+    line(image, [from, middle], [from, middle], { ink: "chart-other", width: 7 })
+    line(image, [to, middle], [to, middle], { ink: "chart-1", width: 7 })
     text(image, label, labels[index] ?? "", {
       x: Math.max(from, to) + 8,
       y: middle + 4,
@@ -329,7 +339,7 @@ const drawRelation = (image: Canvas, resolved: Paired, box: Box) => {
   })
 
   for (const point of points) {
-    line(image, [x(point.x), y(point.y)], [x(point.x), y(point.y)], { ink: "chart-4", width: 7 })
+    line(image, [x(point.x), y(point.y)], [x(point.x), y(point.y)], { ink: "chart-1", width: 7 })
   }
 
   for (const point of points) {
@@ -370,14 +380,14 @@ const drawMap = (image: Canvas, resolved: ResolvedView, box: Box) => {
       .map((ring) => ring.map(([x, y]) => [box.left + x * scale, box.top + y * scale] as const))
 
     if (projected.length > 0)
-      fill(image, projected, shade === undefined ? "border" : (series[shade] ?? "chart-1"))
+      fill(image, projected, shade === undefined ? "border" : (mapInks[shade] ?? "chart-1"))
   }
 
   const left = box.left + world.width * scale + 16
 
   const rows = [
     ...key.map(({ shade }, index) => ({
-      ink: series[shade] ?? "chart-1",
+      ink: mapInks[shade] ?? "chart-1",
       text: labels[index] ?? "",
     })),
     { ink: "border" as const, text: "No data" },

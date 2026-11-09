@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/chart"
 
 import { countryName, formatCompact } from "./format.ts"
+import { fill } from "./palette.ts"
 import { type Paired, pairs } from "./points.ts"
 import { around } from "./scale.ts"
 
@@ -30,8 +31,8 @@ export const RelationChart = ({ resolved }: RelationChartProps) => {
 
   // The axes by indicator title, and the countries by name for the tooltip's title.
   const config: ChartConfig = {
-    x: { label: resolved.against.title, color: "var(--chart-4)" },
-    y: { label: resolved.title, color: "var(--chart-4)" },
+    x: { label: resolved.against.title, color: fill(1) },
+    y: { label: resolved.title, color: fill(1) },
     ...Object.fromEntries(points.map((point) => [point.country, { label: point.name }])),
   }
 

@@ -1,22 +1,37 @@
 import { type Face, glyph } from "./font.ts"
 
-// The site's theme tokens in apps/web/src/styles.css, as sRGB: foreground,
-// muted-foreground, border and chart-1 to chart-5 (Tailwind's neutral greys).
+// Light theme tokens as sRGB, including the five OKLab map blends.
 const inks = {
   foreground: [10, 10, 10],
   muted: [115, 115, 115],
   border: [229, 229, 229],
-  "chart-1": [212, 212, 212],
-  "chart-2": [115, 115, 115],
-  "chart-3": [82, 82, 82],
-  "chart-4": [64, 64, 64],
-  "chart-5": [38, 38, 38],
+  "chart-1": [42, 120, 214],
+  "chart-2": [235, 104, 52],
+  "chart-3": [27, 175, 122],
+  "chart-4": [98, 80, 214],
+  "chart-5": [232, 123, 164],
+  "chart-6": [0, 131, 0],
+  "chart-other": [133, 133, 133],
+  "chart-faint": [221, 221, 221],
+  "map-0": [195, 207, 222],
+  "map-1": [159, 186, 221],
+  "map-2": [123, 165, 220],
+  "map-3": [85, 143, 218],
+  "map-4": [42, 120, 214],
 } as const
 
 export type Ink = keyof typeof inks
 
-// Series colours in the order the site's charts use them.
-export const series: ReadonlyArray<Ink> = ["chart-1", "chart-2", "chart-3", "chart-4", "chart-5"]
+export const series: ReadonlyArray<Ink> = [
+  "chart-1",
+  "chart-2",
+  "chart-3",
+  "chart-4",
+  "chart-5",
+  "chart-6",
+]
+
+export const mapInks: ReadonlyArray<Ink> = ["map-0", "map-1", "map-2", "map-3", "map-4"]
 
 // Coverage is kept in 15 steps, so each ink has 15 palette entries blended
 // onto the white background. Entry 0 is the background.

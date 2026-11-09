@@ -1,5 +1,5 @@
 import type { ConversationId } from "@civicdata/domain"
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, useState } from "react"
 
 import { FollowUp } from "./FollowUp.tsx"
 import { Header } from "./Header.tsx"
@@ -16,7 +16,8 @@ interface ConversationProps {
 // A conversation with the agent, newest question last. `first` is a question
 // to ask as soon as the conversation opens: the one typed on the home page.
 export const Conversation = ({ id, first }: ConversationProps) => {
-  const { turns, pending, answering, ask } = useConversation(id)
+  const { turns, pending, failures, retry, answering, ask } = useConversation(id)
+  const [dismissed, setDismissed] = useState<Error | null>(null)
   const sent = useRef(false)
 
   useEffect(() => {
@@ -27,7 +28,9 @@ export const Conversation = ({ id, first }: ConversationProps) => {
   }, [first, ask])
 
   const all = turns.data ?? []
-  const empty = all.length === 0 && pending === undefined && first === undefined
+
+  const empty =
+    all.length === 0 && pending === undefined && failures.length === 0 && first === undefined
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -35,16 +38,29 @@ export const Conversation = ({ id, first }: ConversationProps) => {
       <main className="flex flex-1 flex-col gap-8 pt-4">
         <Lane>
           <div className="flex flex-col gap-6">
-            {turns.isError ? <Problem error={turns.error} /> : null}
+            {turns.isError && turns.error !== dismissed ? (
+              <Problem error={turns.error} dismiss={() => setDismissed(turns.error)} />
+            ) : null}
             {empty ? (
               <p className="text-muted-foreground">
                 No questions yet. A conversation is deleted 30 days after its last question.
               </p>
             ) : null}
-            <Timeline turns={all} pending={pending} answering={answering} ask={ask} />
+            <Timeline
+              turns={all}
+              pending={pending}
+              failures={failures}
+              retry={retry}
+              answering={answering}
+            />
           </div>
         </Lane>
-        <FollowUp last={all.at(-1)?.answer} answering={answering} ask={ask} />
+        <FollowUp
+          pending={pending !== undefined}
+          last={all.at(-1)?.answer}
+          answering={answering}
+          ask={ask}
+        />
       </main>
     </div>
   )

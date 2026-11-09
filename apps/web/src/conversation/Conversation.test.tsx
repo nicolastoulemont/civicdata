@@ -3,6 +3,7 @@ import {
   Answered,
   Asked,
   CatalogUnavailable,
+  ConversationBusy,
   ConversationId,
   IndicatorId,
   ResolvedView,
@@ -27,7 +28,7 @@ import { getDefaultNormalizer, render, screen, within } from "@testing-library/r
 import userEvent from "@testing-library/user-event"
 import { Cause, DateTime, Schema } from "effect"
 import { http, HttpResponse } from "msw/http"
-import { describe, expect, it } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 import { SidebarProvider } from "@/components/ui/sidebar"
 
@@ -105,8 +106,19 @@ const encodeFailure = Schema.encodeSync(
 
 const message = (step: Step) => `event: message\ndata: ${encodeStep(step)}\n\n`
 
-const failure = (error: AgentUnavailable) =>
+const failure = (error: AgentUnavailable | SourceUnavailable | CatalogUnavailable) =>
   `event: effect/http-api/stream/failure\ndata: ${encodeFailure(Cause.fail(error))}\n\n`
+
+const events = (text: string) =>
+  new HttpResponse(
+    new ReadableStream<Uint8Array>({
+      start: (controller) => {
+        controller.enqueue(new TextEncoder().encode(text))
+        controller.close()
+      },
+    }),
+    { headers: { "content-type": "text/event-stream" } },
+  )
 
 // An answer the test sends one event at a time, in reply to a question or to
 // following the answer in progress.
@@ -309,40 +321,78 @@ describe("Conversation", () => {
     )
   })
 
-  it("offers the choices the agent asked about, and sends the one picked", async () => {
-    const reply = answer()
-
+  it.each([
+    { via: "click", expected: "South Korea" },
+    { via: "number", expected: "North Korea" },
+    { via: "reply", expected: "Both since 2010" },
+  ])("sends an agent reply by $via", async ({ via, expected }) => {
+    const user = userEvent.setup()
+    const sent: Array<unknown> = []
     network.use(
       turns([
         {
-          question: "How long do people live in Brazil?",
-          answer: Asked.make({
-            question: "Which measure?",
-            choices: ["Life expectancy", "Healthy life expectancy"],
-          }),
+          question: "How long do people live in Korea?",
+          answer: Asked.make({ question: "Which Korea?", choices: ["South Korea", "North Korea"] }),
         },
       ]),
-      reply.handler,
-      resolve,
+      http.post(`/api/conversations/${id}/questions`, async ({ request }) => {
+        sent.push(await request.json())
+
+        return new HttpResponse(message(Unanswered.make({})), {
+          headers: { "content-type": "text/event-stream" },
+        })
+      }),
     )
     show()
 
-    expect(await screen.findByText("Which measure?")).toBeDefined()
+    const panel = await screen.findByRole("region", { name: "Which Korea?" })
+    expect(within(panel).getAllByRole("button")).toHaveLength(2)
+    expect((await findComposer()).getAttribute("placeholder")).toBe(
+      "Pick a choice above, or say what you mean",
+    )
 
-    await userEvent.setup().click(screen.getByRole("button", { name: "Life expectancy" }))
+    if (via === "click")
+      await user.click(within(panel).getByRole("button", { name: "South Korea" }))
 
-    // The choice is the next question, and the earlier choices can no longer be picked.
-    expect(await screen.findByText("Life expectancy", { selector: "p" })).toBeDefined()
-    expect(
-      screen.getByRole("button", { name: "Healthy life expectancy" }).hasAttribute("disabled"),
-    ).toBe(true)
+    if (via === "number") await user.keyboard("2")
 
-    reply.send(message(Answered.make({ view: brazil })))
-    reply.end()
+    if (via === "reply") {
+      await user.type(await findComposer(), "Both since 2010")
+      await user.keyboard("{Enter}")
+    }
 
-    expect(
-      await screen.findByRole("heading", { name: "Life expectancy at birth (years)" }),
-    ).toBeDefined()
+    expect(await findQuestion(expected)).toBeDefined()
+    expect(await screen.findByText("No World Bank indicator answers this question")).toBeDefined()
+    expect(sent).toEqual([{ question: expected }])
+    expect(screen.queryByRole("region", { name: "Which Korea?" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "South Korea" })).toBeNull()
+    expect(await findQuestion("Which Korea?")).toBeDefined()
+  })
+
+  it("keeps older questions read-only and gives keyboard focus to the latest choices", async () => {
+    const user = userEvent.setup()
+    network.use(
+      turns([
+        {
+          question: "Which measure?",
+          answer: Asked.make({ question: "Measure to use?", choices: ["GDP"] }),
+        },
+        {
+          question: "Life expectancy in Korea",
+          answer: Asked.make({ question: "Which Korea?", choices: ["South Korea", "North Korea"] }),
+        },
+      ]),
+    )
+    show()
+
+    const choice = await screen.findByRole("button", { name: "South Korea" })
+    expect(await findQuestion("Measure to use?")).toBeDefined()
+    expect(screen.queryByRole("button", { name: "GDP" })).toBeNull()
+    await user.click(await findComposer())
+    await user.tab({ shift: true })
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "North Korea" }))
+    await user.tab({ shift: true })
+    expect(document.activeElement).toBe(choice)
   })
 
   it("follows an answer still in progress when the page opens", async () => {
@@ -410,19 +460,100 @@ describe("Conversation", () => {
     expect(screen.queryByText("The question could not be sent")).toBeNull()
   })
 
-  it("explains a failure during the answer", async () => {
+  it.each([
+    { error: new AgentUnavailable(), title: "The assistant is not available" },
+    { error: new SourceUnavailable({ source: "Eurostat" }), title: "Eurostat is not responding" },
+    { error: new CatalogUnavailable(), title: "Indicator search is not available" },
+  ])("keeps $title under its question", async ({ error, title }) => {
     const reply = answer()
-
     network.use(turns([]), reply.handler)
     show("Life expectancy in Brazil")
-
-    reply.send(failure(new AgentUnavailable()))
+    reply.send(failure(error))
     reply.end()
 
-    expect(await screen.findByText("The assistant is not available")).toBeDefined()
+    const alert = await screen.findByRole("alert")
+    expect(within(alert).getByText(title)).toBeDefined()
+    expect(within(alert).getByRole("button", { name: "Ask again" })).toBeDefined()
+    expect(await findQuestion("Life expectancy in Brazil")).toBeDefined()
+    expect(screen.queryByRole("button", { name: "Dismiss error" })).toBeNull()
   })
 
-  it("explains when one visitor asks too often", async () => {
+  it("explains a busy conversation", async () => {
+    network.use(
+      turns([]),
+      http.post(`/api/conversations/${id}/questions`, () =>
+        HttpResponse.json(Schema.encodeSync(ConversationBusy)(new ConversationBusy()), {
+          status: 409,
+        }),
+      ),
+    )
+    show("Life expectancy in Brazil")
+    expect(await screen.findByText("Still answering an earlier question")).toBeDefined()
+    expect(screen.getByRole("button", { name: "Ask again" })).toBeDefined()
+  })
+
+  it("dismisses a conversation loading failure above the timeline", async () => {
+    network.use(
+      http.get(`/api/conversations/${id}`, () =>
+        HttpResponse.json(Schema.encodeSync(AgentUnavailable)(new AgentUnavailable()), {
+          status: 503,
+        }),
+      ),
+    )
+    show()
+    const alert = await screen.findByRole("alert")
+    expect(within(alert).getByText("The assistant is not available")).toBeDefined()
+    expect(
+      within(screen.getByRole("list", { name: "Questions and answers" })).queryByRole("alert"),
+    ).toBeNull()
+    expect(screen.queryByRole("button", { name: "Ask again" })).toBeNull()
+    await userEvent.setup().click(within(alert).getByRole("button", { name: "Dismiss error" }))
+    expect(screen.queryByRole("alert")).toBeNull()
+  })
+
+  it("asks the exact failed question again and shows its answer", async () => {
+    const question = "Life expectancy in Brazil"
+    const sent: unknown[] = []
+    network.use(
+      turns([]),
+      resolve,
+      http.post(`/api/conversations/${id}/questions`, async ({ request }) => {
+        sent.push(await request.json())
+
+        return events(
+          sent.length === 1
+            ? failure(new AgentUnavailable())
+            : message(Answered.make({ view: brazil })),
+        )
+      }),
+    )
+    show(question)
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Ask again" }))
+    expect(
+      await screen.findByRole("heading", { name: "Life expectancy at birth (years)" }),
+    ).toBeDefined()
+    expect(sent).toEqual([{ question }, { question }])
+    expect(screen.queryByRole("alert")).toBeNull()
+    expect(await screen.findAllByText(question, { selector: "p" })).toHaveLength(1)
+  })
+
+  it("keeps earlier failed questions when another question is asked", async () => {
+    network.use(
+      turns([]),
+      http.post(`/api/conversations/${id}/questions`, () =>
+        events(failure(new AgentUnavailable())),
+      ),
+    )
+    show("Life expectancy in Brazil")
+    await screen.findByRole("button", { name: "Ask again" })
+    const user = userEvent.setup()
+    await user.type(await findComposer(), "And in Chile?{Enter}")
+    expect(await screen.findAllByRole("alert")).toHaveLength(2)
+    expect(await findQuestion("Life expectancy in Brazil")).toBeDefined()
+    expect(await findQuestion("And in Chile?")).toBeDefined()
+  })
+
+  it("counts down before offering to ask a rate-limited question again", async () => {
     network.use(
       turns([]),
       http.post(`/api/conversations/${id}/questions`, () =>
@@ -432,8 +563,19 @@ describe("Conversation", () => {
       ),
     )
     show("Life expectancy in Brazil")
-
     expect(await screen.findByText("Too many questions in a minute")).toBeDefined()
+    expect(screen.getByText("Ask again in 60 seconds.")).toBeDefined()
+    expect(screen.queryByRole("button", { name: "Ask again" })).toBeNull()
+    vi.useFakeTimers({ toFake: ["Date"] })
+
+    try {
+      vi.setSystemTime(Date.now() + 60_000)
+      expect(
+        await screen.findByRole("button", { name: "Ask again" }, { timeout: 2000 }),
+      ).toBeDefined()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it("says an empty conversation has no questions", async () => {

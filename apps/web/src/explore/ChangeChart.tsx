@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/chart"
 
 import { countryName, formatCompact } from "./format.ts"
+import { fill } from "./palette.ts"
 import { changes } from "./points.ts"
 import { around } from "./scale.ts"
 
@@ -25,8 +26,8 @@ interface ChangeChartProps {
 // a thin bar from the lower value to the higher.
 export const ChangeChart = ({ resolved, change }: ChangeChartProps) => {
   const config = {
-    from: { label: `${change.from}`, color: "var(--chart-2)" },
-    to: { label: `${change.to}`, color: "var(--chart-5)" },
+    from: { label: `${change.from}`, color: fill("other") },
+    to: { label: `${change.to}`, color: fill(1) },
   } satisfies ChartConfig
 
   const rows = changes(resolved, change).map(({ country, from, to }) => ({
