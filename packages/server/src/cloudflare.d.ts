@@ -6,6 +6,8 @@ declare module "cloudflare:workers" {
   export const env: {
     readonly CACHE?: import("./Cache.ts").Bucket
     readonly DB?: import("@cloudflare/workers-types").D1Database
+    readonly AI?: import("./Vectors.ts").Ai
+    readonly VECTORS?: import("./Vectors.ts").Index
     readonly ASK_LIMIT?: {
       readonly limit: (options: { readonly key: string }) => Promise<{ readonly success: boolean }>
     }

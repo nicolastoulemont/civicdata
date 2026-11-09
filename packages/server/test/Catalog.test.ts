@@ -6,6 +6,7 @@ import { Effect, Layer } from "effect"
 import { TestClock } from "effect/testing"
 
 import { Catalog } from "../src/Catalog.ts"
+import { type Ai, type Index, Vectors } from "../src/Vectors.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 
 const entry = (indicator: string, name: string, definition = ""): CatalogEntry => ({
@@ -34,14 +35,17 @@ const published = [
     "Life expectancy at birth, total (years)",
     "Years a newborn would live if the population's mortality stayed the same.",
   ),
+  entry(
+    "NY.GDP.PCAP.CD",
+    "GDP per capita (current US$)",
+    "Gross domestic product divided by the number of people.",
+  ),
+  entry("SI.DST.10TH.10", "Income share held by highest 10%"),
 ]
 
 // A World Bank whose indicator list the test controls, counting the times it
 // was asked.
-const worldBank = (
-  answers: { up: boolean },
-  indicators: ReadonlyArray<CatalogEntry> = published,
-) => {
+const worldBank = (answers: { up: boolean; indicators?: ReadonlyArray<CatalogEntry> }) => {
   let requests = 0
 
   const layer = Layer.succeed(
@@ -53,7 +57,7 @@ const worldBank = (
         requests += 1
 
         return answers.up
-          ? Effect.succeed(indicators)
+          ? Effect.succeed(answers.indicators ?? published)
           : Effect.fail(new SourceUnavailable({ source: "World Bank" }))
       }),
     }),
@@ -66,13 +70,70 @@ const db = env.DB
 
 if (db === undefined) throw new Error("vitest.config.ts must bind a D1 database as DB")
 
-// The real catalog over the test Worker's local D1 database.
-const catalogOver = (source: Layer.Layer<WorldBank>) =>
-  Catalog.layer.pipe(Layer.provide(source), Layer.provide(D1Client.layer({ db }).pipe(Layer.orDie)))
+// Workers AI as a dictionary: a text's vector marks the topics it mentions,
+// so "how rich" lands next to "GDP per capita" and unrelated text next to
+// nothing.
+const topics = [/\brich\b|per capita|income/i, /\bkids\b|under-five/i]
+
+const workersAi = (answers: { up: boolean }): Ai => ({
+  run: (_model, { text }) =>
+    answers.up
+      ? Promise.resolve({
+          data: text.map((one) => topics.map((topic) => (topic.test(one) ? 1 : 0))),
+        })
+      : Promise.reject(new Error("Workers AI is down")),
+})
+
+const cosine = (a: ReadonlyArray<number>, b: ReadonlyArray<number>) => {
+  const dot = a.reduce((sum, value, at) => sum + value * (b[at] ?? 0), 0)
+  const norms = Math.hypot(...a) * Math.hypot(...b)
+
+  return norms === 0 ? 0 : dot / norms
+}
+
+// A Vectorize index in memory, recording how many vectors each upsert stored.
+const vectorize = () => {
+  const stored = new Map<string, ReadonlyArray<number>>()
+  const upserts: Array<number> = []
+
+  const index: Index = {
+    upsert: (vectors) => {
+      upserts.push(vectors.length)
+
+      for (const { id, values } of vectors) stored.set(id, values)
+
+      return Promise.resolve({ mutationId: String(upserts.length) })
+    },
+    query: (vector, { topK }) =>
+      Promise.resolve({
+        count: Math.min(topK, stored.size),
+        matches: [...stored]
+          .map(([id, values]) => ({ id, score: cosine(vector, values) }))
+          .toSorted((a, b) => b.score - a.score)
+          .slice(0, topK),
+      }),
+  }
+
+  return { index, upserts: () => upserts }
+}
+
+// The real catalog over the test Worker's local D1 database, with Workers AI
+// and Vectorize faked at their bindings.
+const catalogOver = (
+  source: Layer.Layer<WorldBank>,
+  { ai = workersAi({ up: true }), index = vectorize().index }: { ai?: Ai; index?: Index } = {},
+) =>
+  Catalog.layer.pipe(
+    Layer.provide(source),
+    Layer.provide(Vectors.cloudflare({ ai, index })),
+    Layer.provide(D1Client.layer({ db }).pipe(Layer.orDie)),
+  )
 
 // The test Worker's D1 database is shared by the tests in this file.
 beforeEach(async () => {
-  await db.exec("DROP TABLE IF EXISTS catalog; DROP TABLE IF EXISTS catalog_refresh;")
+  await db.exec(
+    "DROP TABLE IF EXISTS catalog; DROP TABLE IF EXISTS catalog_refresh; DROP TABLE IF EXISTS catalog_embedded;",
+  )
 })
 
 const names = (entries: ReadonlyArray<CatalogEntry>) => entries.map((found) => found.name)
@@ -123,8 +184,79 @@ describe("Catalog", () => {
       const found = yield* (yield* Catalog).search("last loaded")
 
       expect(found.map((match) => match.indicator)).toEqual(["TEST.599"])
-    }).pipe(Effect.provide(catalogOver(worldBank({ up: true }, many).layer)))
+    }).pipe(Effect.provide(catalogOver(worldBank({ up: true, indicators: many }).layer)))
   })
+
+  it.effect("finds an indicator by meaning when none of its words match", () =>
+    Effect.gen(function* () {
+      const catalog = yield* Catalog
+
+      // The first search loads the catalog and embeds it.
+      expect(yield* catalog.search("how rich")).toEqual([])
+      expect(names(yield* catalog.search("how rich")).toSorted()).toEqual([
+        "GDP per capita (current US$)",
+        "Income share held by highest 10%",
+      ])
+    }).pipe(Effect.provide(catalogOver(worldBank({ up: true }).layer))),
+  )
+
+  it.effect("ranks an indicator found by its words and by meaning first", () =>
+    Effect.gen(function* () {
+      const catalog = yield* Catalog
+
+      yield* catalog.search("income")
+
+      expect(names(yield* catalog.search("income"))).toEqual([
+        "Income share held by highest 10%",
+        "GDP per capita (current US$)",
+      ])
+    }).pipe(Effect.provide(catalogOver(worldBank({ up: true }).layer))),
+  )
+
+  it.effect("embeds at most 50 entries per search, until the catalog is embedded", () => {
+    const many = Array.from({ length: 120 }, (_, index) =>
+      entry(`TEST.${index}`, `Indicator ${index}`),
+    )
+
+    const { index, upserts } = vectorize()
+
+    return Effect.gen(function* () {
+      const catalog = yield* Catalog
+
+      for (const _ of Array.from({ length: 4 })) yield* catalog.search("indicator")
+
+      expect(upserts()).toEqual([50, 50, 20])
+    }).pipe(Effect.provide(catalogOver(worldBank({ up: true, indicators: many }).layer, { index })))
+  })
+
+  it.effect("drops an indicator that left the catalog from meaning search", () => {
+    const answers = { up: true, indicators: published }
+
+    return Effect.gen(function* () {
+      const catalog = yield* Catalog
+
+      yield* catalog.search("how rich")
+      answers.indicators = published.filter(({ name }) => !name.startsWith("GDP"))
+      yield* TestClock.adjust("8 days")
+
+      expect(names(yield* catalog.search("how rich"))).toEqual(["Income share held by highest 10%"])
+    }).pipe(Effect.provide(catalogOver(worldBank(answers).layer)))
+  })
+
+  it.effect("searches by words while Workers AI is down", () =>
+    Effect.gen(function* () {
+      const catalog = yield* Catalog
+
+      yield* catalog.search("how rich")
+
+      expect(yield* catalog.search("how rich")).toEqual([])
+      expect(names(yield* catalog.search("life expectancy"))).toEqual([
+        "Life expectancy at birth, total (years)",
+      ])
+    }).pipe(
+      Effect.provide(catalogOver(worldBank({ up: true }).layer, { ai: workersAi({ up: false }) })),
+    ),
+  )
 
   it.effect("asks the World Bank again once the catalog is a week old", () => {
     const source = worldBank({ up: true })

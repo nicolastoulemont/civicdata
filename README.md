@@ -4,12 +4,12 @@ Ask a question about the state of a country and get a chart built from World Ban
 
 ## Layout
 
-| Path              | What it holds                                                                  |
-| ----------------- | ------------------------------------------------------------------------------ |
-| `apps/web`        | TanStack Start app. `src/routes/api/$.ts` hands every `/api` request to Effect |
-| `packages/domain` | Schemas and the `HttpApi` definition, shared by the server and the web client  |
-| `packages/server` | Effect `HttpApi` handlers, exposed as a web `handle(request)`                  |
-| `packages/infra`  | Alchemy stack: the Worker, D1 and R2. The only package that imports Alchemy    |
+| Path              | What it holds                                                                          |
+| ----------------- | -------------------------------------------------------------------------------------- |
+| `apps/web`        | TanStack Start app. `src/routes/api/$.ts` hands every `/api` request to Effect         |
+| `packages/domain` | Schemas and the `HttpApi` definition, shared by the server and the web client          |
+| `packages/server` | Effect `HttpApi` handlers, exposed as a web `handle(request)`                          |
+| `packages/infra`  | Alchemy stack: the Worker, D1, R2 and Vectorize. The only package that imports Alchemy |
 
 The app deploys as one Cloudflare Worker. Alchemy builds `apps/web` with its own Cloudflare Vite plugin, so `vite.config.ts` stays free of Cloudflare code.
 
@@ -30,7 +30,7 @@ pnpm check        # format, lint, fallow, typecheck, test, build: what CI runs
 
 A question on the home page opens a conversation at `/c/<id>`, where follow-ups like "add Mexico" change the last chart. Each conversation lives in its own Durable Object, which runs the agent and keeps the questions and charts until 30 days after the last question. An answer runs to its end and is kept even if the visitor leaves; a visitor who comes back while it runs sees it continue. The id is a random UUID made by the browser; whoever has the link can read the conversation. The agent runs on an OpenAI model. To ask them locally, copy `packages/infra/.env.example` to `packages/infra/.env` (gitignored) and fill in `OPENAI_API_KEY`; `alchemy dev` reads that file when it starts, and a variable exported in your shell overrides it. Set `OPENAI_MODEL` there to try another model than the default in `packages/server/src/Agent.ts`. Without a key the app works and every question answers "The assistant is not available".
 
-`pnpm dev` runs `alchemy dev` for the `dev_<user>` stage. Alchemy emulates D1, R2 and Durable Objects locally and serves the web app from the Workers runtime with hot reload, so indicator search and the series cache work as deployed. It needs your Cloudflare login, because the stage's state lives in your Alchemy state store; nothing is deployed to your account. `pnpm dev:web` needs no login but runs in Node, where there is no D1, R2 or Durable Object: charts load uncached, and indicator search and questions answer "unavailable".
+`pnpm dev` runs `alchemy dev` for the `dev_<user>` stage. Alchemy emulates D1, R2 and Durable Objects locally and serves the web app from the Workers runtime with hot reload, so indicator search and the series cache work as deployed. It needs your Cloudflare login, because the stage's state lives in your Alchemy state store. Vectorize and Workers AI have no local emulation: the stage creates a real Vectorize index in your account, and search by meaning calls Workers AI there. Nothing else is deployed. `pnpm dev:web` needs no login but runs in Node, where there is no D1, R2 or Durable Object: charts load uncached, and indicator search and questions answer "unavailable".
 
 `pnpm install` runs `effect-tsgo patch --typescript`, which patches TypeScript in `node_modules` so the editor loads the Effect plugin. Scripts call `effect-tsgo tsc`, so they don't depend on the patch.
 
@@ -59,7 +59,7 @@ Deploys run only after the `check` job passes. Fork pull requests run `check` wi
 
 ### One-time setup
 
-1. Create a Cloudflare API token for CI. Alchemy's CI guide lists Workers Scripts, Workers R2 Storage, D1 and Secrets Store write access, plus Workers Tail read. Trim it after the first deploy.
+1. Create a Cloudflare API token for CI. Alchemy's CI guide lists Workers Scripts, Workers R2 Storage, D1 and Secrets Store write access, plus Workers Tail read. Add Vectorize write access for the catalog's index. Trim it after the first deploy.
 2. Bootstrap the Alchemy state store once, from a machine logged in to Cloudflare:
    ```sh
    pnpm --filter @civicdata/infra exec alchemy state bootstrap
