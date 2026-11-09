@@ -9,15 +9,15 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as ChatRouteImport } from './routes/_chat'
 import { Route as ExploreRouteImport } from './routes/explore'
 import { Route as ExploreDotpngRouteImport } from './routes/explore[.]png'
+import { Route as ChatIndexRouteImport } from './routes/_chat/index'
 import { Route as ApiSplatRouteImport } from './routes/api/$'
-import { Route as CIdRouteImport } from './routes/c.$id'
+import { Route as ChatCIdRouteImport } from './routes/_chat/c.$id'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const ChatRoute = ChatRouteImport.update({
+  id: '/_chat',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExploreRoute = ExploreRouteImport.update({
@@ -30,62 +30,74 @@ const ExploreDotpngRoute = ExploreDotpngRouteImport.update({
   path: '/explore.png',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ChatIndexRoute = ChatIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ChatRoute,
+} as any)
 const ApiSplatRoute = ApiSplatRouteImport.update({
   id: '/api/$',
   path: '/api/$',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CIdRoute = CIdRouteImport.update({
+const ChatCIdRoute = ChatCIdRouteImport.update({
   id: '/c/$id',
   path: '/c/$id',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => ChatRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof ChatIndexRoute
   '/explore': typeof ExploreRoute
   '/explore.png': typeof ExploreDotpngRoute
   '/api/$': typeof ApiSplatRoute
-  '/c/$id': typeof CIdRoute
+  '/c/$id': typeof ChatCIdRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
   '/explore': typeof ExploreRoute
   '/explore.png': typeof ExploreDotpngRoute
   '/api/$': typeof ApiSplatRoute
-  '/c/$id': typeof CIdRoute
+  '/': typeof ChatIndexRoute
+  '/c/$id': typeof ChatCIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_chat': typeof ChatRouteWithChildren
   '/explore': typeof ExploreRoute
   '/explore.png': typeof ExploreDotpngRoute
   '/api/$': typeof ApiSplatRoute
-  '/c/$id': typeof CIdRoute
+  '/_chat/': typeof ChatIndexRoute
+  '/_chat/c/$id': typeof ChatCIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths: '/' | '/explore' | '/explore.png' | '/api/$' | '/c/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/explore' | '/explore.png' | '/api/$' | '/c/$id'
-  id: '__root__' | '/' | '/explore' | '/explore.png' | '/api/$' | '/c/$id'
+  to: '/explore' | '/explore.png' | '/api/$' | '/' | '/c/$id'
+  id:
+    | '__root__'
+    | '/_chat'
+    | '/explore'
+    | '/explore.png'
+    | '/api/$'
+    | '/_chat/'
+    | '/_chat/c/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  ChatRoute: typeof ChatRouteWithChildren
   ExploreRoute: typeof ExploreRoute
   ExploreDotpngRoute: typeof ExploreDotpngRoute
   ApiSplatRoute: typeof ApiSplatRoute
-  CIdRoute: typeof CIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
+    '/_chat': {
+      id: '/_chat'
+      path: ''
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof ChatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/explore': {
@@ -102,6 +114,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExploreDotpngRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_chat/': {
+      id: '/_chat/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof ChatIndexRouteImport
+      parentRoute: typeof ChatRoute
+    }
     '/api/$': {
       id: '/api/$'
       path: '/api/$'
@@ -109,22 +128,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/c/$id': {
-      id: '/c/$id'
+    '/_chat/c/$id': {
+      id: '/_chat/c/$id'
       path: '/c/$id'
       fullPath: '/c/$id'
-      preLoaderRoute: typeof CIdRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof ChatCIdRouteImport
+      parentRoute: typeof ChatRoute
     }
   }
 }
 
+interface ChatRouteChildren {
+  ChatIndexRoute: typeof ChatIndexRoute
+  ChatCIdRoute: typeof ChatCIdRoute
+}
+
+const ChatRouteChildren: ChatRouteChildren = {
+  ChatIndexRoute: ChatIndexRoute,
+  ChatCIdRoute: ChatCIdRoute,
+}
+
+const ChatRouteWithChildren = ChatRoute._addFileChildren(ChatRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  ChatRoute: ChatRouteWithChildren,
   ExploreRoute: ExploreRoute,
   ExploreDotpngRoute: ExploreDotpngRoute,
   ApiSplatRoute: ApiSplatRoute,
-  CIdRoute: CIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

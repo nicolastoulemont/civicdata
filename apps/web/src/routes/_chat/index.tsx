@@ -10,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { SidebarTrigger } from "@/components/ui/sidebar"
 import { QuestionForm } from "@/conversation/QuestionForm"
 import type { Search } from "@/explore/search"
 
@@ -50,6 +51,7 @@ const Home = () => {
 
   return (
     <main className="flex min-h-svh items-center justify-center p-6">
+      <SidebarTrigger className="absolute top-3 left-3" />
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>
@@ -103,4 +105,4 @@ const Home = () => {
   )
 }
 
-export const Route = createFileRoute("/")({ component: Home })
+export const Route = createFileRoute("/_chat/")({ component: Home })

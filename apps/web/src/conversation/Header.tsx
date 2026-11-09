@@ -7,16 +7,18 @@ import {
   BreadcrumbList,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { buttonVariants } from "@/components/ui/button"
+import { SidebarTrigger } from "@/components/ui/sidebar"
 
 interface HeaderProps {
   title: string | undefined
 }
 
 // Names the conversation by its first question, cut to one line, under the
-// site. A conversation with no question yet is just "Conversation".
+// site. A conversation with no question yet is just "Conversation". The
+// sidebar toggle comes first; "New conversation" is in the sidebar.
 export const Header = ({ title }: HeaderProps) => (
-  <header className="flex items-center justify-between gap-4 px-3 py-3 sm:px-12">
+  <header className="flex items-center gap-2 px-3 py-3 sm:px-12">
+    <SidebarTrigger />
     <Breadcrumb className="min-w-0">
       <BreadcrumbList className="flex-nowrap">
         <BreadcrumbItem>
@@ -30,8 +32,5 @@ export const Header = ({ title }: HeaderProps) => (
         </BreadcrumbItem>
       </BreadcrumbList>
     </Breadcrumb>
-    <Link className={buttonVariants({ variant: "outline", size: "sm" })} to="/">
-      New conversation
-    </Link>
   </header>
 )
