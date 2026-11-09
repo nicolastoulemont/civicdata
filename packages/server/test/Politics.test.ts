@@ -12,38 +12,19 @@ import { Effect, Layer } from "effect"
 import { HttpServer } from "effect/http"
 import { HttpApiTest } from "effect/http-api"
 
-import { Agent } from "../src/Agent.ts"
 import { ArchiveUnavailable } from "../src/Archives.ts"
-import { AskLimit } from "../src/AskLimit.ts"
-import { Catalog } from "../src/Catalog.ts"
-import { Conversations } from "../src/Conversations.ts"
-import { Handlers } from "../src/Handlers.ts"
-import { Notes } from "../src/Notes.ts"
-import { Politics } from "../src/Politics.ts"
+import { Politics, PoliticsRoutes } from "../src/Politics.ts"
 import { PoliticsBuild, PoliticsBuildFailed } from "../src/PoliticsBuild.ts"
-import { Sdmx } from "../src/Sdmx.ts"
-import { WorldBank } from "../src/WorldBank.ts"
-import { memory, offline } from "./fakes.ts"
 import { build, emptyPolitics, gone, type Files, politicsOver, recorded } from "./politics.ts"
 
 beforeEach(emptyPolitics)
 
-// The API with real political records over D1, built from the recorded
-// files. These tests chart nothing, so the other services answer nothing.
+// The politics routes with real records over D1, built from the recorded
+// files.
 const serve = (files: Files) =>
-  Layer.mergeAll(
-    Handlers.pipe(
-      Layer.provide(Notes.layer.pipe(Layer.provide(offline))),
-      Layer.provide(Conversations.unavailable),
-      Layer.provide(Agent.unavailable),
-      Layer.provide(AskLimit.none),
-      Layer.provide(Catalog.unavailable),
-      Layer.provide(WorldBank.layer.pipe(Layer.provide(offline))),
-      Layer.provide(Sdmx.layer.pipe(Layer.provide(offline))),
-      Layer.provide(memory().layer),
-    ),
-    HttpServer.layerServices,
-  ).pipe(Layer.provideMerge(politicsOver(files)))
+  Layer.mergeAll(PoliticsRoutes, HttpServer.layerServices).pipe(
+    Layer.provideMerge(politicsOver(files)),
+  )
 
 const records = (countries: readonly [Country, ...Array<Country>], from: number, to: number) =>
   Effect.flatMap(HttpApiTest.groups(Api, ["politics"]), (client) =>

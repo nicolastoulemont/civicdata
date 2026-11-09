@@ -1,4 +1,5 @@
 import {
+  Api,
   Country,
   Day,
   End,
@@ -11,6 +12,7 @@ import {
 } from "@civicdata/domain"
 import { D1Client } from "@effect/sql-d1"
 import { Array as Arr, Context, Effect, Layer, Schema } from "effect"
+import { HttpApiBuilder } from "effect/http-api"
 import { SqlClient, SqlSchema } from "effect/sql"
 
 interface Query {
@@ -201,3 +203,16 @@ export class Politics extends Context.Service<Politics, Interface>()("@civicdata
     ),
   )
 }
+
+// The `politics` API routes. Defined beside the service rather than in
+// Handlers.ts so their tests load no agent: with it, a test's modules no
+// longer fit in one message to the workerd test runner.
+export const PoliticsRoutes = HttpApiBuilder.group(
+  Api,
+  "politics",
+  Effect.fn(function* (handlers) {
+    const politics = yield* Politics
+
+    return handlers.handle("records", ({ query }) => politics.records(query))
+  }),
+)
