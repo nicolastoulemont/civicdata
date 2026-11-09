@@ -2,10 +2,13 @@ import {
   AgentUnavailable,
   Answered,
   Api,
+  Asked,
   ConversationBusy,
   ConversationId,
+  Described,
   IndicatorId,
   IndicatorNotFound,
+  Located,
   Rejected,
   Searched,
   TooManyQuestions,
@@ -43,7 +46,7 @@ const worldBank = Layer.succeed(
             indicator: {
               id: indicator,
               name: "Life expectancy at birth, total (years)",
-              definition: "",
+              definition: "The number of years a newborn infant would live.",
             },
             dataset: "World Development Indicators",
             retrievedAt: DateTime.makeUnsafe("2026-11-01T00:00:00Z"),
@@ -89,7 +92,7 @@ const finish: Response.PartEncoded = {
 type Arguments = Readonly<Record<string, string | number | null | ReadonlyArray<string>>>
 
 const call = (
-  name: "search_indicators" | "show_chart",
+  name: "search_indicators" | "describe_indicator" | "find_countries" | "show_chart" | "ask_user",
   params: Arguments,
 ): ReadonlyArray<Response.PartEncoded> => [
   { type: "tool-call", id: `call-${name}`, name, params },
@@ -199,7 +202,10 @@ describe("conversations", () => {
       ])
 
       expect(yield* turns).toEqual([
-        { question: "How has life expectancy changed in Brazil?", view: brazilTrend },
+        {
+          question: "How has life expectancy changed in Brazil?",
+          answer: Answered.make({ view: brazilTrend }),
+        },
       ])
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
@@ -252,7 +258,71 @@ describe("conversations", () => {
 
     return Effect.gen(function* () {
       expect(yield* answer("What is the meaning of life?")).toEqual([Unanswered.make({})])
-      expect(yield* turns).toEqual([{ question: "What is the meaning of life?", view: null }])
+      expect(yield* turns).toEqual([
+        { question: "What is the meaning of life?", answer: Unanswered.make({}) },
+      ])
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("reads an indicator's definition to the model when asked to", () => {
+    const model = scripted([
+      Effect.succeed(call("describe_indicator", { indicator: lifeExpectancy })),
+      Effect.succeed(call("show_chart", brazil)),
+    ])
+
+    return Effect.gen(function* () {
+      expect(yield* answer("Life expectancy in Brazil")).toEqual([
+        Described.make({ indicator: lifeExpectancy }),
+        Answered.make({ view: brazilTrend }),
+      ])
+      expect(model.prompts[1]).toContain("The number of years a newborn infant would live.")
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("looks up place names for the model", () => {
+    const model = scripted([
+      Effect.succeed(call("find_countries", { names: ["Ivory Coast", "Korea"] })),
+      Effect.succeed(call("show_chart", brazil)),
+    ])
+
+    return Effect.gen(function* () {
+      expect((yield* answer("Life expectancy in Ivory Coast and Korea"))[0]).toEqual(
+        Located.make({ names: ["Ivory Coast", "Korea"] }),
+      )
+      // Both Koreas match, so the model sees the name is ambiguous.
+      expect(model.prompts[1]).toContain("CIV")
+      expect(model.prompts[1]).toContain("KOR")
+      expect(model.prompts[1]).toContain("PRK")
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("asks the person to choose, and answers the choice as a follow-up", () => {
+    const model = scripted([
+      Effect.succeed(
+        call("ask_user", {
+          question: "Which measure?",
+          choices: ["Life expectancy", "Healthy life expectancy"],
+        }),
+      ),
+      Effect.succeed(call("show_chart", brazil)),
+    ])
+
+    const asked = Asked.make({
+      question: "Which measure?",
+      choices: ["Life expectancy", "Healthy life expectancy"],
+    })
+
+    return Effect.gen(function* () {
+      expect(yield* answer("How long do people live in Brazil?")).toEqual([asked])
+
+      expect((yield* answer("Life expectancy")).at(-1)).toEqual(
+        Answered.make({ view: brazilTrend }),
+      )
+      expect(model.prompts[1]).toContain("Which measure?")
+      expect(yield* turns).toEqual([
+        { question: "How long do people live in Brazil?", answer: asked },
+        { question: "Life expectancy", answer: Answered.make({ view: brazilTrend }) },
+      ])
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 

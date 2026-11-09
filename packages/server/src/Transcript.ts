@@ -24,7 +24,9 @@ const Stored = Schema.fromJsonString(
   Schema.Struct({ chat: Schema.String, turns: Schema.Array(Turn) }),
 )
 
-const key = "transcript"
+// Conversations saved before turns kept how their answer ended sit under
+// "transcript"; they read as empty until their alarm deletes them.
+const key = "conversation"
 
 // A conversation is deleted this long after its last question.
 export const keep = 30 * 24 * 60 * 60 * 1000

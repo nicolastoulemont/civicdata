@@ -1,11 +1,11 @@
-import type { ConversationId, Step, Turn, View } from "@civicdata/domain"
+import { type ConversationId, Ending, type Step, type Turn, Unanswered } from "@civicdata/domain"
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Effect, Match, Option, Stream } from "effect"
+import { Effect, Option, Schema, Stream } from "effect"
 import { useState } from "react"
 
 import { call, page } from "@/api"
 
-// The questions asked so far, each with its chart. Rejects with
+// The questions asked so far, each with how it was answered. Rejects with
 // AgentUnavailable where conversations cannot be reached.
 const turnsQuery = (id: ConversationId) =>
   queryOptions({
@@ -14,18 +14,12 @@ const turnsQuery = (id: ConversationId) =>
     retry: false,
   })
 
-// The chart an answer ended with, or null when it found none.
-const chartOf = (last: Option.Option<Step>): View | null =>
-  Option.match(last, {
-    onNone: () => null,
-    onSome: (step) =>
-      Match.valueTags(step, {
-        Searched: () => null,
-        Rejected: () => null,
-        Answered: ({ view }) => view,
-        Unanswered: () => null,
-      }),
-  })
+const isEnding = Schema.is(Ending)
+
+// How an answer ended: its last step. A stream that stops short of one, which
+// the API does not send, reads as no answer.
+const endingOf = (last: Option.Option<Step>): Ending =>
+  Option.getOrElse(Option.filter(last, isEnding), () => Unanswered.make({}))
 
 // Asks a question, passing each step to `onStep` as it arrives. Rejects with
 // TooManyQuestions or ConversationBusy before the answer starts, and with
@@ -39,7 +33,7 @@ const ask = (id: ConversationId, question: string, onStep: (step: Step) => void)
           Stream.runLast,
         ),
       ),
-      Effect.map(chartOf),
+      Effect.map(endingOf),
     ),
   )
 
@@ -56,17 +50,17 @@ export const useConversation = (id: ConversationId) => {
 
       return ask(id, question, (step) => setSteps((previous) => [...previous, step]))
     },
-    onSuccess: (view, question) =>
+    onSuccess: (answer, question) =>
       queryClient.setQueryData(turnsQuery(id).queryKey, (previous: ReadonlyArray<Turn> = []) => [
         ...previous,
-        { question, view },
+        { question, answer },
       ]),
   })
 
   return {
     turns,
     // The question being answered or that failed, with what the agent did.
-    asked:
+    pending:
       asking.isPending || asking.isError
         ? { question: asking.variables, steps, error: asking.error ?? undefined }
         : undefined,

@@ -1,3 +1,4 @@
+import { Unanswered } from "@civicdata/domain"
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, Option } from "effect"
 import { TestClock } from "effect/testing"
@@ -18,7 +19,10 @@ const storage = () => {
   return { fake, alarms }
 }
 
-const saved = { chat: "[]", turns: [{ question: "Life expectancy in Brazil", view: null }] }
+const saved = {
+  chat: "[]",
+  turns: [{ question: "Life expectancy in Brazil", answer: Unanswered.make({}) }],
+}
 
 describe("Transcript.durable", () => {
   it.effect("loads nothing before the first save", () =>
