@@ -17,6 +17,8 @@ declare module "cloudflare:workers" {
         readonly fetch: (request: Request) => Promise<Response>
       }
     }
+    // One PaceObject per source, named by it.
+    readonly PACE?: import("./Pace.ts").Namespace
     readonly OPENAI_API_KEY?: string
     readonly OPENAI_MODEL?: string
   }

@@ -9,10 +9,11 @@ import {
   Year,
 } from "@civicdata/domain"
 import { Context, DateTime, Duration, Effect, Layer, Match, Schedule, Schema } from "effect"
-import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/http"
+import { HttpClient, HttpClientRequest } from "effect/http"
 
 import { Cache } from "./Cache.ts"
 import { geo } from "./geo.ts"
+import { Pace } from "./Pace.ts"
 import type { Described, Query } from "./Series.ts"
 import { Series } from "./Series.ts"
 
@@ -456,8 +457,5 @@ export class Sdmx extends Context.Service<Sdmx, Interface>()("@civicdata/server/
     Effect.flatMap(Cache.remember, (remember) => make(remember)),
   )
 
-  static readonly live = Sdmx.cached.pipe(
-    Layer.provide(FetchHttpClient.layer),
-    Layer.provide(Cache.layer),
-  )
+  static readonly live = Sdmx.cached.pipe(Layer.provide(Pace.http), Layer.provide(Cache.layer))
 }

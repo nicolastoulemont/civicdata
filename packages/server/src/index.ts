@@ -11,6 +11,8 @@ import { WorldBank } from "./WorldBank.ts"
 
 export { ConversationObject } from "./ConversationObject.ts"
 
+export { PaceObject } from "./PaceObject.ts"
+
 const Live = HttpApiBuilder.layer(Api).pipe(
   Layer.provide(Handlers),
   Layer.provide(Conversations.live),
