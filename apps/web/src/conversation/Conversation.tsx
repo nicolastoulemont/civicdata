@@ -5,6 +5,7 @@ import { FollowUp } from "./FollowUp.tsx"
 import { Header } from "./Header.tsx"
 import { Lane } from "./Lane.tsx"
 import { Problem } from "./Problem.tsx"
+import { Scroll } from "./Scroll.tsx"
 import { Timeline } from "./Timeline.tsx"
 import { useConversation } from "./useConversation.ts"
 
@@ -30,20 +31,22 @@ export const Conversation = ({ id, first }: ConversationProps) => {
   const empty = all.length === 0 && pending === undefined && first === undefined
 
   return (
-    <div className="flex min-h-svh flex-col">
+    <div className="flex h-svh flex-col">
       <Header title={all[0]?.question ?? pending?.question ?? first} />
-      <main className="flex flex-1 flex-col gap-8 pt-4">
-        <Lane>
-          <div className="flex flex-col gap-6">
-            {turns.isError ? <Problem error={turns.error} /> : null}
-            {empty ? (
-              <p className="text-muted-foreground">
-                No questions yet. A conversation is deleted 30 days after its last question.
-              </p>
-            ) : null}
-            <Timeline turns={all} pending={pending} answering={answering} ask={ask} />
-          </div>
-        </Lane>
+      <main className="flex min-h-0 flex-1 flex-col gap-3">
+        <Scroll key={id} anchor={pending?.steps.length === 0 ? pending.question : undefined}>
+          <Lane>
+            <div className="flex flex-col gap-6">
+              {turns.isError ? <Problem error={turns.error} /> : null}
+              {empty ? (
+                <p className="text-muted-foreground">
+                  No questions yet. A conversation is deleted 30 days after its last question.
+                </p>
+              ) : null}
+              <Timeline turns={all} pending={pending} answering={answering} ask={ask} />
+            </div>
+          </Lane>
+        </Scroll>
         <FollowUp last={all.at(-1)?.answer} answering={answering} ask={ask} />
       </main>
     </div>

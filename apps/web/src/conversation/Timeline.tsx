@@ -33,7 +33,7 @@ export const Timeline = ({ turns, pending, answering, ask }: TimelineProps) => (
       </li>
     ))}
     {pending === undefined ? null : (
-      <li className="flex flex-col gap-4">
+      <li data-scroll-anchor className="flex flex-col gap-4">
         {pending.question === undefined ? null : <Question text={pending.question} />}
         <Agent>
           <Work steps={pending.steps} answering={answering} />
