@@ -1,0 +1,39 @@
+import type { Ending } from "@civicdata/domain"
+import { Match } from "effect"
+
+import { Lane } from "./Lane.tsx"
+import { QuestionForm } from "./QuestionForm.tsx"
+
+// What to suggest next, from how the agent last answered.
+const suggest = (last: Ending | undefined, answering: boolean) =>
+  answering
+    ? "Write your next question while civicdata answers"
+    : last === undefined
+      ? "How has life expectancy changed in Brazil?"
+      : Match.valueTags(last, {
+          Answered: () => "Add Mexico, or show it per person",
+          Asked: () => "Pick a choice above, or say what you mean",
+          Unanswered: () => "Name what to measure and where",
+        })
+
+interface FollowUpProps {
+  last: Ending | undefined
+  answering: boolean
+  ask: (question: string) => void
+}
+
+// The composer docked at the bottom of the lane. The timeline scrolls under it
+// and ends above it, since it keeps its place at the end of the page. Panels
+// about the next question go above the composer, in this dock.
+export const FollowUp = ({ last, answering, ask }: FollowUpProps) => (
+  <div className="sticky bottom-0 z-10 mt-auto pb-3 sm:pb-4">
+    <Lane>
+      <QuestionForm
+        label="Ask a follow-up"
+        placeholder={suggest(last, answering)}
+        answering={answering}
+        onAsk={ask}
+      />
+    </Lane>
+  </div>
+)

@@ -23,7 +23,7 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router"
-import { render, screen, within } from "@testing-library/react"
+import { getDefaultNormalizer, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Cause, DateTime, Schema } from "effect"
 import { http, HttpResponse } from "msw/http"
@@ -142,15 +142,13 @@ const show = (first?: string) => {
 }
 
 // A question in the timeline, not in the header that repeats the first one.
-const findQuestion = async (text: string) =>
-  within(await screen.findByRole("list", { name: "Questions and answers" })).findByText(text)
+const findQuestion = async (text: string, options?: Parameters<typeof screen.findByText>[1]) =>
+  within(await screen.findByRole("list", { name: "Questions and answers" })).findByText(
+    text,
+    options,
+  )
 
-const typeFollowUp = async (text: string) => {
-  const user = userEvent.setup()
-
-  await user.type(await screen.findByRole("textbox", { name: "Ask a follow-up" }), text)
-  await user.click(screen.getByRole("button", { name: "Ask" }))
-}
+const findComposer = () => screen.findByRole("textbox", { name: "Ask a follow-up" })
 
 describe("Conversation", () => {
   it("asks the question from the home page, shows each step, then the chart", async () => {
@@ -248,7 +246,17 @@ describe("Conversation", () => {
       await screen.findByRole("heading", { level: 1, name: "Life expectancy in Brazil" }),
     ).toBeDefined()
 
-    await typeFollowUp("What about happiness?")
+    const user = userEvent.setup()
+
+    expect((await findComposer()).getAttribute("placeholder")).toBe(
+      "Add Mexico, or show it per person",
+    )
+    expect(
+      screen.getByRole("button", { name: "Type a question to send" }).getAttribute("aria-disabled"),
+    ).toBe("true")
+
+    await user.type(await findComposer(), "What about happiness?")
+    await user.click(screen.getByRole("button", { name: "Send" }))
     reply.send(message(Unanswered.make({})))
     reply.end()
 
@@ -258,6 +266,38 @@ describe("Conversation", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: "Life expectancy in Brazil" }),
     ).toBeDefined()
+  })
+
+  it("sends with Enter and starts a new line with Shift+Enter", async () => {
+    const reply = answer()
+    const user = userEvent.setup()
+
+    network.use(
+      turns([{ question: "Life expectancy in Brazil", answer: Answered.make({ view: brazil }) }]),
+      reply.handler,
+      resolve,
+    )
+    show()
+
+    await user.type(await findComposer(), "Add Mexico{Shift>}{Enter}{/Shift}per person")
+    expect(await findComposer()).toHaveProperty("value", "Add Mexico\nper person")
+
+    await user.keyboard("{Enter}")
+
+    expect(
+      await findQuestion("Add Mexico\nper person", {
+        normalizer: getDefaultNormalizer({ collapseWhitespace: false }),
+      }),
+    ).toBeDefined()
+    expect(await findComposer()).toHaveProperty("value", "")
+
+    reply.send(message(Unanswered.make({})))
+    reply.end()
+
+    expect(await screen.findByText("No World Bank indicator answers this question")).toBeDefined()
+    expect((await findComposer()).getAttribute("placeholder")).toBe(
+      "Name what to measure and where",
+    )
   })
 
   it("offers the choices the agent asked about, and sends the one picked", async () => {
@@ -303,7 +343,18 @@ describe("Conversation", () => {
     show()
 
     expect(await findQuestion("Life expectancy in Brazil")).toBeDefined()
-    expect(screen.getByRole("button", { name: "Ask" }).hasAttribute("disabled")).toBe(true)
+    expect((await findComposer()).getAttribute("placeholder")).toBe(
+      "Write your next question while civicdata answers",
+    )
+
+    // A draft waits: Enter sends nothing while the agent answers.
+    await userEvent.setup().type(await findComposer(), "And in Chile?{Enter}")
+    expect(await findComposer()).toHaveProperty("value", "And in Chile?")
+    expect(
+      screen
+        .getByRole("button", { name: "Wait for the answer to send another question" })
+        .getAttribute("aria-disabled"),
+    ).toBe("true")
 
     reply.send(message(Searched.make({ text: "life expectancy" })))
     expect(await screen.findByText("Searched indicators for “life expectancy”")).toBeDefined()
