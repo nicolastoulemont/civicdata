@@ -11,7 +11,7 @@ import { useState } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Explore } from "@/explore/Explore"
-import type { Overlay } from "@/explore/governments"
+import type { Overlay } from "@/explore/politics"
 
 import { useShow } from "./useConversation.ts"
 

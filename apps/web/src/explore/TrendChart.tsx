@@ -1,7 +1,15 @@
-import type { Country, Government, ResolvedView, Trend } from "@civicdata/domain"
+import type { Country, Election, Government, ResolvedView, Trend } from "@civicdata/domain"
 import { Match } from "effect"
 import { type ComponentProps, useState } from "react"
-import { CartesianGrid, Line, LineChart, ReferenceArea, XAxis, YAxis } from "recharts"
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ReferenceArea,
+  ReferenceLine,
+  XAxis,
+  YAxis,
+} from "recharts"
 
 import {
   type ChartConfig,
@@ -13,8 +21,8 @@ import {
 } from "@/components/ui/chart"
 
 import { countryName, formatCompact } from "./format.ts"
-import { governing, span, type Term, terms } from "./governments.ts"
 import { fill, slot } from "./palette.ts"
+import { governing, span, type Term, terms, votedIn, voting } from "./politics.ts"
 import { type Years, YearWindow } from "./YearWindow.tsx"
 
 type Point = { readonly year: number } & Partial<Record<Country, number>>
@@ -73,16 +81,18 @@ const bandOf = (term: Term, shown: ReadonlyArray<number>) => {
   return x1 === undefined || x2 === undefined || x1 > x2 ? [] : [{ term, x1, x2 }]
 }
 
-interface GoverningProps {
+interface ContextProps {
   terms: ReadonlyArray<Term>
+  elections: ReadonlyArray<Election>
   countries: ReadonlyArray<Country>
   year: number
 }
 
-// Who governed each country in the hovered year, under its values.
-const Governing = ({ terms: all, countries, year }: GoverningProps) => {
+// Who governed each country in the hovered year and the elections it held,
+// under its values. Nothing when the chart shows neither.
+const Context = ({ terms: all, elections, countries, year }: ContextProps) => {
   const lines = countries.flatMap((country) =>
-    governing(all, country, year).map((line) =>
+    [...governing(all, country, year), ...voting(elections, country, year)].map((line) =>
       countries.length === 1 ? line : `${countryName(country)}: ${line}`,
     ),
   )
@@ -98,30 +108,29 @@ const Governing = ({ terms: all, countries, year }: GoverningProps) => {
 
 // Recharts sets `active`, `payload` and `label` on the element it renders as
 // the tooltip.
-interface TipProps extends Pick<
-  ComponentProps<typeof ChartTooltipContent>,
-  "active" | "payload" | "label"
-> {
-  terms: ReadonlyArray<Term>
-  countries: ReadonlyArray<Country>
-  // Whether the chart shows governments.
-  governed: boolean
-}
+interface TipProps
+  extends
+    Pick<ComponentProps<typeof ChartTooltipContent>, "active" | "payload" | "label">,
+    Omit<ContextProps, "year"> {}
 
-// The values of the hovered year and, with governments, who governed then.
-const Tip = ({ terms: all, countries, governed, ...tooltip }: TipProps) => (
+// The values of the hovered year and the political context of that year.
+const Tip = ({ terms: all, elections, countries, ...tooltip }: TipProps) => (
   <ChartTooltipContent {...tooltip}>
-    {governed ? <Governing terms={all} countries={countries} year={Number(tooltip.label)} /> : null}
+    <Context terms={all} elections={elections} countries={countries} year={Number(tooltip.label)} />
   </ChartTooltipContent>
 )
+
+const none: ReadonlyArray<Election> = []
 
 interface TrendChartProps {
   resolved: ResolvedView
   // The trend on screen, which `resolved` may not have caught up with yet.
   trend: Trend
   history?: History | undefined
-  // The governments of the trend's countries, when the chart shows them.
+  // The governments and elections of the trend's countries, when the chart
+  // shows them.
   governments?: ReadonlyArray<Government> | undefined
+  elections?: ReadonlyArray<Election> | undefined
 }
 
 // One line per country. With a history, a window under the chart picks its
@@ -129,7 +138,15 @@ interface TrendChartProps {
 // the window moves. With governments, the tooltip names who governed each
 // country in the hovered year, and a chart of one country is shaded in a
 // band per head of government. Bands of several countries would overlap.
-export const TrendChart = ({ resolved, trend, history, governments }: TrendChartProps) => {
+// With elections, a dashed line in each country's colour marks the years it
+// voted in, and the tooltip names the elections.
+export const TrendChart = ({
+  resolved,
+  trend,
+  history,
+  governments,
+  elections = none,
+}: TrendChartProps) => {
   // The points a source flags get a dot; the note under the chart says why.
   const flagged = new Set(
     resolved.observations.flatMap(({ country, year, flags }) =>
@@ -171,6 +188,14 @@ export const TrendChart = ({ resolved, trend, history, governments }: TrendChart
         )
       : []
 
+  const shown = new Set(rows.map((row) => row.year))
+
+  const markers = trend.countries.flatMap((country) =>
+    votedIn(elections, country)
+      .filter((year) => shown.has(year))
+      .map((year) => ({ country, year })),
+  )
+
   const config: ChartConfig = Object.fromEntries(
     trend.countries.map((country, index) => [
       country,
@@ -180,7 +205,7 @@ export const TrendChart = ({ resolved, trend, history, governments }: TrendChart
 
   return (
     <figure className="flex flex-col gap-3">
-      <figcaption className="sr-only">{`Line chart of ${resolved.title} for ${trend.countries.map(countryName).join(", ")}${bands.length > 0 ? ", shaded by head of government" : ""}`}</figcaption>
+      <figcaption className="sr-only">{`Line chart of ${resolved.title} for ${trend.countries.map(countryName).join(", ")}${bands.length > 0 ? ", shaded by head of government" : ""}${markers.length > 0 ? ", with election years marked" : ""}`}</figcaption>
       <ChartContainer config={config} className="aspect-auto h-80 w-full">
         <LineChart data={rows} accessibilityLayer>
           {bands.map(({ term, x1, x2 }, index) => (
@@ -206,6 +231,15 @@ export const TrendChart = ({ resolved, trend, history, governments }: TrendChart
             />
           ))}
           <CartesianGrid vertical={false} />
+          {markers.map(({ country, year }) => (
+            <ReferenceLine
+              key={`${country} ${year}`}
+              x={year}
+              stroke={`var(--color-${country})`}
+              strokeDasharray="4 4"
+              ifOverflow="hidden"
+            />
+          ))}
           <XAxis dataKey="year" tickLine={false} axisLine={false} />
           <YAxis
             // Without a history, Recharts' own default: from zero to the highest value.
@@ -218,9 +252,7 @@ export const TrendChart = ({ resolved, trend, history, governments }: TrendChart
             width={56}
           />
           <ChartTooltip
-            content={
-              <Tip terms={heads} countries={trend.countries} governed={governments !== undefined} />
-            }
+            content={<Tip terms={heads} elections={elections} countries={trend.countries} />}
           />
           <ChartLegend content={<ChartLegendContent />} />
           {trend.countries.map((country) => (

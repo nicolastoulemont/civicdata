@@ -1,9 +1,16 @@
-import { type Country, End, type Government, type Publisher } from "@civicdata/domain"
+import {
+  type Ballot,
+  type Country,
+  type Election,
+  End,
+  type Government,
+  type Publisher,
+} from "@civicdata/domain"
 import { Schema } from "effect"
 
 // What a trend chart can draw over its lines besides the data. Kept in the
 // card and its link, not in the View: the agent's charts never set it.
-export const Overlay = Schema.Literal("governments")
+export const Overlay = Schema.Literals(["elections", "governments"])
 
 export type Overlay = typeof Overlay.Type
 
@@ -98,6 +105,48 @@ export const governing = (all: ReadonlyArray<Term>, country: Country, shown: num
     ]
   })
 
+// What each election chose, as a reader would put it.
+const ballotNames: Record<Ballot, string> = {
+  parliament: "General election",
+  president: "Presidential election",
+  "president-indirect": "Indirect presidential election",
+}
+
+const longDate = (day: string) =>
+  new Date(day).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  })
+
+const roundYears = (election: Election) => [
+  year(election.date),
+  ...(election.lastRound === null ? [] : [year(election.lastRound)]),
+]
+
+// The years a country voted in, once each: where its markers go.
+export const votedIn = (elections: ReadonlyArray<Election>, country: Country) => [
+  ...new Set(elections.filter((election) => election.country === country).flatMap(roundYears)),
+]
+
+// A country's elections during a year, one line each:
+// "General election · 20 November 2011", or for one held in rounds
+// "Presidential election · 23 April 2017 and 7 May 2017".
+export const voting = (elections: ReadonlyArray<Election>, country: Country, shown: number) =>
+  elections.flatMap((election) =>
+    election.country === country && roundYears(election).includes(shown)
+      ? [
+          [
+            ballotNames[election.ballot],
+            election.lastRound === null
+              ? longDate(election.date)
+              : `${longDate(election.date)} and ${longDate(election.lastRound)}`,
+          ].join(" · "),
+        ]
+      : [],
+  )
+
 // How each archive asks to be cited. Both publish under CC0 1.0, which
 // requires no credit; we cite them as they ask.
 export const archives: Record<Exclude<Publisher, "Official">, { name: string; url: string }> = {
@@ -108,12 +157,10 @@ export const archives: Record<Exclude<Publisher, "Official">, { name: string; ur
   ParlGov: { name: "ParlGov (Döring and Manow, 2024)", url: "https://doi.org/10.7910/DVN/2VZ5ZC" },
 }
 
-// The government, presidency and parliament pages that records checked by
-// hand cite, each once.
-export const officialPages = (governments: ReadonlyArray<Government>) => [
+// The government, presidency, parliament and electoral authority pages that
+// records checked by hand cite, each once.
+export const officialPages = (records: ReadonlyArray<Government | Election>) => [
   ...new Set(
-    governments.flatMap(({ citation }) =>
-      citation.publisher === "Official" ? [citation.url] : [],
-    ),
+    records.flatMap(({ citation }) => (citation.publisher === "Official" ? [citation.url] : [])),
   ),
 ]

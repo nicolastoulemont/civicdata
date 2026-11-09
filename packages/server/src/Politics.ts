@@ -1,11 +1,13 @@
 import {
   Api,
+  Ballot,
   Country,
   Day,
+  type Election,
   End,
   type Government,
   Party,
-  type Politics as Records,
+  type Politics as PoliticalRecords,
   PoliticsUnavailable,
   Publisher,
   type Year,
@@ -22,15 +24,19 @@ interface Query {
 }
 
 interface Interface {
-  // The governments of the countries in office during any of the years,
-  // oldest first per country.
-  readonly records: (query: Query) => Effect.Effect<Records, PoliticsUnavailable>
+  // The governments of the countries in office during any of the years, and
+  // their elections held in them, oldest first per country.
+  readonly records: (query: Query) => Effect.Effect<PoliticalRecords, PoliticsUnavailable>
 }
 
-// The political records' tables. `governments` holds every generation of
-// each publisher's records; `politics_current` names the generation of each
-// publisher's records that reads use. A build writes a new generation and
-// publishes it once complete (see PoliticsBuild.ts).
+// The kinds of political records, each in its own table.
+export const Records = Schema.Literals(["governments", "elections"])
+
+// The political records' tables. `governments` and `elections` hold every
+// generation of each publisher's records; `politics_current` names the
+// generation of each publisher's records of each kind that reads use. A build
+// writes a new generation and publishes it once complete (see
+// PoliticsBuild.ts).
 export const politicsTables = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient
 
@@ -50,6 +56,22 @@ export const politicsTables = Effect.gen(function* () {
   yield* sql`
     CREATE INDEX IF NOT EXISTS governments_country
     ON governments (country, publisher, generation)
+  `
+  yield* sql`
+    CREATE TABLE IF NOT EXISTS elections (
+      publisher TEXT NOT NULL,
+      generation INTEGER NOT NULL,
+      country TEXT NOT NULL,
+      ballot TEXT NOT NULL,
+      date TEXT NOT NULL,
+      last_round TEXT,
+      url TEXT NOT NULL,
+      retrieved_at TEXT NOT NULL
+    )
+  `
+  yield* sql`
+    CREATE INDEX IF NOT EXISTS elections_country
+    ON elections (country, publisher, generation)
   `
   yield* sql`
     CREATE TABLE IF NOT EXISTS politics_current (
@@ -74,7 +96,53 @@ const Row = Schema.Struct({
 
 type Row = typeof Row.Type
 
+const ElectionRow = Schema.Struct({
+  publisher: Publisher,
+  country: Country,
+  ballot: Ballot,
+  date: Day,
+  last_round: Schema.NullOr(Day),
+  url: Schema.NonEmptyString,
+  retrieved_at: Schema.DateTimeUtcFromString,
+})
+
+type ElectionRow = typeof ElectionRow.Type
+
 const CountriesJson = Schema.fromJsonString(Schema.Array(Country))
+
+// One country's elections from every publisher, oldest first, each once.
+// Parliamentary elections follow the governments' rule: PPEG throughout its
+// coverage, ParlGov before it. Presidential elections are PPEG's alone.
+// Elections checked by hand come after both; one an archive already holds,
+// for the same ballot and day, is not repeated.
+const ballots = (rows: ReadonlyArray<ElectionRow>): ReadonlyArray<Election> => {
+  const of = (publisher: Publisher) =>
+    rows
+      .filter((row) => row.publisher === publisher)
+      .toSorted((a, b) => a.date.localeCompare(b.date))
+
+  const ppeg = of("PPEG")
+  const covered = ppeg.find((row) => row.ballot === "parliament")?.date
+
+  const archived = [
+    ...of("ParlGov").filter(
+      (row) => row.ballot === "parliament" && (covered === undefined || row.date < covered),
+    ),
+    ...ppeg,
+  ]
+
+  const held = new Set(archived.map((row) => `${row.ballot} ${row.date}`))
+
+  return [...archived, ...of("Official").filter((row) => !held.has(`${row.ballot} ${row.date}`))]
+    .toSorted((a, b) => a.date.localeCompare(b.date))
+    .map((row) => ({
+      country: row.country,
+      ballot: row.ballot,
+      date: row.date,
+      lastRound: row.last_round,
+      citation: { publisher: row.publisher, url: row.url, retrievedAt: row.retrieved_at },
+    }))
+}
 
 const byStart = (a: Row, b: Row) => a.start.localeCompare(b.start)
 
@@ -137,11 +205,11 @@ export class Politics extends Context.Service<Politics, Interface>()("@civicdata
 
       yield* politicsTables
 
-      // The publishers whose governments have been published.
+      // The datasets published so far, of either kind.
       const published = SqlSchema.findAll({
         Request: Schema.Void,
         Result: Schema.Struct({ publisher: Publisher }),
-        execute: () => sql`SELECT publisher FROM politics_current WHERE records = 'governments'`,
+        execute: () => sql`SELECT publisher FROM politics_current`,
       })
 
       const governments = SqlSchema.findAll({
@@ -158,6 +226,20 @@ export class Politics extends Context.Service<Politics, Interface>()("@civicdata
         `,
       })
 
+      const elections = SqlSchema.findAll({
+        Request: Schema.Struct({ countries: CountriesJson }),
+        Result: ElectionRow,
+        execute: ({ countries }) => sql`
+          SELECT elections.publisher, country, ballot, date, last_round, url, retrieved_at
+          FROM elections
+          JOIN politics_current AS current
+            ON current.records = 'elections'
+            AND current.publisher = elections.publisher
+            AND current.generation = elections.generation
+          WHERE country IN (SELECT value FROM json_each(${countries}))
+        `,
+      })
+
       const records = Effect.fn("Politics.records")(
         function* ({ countries, from, to }: Query) {
           // Before the first build publishes anything, there is nothing to read.
@@ -165,14 +247,24 @@ export class Politics extends Context.Service<Politics, Interface>()("@civicdata
             return yield* new PoliticsUnavailable()
           }
 
-          const rows = yield* governments({ countries })
+          const [governed, voted] = yield* Effect.all(
+            [governments({ countries }), elections({ countries })],
+            { concurrency: "unbounded" },
+          )
+
           const first = `${from}-01-01`
           const last = `${to}-12-31`
 
           return {
             governments: countries.flatMap((country) =>
-              sequence(rows.filter((row) => row.country === country)).filter(
+              sequence(governed.filter((row) => row.country === country)).filter(
                 (government) => government.start <= last && lastDay(government) >= first,
+              ),
+            ),
+            elections: countries.flatMap((country) =>
+              ballots(voted.filter((row) => row.country === country)).filter(
+                (election) =>
+                  election.date <= last && (election.lastRound ?? election.date) >= first,
               ),
             ),
           }

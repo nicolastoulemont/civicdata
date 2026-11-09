@@ -111,9 +111,30 @@ const Government = Schema.Struct({
 
 export interface Government extends Schema.Schema.Type<typeof Government> {}
 
+// What a national election chose: the lower house of parliament, a
+// president by popular vote, or a president by a vote of parliament.
+// European Parliament elections are not national records here.
+export const Ballot = Schema.Literals(["parliament", "president", "president-indirect"])
+
+export type Ballot = typeof Ballot.Type
+
+// One national election, on its polling day. A presidential election held in
+// rounds has the day of its last round too. An election says nothing about
+// who won or who governed after it.
+const Election = Schema.Struct({
+  country: Country,
+  ballot: Ballot,
+  date: Day,
+  lastRound: Schema.NullOr(Day),
+  citation: Citation,
+})
+
+export interface Election extends Schema.Schema.Type<typeof Election> {}
+
 // The political records of some countries over some years.
 export const Politics = Schema.Struct({
   governments: Schema.Array(Government),
+  elections: Schema.Array(Election),
 })
 
 export interface Politics extends Schema.Schema.Type<typeof Politics> {}
@@ -128,7 +149,8 @@ const CountryList = Schema.String.pipe(
 )
 
 // Which countries and years to read the records of. A year counts whole:
-// a government in office on any day of it is in.
+// a government in office on any day of it is in, and an election with any
+// round in it.
 export const PoliticsQuery = {
   countries: CountryList,
   from: Schema.FiniteFromString.pipe(Schema.decodeTo(Year)),

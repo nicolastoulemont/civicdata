@@ -1,0 +1,1009 @@
+[
+  {
+    "geo": "DK",
+    "kind": "parliament",
+    "election_date": "2026-03-24",
+    "date": "2026-03-24",
+    "ballot": "national",
+    "url": "https://www.dst.dk/valg/Valg2546527/valgopg/valgopgHL.htm",
+    "retrieved": "2026-10-18",
+    "denominator": "valid votes in Denmark proper",
+    "notes": "Denmark proper: 175 seats. Greenland and Faroe Islands are outside this table. Uden for partierne groups independents. Published percentages are rounded.",
+    "results": [
+      {
+        "name": "A. Socialdemokratiet",
+        "votes": 779252,
+        "vote_share": 21.8,
+        "seats": 38
+      },
+      {
+        "name": "B. Radikale Venstre",
+        "votes": 207442,
+        "vote_share": 5.8,
+        "seats": 10
+      },
+      {
+        "name": "C. Det Konservative Folkeparti",
+        "votes": 270749,
+        "vote_share": 7.6,
+        "seats": 13
+      },
+      {
+        "name": "F. SF - Socialistisk Folkeparti",
+        "votes": 413306,
+        "vote_share": 11.6,
+        "seats": 20
+      },
+      {
+        "name": "H. Borgernes Parti - Lars Boje Mathiesen",
+        "votes": 75928,
+        "vote_share": 2.1,
+        "seats": 4
+      },
+      {
+        "name": "I. Liberal Alliance",
+        "votes": 334421,
+        "vote_share": 9.4,
+        "seats": 16
+      },
+      {
+        "name": "M. Moderaterne",
+        "votes": 274775,
+        "vote_share": 7.7,
+        "seats": 14
+      },
+      {
+        "name": "O. Dansk Folkeparti",
+        "votes": 324518,
+        "vote_share": 9.1,
+        "seats": 16
+      },
+      {
+        "name": "V. Venstre, Danmarks Liberale Parti",
+        "votes": 361689,
+        "vote_share": 10.1,
+        "seats": 18
+      },
+      {
+        "name": "Æ. Danmarksdemokraterne - Inger Støjberg",
+        "votes": 205302,
+        "vote_share": 5.8,
+        "seats": 10
+      },
+      {
+        "name": "Ø. Enhedslisten - De Rød-Grønne",
+        "votes": 226037,
+        "vote_share": 6.3,
+        "seats": 11
+      },
+      {
+        "name": "Å. Alternativet",
+        "votes": 91770,
+        "vote_share": 2.6,
+        "seats": 5
+      },
+      {
+        "name": "Uden for partierne",
+        "votes": 2436,
+        "vote_share": 0.1,
+        "seats": 0
+      }
+    ]
+  },
+  {
+    "geo": "SE",
+    "kind": "parliament",
+    "election_date": "2026-09-13",
+    "date": "2026-09-13",
+    "ballot": "national",
+    "url": "https://www.val.se/english/election-results/elections-to-the-riksdag-and-regional-and-municipal-councils/election-results-2026",
+    "retrieved": "2026-10-18",
+    "denominator": "valid votes",
+    "notes": "Official summary published 6 October 2026. Minor parties are grouped by the source. Raw vote counts are absent from this summary.",
+    "results": [
+      {
+        "name": "The Social Democratic Party",
+        "votes": null,
+        "vote_share": 28.02,
+        "seats": 99
+      },
+      {
+        "name": "The Moderate Party",
+        "votes": null,
+        "vote_share": 19.85,
+        "seats": 70
+      },
+      {
+        "name": "The Sweden Democrats",
+        "votes": null,
+        "vote_share": 17.48,
+        "seats": 62
+      },
+      {
+        "name": "The Left Party",
+        "votes": null,
+        "vote_share": 8.4,
+        "seats": 30
+      },
+      {
+        "name": "The Centre Party",
+        "votes": null,
+        "vote_share": 7.03,
+        "seats": 25
+      },
+      {
+        "name": "The Christian Democrats",
+        "votes": null,
+        "vote_share": 6.17,
+        "seats": 22
+      },
+      {
+        "name": "The Green Party",
+        "votes": null,
+        "vote_share": 6.12,
+        "seats": 22
+      },
+      {
+        "name": "The Liberal Party",
+        "votes": null,
+        "vote_share": 5.34,
+        "seats": 19
+      },
+      {
+        "name": "Other parties that submitted a participation notifaction",
+        "votes": null,
+        "vote_share": 1.58,
+        "seats": 0
+      }
+    ]
+  },
+  {
+    "geo": "LV",
+    "kind": "parliament",
+    "election_date": "2026-10-03",
+    "date": "2026-10-03",
+    "ballot": "national",
+    "url": "https://www.cvk.lv/saeima-2026-rezultati",
+    "retrieved": "2026-10-18",
+    "denominator": "804490 valid envelopes",
+    "notes": "Source divides party votes by valid envelopes, not valid ballot papers. Its party rows sum to 793846 and its district table reports 793846 valid ballot papers.",
+    "results": [
+      {
+        "name": "\"APVIENOTAIS SARAKSTS - Latvijas Zaļā partija, Latvijas Reģionu Apvienība, Liepājas partija\"",
+        "votes": 283892,
+        "vote_share": 35.288,
+        "seats": 41
+      },
+      {
+        "name": "LATVIJA PIRMAJĀ VIETĀ",
+        "votes": 105198,
+        "vote_share": 13.076,
+        "seats": 17
+      },
+      {
+        "name": "SUVERĒNĀ VARA / APVIENĪBA JAUNLATVIEŠI",
+        "votes": 94211,
+        "vote_share": 11.711,
+        "seats": 15
+      },
+      {
+        "name": "Nacionālā apvienība \"Visu Latvijai!\"-\"Tēvzemei un Brīvībai/LNNK\"",
+        "votes": 71579,
+        "vote_share": 8.897,
+        "seats": 10
+      },
+      {
+        "name": "\"PROGRESĪVIE\"",
+        "votes": 63382,
+        "vote_share": 7.879,
+        "seats": 10
+      },
+      {
+        "name": "Jaunā VIENOTĪBA",
+        "votes": 51183,
+        "vote_share": 6.362,
+        "seats": 7
+      },
+      {
+        "name": "Zaļo un Zemnieku savienība",
+        "votes": 35405,
+        "vote_share": 4.401,
+        "seats": 0
+      },
+      {
+        "name": "\"Mēs mainām noteikumus\"",
+        "votes": 27579,
+        "vote_share": 3.428,
+        "seats": 0
+      },
+      {
+        "name": "\"Latvijas attīstībai\"",
+        "votes": 17533,
+        "vote_share": 2.179,
+        "seats": 0
+      },
+      {
+        "name": "Politiskā partija \"Stabilitātei!\"",
+        "votes": 16062,
+        "vote_share": 1.997,
+        "seats": 0
+      },
+      {
+        "name": "\"Austošā Saule Latvijai\"",
+        "votes": 10696,
+        "vote_share": 1.33,
+        "seats": 0
+      },
+      {
+        "name": "\"Gobzema saraksts\"",
+        "votes": 7900,
+        "vote_share": 0.982,
+        "seats": 0
+      },
+      {
+        "name": "Politisko partiju apvienība \"Saskaņas Centrs\"",
+        "votes": 6598,
+        "vote_share": 0.82,
+        "seats": 0
+      },
+      {
+        "name": "JKP Jaunā konservatīvā partija",
+        "votes": 2628,
+        "vote_share": 0.327,
+        "seats": 0
+      }
+    ]
+  },
+  {
+    "geo": "SI",
+    "kind": "parliament",
+    "election_date": "2026-03-22",
+    "date": "2026-03-22",
+    "ballot": "national",
+    "url": "https://www.dvk-rs.si/arhivi/dz2026/data/data.json",
+    "retrieved": "2026-10-18",
+    "denominator": "1179769 valid national-list votes",
+    "notes": "National party-list ballot for 88 seats. Two separate minority seats are outside this table. Shares converted from source proportions to percentages.",
+    "results": [
+      {
+        "name": "SOCIALNI DEMOKRATI",
+        "votes": 79175,
+        "vote_share": 6.7111,
+        "seats": 6
+      },
+      {
+        "name": "DRŽAVLJANSKO GIBANJE RESNI.CA",
+        "votes": 64799,
+        "vote_share": 5.4925,
+        "seats": 5
+      },
+      {
+        "name": "MI, SOCIALISTI!",
+        "votes": 5657,
+        "vote_share": 0.4795,
+        "seats": 0
+      },
+      {
+        "name": "GLAS UPOKOJENCEV PAVLA RUPARJA",
+        "votes": 4193,
+        "vote_share": 0.3554,
+        "seats": 0
+      },
+      {
+        "name": "SLOVENSKA DEMOKRATSKA STRANKA - SDS",
+        "votes": 328923,
+        "vote_share": 27.8803,
+        "seats": 28
+      },
+      {
+        "name": "LEVICA IN VESNA",
+        "votes": 67183,
+        "vote_share": 5.6946,
+        "seats": 5
+      },
+      {
+        "name": "KARL ERJAVEC STRANKA ZAUPANJE",
+        "votes": 2995,
+        "vote_share": 0.2539,
+        "seats": 0
+      },
+      {
+        "name": "PREROD - STRANKA VLADIMIRJA PREBILIČA",
+        "votes": 35976,
+        "vote_share": 3.0494,
+        "seats": 0
+      },
+      {
+        "name": "PIRATSKA STRANKA SLOVENIJE",
+        "votes": 27811,
+        "vote_share": 2.3573,
+        "seats": 0
+      },
+      {
+        "name": "NOVA SLOVENIJA, SLOVENSKA LJUDSKA STRANKA, FOKUS MARKA LOTRIČA",
+        "votes": 109201,
+        "vote_share": 9.2561,
+        "seats": 9
+      },
+      {
+        "name": "GIBANJE SVOBODA",
+        "votes": 338102,
+        "vote_share": 28.6583,
+        "seats": 29
+      },
+      {
+        "name": "ZELENI SLOVENIJE + SG STRANKA GENERACIJ",
+        "votes": 5277,
+        "vote_share": 0.4473,
+        "seats": 0
+      },
+      {
+        "name": "SLOGA",
+        "votes": 251,
+        "vote_share": 0.0213,
+        "seats": 0
+      },
+      {
+        "name": "REŠITEV - STRANKA UPOKOJENCEV VELENJE, SLOVENIJA",
+        "votes": 164,
+        "vote_share": 0.0139,
+        "seats": 0
+      },
+      {
+        "name": "DEMOKRATI. ANŽETA LOGARJA",
+        "votes": 78902,
+        "vote_share": 6.6879,
+        "seats": 6
+      },
+      {
+        "name": "SLOVENSKA NACIONALNA STRANKA - SNS",
+        "votes": 26375,
+        "vote_share": 2.2356,
+        "seats": 0
+      },
+      {
+        "name": "KOALICIJA ALTERNATIVA ZA SLOVENIJO (STRANKA NIČ OD TEGA IN STRANKA ZA ZDRAVO DRUŽBO)",
+        "votes": 4785,
+        "vote_share": 0.4056,
+        "seats": 0
+      }
+    ]
+  },
+  {
+    "geo": "HU",
+    "kind": "parliament",
+    "election_date": "2026-04-12",
+    "date": "2026-04-12",
+    "ballot": "national-list",
+    "url": "https://vtr.valasztas.hu/ogy2026/data/05071600/szavossz/ListasJkv.json",
+    "retrieved": "2026-10-18",
+    "denominator": "6366733 valid party-list and nationality-list votes",
+    "notes": "Final national-list ballot. Seats refer only to the 93 list seats, excluding 106 constituency seats. Nationality lists and their votes are retained. Names joined by tl_id from /ogy2026/data/04112100/ver/ListakEsJeloltek.json. Missing mandate fields remain empty.",
+    "results": [
+      {
+        "name": "TISZA",
+        "votes": 3385890,
+        "vote_share": 53.18,
+        "seats": 45
+      },
+      {
+        "name": "FIDESZ-KDNP",
+        "votes": 2458337,
+        "vote_share": 38.61,
+        "seats": 42
+      },
+      {
+        "name": "Mi Hazánk",
+        "votes": 358372,
+        "vote_share": 5.63,
+        "seats": 6
+      },
+      {
+        "name": "DK",
+        "votes": 70298,
+        "vote_share": 1.1,
+        "seats": null
+      },
+      {
+        "name": "MKKP",
+        "votes": 51965,
+        "vote_share": 0.82,
+        "seats": null
+      },
+      {
+        "name": "Magyarországi Romák Országos",
+        "votes": 19203,
+        "vote_share": 0.3,
+        "seats": null
+      },
+      {
+        "name": "MNOÖ",
+        "votes": 18419,
+        "vote_share": 0.29,
+        "seats": null
+      },
+      {
+        "name": "OHÖ",
+        "votes": 1307,
+        "vote_share": 0.02,
+        "seats": null
+      },
+      {
+        "name": "OSZÖ",
+        "votes": 902,
+        "vote_share": 0.01,
+        "seats": null
+      },
+      {
+        "name": "MROÖ",
+        "votes": 512,
+        "vote_share": 0.01,
+        "seats": null
+      },
+      {
+        "name": "ORÖ",
+        "votes": 440,
+        "vote_share": 0.01,
+        "seats": null
+      },
+      {
+        "name": "Országos Ukrán",
+        "votes": 379,
+        "vote_share": 0.01,
+        "seats": null
+      },
+      {
+        "name": "Országos Szlovén",
+        "votes": 179,
+        "vote_share": 0.0,
+        "seats": null
+      },
+      {
+        "name": "MGOÖ",
+        "votes": 159,
+        "vote_share": 0.0,
+        "seats": null
+      },
+      {
+        "name": "OLÖ",
+        "votes": 147,
+        "vote_share": 0.0,
+        "seats": null
+      },
+      {
+        "name": "OÖÖ",
+        "votes": 116,
+        "vote_share": 0.0,
+        "seats": null
+      },
+      {
+        "name": "Bolgár Országos Önkormányzat",
+        "votes": 108,
+        "vote_share": 0.0,
+        "seats": null
+      }
+    ]
+  },
+  {
+    "geo": "PT",
+    "kind": "president",
+    "election_date": "2026-01-18",
+    "date": "2026-01-18",
+    "ballot": "round-1",
+    "url": "https://www.cne.pt/sites/default/files/dl/eleicoes/2026_pr/docs_geral/2026_pr_1-sufragio_mapa_oficial_dr.pdf",
+    "retrieved": "2026-10-18",
+    "denominator": "5642696 valid candidate votes",
+    "notes": "Official CNE gazette. Candidate vote shares exclude blank and invalid votes. Published rounding is retained. The first-round table retains votes marked for rejected candidacies, as published.",
+    "results": [
+      {
+        "name": "André Pestana da Silva",
+        "votes": 10897,
+        "vote_share": 0.19,
+        "seats": null
+      },
+      {
+        "name": "Eduardo Jorge Costa Pinto",
+        "votes": 38588,
+        "vote_share": 0.68,
+        "seats": null
+      },
+      {
+        "name": "Manuel João Gonçalves Rodrigues Vieira",
+        "votes": 60927,
+        "vote_share": 1.08,
+        "seats": null
+      },
+      {
+        "name": "Catarina Soares Martins",
+        "votes": 116407,
+        "vote_share": 2.06,
+        "seats": null
+      },
+      {
+        "name": "João Fernando Cotrim de Figueiredo",
+        "votes": 903057,
+        "vote_share": 16.0,
+        "seats": null
+      },
+      {
+        "name": "Humberto Raimundo Joaquim Correia",
+        "votes": 4773,
+        "vote_share": 0.08,
+        "seats": null
+      },
+      {
+        "name": "António José Martins Seguro",
+        "votes": 1755563,
+        "vote_share": 31.11,
+        "seats": null
+      },
+      {
+        "name": "Luís Manuel Gonçalves Marques Mendes",
+        "votes": 637442,
+        "vote_share": 11.3,
+        "seats": null
+      },
+      {
+        "name": "André Claro Amaral Ventura",
+        "votes": 1327021,
+        "vote_share": 23.52,
+        "seats": null
+      },
+      {
+        "name": "António Filipe Gaião Rodrigues",
+        "votes": 92644,
+        "vote_share": 1.64,
+        "seats": null
+      },
+      {
+        "name": "Henrique Eduardo Passaláqua de Gouveia e Melo",
+        "votes": 695377,
+        "vote_share": 12.32,
+        "seats": null
+      }
+    ]
+  },
+  {
+    "geo": "PT",
+    "kind": "president",
+    "election_date": "2026-01-18",
+    "date": "2026-02-08",
+    "ballot": "round-2",
+    "url": "https://www.cne.pt/sites/default/files/dl/eleicoes/2026_pr/docs_geral/2026_pr_2-sufragio_mapa_oficial_dr.pdf",
+    "retrieved": "2026-10-18",
+    "denominator": "5240563 valid candidate votes",
+    "notes": "Official CNE gazette. Candidate vote shares exclude blank and invalid votes. Published rounding is retained. The first-round table retains votes marked for rejected candidacies, as published.",
+    "results": [
+      {
+        "name": "António José Martins Seguro",
+        "votes": 3502613,
+        "vote_share": 66.84,
+        "seats": null
+      },
+      {
+        "name": "André Claro Amaral Ventura",
+        "votes": 1737950,
+        "vote_share": 33.16,
+        "seats": null
+      }
+    ]
+  },
+  {
+    "geo": "BG",
+    "kind": "parliament",
+    "election_date": "2026-04-19",
+    "date": "2026-04-19",
+    "ballot": "national",
+    "url": "https://results.cik.bg/pe202604/rezultati/index.html",
+    "retrieved": "2026-10-18",
+    "denominator": "3240156 valid party, coalition and independent votes; excludes against-all",
+    "notes": "CEC national summary. Against-all is retained as a separate row without a vote share. The independent candidate has no published share. Blank seat cells for parties below the threshold are recorded as zero.",
+    "results": [
+      {
+        "name": "ПП ИМА ТАКЪВ НАРОД",
+        "votes": 23861,
+        "vote_share": 0.736,
+        "seats": 0
+      },
+      {
+        "name": "ПРЯКА ДЕМОКРАЦИЯ",
+        "votes": 10032,
+        "vote_share": 0.31,
+        "seats": 0
+      },
+      {
+        "name": "СИНЯ БЪЛГАРИЯ",
+        "votes": 18640,
+        "vote_share": 0.575,
+        "seats": 0
+      },
+      {
+        "name": "ПП МЕЧ",
+        "votes": 104506,
+        "vote_share": 3.225,
+        "seats": 0
+      },
+      {
+        "name": "БСП – ОБЕДИНЕНА ЛЕВИЦА",
+        "votes": 97753,
+        "vote_share": 3.017,
+        "seats": 0
+      },
+      {
+        "name": "ПП НАРОДНА ПАРТИЯ ИСТИНАТА И САМО ИСТИНАТА",
+        "votes": 4392,
+        "vote_share": 0.136,
+        "seats": 0
+      },
+      {
+        "name": "КОАЛИЦИЯ ПРОДЪЛЖАВАМЕ ПРОМЯНАТА – ДЕМОКРАТИЧНА БЪЛГАРИЯ",
+        "votes": 408846,
+        "vote_share": 12.618,
+        "seats": 37
+      },
+      {
+        "name": "ВЪЗРАЖДАНЕ",
+        "votes": 137940,
+        "vote_share": 4.257,
+        "seats": 12
+      },
+      {
+        "name": "МОЯ БЪЛГАРИЯ",
+        "votes": 4358,
+        "vote_share": 0.134,
+        "seats": 0
+      },
+      {
+        "name": "Движение на непартийните кандидати",
+        "votes": 9761,
+        "vote_share": 0.301,
+        "seats": 0
+      },
+      {
+        "name": "АЛИАНС ЗА ПРАВА И СВОБОДИ – АПС",
+        "votes": 50759,
+        "vote_share": 1.567,
+        "seats": 0
+      },
+      {
+        "name": "АНТИКОРУПЦИОНЕН БЛОК",
+        "votes": 18999,
+        "vote_share": 0.586,
+        "seats": 0
+      },
+      {
+        "name": "НД НЕПОКОРНА БЪЛГАРИЯ",
+        "votes": 6221,
+        "vote_share": 0.192,
+        "seats": 0
+      },
+      {
+        "name": "ПП ВЕЛИЧИЕ",
+        "votes": 100572,
+        "vote_share": 3.104,
+        "seats": 0
+      },
+      {
+        "name": "ГЕРБ-СДС",
+        "votes": 433755,
+        "vote_share": 13.387,
+        "seats": 39
+      },
+      {
+        "name": "КП ТРЕТИ МАРТ",
+        "votes": 1840,
+        "vote_share": 0.057,
+        "seats": 0
+      },
+      {
+        "name": "Движение за права и свободи - ДПС",
+        "votes": 230693,
+        "vote_share": 7.12,
+        "seats": 21
+      },
+      {
+        "name": "ПП НАЦИЯ",
+        "votes": 9804,
+        "vote_share": 0.303,
+        "seats": 0
+      },
+      {
+        "name": "БЪЛГАРИЯ МОЖЕ",
+        "votes": 17263,
+        "vote_share": 0.533,
+        "seats": 0
+      },
+      {
+        "name": "СИЯНИЕ",
+        "votes": 93559,
+        "vote_share": 2.887,
+        "seats": 0
+      },
+      {
+        "name": "ПРОГРЕСИВНА БЪЛГАРИЯ",
+        "votes": 1444920,
+        "vote_share": 44.594,
+        "seats": 131
+      },
+      {
+        "name": "Съпротива",
+        "votes": 1897,
+        "vote_share": 0.059,
+        "seats": 0
+      },
+      {
+        "name": "Партия на ЗЕЛЕНИТЕ",
+        "votes": 3027,
+        "vote_share": 0.093,
+        "seats": 0
+      },
+      {
+        "name": "ПП ГЛАС НАРОДЕН",
+        "votes": 4665,
+        "vote_share": 0.144,
+        "seats": 0
+      },
+      {
+        "name": "ИК Тодор Тодоров Батков",
+        "votes": 2093,
+        "vote_share": null,
+        "seats": 0
+      },
+      {
+        "name": "Не подкрепям никого",
+        "votes": 50733,
+        "vote_share": null,
+        "seats": null
+      }
+    ]
+  },
+  {
+    "geo": "CY",
+    "kind": "parliament",
+    "election_date": "2026-05-24",
+    "date": "2026-05-24",
+    "ballot": "national",
+    "url": "https://www.parliament.cy/easyconsole.cfm/id/34034",
+    "retrieved": "2026-10-18",
+    "denominator": "372060 valid ballots",
+    "notes": "House of Representatives final summary for the 56 Greek-community seats. The 24 Turkish-community seats remain vacant. Published shares are rounded to one decimal, retained without recalculation.",
+    "results": [
+      {
+        "name": "ΔΗ.ΣΥ.",
+        "votes": 101013,
+        "vote_share": 27.1,
+        "seats": 17
+      },
+      {
+        "name": "Α.Κ.Ε.Λ.-Αριστερά-Κοινωνική Συμμαχία",
+        "votes": 88777,
+        "vote_share": 23.9,
+        "seats": 15
+      },
+      {
+        "name": "Ε.ΛΑ.Μ.",
+        "votes": 40567,
+        "vote_share": 10.9,
+        "seats": 8
+      },
+      {
+        "name": "ΔΗ.ΚΟ.",
+        "votes": 37222,
+        "vote_share": 10,
+        "seats": 8
+      },
+      {
+        "name": "ΑΛΜΑ-Πολίτες για την Κύπρο",
+        "votes": 21700,
+        "vote_share": 5.8,
+        "seats": 4
+      },
+      {
+        "name": "Άμεση Δημοκρατία Κύπρου",
+        "votes": 20159,
+        "vote_share": 5.4,
+        "seats": 4
+      },
+      {
+        "name": "ΕΔΕΚ Σοσιαλιστικό Κόμμα",
+        "votes": 12099,
+        "vote_share": 3.3,
+        "seats": 0
+      },
+      {
+        "name": "Ενεργοί Πολίτες-Κίνημα Ενωμένων Κυπρίων Κυνηγών",
+        "votes": 11890,
+        "vote_share": 3.2,
+        "seats": 0
+      },
+      {
+        "name": "ΔΗ.ΠΑ.-Συνεργασία Δημοκρατικών Δυνάμεων",
+        "votes": 11693,
+        "vote_share": 3.1,
+        "seats": 0
+      },
+      {
+        "name": "Βολτ Κύπρος",
+        "votes": 11487,
+        "vote_share": 3.1,
+        "seats": 0
+      },
+      {
+        "name": "Κίνημα Οικολόγων-Συνεργασία Πολιτών",
+        "votes": 7264,
+        "vote_share": 2,
+        "seats": 0
+      },
+      {
+        "name": "Δημοκρατικό Εθνικό Κίνημα",
+        "votes": 2628,
+        "vote_share": 0.7,
+        "seats": 0
+      },
+      {
+        "name": "Σήκου Πάνω",
+        "votes": 1897,
+        "vote_share": 0.5,
+        "seats": 0
+      },
+      {
+        "name": "Αγρονόμος Αγροτικό Εργατικό Κόμμα",
+        "votes": 1044,
+        "vote_share": 0.3,
+        "seats": 0
+      },
+      {
+        "name": "Δημοκρατική Αλλαγή",
+        "votes": 1020,
+        "vote_share": 0.3,
+        "seats": 0
+      },
+      {
+        "name": "Το Πράσινο Κόμμα της Κύπρου",
+        "votes": 509,
+        "vote_share": 0.1,
+        "seats": 0
+      },
+      {
+        "name": "Πατριωτικό Μέτωπο «Λακεδαιμόνιοι»",
+        "votes": 494,
+        "vote_share": 0.1,
+        "seats": 0
+      },
+      {
+        "name": "Ακρο-Αριστερή Αντίσταση Κομμουνισμός",
+        "votes": 39,
+        "vote_share": 0,
+        "seats": 0
+      },
+      {
+        "name": "Λαϊκός Αγώνας Ελευθερία",
+        "votes": 33,
+        "vote_share": 0,
+        "seats": 0
+      },
+      {
+        "name": "Σάββα Κυριάκος",
+        "votes": 194,
+        "vote_share": 0.1,
+        "seats": 0
+      },
+      {
+        "name": "Κάτσιη Ιφιγένεια",
+        "votes": 74,
+        "vote_share": 0,
+        "seats": 0
+      },
+      {
+        "name": "Χριστοδούλου Χριστόδουλος",
+        "votes": 64,
+        "vote_share": 0,
+        "seats": 0
+      },
+      {
+        "name": "Μακρίδης Αλέξης",
+        "votes": 59,
+        "vote_share": 0,
+        "seats": 0
+      },
+      {
+        "name": "Ευστρατίου Ανδρέας",
+        "votes": 45,
+        "vote_share": 0,
+        "seats": 0
+      },
+      {
+        "name": "Τενίζης Μάριος",
+        "votes": 40,
+        "vote_share": 0,
+        "seats": 0
+      },
+      {
+        "name": "Ροτσίδης Χριστάκης",
+        "votes": 18,
+        "vote_share": 0,
+        "seats": 0
+      },
+      {
+        "name": "Σταύρου Λουκάς",
+        "votes": 17,
+        "vote_share": 0,
+        "seats": 0
+      },
+      {
+        "name": "Μαυρομμάτης Κωνσταντίνος",
+        "votes": 14,
+        "vote_share": 0,
+        "seats": 0
+      }
+    ]
+  },
+  {
+    "geo": "MT",
+    "kind": "parliament",
+    "election_date": "2026-05-30",
+    "date": "2026-05-30",
+    "ballot": "first-preference",
+    "url": "https://server.www.robert-schuman.eu/storage/en/doc/oee/oee-6826-en.pdf",
+    "retrieved": "2026-10-18",
+    "denominator": "306036 valid first-preference votes",
+    "notes": "Fondation Robert Schuman table citing the Electoral Commission. The six listed parties omit 161 valid votes. Seats are the 67 seats before the gender mechanism adds 12, giving 42 Labour and 37 Nationalist MPs in the 79-seat legislature (IPU Parline).",
+    "results": [
+      {
+        "name": "Labour Party (PL)",
+        "votes": 158444,
+        "vote_share": 51.77,
+        "seats": 36
+      },
+      {
+        "name": "Nationalist Party (PN)",
+        "votes": 136723,
+        "vote_share": 44.68,
+        "seats": 31
+      },
+      {
+        "name": "Momentum",
+        "votes": 4700,
+        "vote_share": 1.54,
+        "seats": 0
+      },
+      {
+        "name": "Democratic Alternative/Democratic Party (AD/PD)",
+        "votes": 3996,
+        "vote_share": 1.31,
+        "seats": 0
+      },
+      {
+        "name": "Aħwa Maltin",
+        "votes": 1845,
+        "vote_share": 0.6,
+        "seats": 0
+      },
+      {
+        "name": "Imperium Europa",
+        "votes": 167,
+        "vote_share": 0.05,
+        "seats": 0
+      }
+    ]
+  },
+  {
+    "geo": "EE",
+    "kind": "president-indirect",
+    "election_date": "2026-09-02",
+    "date": "2026-09-02",
+    "ballot": "round-1",
+    "url": "https://www.valimised.ee/en/archive/president-republic-estonia-elections/election-president-republic-2026",
+    "retrieved": "2026-10-18",
+    "denominator": "101 Riigikogu members; the source reports vote counts, not a popular vote share",
+    "notes": "Indirect presidential election. The official result records 71 votes for Ülle Madise, 78 participating MPs and seven unmarked ballots. These are MP votes, not a popular vote. This is a current supplement, not a history of indirect presidential elections.",
+    "results": [
+      {
+        "name": "Ülle Madise",
+        "votes": 71,
+        "vote_share": null,
+        "seats": null
+      }
+    ]
+  }
+]

@@ -42,15 +42,15 @@ A build lists each source in one request, writes its entries into a new generati
 
 ### Political records
 
-Trend charts can shade who governed each country, for the EU and OECD members. The same `CatalogWorkflow` run stores the governments in D1 (`packages/server/src/PoliticsBuild.ts`), one generation per publisher like the catalog, and `GET /api/politics?countries=ESP,PRT&from=2000&to=2020` reads them (`packages/server/src/Politics.ts`):
+Trend charts can mark each country's national elections and shade who governed it, for the EU and OECD members. The same `CatalogWorkflow` run stores elections and governments in D1 (`packages/server/src/PoliticsBuild.ts`), one generation per publisher and kind like the catalog, and `GET /api/politics?countries=ESP,PRT&from=2000&to=2020` reads them (`packages/server/src/Politics.ts`):
 
-| Publisher                                              | What it records                                           | Licence                  |
-| ------------------------------------------------------ | --------------------------------------------------------- | ------------------------ |
-| [PPEG 2025v1](https://ppeg.wzb.eu/) (WZB Berlin)       | Cabinets of 43 members, to 31 October 2025                | CC0 1.0                  |
-| [ParlGov](https://parlgov.fly.dev/) (Döring and Manow) | Cabinets of 37 members, to June 2023                      | CC0 1.0                  |
-| Government pages, checked by hand                      | Cabinets formed since, in `packages/server/src/official/` | Facts, linked per record |
+| Publisher                                              | What it records                                                                    | Licence                  |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------- | ------------------------ |
+| [PPEG 2025v1](https://ppeg.wzb.eu/) (WZB Berlin)       | Cabinets, lower-house and presidential elections of 43 members, to 31 October 2025 | CC0 1.0                  |
+| [ParlGov](https://parlgov.fly.dev/) (Döring and Manow) | Cabinets and lower-house elections of 37 members, to June 2023                     | CC0 1.0                  |
+| Official pages, checked by hand                        | Cabinets and elections since, in `packages/server/src/official/`                   | Facts, linked per record |
 
-PPEG counts within its coverage, ParlGov fills the years before it, and records checked by hand follow both. The sources record when a government starts, never when it ends: it ends when the next starts. The chart credits PPEG and ParlGov with the citations they ask for.
+PPEG counts within its coverage, ParlGov fills the years before it, and records checked by hand follow both. PPEG and ParlGov can date the same election differently (France's first or second round), so they are never added together. The sources record when a government starts, never when it ends: it ends when the next starts. No winner or coalition is inferred from an election. European Parliament elections are left out. The chart credits PPEG and ParlGov with the citations they ask for.
 
 To rebuild a deployed stage by hand, start an instance from the Cloudflare dashboard (Workers & Pages, Workflows, `civicdata-<stage>-catalog`) or with `POST /accounts/<account>/workflows/civicdata-<stage>-catalog/instances`.
 

@@ -723,7 +723,7 @@ describe("Conversation", () => {
     network.use(
       ...kept([brazilAnswer]).handlers,
       resolve,
-      http.get("/api/politics", () => HttpResponse.json({ governments: [] })),
+      http.get("/api/politics", () => HttpResponse.json({ governments: [], elections: [] })),
     )
     show()
 

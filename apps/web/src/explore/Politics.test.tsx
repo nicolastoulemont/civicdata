@@ -1,6 +1,7 @@
 import {
   type Country,
   Day,
+  type Election,
   End,
   type Government,
   IndicatorId,
@@ -21,7 +22,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { network } from "../../test/network.ts"
 import { Explore } from "./Explore.tsx"
-import type { Overlay } from "./governments.ts"
+import type { Overlay } from "./politics.ts"
 
 const unemployment = IndicatorId.make("SL.UEM.TOTL.ZS")
 
@@ -71,8 +72,33 @@ const recorded: ReadonlyArray<Government> = [
   }),
 ]
 
-// The API's records: the governments of the countries asked for, in office
-// during the years asked for.
+// An election as PPEG records it, valid by default.
+const election = (fields: Partial<Election> = {}): Election => ({
+  country: "ESP",
+  ballot: "parliament",
+  date: Day.make("2011-11-20"),
+  lastRound: null,
+  citation: {
+    publisher: "PPEG",
+    url: "https://ppeg.wzb.eu/www/ppeg_parl_2025v1.zip",
+    retrievedAt: DateTime.makeUnsafe("2026-11-09T04:00:00Z"),
+  },
+  ...fields,
+})
+
+const elections: ReadonlyArray<Election> = [
+  election(),
+  election({ date: Day.make("2015-12-20") }),
+  election({
+    country: "PRT",
+    ballot: "president",
+    date: Day.make("2011-01-23"),
+  }),
+  election({ country: "PRT", date: Day.make("2011-06-05") }),
+]
+
+// The API's records: the governments and elections of the countries asked
+// for. The fake answers every year.
 const politics = http.get("/api/politics", ({ request }) => {
   const query = new URL(request.url).searchParams
   const countries = (query.get("countries") ?? "").split(",")
@@ -80,6 +106,7 @@ const politics = http.get("/api/politics", ({ request }) => {
   return HttpResponse.json(
     Schema.encodeSync(Politics)({
       governments: recorded.filter((each) => countries.includes(each.country)),
+      elections: elections.filter((each) => countries.includes(each.country)),
     }),
   )
 })
@@ -174,7 +201,15 @@ beforeEach(() => {
 
 afterEach(() => bounds?.mockRestore())
 
-describe("Governments on a trend", () => {
+// Moves the chart's tooltip to its second year, 2011: clicking the chart
+// shows its first year, and the arrow key moves on one.
+const hover2011 = async (user: ReturnType<typeof userEvent.setup>, figure: HTMLElement) => {
+  await within(figure).findByText("Spain")
+  await user.click(within(figure).getByRole("application"))
+  await user.keyboard("{ArrowRight}")
+}
+
+describe("Elections and governments on a trend", () => {
   it("shades a one-country trend in bands named by head of government", async () => {
     network.use(resolve, politics)
     const user = userEvent.setup()
@@ -205,9 +240,7 @@ describe("Governments on a trend", () => {
 
     const figure = await screen.findByRole("figure")
 
-    await within(figure).findByText("Spain")
-    await user.click(within(figure).getByRole("application"))
-    await user.keyboard("{ArrowRight}{ArrowRight}")
+    await hover2011(user, figure)
 
     expect(
       await within(figure).findByText("Spain: Mariano Rajoy · PP · 2011 to 2018"),
@@ -219,12 +252,35 @@ describe("Governments on a trend", () => {
     expect(within(figure).queryByText("Mariano Rajoy")).toBeNull()
   })
 
-  it("says so when a country has no government records", async () => {
+  it("names each country's elections of the hovered year, in the tooltip", async () => {
+    network.use(resolve, politics)
+    const user = userEvent.setup()
+
+    show(["ESP", "PRT"])
+
+    await user.click(await screen.findByRole("button", { name: "Elections" }))
+
+    const figure = await screen.findByRole("figure")
+
+    await hover2011(user, figure)
+
+    expect(
+      await within(figure).findByText("Spain: General election · 20 November 2011"),
+    ).toBeDefined()
+    expect(
+      within(figure).getByText("Portugal: Presidential election · 23 January 2011"),
+    ).toBeDefined()
+    expect(within(figure).getByText("Portugal: General election · 5 June 2011")).toBeDefined()
+    // Governments stay off.
+    expect(within(figure).queryByText(/Mariano Rajoy/)).toBeNull()
+  })
+
+  it("says so when a country has no election or government records", async () => {
     network.use(resolve, politics)
 
-    show(["ESP", "BRA"], ["governments"])
+    show(["ESP", "BRA"], ["elections", "governments"])
 
-    expect(await screen.findByText("No government records for Brazil")).toBeDefined()
+    expect(await screen.findByText("No election or government records for Brazil")).toBeDefined()
   })
 
   it("says the records are unavailable when they cannot be read", async () => {
@@ -239,7 +295,7 @@ describe("Governments on a trend", () => {
 
     show(["ESP"], ["governments"])
 
-    expect(await screen.findByText("Government records are unavailable")).toBeDefined()
+    expect(await screen.findByText("Election and government records are unavailable")).toBeDefined()
   })
 
   it("copies a link that opens with the governments shown", async () => {
