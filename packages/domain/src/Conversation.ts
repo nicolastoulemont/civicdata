@@ -100,8 +100,8 @@ const lookup = <S extends Schema.Top>(state: S) => ({
   state,
 })
 
-// Why the data cannot show a chart. The step's view says which indicator,
-// countries, years and transform it asked for.
+// Why the agent cannot show a chart. The step's view says which chart type,
+// indicator, countries, years and transform it asked for.
 // - NoValues: the source has no values for those countries and years.
 // - NoIndicator: no source has `indicator`, the chart's or one it divides by
 //   or plots against.
@@ -109,11 +109,15 @@ const lookup = <S extends Schema.Top>(state: S) => ({
 //   person to a percentage.
 // - OpenDimensions: the dataflow holds several series, and the chart has not
 //   picked one of these dimensions, or picked a value they do not take.
+// - TooMany: the chart type shows at most `most` countries and stays readable.
+// - TooFew: the chart type needs at least `least` countries to show anything.
 export const Rejection = Schema.TaggedUnion({
   NoValues: {},
   NoIndicator: { indicator: IndicatorId },
   NotApplicable: {},
   OpenDimensions: { open: Schema.NonEmptyArray(DimensionId) },
+  TooMany: { most: Count },
+  TooFew: { least: Count },
 })
 
 export type Rejection = typeof Rejection.Type

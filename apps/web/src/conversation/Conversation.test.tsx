@@ -388,6 +388,35 @@ describe("Conversation", () => {
     expect(await findStep("The World Bank has no values for Brazil in 2024–2025.")).toBeDefined()
   })
 
+  it("opens a chart too crowded to read to how many countries it had, and how many fit", async () => {
+    const reply = answer()
+
+    const crowded = Trend.make({
+      ...brazil,
+      countries: ["USA", "JPN", "DEU", "GBR", "FRA", "ITA", "CAN"],
+    })
+
+    network.use(turns([]), reply.handler, resolve)
+    show("Life expectancy in the G7")
+
+    reply.send(
+      message(
+        Fetch.make({
+          id: StepId.make("chart-1"),
+          view: crowded,
+          state: Rejected.make({ reason: Rejection.cases.TooMany.make({ most: 6 }) }),
+        }),
+      ),
+    )
+    await userEvent.setup().click(
+      await screen.findByRole("button", {
+        name: "Tried a chart that would be hard to read, trying again",
+      }),
+    )
+
+    expect(await findStep("Too many countries for a trend: 7, at most 6.")).toBeDefined()
+  })
+
   it("says in plain words why a step failed", async () => {
     const reply = answer()
 

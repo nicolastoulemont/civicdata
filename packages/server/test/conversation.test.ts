@@ -340,6 +340,10 @@ const encodeTurns = Schema.encodeSync(Schema.toCodecJson(Turns))
 
 const isDefinition = Schema.is(Definition)
 
+// Ten countries: enough for a map. The World Bank here has values for
+// Brazil and Mexico only.
+const latinAmerica = ["BRA", "MEX", "ARG", "CHL", "COL", "PER", "ECU", "BOL", "URY", "PRY"] as const
+
 const brazilTrend = Trend.make({
   indicator: lifeExpectancy,
   countries: ["BRA"],
@@ -623,7 +627,7 @@ describe("conversations", () => {
         call("show_chart", {
           ...brazil,
           chart: "map",
-          countries: ["BRA", "MEX"],
+          countries: latinAmerica,
           from: null,
           to: null,
           year: 2002,
@@ -638,7 +642,7 @@ describe("conversations", () => {
         Answered.make({
           view: Ranking.make({
             indicator: lifeExpectancy,
-            countries: ["BRA", "MEX"],
+            countries: latinAmerica,
             year: Year.make(2002),
             as: "Map",
           }),
@@ -647,6 +651,63 @@ describe("conversations", () => {
       )
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
+
+  it.effect(
+    "rejects a trend of too many countries to read without fetching it, and names a chart that fits",
+    () => {
+      const seven = ["BRA", "MEX", "ARG", "CHL", "COL", "PER", "ECU"] as const
+      const asked: Array<ReadonlyArray<string>> = []
+
+      // The World Bank as recorded, noting which countries each request asks for.
+      const worldBank = Layer.effect(
+        WorldBank,
+        Effect.map(WorldBank, (recorded) =>
+          WorldBank.of({
+            ...recorded,
+            observations: (query) => {
+              asked.push(query.countries)
+
+              return recorded.observations(query)
+            },
+          }),
+        ),
+      ).pipe(Layer.provide(recordedWorldBank))
+
+      const model = scripted([
+        Effect.succeed(call("show_chart", { ...brazil, countries: seven }, { step: "chart-1" })),
+        Effect.succeed(
+          call("show_chart", { ...brazil, chart: "change", countries: seven }, { step: "chart-2" }),
+        ),
+      ])
+
+      return Effect.gen(function* () {
+        const steps = yield* answer("Life expectancy in Latin America since 2000")
+
+        expect(log(steps)[0]).toEqual(
+          fetched(Rejected.make({ reason: Rejection.cases.TooMany.make({ most: 6 }) }), {
+            step: "chart-1",
+            view: Trend.make({ ...brazilTrend, countries: seven }),
+          }),
+        )
+        expect(model.prompts[1]).toContain(
+          "Too many countries for a trend: 7, at most 6. Instead, use a ranking or a map for one year, a change for two years, or pick up to 6 countries.",
+        )
+        // Only the change was fetched.
+        expect(asked).toEqual([seven])
+        expect(steps.at(-1)).toEqual(
+          Answered.make({
+            view: Change.make({
+              indicator: lifeExpectancy,
+              countries: seven,
+              from: Year.make(2000),
+              to: Year.make(2002),
+            }),
+            takeaway,
+          }),
+        )
+      }).pipe(Effect.provide(serveApi(model.layer, { worldBank })))
+    },
+  )
 
   it.effect("rejects a relation of an indicator to itself", () => {
     const model = scripted([

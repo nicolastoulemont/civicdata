@@ -144,7 +144,16 @@ const lookup = ({ names, state }: typeof Lookup.Type) => {
   })
 }
 
-// Why the data cannot show the chart the agent asked for, in plain words.
+// The chart type of a View, as a sentence names it: "a trend", "a map".
+const typeOf = (view: View) =>
+  Match.valueTags(view, {
+    Trend: () => "a trend",
+    Ranking: ({ as }) => (as === "Map" ? "a map" : "a ranking"),
+    Change: () => "a change",
+    Relation: () => "a relation",
+  })
+
+// Why the agent cannot show the chart it asked for, in plain words.
 const rejected = (view: View, reason: Rejection) =>
   Match.valueTags(reason, {
     NoValues: () =>
@@ -161,9 +170,27 @@ const rejected = (view: View, reason: Rejection) =>
       ),
     OpenDimensions: ({ open }) =>
       `The data holds several series, and the chart has to pick one by ${open.join(", ")}.`,
+    TooMany: ({ most }) =>
+      `Too many countries for ${typeOf(view)}: ${view.countries.length}, at most ${most}.`,
+    TooFew: ({ least }) =>
+      `Too few countries for ${typeOf(view)}: ${view.countries.length}, at least ${least}.`,
   })
 
 const retried = "Tried a chart the data can't show, trying again"
+
+// The agent drew a chart people could not read, and draws another.
+const redrawn = "Tried a chart that would be hard to read, trying again"
+
+// What the work log says of a chart the agent tried and could not show.
+const retrying = (reason: Rejection) =>
+  Match.valueTags(reason, {
+    NoValues: () => retried,
+    NoIndicator: () => retried,
+    NotApplicable: () => retried,
+    OpenDimensions: () => retried,
+    TooMany: () => redrawn,
+    TooFew: () => redrawn,
+  })
 
 const fetch = ({ view, state }: typeof Fetch.Type) => {
   const icon = ChartLine
@@ -178,7 +205,8 @@ const fetch = ({ view, state }: typeof Fetch.Type) => {
       }),
     Done: ({ values }) =>
       line("Done", { icon, text: `Got ${plural(values, ["value", "values"])} from ${source}` }),
-    Rejected: ({ reason }) => line("Done", { icon, text: retried, more: [rejected(view, reason)] }),
+    Rejected: ({ reason }) =>
+      line("Done", { icon, text: retrying(reason), more: [rejected(view, reason)] }),
     Failed: ({ reason }) => failed(reason, { icon, text: `Couldn't fetch ${source} data` }),
     Stopped: () => line("Stopped", { icon, text: `Stopped fetching ${source} data` }),
   })
