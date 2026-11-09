@@ -12,6 +12,7 @@ import { HttpClient, HttpClientResponse } from "effect/http"
 import { Cache } from "./Cache.ts"
 import { Pace } from "./Pace.ts"
 import { Described, type Query, Series } from "./Series.ts"
+import { plain } from "./text.ts"
 
 const base = "https://api.worldbank.org/v2"
 
@@ -91,7 +92,7 @@ const make = Effect.gen(function* () {
     const [metadata] = rows
 
     return {
-      indicator: { id: metadata.id, name: metadata.name, definition: metadata.sourceNote },
+      indicator: { id: metadata.id, name: metadata.name, definition: plain(metadata.sourceNote) },
       dataset: metadata.source.value,
       retrievedAt: yield* DateTime.now,
     }
@@ -125,7 +126,7 @@ const make = Effect.gen(function* () {
     IndicatorsBody,
   ).pipe(
     Effect.map(([, rows]) =>
-      rows.map((row) => ({ indicator: row.id, name: row.name, definition: row.sourceNote })),
+      rows.map((row) => ({ indicator: row.id, name: row.name, definition: plain(row.sourceNote) })),
     ),
     Effect.withSpan("WorldBank.indicators"),
   )
@@ -142,9 +143,10 @@ const fresh = (retrievedAt: DateTime.Utc, now: DateTime.Utc) =>
 const DescribedJson = Schema.fromJsonString(Schema.toCodecJson(Described))
 const SeriesJson = Schema.fromJsonString(Schema.toCodecJson(Series))
 
-// Bump `v1` when a cached shape changes, so old entries are ignored.
+// Bump a key's version when what it caches changes, so old entries are
+// ignored.
 const keys = {
-  described: (indicator: IndicatorId) => `worldbank/v1/indicator/${indicator}`,
+  described: (indicator: IndicatorId) => `worldbank/v2/indicator/${indicator}`,
   series: (query: Query) =>
     `worldbank/v1/series/${query.indicator}/${query.countries.toSorted().join(",")}/${query.from}-${query.to}`,
 }

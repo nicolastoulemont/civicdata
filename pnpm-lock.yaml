@@ -383,6 +383,9 @@ importers:
       effect:
         specifier: 'catalog:'
         version: 4.1.2
+      entities:
+        specifier: 7.0.1
+        version: 7.0.1
       fflate:
         specifier: 0.8.3
         version: 0.8.3

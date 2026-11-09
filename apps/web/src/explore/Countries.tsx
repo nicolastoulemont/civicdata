@@ -56,7 +56,11 @@ export const Countries = ({ selected, onChange }: CountriesProps) => {
                     {countryName(country)}
                   </ComboboxChip>
                 ))}
-                <ComboboxChipsInput id={id} placeholder="Add a country" />
+                {/* The label names the input either way; the hint shows only with no chip. */}
+                <ComboboxChipsInput
+                  id={id}
+                  placeholder={chosen.length === 0 ? "Add a country" : undefined}
+                />
               </>
             )}
           </ComboboxValue>

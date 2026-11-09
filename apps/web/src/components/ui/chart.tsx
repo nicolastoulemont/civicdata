@@ -105,7 +105,13 @@ ${colorConfig
   )
 }
 
-const ChartTooltip = RechartsPrimitive.Tooltip
+// civicdata: the tooltip stays above the legend, which Recharts draws after it.
+function ChartTooltip({
+  wrapperStyle,
+  ...props
+}: React.ComponentProps<typeof RechartsPrimitive.Tooltip>) {
+  return <RechartsPrimitive.Tooltip wrapperStyle={{ zIndex: 10, ...wrapperStyle }} {...props} />
+}
 
 function ChartTooltipContent({
   active,

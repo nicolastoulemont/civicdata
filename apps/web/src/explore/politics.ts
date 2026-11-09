@@ -285,7 +285,9 @@ const sourcesOf = (record: Event | Reform, pages: Pages) => {
 // The events of a year on a chart of some countries, one line each:
 // "German reunification · 3 October 1990 · Germany · Reunification extended
 // ... · Source 1 below". Each says what happened, never what it did to the
-// line.
+// line. A period that started in an earlier year gives its name and dates
+// only, "COVID-19 emergency · 2020 to May 2023", so a year inside several
+// stays short; the year it started gives the rest.
 export const happening = (
   events: ReadonlyArray<Event>,
   { countries, shown, pages }: { countries: ReadonlyArray<Country>; shown: number; pages: Pages },
@@ -293,17 +295,20 @@ export const happening = (
   events.flatMap((event) => {
     const { from, to } = spanOf(event, shown)
 
-    return shown >= from && shown <= to
-      ? [
-          [
+    if (shown < from || shown > to) return []
+
+    return [
+      (shown === from
+        ? [
             event.name,
             whenSaid(event.when),
             concerned(event.scope, countries),
             event.summary,
             sourcesOf(event, pages),
-          ].join(" · "),
-        ]
-      : []
+          ]
+        : [event.name, whenSaid(event.when)]
+      ).join(" · "),
+    ]
   })
 
 const milestones: Record<Reform["milestone"], string> = {
