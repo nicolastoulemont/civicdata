@@ -34,6 +34,13 @@ const Provenance = Schema.Struct({
   retrievedAt: Schema.DateTimeUtc,
 })
 
+// Another source's values for what the chart shows, where they differ from
+// the chart's by more than rounding. `source` is the series they came from.
+const Disagreement = Schema.Struct({
+  source: Provenance,
+  observations: Schema.NonEmptyArray(Observation),
+})
+
 // What every resolved View holds: its indicator's values after the
 // transform. `title` heads the chart: the indicator's plain-language title, or
 // its official name when it has none; `indicator` keeps the official name.
@@ -41,12 +48,15 @@ const Provenance = Schema.Struct({
 // so instead of dropping them. `dimensions` lists what else an SDMX
 // indicator's series differ by, with the values the View can pick; it is
 // empty for the World Bank, whose indicators are single series.
+// `disagreements` lists the other sources whose values for the same figure
+// differ.
 const fields = {
   title: Schema.NonEmptyString,
   indicator: Indicator,
   observations: Schema.Array(Observation),
   missing: Schema.Array(Country),
   dimensions: Schema.Array(Dimension),
+  disagreements: Schema.Array(Disagreement),
   sources: Schema.NonEmptyArray(Provenance),
 }
 
