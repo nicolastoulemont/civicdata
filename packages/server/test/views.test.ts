@@ -19,6 +19,8 @@ import { DateTime, Effect, Layer, Schema } from "effect"
 import { HttpServer } from "effect/http"
 import { HttpApiTest } from "effect/http-api"
 
+import { Agent } from "../src/Agent.ts"
+import { AskLimit } from "../src/AskLimit.ts"
 import { Catalog } from "../src/Catalog.ts"
 import { Conversations } from "../src/Conversations.ts"
 import { Handlers } from "../src/Handlers.ts"
@@ -181,12 +183,14 @@ const recordedEurostat = Sdmx.layer.pipe(
   ),
 )
 
-// These tests neither search nor ask, so the catalog and the conversations are
-// the ones plain `pnpm dev:web` gets.
+// These tests neither search nor ask, so the catalog, the conversations and
+// the agent are the ones plain `pnpm dev:web` gets.
 const serve = (source: Layer.Layer<WorldBank>, sdmx = Sdmx.layer.pipe(Layer.provide(offline))) =>
   Layer.mergeAll(
     Handlers.pipe(
       Layer.provide(Conversations.unavailable),
+      Layer.provide(Agent.unavailable),
+      Layer.provide(AskLimit.none),
       Layer.provide(Catalog.unavailable),
       Layer.provide(source),
       Layer.provide(sdmx),
