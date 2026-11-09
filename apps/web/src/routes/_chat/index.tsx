@@ -1,16 +1,8 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
-import { ExternalLink } from "lucide-react"
 
 import { buttonVariants } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
 import { SidebarTrigger } from "@/components/ui/sidebar"
+import { Lane } from "@/conversation/Lane"
 import { QuestionForm } from "@/conversation/QuestionForm"
 import type { Search } from "@/explore/search"
 
@@ -46,61 +38,50 @@ const examples: ReadonlyArray<{ title: string; search: Search }> = [
   },
 ]
 
+// The composer in the middle of the page, in the lane a conversation uses, with
+// the examples under it.
 const Home = () => {
   const navigate = useNavigate()
 
   return (
-    <main className="flex min-h-svh items-center justify-center p-6">
+    <main className="flex min-h-svh flex-col justify-center py-6">
       <SidebarTrigger className="absolute top-3 left-3" />
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>
-            <h1>civicdata</h1>
-          </CardTitle>
-          <CardDescription>
+      <Lane>
+        <div className="mb-6 flex flex-col items-center gap-2 text-center">
+          <h1 className="text-3xl font-medium tracking-tight">civicdata</h1>
+          <p className="text-sm text-muted-foreground">
             Ask about the state of a country and get a sourced chart, or open an example.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-6">
-          <QuestionForm
-            label="Ask about a country"
-            placeholder="How has life expectancy changed in Brazil?"
-            onAsk={(question) =>
-              void navigate({
-                to: "/c/$id",
-                params: { id: crypto.randomUUID() },
-                state: { question },
-              })
-            }
-          />
-          <ul className="flex flex-col gap-2">
-            {examples.map((example) => (
-              <li key={example.title}>
-                <Link
-                  className={buttonVariants({
-                    variant: "link",
-                    className: "h-auto px-0 text-left whitespace-normal",
-                  })}
-                  to="/explore"
-                  search={example.search}
-                >
-                  {example.title}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </CardContent>
-        <CardFooter>
-          {/* Links stay <a> elements styled as buttons; Base UI's Button forces button semantics. */}
-          <a
-            className={buttonVariants({ variant: "outline" })}
-            href="https://github.com/nicolastoulemont/civicdata"
-          >
-            View the source
-            <ExternalLink data-icon="inline-end" aria-hidden />
-          </a>
-        </CardFooter>
-      </Card>
+          </p>
+        </div>
+        <QuestionForm
+          label="Ask about a country"
+          placeholder="How has life expectancy changed in Brazil?"
+          onAsk={(question) =>
+            void navigate({
+              to: "/c/$id",
+              params: { id: crypto.randomUUID() },
+              state: { question },
+            })
+          }
+        />
+        <ul className="mt-2 flex flex-wrap gap-1">
+          {examples.map((example) => (
+            <li key={example.title}>
+              <Link
+                className={buttonVariants({
+                  variant: "ghost",
+                  size: "sm",
+                  className: "h-auto min-h-7 text-left whitespace-normal text-muted-foreground",
+                })}
+                to="/explore"
+                search={example.search}
+              >
+                {example.title}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </Lane>
     </main>
   )
 }
