@@ -1,0 +1,49 @@
+{
+  "version": "2.0",
+  "class": "collection",
+  "updated": "2026-11-09T14:23:43+0100",
+  "link": {
+    "item": [
+      {
+        "class": "dataset",
+        "label": "Employed persons by economic activity (NACE Rev. 2.1) - quarterly data",
+        "extension": {
+          "lang": "EN",
+          "id": "LFSQ_EGAN21",
+          "agencyId": "ESTAT",
+          "version": "1.0"
+        }
+      },
+      {
+        "class": "dataset",
+        "label": "Employed persons by economic activity (NACE Rev. 2.1) - quarterly data",
+        "extension": {
+          "lang": "EN",
+          "id": "LFSQ_EGAN21$DV_3701",
+          "agencyId": "ESTAT",
+          "version": "1.0"
+        }
+      },
+      {
+        "class": "dataset",
+        "label": "Population on 1 January",
+        "extension": {
+          "lang": "EN",
+          "id": "TPS00001",
+          "agencyId": "ESTAT",
+          "version": "1.0"
+        }
+      },
+      {
+        "class": "dataset",
+        "label": "Unemployment by sex and age - annual data",
+        "extension": {
+          "lang": "EN",
+          "id": "UNE_RT_A",
+          "agencyId": "ESTAT",
+          "version": "1.0"
+        }
+      }
+    ]
+  }
+}

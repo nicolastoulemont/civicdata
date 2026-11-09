@@ -39,7 +39,7 @@ export interface Index {
 }
 
 // Workers AI or Vectorize failed, or answered in a shape we do not recognize.
-class VectorsUnavailable extends Schema.TaggedError<
+export class VectorsUnavailable extends Schema.TaggedError<
   VectorsUnavailable,
   { readonly brand: unique symbol }
 >()("VectorsUnavailable", { cause: Schema.Unknown }) {}
@@ -54,7 +54,7 @@ interface Interface {
 // 384 dimensions: the smallest BGE model. On the World Bank catalog, bge-base
 // ranked no better and costs twice the Vectorize quota. The index in
 // packages/infra is made for this model: changing it replaces the index,
-// which fills again only from the next weekly catalog refresh.
+// which fills again from the next catalog build.
 const model = "@cf/baai/bge-small-en-v1.5"
 
 // BGE's instruction for a short query matched against longer passages.
@@ -67,7 +67,8 @@ const minimumScore = 0.58
 
 const topK = 20
 
-// Vectorize ids are at most 64 bytes. World Bank codes are far shorter.
+// Vectorize ids are at most 64 bytes. World Bank and Eurostat codes are far
+// shorter; the few longer OECD dataflow ids are found by words only.
 const fitsAnId = (entry: CatalogEntry) => entry.indicator.length <= 64
 
 const call = <A>(run: () => Promise<A>) =>
@@ -86,8 +87,8 @@ const decode =
     )
 
 // Indicator meaning, embedded by Workers AI and searched in Vectorize.
-// Searches run while the catalog loads, so callers treat a failure as "no
-// neighbors" rather than failing the search.
+// Search treats a failure as "no neighbors" rather than failing: words still
+// find indicators.
 export class Vectors extends Context.Service<Vectors, Interface>()("@civicdata/server/Vectors") {
   static readonly cloudflare = ({ ai, index }: { ai: Ai; index: Index }) => {
     const embed = Effect.fnUntraced(function* (text: Arr.NonEmptyReadonlyArray<string>) {
