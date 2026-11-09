@@ -481,7 +481,7 @@ const overlayNames: Record<Overlay, { toggle: string; records: string }> = {
 const recordsNamed = (overlays: ReadonlyArray<Overlay>) =>
   `${overlays.map((overlay) => overlayNames[overlay].records).join(" or ")} records`
 
-interface ContextProps {
+interface OverlaysProps {
   // None for a chart other than a trend, which shows no political context.
   trend: Trend | undefined
   overlays: ReadonlyArray<Overlay>
@@ -494,7 +494,7 @@ interface ContextProps {
 // The toggles that draw elections and governments over a trend, and what the
 // chart cannot show: a country without records says so, since no band or
 // marker would read as nothing happening.
-const Context = ({ trend, overlays, records, failed, onOverlays }: ContextProps) => {
+const Overlays = ({ trend, overlays, records, failed, onOverlays }: OverlaysProps) => {
   const hold = use(Hold)
 
   if (trend === undefined) return null
@@ -700,7 +700,7 @@ export const Explore = ({
               resolved={query.data}
               stale={query.isPlaceholderData}
               picking={picking}
-              above={<Context {...political} onOverlays={onOverlays} />}
+              above={<Overlays {...political} onOverlays={onOverlays} />}
               politics={political.records}
               heading={Heading}
               onChange={change}

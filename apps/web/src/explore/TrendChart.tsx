@@ -81,7 +81,7 @@ const bandOf = (term: Term, shown: ReadonlyArray<number>) => {
   return x1 === undefined || x2 === undefined || x1 > x2 ? [] : [{ term, x1, x2 }]
 }
 
-interface ContextProps {
+interface PoliticsProps {
   terms: ReadonlyArray<Term>
   elections: ReadonlyArray<Election>
   countries: ReadonlyArray<Country>
@@ -90,7 +90,7 @@ interface ContextProps {
 
 // Who governed each country in the hovered year and the elections it held,
 // under its values. Nothing when the chart shows neither.
-const Context = ({ terms: all, elections, countries, year }: ContextProps) => {
+const Politics = ({ terms: all, elections, countries, year }: PoliticsProps) => {
   const lines = countries.flatMap((country) =>
     [...governing(all, country, year), ...voting(elections, country, year)].map((line) =>
       countries.length === 1 ? line : `${countryName(country)}: ${line}`,
@@ -111,12 +111,17 @@ const Context = ({ terms: all, elections, countries, year }: ContextProps) => {
 interface TipProps
   extends
     Pick<ComponentProps<typeof ChartTooltipContent>, "active" | "payload" | "label">,
-    Omit<ContextProps, "year"> {}
+    Omit<PoliticsProps, "year"> {}
 
 // The values of the hovered year and the political context of that year.
 const Tip = ({ terms: all, elections, countries, ...tooltip }: TipProps) => (
   <ChartTooltipContent {...tooltip}>
-    <Context terms={all} elections={elections} countries={countries} year={Number(tooltip.label)} />
+    <Politics
+      terms={all}
+      elections={elections}
+      countries={countries}
+      year={Number(tooltip.label)}
+    />
   </ChartTooltipContent>
 )
 
