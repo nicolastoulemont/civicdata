@@ -73,7 +73,7 @@ export const History = () => {
                 The conversations you start are listed here, in this browser only.
               </p>
             ) : (
-              <SidebarMenu>
+              <SidebarMenu className="gap-1.5">
                 {entries.map((entry) => (
                   <Row key={entry.id} entry={entry} current={entry.id === id} now={now} />
                 ))}

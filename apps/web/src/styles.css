@@ -30,6 +30,10 @@
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
   --color-message-surface: var(--message-surface);
+  --color-status-working: var(--status-working);
+  --color-status-answered: var(--status-answered);
+  --color-status-reply: var(--status-reply);
+  --color-status-idle: var(--status-idle);
   --color-chart-6: var(--chart-6);
   --color-chart-other: var(--chart-other);
   --color-chart-faint: var(--chart-faint);
@@ -86,6 +90,13 @@
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --message-surface: oklch(0.943 0 0);
+  /* A conversation's status in the sidebar, as text on a 10% tint of itself.
+     Each keeps 4.5:1 or more on the sidebar and on its hovered or current
+     card. */
+  --status-working: oklch(0.5 0.17 255);
+  --status-answered: oklch(0.48 0.13 150);
+  --status-reply: oklch(0.5 0.12 65);
+  --status-idle: oklch(0.5 0 0);
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
@@ -129,6 +140,10 @@
     --accent: oklch(0.235 0 0);
     --accent-foreground: oklch(0.97 0 0);
     --message-surface: oklch(0.26 0 0);
+    --status-working: oklch(0.75 0.13 250);
+    --status-answered: oklch(0.77 0.15 155);
+    --status-reply: oklch(0.8 0.14 75);
+    --status-idle: oklch(0.72 0 0);
     --destructive: oklch(0.704 0.191 22.216);
     --border: oklch(1 0 0 / 8%);
     --input: oklch(1 0 0 / 12%);
