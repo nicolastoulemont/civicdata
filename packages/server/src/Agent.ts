@@ -9,6 +9,7 @@ import {
   locate,
   Ranking,
   Rejected as RejectedStep,
+  type ResolvedView,
   Searched,
   SourceUnavailable,
   type Step,
@@ -198,6 +199,18 @@ const toView = (draft: Draft): Effect.Effect<View, Schema.SchemaError> => {
 
 const rejected = (problem: string) => Rejected.make({ problem })
 
+// A trend ends at the latest year it has values for. Told only the current
+// year, the model asks for years the World Bank has not published yet.
+const trim = ({ view, observations }: ResolvedView): View =>
+  Match.valueTags(view, {
+    Trend: (trend) =>
+      Trend.make({
+        ...trend,
+        to: observations.reduce((latest, { year }) => (year > latest ? year : latest), trend.from),
+      }),
+    Ranking: (ranking) => ranking,
+  })
+
 const ToolsLayer = Tools.toLayer(
   Effect.gen(function* () {
     const catalog = yield* Catalog
@@ -256,7 +269,7 @@ const ToolsLayer = Tools.toLayer(
                     ? rejected(
                         "The World Bank has no values for these countries and years. Try other years.",
                       )
-                    : Shown.make({ view }),
+                    : Shown.make({ view: trim(resolved) }),
                 ),
               ),
           ),

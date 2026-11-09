@@ -253,6 +253,18 @@ describe("conversations", () => {
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
+  // "Since 2000": the instructions give the model the current year, so it
+  // asks for every year up to it, past the World Bank's latest data.
+  it.effect("ends a trend at the latest year with data", () => {
+    const model = scripted([Effect.succeed(call("show_chart", { ...brazil, to: 2026 }))])
+
+    return Effect.gen(function* () {
+      expect((yield* answer("Life expectancy in Brazil since 2000")).at(-1)).toEqual(
+        Answered.make({ view: brazilTrend }),
+      )
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
   it.effect("keeps a question no indicator answers, without a chart", () => {
     const model = scripted([Effect.succeed(words("No World Bank indicator measures that."))])
 
