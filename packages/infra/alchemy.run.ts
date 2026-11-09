@@ -54,6 +54,8 @@ export default Alchemy.Stack(
         CONVERSATION: Cloudflare.DurableObject("Conversation", {
           className: "ConversationObject",
         }),
+        // One Durable Object per source, pacing requests to it.
+        PACE: Cloudflare.DurableObject("Pace", { className: "PaceObject" }),
         // Every question costs model calls: five per visitor per minute.
         ASK_LIMIT: Cloudflare.RateLimit("AskLimit", {
           namespaceId: 1001,

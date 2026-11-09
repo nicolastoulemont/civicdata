@@ -3,6 +3,7 @@
 // oxlint-disable-next-line typescript/triple-slash-reference
 /// <reference path="./cloudflare.d.ts" />
 
+import { SourceUnavailable } from "@civicdata/domain"
 import { Context, DateTime, Effect, Layer, Option, Schema } from "effect"
 
 // What the cache needs from an R2 bucket binding.
@@ -55,7 +56,8 @@ export class Cache extends Context.Service<Cache, Interface>()("@civicdata/serve
   // Serves the result stored under `key` while it is fresh, otherwise fetches
   // and stores the answer. An entry that no longer decodes is a miss. Results
   // keep their retrieval time, so a stored one still reports when its source
-  // was asked.
+  // was asked; that is why a stale one is served when the source is
+  // unavailable, such as while its request budget is spent.
   static readonly remember = Effect.gen(function* () {
     const cache = yield* Cache
 
@@ -66,17 +68,27 @@ export class Cache extends Context.Service<Cache, Interface>()("@civicdata/serve
       const stored = Option.flatMap(yield* cache.get(key), Schema.decodeOption(json))
       const now = yield* DateTime.now
 
-      if (Option.isSome(stored) && fresh(stored.value.retrievedAt, now)) return stored.value
-
-      const answer = yield* fetch
-
-      yield* Schema.encodeEffect(json)(answer).pipe(
-        Effect.flatMap((text) => cache.put(key, text)),
-        Effect.tapError((error) => Effect.logWarning("Could not cache", key, error)),
-        Effect.ignore,
+      const store = fetch.pipe(
+        Effect.tap((answer) =>
+          Schema.encodeEffect(json)(answer).pipe(
+            Effect.flatMap((text) => cache.put(key, text)),
+            Effect.tapError((error) => Effect.logWarning("Could not cache", key, error)),
+            Effect.ignore,
+          ),
+        ),
       )
 
-      return answer
+      if (Option.isNone(stored)) return yield* store
+
+      if (fresh(stored.value.retrievedAt, now)) return stored.value
+
+      return yield* store.pipe(
+        Effect.catchIf(
+          (error) => error instanceof SourceUnavailable,
+          (error) =>
+            Effect.logWarning("Serving a stale result", key, error).pipe(Effect.as(stored.value)),
+        ),
+      )
     })
   })
 

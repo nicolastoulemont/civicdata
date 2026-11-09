@@ -7,9 +7,10 @@ import {
   Year,
 } from "@civicdata/domain"
 import { Context, DateTime, Duration, Effect, Layer, Schedule, Schema } from "effect"
-import { FetchHttpClient, HttpClient, HttpClientResponse } from "effect/http"
+import { HttpClient, HttpClientResponse } from "effect/http"
 
 import { Cache } from "./Cache.ts"
+import { Pace } from "./Pace.ts"
 import { Described, type Query, Series } from "./Series.ts"
 
 const base = "https://api.worldbank.org/v2"
@@ -180,8 +181,5 @@ export class WorldBank extends Context.Service<WorldBank, Interface>()(
     }),
   )
 
-  static readonly live = WorldBank.cached.pipe(
-    Layer.provide(FetchHttpClient.layer),
-    Layer.provide(Cache.layer),
-  )
+  static readonly live = WorldBank.cached.pipe(Layer.provide(Pace.http), Layer.provide(Cache.layer))
 }
