@@ -516,7 +516,7 @@ export const Explore = ({
         {query.isError ? <Problem error={query.error} retry={() => void query.refetch()} /> : null}
         {query.data === undefined ? null : (
           <>
-            <Takeaway view={view} agent={agent} />
+            <Takeaway view={view} agent={agent} onChange={change} />
             <Sections
               view={view}
               resolved={query.data}

@@ -1,11 +1,13 @@
-import { Turn } from "@civicdata/domain"
+import { Turn, TurnIndex } from "@civicdata/domain"
 import { Clock, Context, Effect, Layer, Option, Ref, Schema } from "effect"
 
 // What a conversation keeps: the model's chat history as Effect AI exports it,
-// and the turns shown to people.
-interface Saved {
+// the turns shown to people, and the turn whose chart a person changed last
+// since the agent's last answer, if any.
+export interface Saved {
   readonly chat: string
   readonly turns: ReadonlyArray<Turn>
+  readonly changed?: TurnIndex
 }
 
 // The part of a Durable Object's storage a transcript uses.
@@ -21,7 +23,11 @@ interface Interface {
 }
 
 const Stored = Schema.fromJsonString(
-  Schema.Struct({ chat: Schema.String, turns: Schema.Array(Turn) }),
+  Schema.Struct({
+    chat: Schema.String,
+    turns: Schema.Array(Turn),
+    changed: Schema.optionalKey(TurnIndex),
+  }),
 )
 
 // Conversations saved before turns kept how their answer ended sit under

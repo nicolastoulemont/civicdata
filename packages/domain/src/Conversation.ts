@@ -216,15 +216,26 @@ export type Ending = typeof Ending.Type
 
 // A question and how the agent answered it: the steps it ended on the way,
 // and how long the answer took from the question to its ending. Turns saved
-// before the work log have neither.
+// before the work log have neither. `shown` is the chart on screen when a
+// person changed the one the agent answered with; a turn never changed, or
+// changed back, has none.
 export const Turn = Schema.Struct({
   question: Question,
   answer: Ending,
   steps: Schema.optionalKey(Schema.Array(Schema.Union([Ended, Legacy]))),
   took: Schema.optionalKey(Schema.DurationFromMillis),
+  shown: Schema.optionalKey(View),
 })
 
 export interface Turn extends Schema.Schema.Type<typeof Turn> {}
+
+// A turn's place in its conversation, the first one 0. Turns are only ever
+// added, so a place keeps naming the same turn.
+export const TurnIndex = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)).pipe(
+  Schema.brand("TurnIndex"),
+)
+
+export type TurnIndex = typeof TurnIndex.Type
 
 // The question being answered now, and when the server started answering it.
 const Answering = Schema.Struct({ question: Question, started: Schema.DateTimeUtc })

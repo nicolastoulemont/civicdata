@@ -36,6 +36,7 @@ import {
   Takeaway,
   Thinking,
   Thought,
+  transformOf,
   type TransformNotApplicable,
   Trend,
   Unanswered,
@@ -80,13 +81,20 @@ type Unexplained =
   | TransformNotApplicable
   | DimensionsMissing
 
+// A question, and the chart a person changed to since the agent's last answer.
+interface Asking {
+  readonly question: string
+  readonly shown?: View | undefined
+}
+
 interface Interface {
   // A new chat that knows how to answer, with no questions yet.
   readonly start: Effect.Effect<Chat.Chat>
   // Answers a question asked in the chat, streaming what the agent does. The
   // stream ends with Answered or Unanswered, and the chat then holds the
-  // question and the answer, so a follow-up can build on them.
-  readonly ask: (chat: Chat.Chat, question: string) => Stream.Stream<Step, Failure>
+  // question and the answer, so a follow-up can build on them. `shown` is the
+  // chart on screen when a person changed one since the agent's last answer.
+  readonly ask: (chat: Chat.Chat, asked: Asking) => Stream.Stream<Step, Failure>
   // A takeaway for a chart on its own, outside a chat, e.g. after someone
   // edited the chart the agent showed. It has none when the model's text
   // fails the check.
@@ -350,6 +358,50 @@ const toView = Effect.fnUntraced(function* (draft: Draft) {
     Match.exhaustive,
   )
 })
+
+// The arguments show_chart would take to draw the View: toView's inverse.
+const draftOf = (view: View): Draft => {
+  const transform = transformOf(view)
+
+  const fields = {
+    indicator: view.indicator,
+    against: null,
+    countries: view.countries,
+    from: null,
+    to: null,
+    year: null,
+    transform: transform === undefined ? null : kindOf(transform),
+    per: Match.value(transform).pipe(
+      Match.when({ _tag: "Ratio" }, ({ per }) => per),
+      Match.orElse(() => null),
+    ),
+    dimensions:
+      view.dimensions === undefined
+        ? null
+        : Object.entries(view.dimensions).map(([dimension, code]) => ({ dimension, code })),
+  }
+
+  return Match.valueTags(view, {
+    Trend: ({ from, to }): Draft => ({ ...fields, chart: "trend", from, to }),
+    Ranking: ({ as, year }): Draft => ({
+      ...fields,
+      chart: as === "Map" ? "map" : "ranking",
+      year,
+    }),
+    Change: ({ from, to }): Draft => ({ ...fields, chart: "change", from, to }),
+    Relation: ({ against, year }): Draft => ({ ...fields, chart: "relation", against, year }),
+  })
+}
+
+// The question as the model reads it. A chart the person changed to since the
+// agent's last answer leads the question, as show_chart's arguments, so a
+// follow-up changes what it asks for and keeps the rest. It travels in the
+// question's own message: `forget` cuts the chat at questions, and a note of
+// its own would count as one.
+const prompted = ({ question, shown }: Asking) =>
+  shown === undefined
+    ? question
+    : `The person changed the chart on screen since your last answer. It is now show_chart ${JSON.stringify(draftOf(shown))}.\n\n${question}`
 
 const rejected = (problem: string) => Refused.make({ problem })
 
@@ -619,7 +671,7 @@ If no indicator of any source measures what the question asks, stop without call
 
 If the question can be read in ways that give different charts and none is a safe default, call ask_user instead of show_chart, with two to four short choices. Prefer a sensible default to asking: ask at most once per question.
 
-A later question can follow up on the last chart, e.g. "add Chile" or "now per person". Change what it asks for and keep the rest of that chart.`
+A later question can follow up on the last chart, e.g. "add Chile" or "now per person". Change what it asks for and keep the rest of that chart. When a question starts with the chart on screen, the person changed it since your last answer: follow up on that chart instead.`
 
 export class Agent extends Context.Service<Agent, Interface>()("@civicdata/server/Agent") {
   // Needs a LanguageModel, a Catalog, a Resolver, a WorldBank and an Sdmx.
@@ -674,7 +726,7 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
       // it starts and as it ends.
       const answer = Effect.fn("Agent.answer")(function* (
         chat: Chat.Chat,
-        { question, queue }: { question: string; queue: Queue.Queue<Step, Failure | Cause.Done> },
+        { asked, queue }: { asked: Asking; queue: Queue.Queue<Step, Failure | Cause.Done> },
       ) {
         const send = (step: Step) => Effect.sync(() => Queue.offerUnsafe(queue, step))
 
@@ -703,7 +755,7 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
             yield* send(Thinking.make({ id, state: Running.make({}) }))
 
             const response = yield* chat.generateText({
-              prompt: round === 0 ? question : [],
+              prompt: round === 0 ? prompted(asked) : [],
               toolkit,
             })
 
@@ -750,9 +802,9 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
         )
       })
 
-      const ask = (chat: Chat.Chat, question: string) =>
+      const ask = (chat: Chat.Chat, asked: Asking) =>
         Stream.callback<Step, Failure>((queue) =>
-          answer(chat, { question, queue }).pipe(Effect.andThen(Queue.end(queue))),
+          answer(chat, { asked, queue }).pipe(Effect.andThen(Queue.end(queue))),
         )
 
       const explain = Effect.fn("Agent.explain")(

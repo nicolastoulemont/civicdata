@@ -18,6 +18,7 @@ import {
   IndicatorNotFound,
   Located,
   Lookup,
+  NoChart,
   put,
   Ranking,
   Read,
@@ -36,6 +37,8 @@ import {
   Thought,
   TooManyQuestions,
   Trend,
+  TurnIndex,
+  TurnNotFound,
   Turns,
   Unanswered,
   type View,
@@ -325,6 +328,11 @@ const turns = Effect.flatMap(client, (api) => api.conversation.turns({ params: {
 const follow = Effect.flatMap(client, (api) => api.conversation.answer({ params: { id } }))
 
 const stop = Effect.flatMap(client, (api) => api.conversation.stop({ params: { id } }))
+
+const show = (turn: number, view: View) =>
+  Effect.flatMap(client, (api) =>
+    api.conversation.show({ params: { id, turn: TurnIndex.make(turn) }, payload: view }),
+  )
 
 const encodeTurns = Schema.encodeSync(Schema.toCodecJson(Turns))
 
@@ -1375,6 +1383,191 @@ describe("conversations", () => {
       ),
     )
   })
+})
+
+// The chart the model was told is on screen in a prompt, as show_chart's
+// arguments, each time it was told.
+const onScreen = (prompt: string) =>
+  [
+    ...prompt
+      .replaceAll(String.raw`\"`, '"')
+      .matchAll(
+        /The person changed the chart on screen since your last answer\. It is now show_chart (\{.*?\})\./g,
+      ),
+  ].map(([, json]) => JSON.parse(json ?? "null"))
+
+// A model that answers `count` questions, each with a chart and its takeaway.
+const charts = (count: number) =>
+  scripted(
+    Array.from({ length: count }, () => [
+      Effect.succeed(call("show_chart", brazil)),
+      Effect.succeed(words(takeaway)),
+    ]).flat(),
+  )
+
+describe("changing a chart", () => {
+  const perPerson = Trend.make({ ...brazilTrend, transform: "PerPerson" })
+
+  it.effect("keeps the changed chart with its turn, and changes it back", () => {
+    const model = charts(1)
+
+    return Effect.gen(function* () {
+      yield* answer("Life expectancy in Brazil")
+      yield* show(0, perPerson)
+
+      expect((yield* turns).answered[0]?.shown).toEqual(perPerson)
+
+      yield* show(0, brazilTrend)
+
+      expect((yield* turns).answered[0]).not.toHaveProperty("shown")
+      expect((yield* turns).answered[0]?.answer).toEqual(
+        Answered.make({ view: brazilTrend, takeaway }),
+      )
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("keeps a changed chart in the conversation's storage", () => {
+    const model = charts(1)
+    const { fake } = memoryStorage()
+
+    return Effect.gen(function* () {
+      yield* answer("Life expectancy in Brazil").pipe(
+        Effect.provide(serveApi(model.layer, { storage: fake })),
+      )
+      yield* show(0, perPerson).pipe(Effect.provide(serveApi(model.layer, { storage: fake })))
+
+      // A new process reads the same storage, as after a reload.
+      expect(
+        (yield* turns.pipe(Effect.provide(serveApi(model.layer, { storage: fake })))).answered[0]
+          ?.shown,
+      ).toEqual(perPerson)
+    })
+  })
+
+  it.effect("fails with TurnNotFound for a turn the conversation does not have", () => {
+    const model = charts(1)
+
+    return Effect.gen(function* () {
+      expect(yield* show(0, perPerson).pipe(Effect.flip)).toEqual(new TurnNotFound({ turn: 0 }))
+
+      yield* answer("Life expectancy in Brazil")
+
+      expect(yield* show(1, perPerson).pipe(Effect.flip)).toEqual(new TurnNotFound({ turn: 1 }))
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("fails with NoChart for a turn that did not end with a chart", () => {
+    const model = scripted([Effect.succeed(words("No World Bank indicator measures that."))])
+
+    return Effect.gen(function* () {
+      yield* answer("What is the meaning of life?")
+
+      expect(yield* show(0, perPerson).pipe(Effect.flip)).toEqual(new NoChart({ turn: 0 }))
+      expect((yield* turns).answered[0]).not.toHaveProperty("shown")
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("tells the model about a changed chart with the next question only", () => {
+    const model = charts(3)
+
+    return Effect.gen(function* () {
+      yield* answer("Life expectancy in Brazil")
+      yield* show(0, perPerson)
+      yield* answer("Add Mexico")
+
+      // The note leads the question's own message.
+      expect(onScreen(model.prompts[2] ?? "")).toEqual([{ ...brazil, transform: "PerPerson" }])
+      expect(model.prompts[2]).toContain(String.raw`\n\nAdd Mexico`)
+
+      // The answer to "Add Mexico" is newer than the change: the next
+      // question builds on it, and the chat holds the one note it had.
+      yield* answer("Now as a ranking")
+
+      expect(onScreen(model.prompts[4] ?? "")).toHaveLength(1)
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("sends no note when no chart changed, or one changed back", () => {
+    const model = charts(3)
+
+    return Effect.gen(function* () {
+      yield* answer("Life expectancy in Brazil")
+      yield* answer("Add Mexico")
+      yield* show(1, perPerson)
+      yield* show(1, brazilTrend)
+      yield* answer("Now as a ranking")
+
+      expect(model.prompts.flatMap(onScreen)).toEqual([])
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("tells the model about a chart changed while it asked back", () =>
+    Effect.gen(function* () {
+      const reply = yield* Deferred.make<ReadonlyArray<Response.PartEncoded>>()
+      const deciding = yield* Deferred.make<void>()
+
+      const model = scripted([
+        Effect.succeed(call("show_chart", brazil)),
+        Effect.succeed(words(takeaway)),
+        Deferred.succeed(deciding, undefined).pipe(Effect.andThen(Deferred.await(reply))),
+        Effect.succeed(call("show_chart", brazil)),
+      ])
+
+      return yield* Effect.gen(function* () {
+        yield* answer("Life expectancy in Brazil")
+
+        const second = yield* answer("Compare it").pipe(Effect.forkChild)
+
+        yield* Deferred.await(deciding)
+        yield* show(0, perPerson)
+        yield* Deferred.succeed(
+          reply,
+          call("ask_user", { question: "With which countries?", choices: ["Mexico", "Chile"] }),
+        )
+        yield* Fiber.join(second)
+        yield* answer("Mexico")
+
+        expect(onScreen(model.prompts.at(-2) ?? "")).toEqual([
+          { ...brazil, transform: "PerPerson" },
+        ])
+      }).pipe(Effect.provide(serveApi(model.layer)))
+    }),
+  )
+
+  it.effect("keeps a chart changed while an answer runs, without disturbing it", () =>
+    Effect.gen(function* () {
+      const reply = yield* Deferred.make<ReadonlyArray<Response.PartEncoded>>()
+      const deciding = yield* Deferred.make<void>()
+
+      const model = scripted([
+        Effect.succeed(call("show_chart", brazil)),
+        Effect.succeed(words(takeaway)),
+        Deferred.succeed(deciding, undefined).pipe(Effect.andThen(Deferred.await(reply))),
+      ])
+
+      return yield* Effect.gen(function* () {
+        yield* answer("Life expectancy in Brazil")
+
+        const second = yield* answer("Add Mexico").pipe(Effect.forkChild)
+
+        // The model is deciding how to answer "Add Mexico".
+        yield* Deferred.await(deciding)
+        yield* show(0, perPerson)
+        yield* Deferred.succeed(reply, call("show_chart", { ...brazil, countries: ["BRA", "MEX"] }))
+
+        const mexico = Trend.make({ ...brazilTrend, countries: ["BRA", "MEX"] })
+
+        expect((yield* Fiber.join(second)).at(-1)).toEqual(
+          Answered.make({ view: mexico, takeaway }),
+        )
+
+        const [first, last] = (yield* turns).answered
+
+        expect(first?.shown).toEqual(perPerson)
+        expect(last?.answer).toEqual(Answered.make({ view: mexico, takeaway }))
+      }).pipe(Effect.provide(serveApi(model.layer)))
+    }),
+  )
 })
 
 describe("explaining a chart", () => {

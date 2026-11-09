@@ -82,13 +82,15 @@ interface TakeawayProps {
   view: View
   // The chart the agent answered a question with, and its takeaway.
   agent: Explained | undefined
+  onChange: (view: View) => void
 }
 
 // The agent's takeaway for the chart on screen: the one it answered with, or
 // one asked for on demand. Changes never ask the agent, so after one the
 // takeaway describes an earlier chart: it greys out and the button asks
-// again. Changing back to a chart already explained shows its takeaway.
-export const Takeaway = ({ view, agent }: TakeawayProps) => {
+// again. Changing back to a chart already explained shows its takeaway, and
+// a changed chart in a conversation can go back to the agent's.
+export const Takeaway = ({ view, agent, onChange }: TakeawayProps) => {
   const hold = use(Hold)
   const explaining = useMutation({ mutationFn: explain })
 
@@ -100,20 +102,27 @@ export const Takeaway = ({ view, agent }: TakeawayProps) => {
   return (
     <section aria-label="Takeaway" className="flex flex-col items-start gap-2">
       <Text said={said} />
-      {Said.$is("Current")(said) ? null : (
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={explaining.isPending}
-          onClick={() => {
-            hold()
-            explaining.mutate(view)
-          }}
-        >
-          {explaining.isPending ? <Spinner aria-hidden /> : null}
-          Explain this chart
-        </Button>
-      )}
+      <div className="flex flex-wrap gap-2 empty:hidden">
+        {Said.$is("Current")(said) ? null : (
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={explaining.isPending}
+            onClick={() => {
+              hold()
+              explaining.mutate(view)
+            }}
+          >
+            {explaining.isPending ? <Spinner aria-hidden /> : null}
+            Explain this chart
+          </Button>
+        )}
+        {agent === undefined || toQuery(agent.view) === toQuery(view) ? null : (
+          <Button variant="outline" size="sm" onClick={() => onChange(agent.view)}>
+            Back to the agent's chart
+          </Button>
+        )}
+      </div>
       {explaining.isError ? (
         <Alert variant="destructive">
           <AlertTitle>{problemOf(explaining.error)}</AlertTitle>

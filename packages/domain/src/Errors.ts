@@ -68,3 +68,17 @@ export class ConversationBusy extends Schema.TaggedError<
   ConversationBusy,
   { readonly brand: unique symbol }
 >()("ConversationBusy", {}, { httpApiStatus: 409 }) {}
+
+// The conversation has no turn at this place, e.g. one not answered yet.
+export class TurnNotFound extends Schema.TaggedError<
+  TurnNotFound,
+  { readonly brand: unique symbol }
+>()("TurnNotFound", { turn: Schema.Int }, { httpApiStatus: 404 }) {}
+
+// The turn did not end with a chart: the agent asked back, found no
+// indicator, or was stopped.
+export class NoChart extends Schema.TaggedError<NoChart, { readonly brand: unique symbol }>()(
+  "NoChart",
+  { turn: Schema.Int },
+  { httpApiStatus: 409 },
+) {}

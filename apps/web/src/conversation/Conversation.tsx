@@ -49,6 +49,7 @@ export const Conversation = ({ id, first }: ConversationProps) => {
                 </p>
               ) : null}
               <Timeline
+                id={id}
                 turns={all}
                 pending={pending}
                 failures={failures}

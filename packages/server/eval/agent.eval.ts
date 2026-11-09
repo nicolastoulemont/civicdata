@@ -37,7 +37,7 @@ const answer = Effect.fn("eval.answer")(function* (questions: ReadonlyArray<stri
   let ending = Option.none<Ending>()
 
   for (const question of questions) {
-    const steps = yield* Stream.runCollect(agent.ask(chat, question))
+    const steps = yield* Stream.runCollect(agent.ask(chat, { question }))
 
     ending = Option.filter(Arr.last(steps), isEnding)
   }
