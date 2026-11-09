@@ -14,7 +14,7 @@ civicdata makes data about the economy and public policy easier to read and unde
 - On a trend chart of EU and OECD members, turn on Elections, Governments and Events: a mark for each national election, a band for each government, and major events and pension reforms, each with its source.
 - See which values a source flags as provisional, estimated or a break in series, and where another source publishes a different figure for the same measure.
 - Share a chart with its link. The link opens the same chart, and its preview card shows the chart with its source.
-- Go back to an earlier conversation from the sidebar. The list is kept in your browser only, and a conversation is deleted 30 days after its last question.
+- Go back to an earlier conversation from the sidebar, which shows how its last question stands: still being answered, answered, waiting for your reply, no data, or stopped. The list is kept in your browser only, and a conversation is deleted 30 days after its last question.
 
 ## How it keeps numbers honest
 
