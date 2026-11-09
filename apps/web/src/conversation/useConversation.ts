@@ -1,6 +1,12 @@
-import { type ConversationId, Ending, type Step, type Turns } from "@civicdata/domain"
+import {
+  type ConversationId,
+  Ending,
+  type Step,
+  TooManyQuestions,
+  type Turns,
+} from "@civicdata/domain"
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Effect, Option, Schema, Stream } from "effect"
+import { Effect, Option, Result, Schema, Stream } from "effect"
 import { useEffect, useRef, useState } from "react"
 
 import { call, page } from "@/api"
@@ -31,17 +37,19 @@ const read = <E>(steps: Stream.Stream<Step, E>, onStep: (step: Step) => void) =>
 // CatalogUnavailable during it.
 const ask = (id: ConversationId, question: string, onStep: (step: Step) => void) =>
   call(page, (api) =>
-    api.conversation
-      .ask({ params: { id }, payload: { question } })
-      .pipe(Effect.flatMap((steps) => read(steps, onStep))),
+    api.conversation.ask({ params: { id }, payload: { question } }).pipe(
+      Effect.flatMap((steps) => read(steps, onStep)),
+      Effect.result,
+    ),
   )
 
 // Follows the answer in progress from its first step.
 const follow = (id: ConversationId, onStep: (step: Step) => void) =>
   call(page, (api) =>
-    api.conversation
-      .answer({ params: { id } })
-      .pipe(Effect.flatMap((steps) => read(steps, onStep))),
+    api.conversation.answer({ params: { id } }).pipe(
+      Effect.flatMap((steps) => read(steps, onStep)),
+      Effect.result,
+    ),
   )
 
 // Pending while this page asks a question or follows an answer, and on after
@@ -57,6 +65,17 @@ interface Pending {
   readonly before: number
 }
 
+type QuestionError = Result.Result.Failure<
+  Awaited<ReturnType<typeof ask>> | Awaited<ReturnType<typeof follow>>
+>
+
+export interface Failure {
+  readonly question: string
+  readonly error: QuestionError
+  readonly before: number
+  readonly retryAt: number
+}
+
 // One conversation: its turns, the answer in progress with the steps so far,
 // and how to ask the next question. A finished answer joins the turns. The
 // server finishes an answer even when the page leaves, so the page follows one
@@ -65,6 +84,7 @@ export const useConversation = (id: ConversationId) => {
   const queryClient = useQueryClient()
   const conversation = useQuery(turnsQuery(id))
   const turns = useQuery({ ...turnsQuery(id), select: ({ answered }) => answered })
+  const [failures, setFailures] = useState<ReadonlyArray<Failure>>([])
   const [steps, setSteps] = useState<ReadonlyArray<Step>>([])
 
   const asking = useMutation({
@@ -80,16 +100,31 @@ export const useConversation = (id: ConversationId) => {
 
       return via === "ask" ? ask(id, question, onStep) : follow(id, onStep)
     },
-    onSuccess: (ending, { question }) =>
-      Option.match(ending, {
-        onNone: () => queryClient.invalidateQueries({ queryKey: turnsQuery(id).queryKey }),
-        onSome: (answer) =>
-          queryClient.setQueryData(turnsQuery(id).queryKey, (previous?: Turns) => ({
-            answered: [...(previous?.answered ?? []), { question, answer }],
-          })),
+    onSuccess: (result, { question, before }) =>
+      Result.match(result, {
+        onSuccess: (ending) =>
+          Option.match(ending, {
+            onNone: () => queryClient.invalidateQueries({ queryKey: turnsQuery(id).queryKey }),
+            onSome: (answer) =>
+              queryClient.setQueryData(turnsQuery(id).queryKey, (previous?: Turns) => ({
+                answered: [...(previous?.answered ?? []), { question, answer }],
+              })),
+          }),
+        onFailure: (error) => {
+          setFailures((previous) => [
+            ...previous,
+            {
+              question,
+              error,
+              before,
+              retryAt: Date.now() + (error instanceof TooManyQuestions ? 60_000 : 0),
+            },
+          ])
+
+          // The server may still be answering, or have answered since.
+          return queryClient.invalidateQueries({ queryKey: turnsQuery(id).queryKey })
+        },
       }),
-    // The server may still be answering, or have answered since.
-    onError: () => queryClient.invalidateQueries({ queryKey: turnsQuery(id).queryKey }),
   })
 
   const answered = conversation.data?.answered.length ?? 0
@@ -108,17 +143,20 @@ export const useConversation = (id: ConversationId) => {
     mutate({ question: answering, via: "follow", before: answered })
   }, [answering, answered, isPending, mutate, conversation.dataUpdatedAt])
 
-  // A failed question stays on the page until the server shows it answered.
-  const failed =
-    asking.isError && asking.variables !== undefined && answered <= asking.variables.before
-
   return {
     turns,
-    // The question being answered or that failed, with what the agent did.
-    pending:
-      asking.isPending || failed
-        ? { question: asking.variables?.question, steps, error: asking.error ?? undefined }
-        : undefined,
+    failures: failures.filter(
+      (failure) =>
+        conversation.data?.answered[failure.before]?.question !== failure.question &&
+        !(asking.isPending && asking.variables?.question === failure.question),
+    ),
+    retry: (failure: Failure) => {
+      if (isPending || Date.now() < failure.retryAt) return
+      setFailures((previous) => previous.filter((entry) => entry !== failure))
+      mutate({ question: failure.question, via: "ask", before: answered })
+    },
+    // The question being answered, with what the agent did.
+    pending: asking.isPending ? { question: asking.variables?.question, steps } : undefined,
     answering: asking.isPending,
     ask: (question: string) => mutate({ question, via: "ask", before: answered }),
   }
