@@ -1,4 +1,13 @@
-import { Change, IndicatorId, Ranking, Relation, transformOf, Trend, Year } from "@civicdata/domain"
+import {
+  Change,
+  IndicatorId,
+  Ranking,
+  Ratio,
+  Relation,
+  transformOf,
+  Trend,
+  Year,
+} from "@civicdata/domain"
 import { describe, expect, it } from "vitest"
 
 import { withAgainst, withChart, withIndicator } from "./edits.ts"
@@ -94,6 +103,36 @@ describe("chart type edits", () => {
         year: Year.make(2022),
       }),
     )
+  })
+})
+
+describe("ratio edits", () => {
+  const gdp = IndicatorId.make("NY.GDP.MKTP.CD")
+
+  it("drops a ratio when the chart's indicator becomes the one it divides by", () => {
+    const ratio = Trend.make({
+      indicator: population,
+      countries: ["FRA"],
+      from: Year.make(2000),
+      to: Year.make(2022),
+      transform: Ratio.make({ per: gdp }),
+    })
+
+    expect(
+      transformOf(withIndicator(ratio, { id: gdp, name: "GDP (current US$)" })),
+    ).toBeUndefined()
+  })
+
+  it("keeps a ratio when a trend becomes a change", () => {
+    const ratio = Trend.make({
+      indicator: population,
+      countries: ["FRA"],
+      from: Year.make(2000),
+      to: Year.make(2022),
+      transform: Ratio.make({ per: gdp }),
+    })
+
+    expect(transformOf(withChart(ratio, "Change"))).toEqual(Ratio.make({ per: gdp }))
   })
 })
 

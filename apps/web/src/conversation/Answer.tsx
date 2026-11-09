@@ -24,13 +24,14 @@ import { toSearch } from "@/explore/search"
 // it in the explorer.
 export const Answer = ({ view }: { view: View }) => {
   const query = useQuery(resolveQuery(view))
-  const shows = transformLabel(view)
+  const known = indicatorNames(query.data === undefined ? [] : [query.data])
+  const shows = transformLabel(view, known)
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>
-          <h2>{subject(view, indicatorNames(query.data === undefined ? [] : [query.data]))}</h2>
+          <h2>{subject(view, known)}</h2>
         </CardTitle>
         <CardDescription>
           {[places(view), period(view), ...(shows === undefined ? [] : [shows])].join(" · ")}

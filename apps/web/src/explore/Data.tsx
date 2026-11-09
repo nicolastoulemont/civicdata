@@ -12,7 +12,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-import { countryName, formatValue, transformLabel } from "./format.ts"
+import { countryName, formatValue, indicatorNames, transformLabel } from "./format.ts"
 
 const quote = (field: string) => `"${field.replaceAll('"', '""')}"`
 
@@ -43,7 +43,7 @@ const tableOf = (resolved: ResolvedView) => {
     }
   }
 
-  const shows = transformLabel(resolved.view)
+  const shows = transformLabel(resolved.view, indicatorNames([resolved]))
 
   return {
     columns: [{ id: "value", title: shows === undefined ? "Value" : `Value (${shows})` }],

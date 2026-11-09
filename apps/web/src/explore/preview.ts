@@ -17,7 +17,7 @@ export const places = (view: View) => {
 // the link, so a crafted URL cannot put words in a preview. Without an
 // indicator's name the title falls back to its code.
 export const preview = (view: View, names: ReadonlyMap<IndicatorId, string>) => {
-  const label = transformLabel(view)
+  const label = transformLabel(view, names)
 
   const verb = Match.valueTags(view, {
     Trend: () => "Compares",

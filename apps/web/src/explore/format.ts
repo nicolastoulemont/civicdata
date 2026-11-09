@@ -29,9 +29,10 @@ export const period = (view: View) =>
     Relation: ({ year }) => `${year}`,
   })
 
-// What the chart's values are when the View has a transform, e.g. "per person".
-// Only a trend takes an index.
-export const transformLabel = (view: View) =>
+// What the chart's values are when the View has a transform, e.g. "per person"
+// or "per GDP (current US$)". Only a trend takes an index. A code stands in
+// for a name not known yet.
+export const transformLabel = (view: View, known: ReadonlyMap<IndicatorId, string>) =>
   Match.value(transformOf(view)).pipe(
     Match.when("PerPerson", () => "per person"),
     Match.when("Growth", () => "annual % change"),
@@ -41,6 +42,7 @@ export const transformLabel = (view: View) =>
         Match.orElse(() => undefined),
       ),
     ),
+    Match.when({ _tag: "Ratio" }, ({ per }) => `per ${known.get(per) ?? per}`),
     Match.orElse(() => undefined),
   )
 
@@ -49,20 +51,19 @@ export const transformLabel = (view: View) =>
 export const indicators = (resolved: ResolvedView) =>
   "against" in resolved ? [resolved.indicator, resolved.against.indicator] : [resolved.indicator]
 
-// What to call each indicator the resolved Views at hand plot, by code: its
-// plain-language title, or its official name when it has none.
+// What to call each indicator the resolved Views at hand cite, by code: a
+// plotted indicator by its plain-language title, or its official name when it
+// has none; any other series, such as the one a ratio divides by, by its
+// official name.
 export const indicatorNames = (
   resolved: ReadonlyArray<ResolvedView>,
 ): ReadonlyMap<IndicatorId, string> =>
   new Map(
-    resolved.flatMap((each) =>
-      "against" in each
-        ? [
-            [each.indicator.id, each.title] as const,
-            [each.against.indicator.id, each.against.title] as const,
-          ]
-        : [[each.indicator.id, each.title] as const],
-    ),
+    resolved.flatMap((each) => [
+      ...each.sources.map((source) => [source.indicator, source.name] as const),
+      [each.indicator.id, each.title] as const,
+      ...("against" in each ? [[each.against.indicator.id, each.against.title] as const] : []),
+    ]),
   )
 
 // What a chart shows, by name: "Population, total", or "Life expectancy

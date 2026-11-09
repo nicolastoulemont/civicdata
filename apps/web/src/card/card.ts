@@ -349,10 +349,11 @@ const drawRelation = (image: Canvas, resolved: Paired, box: Box) => {
 export const card = (resolved: ResolvedView) => {
   const image = canvas(width, height)
   const view = resolved.view
-  const shows = transformLabel(view)
+  const known = indicatorNames([resolved])
+  const shows = transformLabel(view, known)
   let y = margin
 
-  const heading = subject(view, indicatorNames([resolved]))
+  const heading = subject(view, known)
 
   for (const row of wrap(title, heading, { width: width - 2 * margin, lines: 2 })) {
     text(image, title, row, { x: margin, y: y + title.ascent, ink: "foreground" })

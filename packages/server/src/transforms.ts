@@ -4,13 +4,14 @@ type Observations = ResolvedView["observations"]
 
 const key = (observation: Observations[number]) => `${observation.country}:${observation.year}`
 
-// Each value divided by the same country's population that year. A value with
-// no population for its year is dropped, never estimated.
-export const perPerson = (values: Observations, population: Observations): Observations => {
-  const people = new Map(population.map((observation) => [key(observation), observation.value]))
+// Each value divided by the same country's value that year in `divisors`, e.g.
+// its population. A value with no divisor for its year is dropped, never
+// estimated.
+export const divide = (values: Observations, divisors: Observations): Observations => {
+  const by = new Map(divisors.map((observation) => [key(observation), observation.value]))
 
   return values.flatMap((observation) => {
-    const divisor = people.get(key(observation))
+    const divisor = by.get(key(observation))
 
     return divisor === undefined || divisor === 0
       ? []

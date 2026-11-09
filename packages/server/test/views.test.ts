@@ -5,6 +5,7 @@ import {
   IndicatorNotFound,
   type ResolvedView,
   Ranking,
+  Ratio,
   Relation,
   SourceUnavailable,
   TransformNotApplicable,
@@ -261,6 +262,45 @@ describe("POST /api/views/resolve", () => {
         { country: "DEU", year: 2020, value: 3_940_000_000_000 / 84_000_000 },
       ])
       expect(resolved.sources.map((source) => source.indicator)).toEqual([gdp, population])
+    }).pipe(Effect.provide(serve(worldBank))),
+  )
+
+  it.effect("divides one indicator by another, citing both by name", () =>
+    Effect.gen(function* () {
+      const client = yield* HttpApiTest.groups(Api, ["views"])
+
+      const resolved = yield* client.views.resolve({
+        payload: Trend.make({
+          indicator: population,
+          countries: ["FRA", "DEU"],
+          from: year(2020),
+          to: year(2020),
+          transform: Ratio.make({ per: gdp }),
+        }),
+      })
+
+      expect(resolved.observations).toEqual([
+        { country: "FRA", year: 2020, value: 68_000_000 / 2_720_000_000_000 },
+        { country: "DEU", year: 2020, value: 84_000_000 / 3_940_000_000_000 },
+      ])
+      expect(resolved.sources.map(({ indicator, name }) => [indicator, name])).toEqual([
+        [population, "Population, total"],
+        [gdp, "GDP (current US$)"],
+      ])
+    }).pipe(Effect.provide(serve(worldBank))),
+  )
+
+  it.effect("fails with IndicatorNotFound for a ratio to an unknown indicator", () =>
+    Effect.gen(function* () {
+      const client = yield* HttpApiTest.groups(Api, ["views"])
+
+      const error = yield* client.views
+        .resolve({
+          payload: trend({ transform: Ratio.make({ per: IndicatorId.make("NOT.A.REAL") }) }),
+        })
+        .pipe(Effect.flip)
+
+      expect(error).toEqual(new IndicatorNotFound({ indicator: IndicatorId.make("NOT.A.REAL") }))
     }).pipe(Effect.provide(serve(worldBank))),
   )
 

@@ -3,6 +3,7 @@ import {
   Change,
   IndicatorId,
   Ranking,
+  Ratio,
   Relation,
   type Transform,
   transformOf,
@@ -21,31 +22,42 @@ interface Picked {
 }
 
 // Sets or clears the transform where the chart type takes it: a ranking has no
-// first year to index to, a change takes only "per person", a relation none.
-export const withTransform = (view: View, transform: Transform | undefined) =>
-  Match.valueTags(view, {
+// first year to index to, a change takes only "per person" and a ratio, a
+// relation none. A ratio of the indicator to itself, 1 everywhere, is cleared.
+export const withTransform = (view: View, transform: Transform | undefined) => {
+  const kept = Match.value(transform).pipe(
+    Match.when({ _tag: "Ratio" }, (ratio) => (ratio.per === view.indicator ? undefined : ratio)),
+    Match.orElse((other) => other),
+  )
+
+  return Match.valueTags(view, {
     Trend: ({ indicator, countries, from, to }) =>
-      transform === undefined
+      kept === undefined
         ? Trend.make({ indicator, countries, from, to })
-        : Trend.make({ indicator, countries, from, to, transform }),
+        : Trend.make({ indicator, countries, from, to, transform: kept }),
     Ranking: ({ indicator, countries, year }) =>
-      transform === undefined || transform === "Index"
+      kept === undefined || kept === "Index"
         ? Ranking.make({ indicator, countries, year })
-        : Ranking.make({ indicator, countries, year, transform }),
+        : Ranking.make({ indicator, countries, year, transform: kept }),
     Change: ({ indicator, countries, from, to }) =>
-      transform === "PerPerson"
-        ? Change.make({ indicator, countries, from, to, transform })
-        : Change.make({ indicator, countries, from, to }),
+      kept === undefined || kept === "Growth" || kept === "Index"
+        ? Change.make({ indicator, countries, from, to })
+        : Change.make({ indicator, countries, from, to, transform: kept }),
     Relation: (relation) => relation,
   })
+}
 
 // Switches indicator, keeping the transform only if the new one takes it. A
 // relation given the indicator it is plotted against swaps its two axes.
 export const withIndicator = (view: View, indicator: Picked) => {
+  const transform = transformOf(view)
+
   const switched = Match.valueTags(view, {
-    Trend: (trend) => Trend.make({ ...trend, indicator: indicator.id }),
-    Ranking: (ranking) => Ranking.make({ ...ranking, indicator: indicator.id }),
-    Change: (change) => Change.make({ ...change, indicator: indicator.id }),
+    Trend: ({ countries, from, to }) =>
+      Trend.make({ indicator: indicator.id, countries, from, to }),
+    Ranking: ({ countries, year }) => Ranking.make({ indicator: indicator.id, countries, year }),
+    Change: ({ countries, from, to }) =>
+      Change.make({ indicator: indicator.id, countries, from, to }),
     Relation: (relation) =>
       Relation.make({
         ...relation,
@@ -54,12 +66,21 @@ export const withIndicator = (view: View, indicator: Picked) => {
       }),
   })
 
-  const transform = transformOf(switched)
-
-  return transform === undefined || applies(transform, indicator.name)
+  return transform === undefined || !applies(transform, indicator.name)
     ? switched
-    : withTransform(switched, undefined)
+    : withTransform(switched, transform)
 }
+
+// What a ratio first divides by: GDP, or population when the indicator is GDP.
+const gdp = IndicatorId.make("NY.GDP.MKTP.CD")
+const population = IndicatorId.make("SP.POP.TOTL")
+
+export const ratioFor = (indicator: IndicatorId) =>
+  Ratio.make({ per: indicator === gdp ? population : gdp })
+
+// Switches the indicator a ratio divides by. The chart's own indicator clears
+// the ratio.
+export const withPer = (view: View, per: Picked) => withTransform(view, Ratio.make({ per: per.id }))
 
 // Switches the indicator a relation is plotted against. Picking its own
 // indicator swaps the two axes.

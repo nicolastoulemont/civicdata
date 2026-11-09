@@ -24,6 +24,12 @@ describe("explore URL", () => {
     expect(toSearch(toView(ranking))).toEqual(ranking)
   })
 
+  it("round-trips a ratio with the indicator it divides by", () => {
+    const ratio: Search = { ...trend, transform: "ratio", per: "NY.GDP.MKTP.CD" }
+
+    expect(toSearch(toView(ratio))).toEqual(ratio)
+  })
+
   it("round-trips a change and a relation", () => {
     const change: Search = { ...trend, chart: "change", transform: "per-person" }
 
@@ -62,6 +68,8 @@ describe("explore URL", () => {
     ["a repeated country", { ...trend, countries: "FRA,FRA" }],
     ["no country", { ...trend, countries: "" }],
     ["a year before 1960", { ...trend, from: 1950 }],
+    ["a ratio without the indicator it divides by", { ...trend, transform: "ratio" as const }],
+    ["an indicator to divide by without a ratio", { ...trend, per: "NY.GDP.MKTP.CD" }],
     [
       "a relation of an indicator to itself",
       {

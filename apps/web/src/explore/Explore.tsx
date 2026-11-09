@@ -7,6 +7,7 @@ import {
   type ResolvedView,
   SourceUnavailable,
   TransformNotApplicable,
+  transformOf,
   Trend,
   type View,
   type Year,
@@ -34,7 +35,7 @@ import { ChartType } from "./ChartType.tsx"
 import { CopyLink } from "./CopyLink.tsx"
 import { Countries } from "./Countries.tsx"
 import { Data } from "./Data.tsx"
-import { withAgainst, withCountries, withIndicator } from "./edits.ts"
+import { withAgainst, withCountries, withIndicator, withPer } from "./edits.ts"
 import {
   attribution,
   countryName,
@@ -142,6 +143,29 @@ const Against = ({
     Match.orElse(() => null),
   )
 
+// The indicator a ratio divides by; other transforms have none.
+const Per = ({
+  view,
+  known,
+  onChange,
+}: {
+  view: View
+  known: ReadonlyMap<IndicatorId, string>
+  onChange: (view: View) => void
+}) =>
+  Match.value(transformOf(view)).pipe(
+    Match.when({ _tag: "Ratio" }, ({ per }) => (
+      <div className="min-w-64 flex-1">
+        <Indicator
+          label="Per"
+          current={{ indicator: per, name: known.get(per) ?? per }}
+          onChange={(picked) => onChange(withPer(view, picked))}
+        />
+      </div>
+    )),
+    Match.orElse(() => null),
+  )
+
 const Controls = ({
   view,
   known,
@@ -167,6 +191,7 @@ const Controls = ({
       </div>
       <Against view={view} known={known} onChange={onChange} />
       <ShowAs view={view} name={name} onChange={onChange} />
+      <Per view={view} known={known} onChange={onChange} />
       <div className="min-w-64 flex-1">
         <Countries
           selected={view.countries}
@@ -183,8 +208,8 @@ const Problem = ({ error, retry }: { error: Error; retry: () => void }) =>
     <Alert variant="destructive">
       <AlertTitle>This view does not apply to {error.indicator}</AlertTitle>
       <AlertDescription>
-        Its values are percentages or rates, which cannot be shown per person, as growth or as an
-        index.
+        Its values are percentages or rates, which cannot be shown per person, as growth, as an
+        index or as a ratio.
       </AlertDescription>
     </Alert>
   ) : error instanceof IndicatorNotFound ? (
@@ -233,9 +258,9 @@ export const Explore = ({ view, onChange }: { view: View; onChange: (view: View)
             <h1>{subject(view, known)}</h1>
           </CardTitle>
           <CardDescription>
-            {transformLabel(view) === undefined
+            {transformLabel(view, known) === undefined
               ? period(view)
-              : `${period(view)} · ${transformLabel(view)}`}
+              : `${period(view)} · ${transformLabel(view, known)}`}
           </CardDescription>
           <CardAction>
             <CopyLink view={view} />

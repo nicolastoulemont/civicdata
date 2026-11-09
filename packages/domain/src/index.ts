@@ -33,6 +33,6 @@ export { Indicator, IndicatorId } from "./Indicator.ts"
 
 export { Observation, ResolvedView } from "./ResolvedView.ts"
 
-export { applies, Transform } from "./Transform.ts"
+export { applies, kindOf, Ratio, Transform } from "./Transform.ts"
 
 export { Change, Ranking, Relation, transformOf, Trend, View, Year } from "./View.ts"

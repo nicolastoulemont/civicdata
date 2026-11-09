@@ -109,6 +109,7 @@ const brazil = {
   to: 2002,
   year: null,
   transform: null,
+  per: null,
 }
 
 const words = (text: string): ReadonlyArray<Response.PartEncoded> => [
@@ -342,6 +343,21 @@ describe("conversations", () => {
       const [step] = yield* answer("Life expectancy against life expectancy in Brazil")
 
       expect(Schema.is(Rejected)(step)).toBe(true)
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("rejects a ratio of an indicator to itself", () => {
+    const model = scripted([
+      Effect.succeed(call("show_chart", { ...brazil, transform: "Ratio", per: lifeExpectancy })),
+    ])
+
+    return Effect.gen(function* () {
+      const [step] = yield* answer("Life expectancy per life expectancy in Brazil")
+
+      expect(Schema.is(Rejected)(step)).toBe(true)
+      expect(step).toMatchObject({
+        problem: expect.stringContaining("a ratio must divide by another indicator"),
+      })
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 

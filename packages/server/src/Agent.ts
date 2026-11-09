@@ -6,16 +6,17 @@ import {
   Change,
   Described,
   IndicatorId,
+  kindOf,
   Located,
   locate,
   Ranking,
+  Ratio,
   Rejected as RejectedStep,
   Relation,
   type ResolvedView,
   Searched,
   SourceUnavailable,
   type Step,
-  Transform,
   Trend,
   Unanswered,
   View,
@@ -180,9 +181,12 @@ const ShowChart = Tool.make("show_chart", {
     year: Schema.NullOr(Schema.Int).annotate({
       description: "The year of a ranking or a relation; null otherwise",
     }),
-    transform: Schema.NullOr(Transform).annotate({
+    transform: Schema.NullOr(Schema.Literals(["PerPerson", "Growth", "Index", "Ratio"])).annotate({
       description:
-        "PerPerson divides a total by population. Growth is the annual % change. Index sets a trend's first year to 100. A change takes only PerPerson and a relation none. null shows values as published.",
+        "PerPerson divides a total by population. Growth is the annual % change. Index sets a trend's first year to 100. Ratio divides by the indicator in per. A change takes only PerPerson and Ratio, and a relation none. null shows values as published.",
+    }),
+    per: Schema.NullOr(Schema.String).annotate({
+      description: "The indicator code a Ratio divides by, e.g. NY.GDP.MKTP.CD; null otherwise",
     }),
   }),
   success: Schema.Union([Shown, Rejected]),
@@ -205,6 +209,7 @@ const TrendFields = Trend.mapFields(Struct.omit(["_tag"]))
 const RankingFields = Ranking.mapFields(Struct.omit(["_tag"]))
 const ChangeFields = Change.mapFields(Struct.omit(["_tag"]))
 const RelationFields = Relation.mapFields(Struct.omit(["_tag"]))
+const RatioFields = Ratio.mapFields(Struct.omit(["_tag"]))
 
 // makeEffect reports a failed check as a bare Issue.
 const checked = <A>(made: Effect.Effect<A, SchemaIssue.Issue>) =>
@@ -213,22 +218,28 @@ const checked = <A>(made: Effect.Effect<A, SchemaIssue.Issue>) =>
 // The View the model described. Decodes the fields the chart type takes, then
 // builds the View, which checks it, e.g. that the years run forwards. A
 // transform the chart type does not take is an error, not dropped.
-const toView = (draft: Draft): Effect.Effect<View, Schema.SchemaError> => {
+const toView = Effect.fnUntraced(function* (draft: Draft) {
   const { indicator, against, countries, from, to, year } = draft
 
-  const fields: Record<string, Draft[keyof Draft]> = Match.value(draft.chart).pipe(
+  // A ratio carries the indicator it divides by.
+  const transform =
+    draft.transform === "Ratio"
+      ? Ratio.make(yield* Schema.decodeUnknownEffect(RatioFields)({ per: draft.per }))
+      : draft.transform
+
+  const fields: Record<string, Draft[keyof Draft] | Ratio> = Match.value(draft.chart).pipe(
     Match.whenOr("trend", "change", () => ({ indicator, countries, from, to })),
     Match.when("ranking", () => ({ indicator, countries, year })),
     Match.when("relation", () => ({ indicator, against, countries, year })),
     Match.exhaustive,
   )
 
-  if (draft.transform !== null) fields["transform"] = draft.transform
+  if (transform !== null) fields["transform"] = transform
 
   const decode = <S extends Schema.Top>(schema: S) =>
     Schema.decodeUnknownEffect(schema)(fields, { onExcessProperty: "error" })
 
-  return Match.value(draft.chart).pipe(
+  return yield* Match.value(draft.chart).pipe(
     Match.when("trend", () =>
       decode(TrendFields).pipe(Effect.flatMap((made) => checked(Trend.makeEffect(made)))),
     ),
@@ -243,7 +254,7 @@ const toView = (draft: Draft): Effect.Effect<View, Schema.SchemaError> => {
     ),
     Match.exhaustive,
   )
-}
+})
 
 const rejected = (problem: string) => Rejected.make({ problem })
 
@@ -331,7 +342,7 @@ const ToolsLayer = Tools.toLayer(
             TransformNotApplicable: ({ indicator, transform }) =>
               Effect.succeed(
                 rejected(
-                  `${indicator} is a percentage or rate; ${transform} does not apply to it.`,
+                  `${indicator} is a percentage or rate; ${kindOf(transform)} does not apply to it.`,
                 ),
               ),
           }),
