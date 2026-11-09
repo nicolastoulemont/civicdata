@@ -16,7 +16,14 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { resolveQuery } from "@/explore/api"
 import { CopyLink } from "@/explore/CopyLink"
 import { Chart } from "@/explore/Explore"
-import { attribution, indicatorNames, period, subject, transformLabel } from "@/explore/format"
+import {
+  attribution,
+  indicatorNames,
+  period,
+  picks,
+  subject,
+  transformLabel,
+} from "@/explore/format"
 import { places } from "@/explore/preview"
 import { toSearch } from "@/explore/search"
 
@@ -37,7 +44,12 @@ export const Answer = ({ view }: { view: View }) => {
             <h3>{subject(view, known)}</h3>
           </CardTitle>
           <CardDescription>
-            {[places(view), period(view), ...(shows === undefined ? [] : [shows])].join(" · ")}
+            {[
+              places(view),
+              period(view),
+              ...(shows === undefined ? [] : [shows]),
+              ...(query.data === undefined ? [] : picks(query.data)),
+            ].join(" · ")}
           </CardDescription>
         </CardHeader>
         <CardContent>

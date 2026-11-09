@@ -1,5 +1,6 @@
 import {
   Change,
+  type Dimension,
   DimensionsMissing,
   type IndicatorId,
   IndicatorNotFound,
@@ -38,6 +39,7 @@ import { ChartType } from "./ChartType.tsx"
 import { CopyLink } from "./CopyLink.tsx"
 import { Countries } from "./Countries.tsx"
 import { Data } from "./Data.tsx"
+import { Dimensions } from "./Dimensions.tsx"
 import { withAgainst, withCountries, withIndicator, withPer, withTransform } from "./edits.ts"
 import {
   attribution,
@@ -122,6 +124,8 @@ const Years = ({ view, onChange }: { view: View; onChange: (view: View) => void 
     ),
   })
 
+const list = new Intl.ListFormat("en", { type: "conjunction" })
+
 // The indicator a relation is plotted against; other charts have none.
 const Against = ({
   view,
@@ -174,11 +178,14 @@ const Per = ({
 const Controls = ({
   view,
   known,
+  dimensions,
   onChange,
 }: {
   view: View
   // The names of the indicators loaded so far, by code.
   known: ReadonlyMap<IndicatorId, string>
+  // What else an SDMX indicator's series differ by, once known.
+  dimensions: ReadonlyArray<Dimension>
   onChange: (view: View) => void
 }) => {
   const name = known.get(view.indicator)
@@ -195,6 +202,11 @@ const Controls = ({
         <ChartType view={view} onChange={onChange} />
       </div>
       <Against view={view} known={known} onChange={onChange} />
+      {dimensions.length === 0 ? null : (
+        <div className="flex w-full flex-wrap items-end gap-4">
+          <Dimensions view={view} dimensions={dimensions} onChange={onChange} />
+        </div>
+      )}
       <ShowAs view={view} name={name} onChange={onChange} />
       <Per view={view} known={known} onChange={onChange} />
       <div className="min-w-64 flex-1">
@@ -218,10 +230,16 @@ const Problem = ({ error, retry }: { error: Error; retry: () => void }) =>
       </AlertDescription>
     </Alert>
   ) : error instanceof DimensionsMissing ? (
-    <Alert variant="destructive">
-      <AlertTitle>{error.indicator} holds several series</AlertTitle>
+    <Alert>
+      <AlertTitle>Choose which series to show</AlertTitle>
       <AlertDescription>
-        Its values differ by {error.dimensions.join(", ")}, and this chart cannot pick one yet.
+        This dataset has a series for each{" "}
+        {list.format(
+          error.dimensions
+            .filter((dimension) => error.open.includes(dimension.id))
+            .map((dimension) => dimension.label.toLowerCase()),
+        )}
+        . Pick one above.
       </AlertDescription>
     </Alert>
   ) : error instanceof IndicatorNotFound ? (
@@ -345,6 +363,10 @@ export const Explore = ({ view, onChange }: { view: View; onChange: (view: View)
   const known = indicatorNames(query.data === undefined ? [] : [query.data])
   const picking = usePicking(view, onChange)
 
+  const dimensions =
+    query.data?.dimensions ??
+    (query.error instanceof DimensionsMissing ? query.error.dimensions : [])
+
   return (
     <main className="mx-auto flex max-w-5xl flex-col gap-4 p-6">
       <Card>
@@ -362,7 +384,7 @@ export const Explore = ({ view, onChange }: { view: View; onChange: (view: View)
           </CardAction>
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
-          <Controls view={view} known={known} onChange={onChange} />
+          <Controls view={view} known={known} dimensions={dimensions} onChange={onChange} />
           {query.isPending ? <Skeleton className="h-80 w-full" /> : null}
           {query.isError ? (
             <Problem error={query.error} retry={() => void query.refetch()} />

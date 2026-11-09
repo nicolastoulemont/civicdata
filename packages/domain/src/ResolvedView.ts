@@ -1,6 +1,7 @@
 import { Schema } from "effect"
 
 import { Country } from "./Country.ts"
+import { Dimension } from "./Dimension.ts"
 import { Indicator, IndicatorId } from "./Indicator.ts"
 import { Source } from "./Source.ts"
 import { Change, Ranking, Relation, Trend, Year } from "./View.ts"
@@ -29,12 +30,15 @@ const Provenance = Schema.Struct({
 // transform. `title` heads the chart: the indicator's plain-language title, or
 // its official name when it has none; `indicator` keeps the official name.
 // `missing` lists the requested countries with no value, so the chart can say
-// so instead of dropping them.
+// so instead of dropping them. `dimensions` lists what else an SDMX
+// indicator's series differ by, with the values the View can pick; it is
+// empty for the World Bank, whose indicators are single series.
 const fields = {
   title: Schema.NonEmptyString,
   indicator: Indicator,
   observations: Schema.Array(Observation),
   missing: Schema.Array(Country),
+  dimensions: Schema.Array(Dimension),
   sources: Schema.NonEmptyArray(Provenance),
 }
 

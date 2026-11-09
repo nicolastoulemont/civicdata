@@ -82,6 +82,17 @@ export const subject = (view: View, known: ReadonlyMap<IndicatorId, string>) => 
   )
 }
 
+// The values the View picks of its indicator's dimensions, by label, e.g.
+// ["From 15 to 74 years", "Total"]. Empty for a World Bank indicator.
+export const picks = (resolved: ResolvedView) =>
+  resolved.dimensions.flatMap((dimension) => {
+    const picked = dimension.options.find(
+      (option) => option.code === resolved.view.dimensions?.[dimension.id],
+    )
+
+    return picked === undefined ? [] : [picked.label]
+  })
+
 // When the first series was retrieved; the others were fetched with it.
 export const retrieved = (resolved: ResolvedView) =>
   DateTime.toDateUtc(resolved.sources[0].retrievedAt).toLocaleDateString("en-GB", {

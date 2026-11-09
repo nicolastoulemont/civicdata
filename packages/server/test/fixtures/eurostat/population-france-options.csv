@@ -1,0 +1,2 @@
+STRUCTURE,STRUCTURE_ID,freq: Time frequency,indic_de: Demographic indicator,geo: Geopolitical entity (reporting),TIME_PERIOD: Time,OBS_VALUE: Observation value,OBS_FLAG: Observation status (Flag) V2 structure,CONF_STATUS: Confidentiality status (flag)
+dataflow,ESTAT:TPS00001(1.0),A: Annual,JAN: Population on 1 January - total,FR: France,2026,69112309,p: provisional,

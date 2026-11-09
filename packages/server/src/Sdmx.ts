@@ -1,21 +1,44 @@
 import {
   type Country,
-  countries,
+  Dimension,
+  type Dimensions,
   DimensionsMissing,
   type IndicatorId,
   IndicatorNotFound,
   SourceUnavailable,
   sourceOf,
-  Year,
 } from "@civicdata/domain"
-import { Context, DateTime, Duration, Effect, Layer, Match, Schedule, Schema } from "effect"
+import {
+  Array as Arr,
+  Context,
+  DateTime,
+  Duration,
+  Effect,
+  Layer,
+  Match,
+  Schedule,
+  Schema,
+} from "effect"
 import { HttpClient, HttpClientRequest } from "effect/http"
 
 import { Cache } from "./Cache.ts"
+import * as Csv from "./Csv.ts"
 import { geo } from "./geo.ts"
 import { Pace } from "./Pace.ts"
 import type { Described, Query } from "./Series.ts"
 import { Series } from "./Series.ts"
+
+// A query for an SDMX dataflow also says which value of each dimension to
+// show, such as { sex: "T" }.
+interface SdmxQuery extends Query {
+  readonly dimensions: Dimensions
+}
+
+// A series also lists what else the dataflow's series differ by, with the
+// values each dimension takes, so the page can offer the others.
+const SdmxSeries = Schema.Struct({ ...Series.fields, dimensions: Schema.Array(Dimension) })
+
+type SdmxSeries = typeof SdmxSeries.Type
 
 // A dataflow's name and description, and for the OECD the order of its
 // dimensions, which its data URLs spell out key by key.
@@ -26,13 +49,19 @@ const Flow = Schema.Struct({
   retrievedAt: Schema.DateTimeUtc,
 })
 
+// Every dimension of a dataflow for some countries, with the values it takes.
+const Options = Schema.Struct({
+  dimensions: Schema.Array(Dimension),
+  retrievedAt: Schema.DateTimeUtc,
+})
+
 interface Interface {
   readonly describe: (
     indicator: IndicatorId,
   ) => Effect.Effect<Described, IndicatorNotFound | SourceUnavailable>
   readonly observations: (
-    query: Query,
-  ) => Effect.Effect<Series, IndicatorNotFound | SourceUnavailable | DimensionsMissing>
+    query: SdmxQuery,
+  ) => Effect.Effect<SdmxSeries, IndicatorNotFound | SourceUnavailable | DimensionsMissing>
 }
 
 const eurostat = "https://ec.europa.eu/eurostat/api/dissemination"
@@ -81,102 +110,6 @@ const plain = (html: string) =>
     .replace(/\s+/g, " ")
     .trim()
 
-// Where each source names the country in its data, and how. OECD codes are
-// ISO 3166-1 alpha-3, like ours; Eurostat's are two letters.
-interface Area {
-  readonly column: string
-  readonly country: ReadonlyMap<string, Country>
-}
-
-const areas: Record<"Eurostat" | "OECD", Area> = {
-  Eurostat: { column: "geo", country: new Map(countries.map(({ code }) => [geo[code], code])) },
-  OECD: { column: "REF_AREA", country: new Map(countries.map(({ code }) => [code, code])) },
-}
-
-const isYear = Schema.is(Year)
-
-// One SDMX-CSV line, with RFC 4180 quoting. Codes and numbers are never
-// quoted; attributes may be.
-const fields = (line: string) => {
-  if (!line.includes('"')) return line.split(",")
-
-  const values: Array<string> = []
-  let value = ""
-  let quoted = false
-
-  for (let index = 0; index < line.length; index += 1) {
-    const char = line[index]
-
-    if (quoted && char === '"' && line[index + 1] === '"') {
-      value += '"'
-      index += 1
-    } else if (char === '"') quoted = !quoted
-    else if (char === "," && !quoted) {
-      values.push(value)
-      value = ""
-    } else value += char
-  }
-
-  values.push(value)
-
-  return values
-}
-
-// Where an SDMX-CSV 2.0 answer keeps each field: its header names the time,
-// value and country columns, and the dimension columns sit between the
-// structure columns and OBS_VALUE.
-const layout = (header: string, area: Area) => {
-  const columns = fields(header)
-  const at = (name: string) => columns.indexOf(name)
-  const time = at("TIME_PERIOD")
-  const value = at("OBS_VALUE")
-  const place = at(area.column)
-  const first = Math.max(at("STRUCTURE_ID"), at("ACTION")) + 1
-
-  const dimensions = columns
-    .slice(first, value)
-    .flatMap((name, offset) =>
-      name === area.column || name === "TIME_PERIOD" ? [] : [{ name, index: first + offset }],
-    )
-
-  return time === -1 || value === -1 || place === -1
-    ? undefined
-    : { time, value, place, dimensions }
-}
-
-// The observations in an SDMX-CSV 2.0 answer, one per country and year. When
-// more than one series comes back, the dimensions whose values differ are the
-// ones the query left open. Parsed by hand: a schema per row costs more CPU
-// than a Worker on the free plan gets.
-const parse = (text: string, area: Area) => {
-  const [header = "", ...lines] = text.split(/\r?\n/)
-  const columns = layout(header, area)
-
-  if (columns === undefined) return undefined
-
-  const { time, value, place, dimensions } = columns
-  const seen = dimensions.map(() => new Set<string>())
-  const observations: Array<Series["observations"][number]> = []
-
-  for (const line of lines.filter((each) => each !== "")) {
-    const row = fields(line)
-    const country = area.country.get(row[place] ?? "")
-    const year = Number(row[time])
-    const number = row[value] === "" ? Number.NaN : Number(row[value])
-
-    dimensions.forEach(({ index }, position) => seen[position]?.add(row[index] ?? ""))
-
-    if (country !== undefined && isYear(year) && Number.isFinite(number))
-      observations.push({ country, year, value: number })
-  }
-
-  const open = dimensions.flatMap(({ name }, position) =>
-    (seen[position]?.size ?? 0) > 1 ? [name] : [],
-  )
-
-  return { observations, open }
-}
-
 interface Answer {
   readonly status: number
   readonly body: string
@@ -204,14 +137,58 @@ const accepted = (indicator: IndicatorId, asked: { url: string; answer: Answer }
     ? Effect.succeed({ url: asked.url, csv: asked.answer.body })
     : refuse(indicator, asked)
 
+// What a data request asks besides its countries: the value of some
+// dimensions, and either the View's years or each series' latest value.
+interface Ask {
+  readonly filters: Readonly<Record<string, string>>
+  readonly latest: boolean
+}
+
 // The OECD key spells out every dimension in order: the countries, annual
-// frequency, and every other dimension left open.
-const keyPart = (dimension: string, asked: ReadonlyArray<Country>) =>
+// frequency, a picked value, or nothing for a dimension left open.
+const keyPart = (
+  dimension: string,
+  { query, filters }: { query: Query; filters: Ask["filters"] },
+) =>
   Match.value(dimension).pipe(
-    Match.when("REF_AREA", () => asked.join("+")),
+    Match.when("REF_AREA", () => query.countries.join("+")),
     Match.when("FREQ", () => "A"),
-    Match.orElse(() => ""),
+    Match.orElse(() => filters[dimension] ?? ""),
   )
+
+const period = (
+  query: Query,
+  { latest, eurostat: filter }: { latest: boolean; eurostat: boolean },
+) =>
+  Match.value({ latest, filter }).pipe(
+    Match.when({ latest: true }, () => "lastNObservations=1"),
+    Match.when({ filter: true }, () => `c[TIME_PERIOD]=ge:${query.from}+le:${query.to}`),
+    Match.orElse(() => `startPeriod=${query.from}&endPeriod=${query.to}`),
+  )
+
+// The dimensions the View can pick a value of, the values it picked that the
+// dataflow takes, and the dimensions it leaves open. A dimension with a
+// single value needs no pick; a value the dimension does not take is open.
+const choose = (all: ReadonlyArray<Dimension>, picked: Dimensions) => {
+  const listed = all.filter((dimension) => dimension.options.length > 1)
+
+  const filters = Object.fromEntries(
+    all.flatMap((dimension) => {
+      const option = dimension.options.find((each) => each.code === picked[dimension.id])
+
+      return option === undefined ? [] : [[dimension.id, option.code] as const]
+    }),
+  )
+
+  return {
+    listed,
+    filters,
+    open: listed.filter((dimension) => filters[dimension.id] === undefined),
+  }
+}
+
+const area = (indicator: IndicatorId) =>
+  Csv.areas[sourceOf(indicator) === "Eurostat" ? "Eurostat" : "OECD"]
 
 const make = (remember: Remember) =>
   Effect.gen(function* () {
@@ -318,14 +295,21 @@ const make = (remember: Remember) =>
     // so in Content-Encoding, unless asked `compress=false`. It rejects a
     // whole query that names a country its dataflow does not cover, so those
     // countries are dropped and asked once more; they come back missing.
-    const eurostatSeries = Effect.fn("Sdmx.eurostat")(function* (query: Query) {
+    const eurostatData = Effect.fn("Sdmx.eurostat")(function* (
+      query: Query,
+      { filters, latest, accept }: Ask & { accept: string },
+    ) {
       const { id, version } = parts(query.indicator)
+
+      const picks = Object.entries(filters)
+        .map(([dimension, code]) => `&c[${dimension}]=${code}`)
+        .join("")
 
       const attempt = (codes: ReadonlyArray<string>) =>
         Effect.gen(function* () {
-          const url = `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/${id}/${version}/*?c[geo]=${codes.join(",")}&c[freq]=A&c[TIME_PERIOD]=ge:${query.from}+le:${query.to}&compress=false`
+          const url = `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/${id}/${version}/*?c[geo]=${codes.join(",")}&c[freq]=A${picks}&${period(query, { latest, eurostat: true })}&compress=false`
 
-          return { url, answer: yield* ask(query.indicator, url, sdmxCsv) }
+          return { url, answer: yield* ask(query.indicator, url, accept) }
         })
 
       const codes = query.countries.map((country) => geo[country])
@@ -359,12 +343,15 @@ const make = (remember: Remember) =>
 
     // The OECD's edge cache ignores the `c[...]` filters, so its data URLs
     // spell out the key.
-    const oecdSeries = Effect.fn("Sdmx.oecd")(function* (query: Query) {
+    const oecdData = Effect.fn("Sdmx.oecd")(function* (
+      query: Query,
+      { filters, latest, accept }: Ask & { accept: string },
+    ) {
       const { agency, id, version } = parts(query.indicator)
       const { dimensions } = yield* cachedFlow(query.indicator)
-      const key = dimensions.map((dimension) => keyPart(dimension, query.countries)).join(".")
-      const url = `${oecd}/data/${agency},${id},${version}/${key}?startPeriod=${query.from}&endPeriod=${query.to}`
-      const answer = yield* ask(query.indicator, url, sdmxCsv)
+      const key = dimensions.map((dimension) => keyPart(dimension, { query, filters })).join(".")
+      const url = `${oecd}/data/${agency},${id},${version}/${key}?${period(query, { latest, eurostat: false })}`
+      const answer = yield* ask(query.indicator, url, accept)
 
       // The OECD answers 404 for a query that matches no observation.
       if (answer.status === 404) return { url, csv: undefined }
@@ -372,27 +359,71 @@ const make = (remember: Remember) =>
       return yield* accepted(query.indicator, { url, answer })
     })
 
-    const observations = Effect.fn("Sdmx.observations")(function* (query: Query) {
-      const source = sourceOf(query.indicator)
-      const { url, csv } = yield* source === "Eurostat" ? eurostatSeries(query) : oecdSeries(query)
+    const data = (query: Query, options: Ask & { accept: string }) =>
+      sourceOf(query.indicator) === "Eurostat"
+        ? eurostatData(query, options)
+        : oecdData(query, options)
+
+    // Each series' latest value with labels: one row per series, enough to
+    // list every dimension and the values it takes for these countries.
+    const options = Effect.fn("Sdmx.options")(function* (query: Query) {
+      const { url, csv } = yield* data(query, {
+        filters: {},
+        latest: true,
+        accept: `${sdmxCsv};labels=both`,
+      })
+
+      const dimensions = csv === undefined ? [] : Csv.dimensions(csv, area(query.indicator))
+
+      if (dimensions === undefined)
+        return yield* refuse(query.indicator, { url, answer: { status: 200, body: csv ?? "" } })
+
+      return { dimensions, retrievedAt: yield* DateTime.now }
+    })
+
+    const cachedOptions = (query: Query) =>
+      remember(keys.options(query), {
+        json: OptionsJson,
+        fresh: freshness(query.indicator),
+        fetch: options(query),
+      })
+
+    // Lists the dataflow's dimensions first, so a View that leaves one open
+    // fails before its data is asked for, with the values it could pick.
+    const observations = Effect.fn("Sdmx.observations")(function* (query: SdmxQuery) {
+      const { listed, filters, open } = choose(
+        (yield* cachedOptions(query)).dimensions,
+        query.dimensions,
+      )
+
+      if (Arr.isArrayNonEmpty(open))
+        return yield* new DimensionsMissing({
+          indicator: query.indicator,
+          dimensions: listed,
+          open: Arr.map(open, ({ id }) => id),
+        })
+
+      const { url, csv } = yield* data(query, { filters, latest: false, accept: sdmxCsv })
       const retrievedAt = yield* DateTime.now
 
-      if (csv === undefined) return { observations: [], url, retrievedAt }
+      if (csv === undefined) return { observations: [], url, retrievedAt, dimensions: listed }
 
-      const parsed = parse(csv, areas[source === "Eurostat" ? "Eurostat" : "OECD"])
+      const parsed = Csv.observations(csv, area(query.indicator))
 
       if (parsed === undefined)
         return yield* refuse(query.indicator, { url, answer: { status: 200, body: csv } })
 
-      const [open, ...more] = parsed.open
+      // A series the options did not list, e.g. one with no recent value.
+      const mixed = listed.filter((dimension) => parsed.mixed.includes(dimension.id))
 
-      if (open !== undefined)
+      if (Arr.isArrayNonEmpty(mixed))
         return yield* new DimensionsMissing({
           indicator: query.indicator,
-          dimensions: [open, ...more],
+          dimensions: listed,
+          open: Arr.map(mixed, ({ id }) => id),
         })
 
-      return { observations: parsed.observations, url, retrievedAt }
+      return { observations: parsed.observations, url, retrievedAt, dimensions: listed }
     })
 
     return Sdmx.of({
@@ -438,20 +469,29 @@ const freshness = (indicator: IndicatorId) => (retrievedAt: DateTime.Utc, now: D
     : Duration.isLessThan(DateTime.distance(retrievedAt, now), oecdLifetime)
 
 const FlowJson = Schema.fromJsonString(Schema.toCodecJson(Flow))
-const SeriesJson = Schema.fromJsonString(Schema.toCodecJson(Series))
+const OptionsJson = Schema.fromJsonString(Schema.toCodecJson(Options))
+const SeriesJson = Schema.fromJsonString(Schema.toCodecJson(SdmxSeries))
+
+const countriesKey = (countries: ReadonlyArray<Country>) => countries.toSorted().join(",")
 
 // Bump `v1` when a cached shape changes, so old entries are ignored.
 const keys = {
-  series: (query: Query) =>
-    `sdmx/v1/series/${query.indicator}/${query.countries.toSorted().join(",")}/${query.from}-${query.to}`,
+  options: (query: Query) => `sdmx/v1/options/${query.indicator}/${countriesKey(query.countries)}`,
+  series: (query: SdmxQuery) =>
+    `sdmx/v1/series/${query.indicator}/${countriesKey(query.countries)}/${query.from}-${query.to}/${Object.entries(
+      query.dimensions,
+    )
+      .toSorted(([a], [b]) => a.localeCompare(b))
+      .map(([dimension, code]) => `${dimension}=${code}`)
+      .join(",")}`,
 }
 
 // Eurostat and OECD data, read through their SDMX REST APIs as SDMX-CSV.
 export class Sdmx extends Context.Service<Sdmx, Interface>()("@civicdata/server/Sdmx") {
   static readonly layer = Layer.effect(Sdmx, make(passthrough))
 
-  // Serves a stored dataflow or series while its source has not published
-  // since, otherwise asks the source and stores the answer.
+  // Serves a stored dataflow, list of dimensions or series while its source
+  // has not published since, otherwise asks the source and stores the answer.
   static readonly cached = Layer.effect(
     Sdmx,
     Effect.flatMap(Cache.remember, (remember) => make(remember)),
