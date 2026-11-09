@@ -8,7 +8,8 @@
   "scripts": {
     "typecheck": "effect-tsgo tsc --noEmit && effect-tsgo tsc --noEmit -p scripts",
     "test": "vitest run",
-    "titles": "node scripts/titles.ts"
+    "titles": "node scripts/titles.ts",
+    "eval": "vitest run --config vitest.eval.config.ts"
   },
   "dependencies": {
     "@civicdata/domain": "workspace:*",
