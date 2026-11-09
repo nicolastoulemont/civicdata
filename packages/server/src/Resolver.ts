@@ -13,8 +13,9 @@ import {
   type View,
   Year,
 } from "@civicdata/domain"
-import { Array as Arr, Context, Effect, Layer, Match } from "effect"
+import { Array as Arr, Context, Effect, Layer, Match, Option } from "effect"
 
+import { counterparts, disagreeing } from "./Counterparts.ts"
 import { Sdmx } from "./Sdmx.ts"
 import type { Query } from "./Series.ts"
 import { titleOf } from "./Titles.ts"
@@ -95,10 +96,30 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
         const { from, transform } = query
 
         // Growth needs the year before the first one shown.
-        const main = yield* series({
-          ...query,
-          from: transform === "Growth" ? Year.make(Math.max(1960, from - 1)) : from,
-        })
+        // Growth needs the year before the first one shown. Other sources'
+        // series for the same figure are fetched with it; they check the chart
+        // and never fail it: one that fails is left out.
+        const [main, others] = yield* Effect.all(
+          [
+            series({
+              ...query,
+              from: transform === "Growth" ? Year.make(Math.max(1960, from - 1)) : from,
+            }),
+            Effect.forEach(
+              counterparts(query),
+              (other) =>
+                series({ ...other, countries: query.countries, from, to: query.to }).pipe(
+                  Effect.asSome,
+                  Effect.tapError((error) =>
+                    Effect.logWarning("Counterpart left out", other.indicator, error),
+                  ),
+                  Effect.orElseSucceed(Option.none),
+                ),
+              { concurrency: "unbounded" },
+            ),
+          ],
+          { concurrency: 2 },
+        )
 
         if (transform !== undefined && !applies(transform, main.described.indicator.name)) {
           return yield* new TransformNotApplicable({ indicator: query.indicator, transform })
@@ -127,11 +148,20 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
         const sources: ResolvedView["sources"] =
           by === undefined ? [main.source] : [main.source, by.source]
 
+        const observations = transformed.filter((observation) => observation.year >= from)
+
+        const disagreements = Arr.getSomes(others).flatMap((other) => {
+          const differ = disagreeing(observations, other.observations)
+
+          return Arr.isArrayNonEmpty(differ) ? [{ source: other.source, observations: differ }] : []
+        })
+
         return {
           title: titleOf(main.described.indicator),
           indicator: main.described.indicator,
-          observations: transformed.filter((observation) => observation.year >= from),
+          observations,
           dimensions: main.dimensions,
+          disagreements,
           sources,
         }
       })
@@ -165,11 +195,23 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
 
                 const [from, to] = [at(change.from), at(change.to)]
 
+                // Other sources' values count only for the two years shown.
+                const disagreements = single.disagreements.flatMap((disagreement) => {
+                  const kept = disagreement.observations.filter(
+                    ({ year }) => year === change.from || year === change.to,
+                  )
+
+                  return Arr.isArrayNonEmpty(kept)
+                    ? [{ source: disagreement.source, observations: kept }]
+                    : []
+                })
+
                 return {
                   view: change,
                   ...single,
                   observations: [...from, ...to],
                   missing: missing(countries, [from, to]),
+                  disagreements,
                 }
               }),
             ),
@@ -200,6 +242,7 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
                 },
                 missing: missing(countries, [main.observations, against.observations]),
                 dimensions: main.dimensions,
+                disagreements: main.disagreements,
                 sources: Arr.appendAll(main.sources, against.sources),
               })),
             ),

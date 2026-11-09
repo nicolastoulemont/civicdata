@@ -40,6 +40,7 @@ import { CopyLink } from "./CopyLink.tsx"
 import { Countries } from "./Countries.tsx"
 import { Data } from "./Data.tsx"
 import { Dimensions } from "./Dimensions.tsx"
+import { Disagreements } from "./Disagreements.tsx"
 import { withAgainst, withCountries, withIndicator, withPer, withTransform } from "./edits.ts"
 import { Flags } from "./Flags.tsx"
 import {
@@ -301,7 +302,8 @@ const Single = ({
     Change: (change) => <ChangeChart resolved={resolved} change={change} />,
   })
 
-// The chart, and under it the values its source flags.
+// The chart, and under it the values its source flags and where other
+// sources disagree.
 export const Chart = ({
   resolved,
   picking,
@@ -316,6 +318,7 @@ export const Chart = ({
       <Single resolved={resolved} picking={picking} />
     )}
     <Flags resolved={resolved} />
+    <Disagreements resolved={resolved} />
   </div>
 )
 

@@ -126,7 +126,7 @@ const recording = (cache = memory()) => {
       http((url) => {
         asked.push(url)
 
-        return recorded.get(url)?.() ?? new Response("no recording", { status: 500 })
+        return recorded.get(url)?.() ?? new Response("no recording", { status: 404 })
       }),
     ),
     Layer.provide(cache.layer),

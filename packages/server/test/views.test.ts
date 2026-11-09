@@ -72,7 +72,17 @@ const published = new Map<IndicatorId, { name: string; values: ResolvedView["obs
       ],
     },
   ],
-  [unemployment, { name: "Unemployment, total (% of total labor force)", values: [] }],
+  [
+    unemployment,
+    {
+      name: "Unemployment, total (% of total labor force)",
+      values: [
+        { country: "FRA", year: year(2022), value: 7.9 },
+        { country: "FRA", year: year(2023), value: 7.9 },
+        { country: "FRA", year: year(2024), value: 7.4 },
+      ],
+    },
+  ],
   [untitled, { name: "New indicator (% of total)", values: [] }],
 ])
 
@@ -166,7 +176,7 @@ const recordedEurostat = Sdmx.layer.pipe(
             `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/UNE_RT_A/1.0/*?c[geo]=FR&c[freq]=A&c[age]=Y15-74&c[unit]=PC_ACT&c[sex]=T&c[TIME_PERIOD]=ge:2022+le:2024&compress=false`,
             new Response(unemploymentRates),
           ],
-        ]).get(url) ?? new Response("no recording", { status: 500 }),
+        ]).get(url) ?? new Response("no recording", { status: 404 }),
     ),
   ),
 )
@@ -453,6 +463,39 @@ describe("POST /api/views/resolve", () => {
 
       expect(resolved.observations.map(({ value }) => value)).toEqual([7.3, 7.4, 7.4])
       expect(resolved.dimensions.map(({ id }) => id)).toEqual(["age", "unit", "sex"])
+    }).pipe(Effect.provide(serve(worldBank, recordedEurostat))),
+  )
+
+  it.effect("notes where another source's values for the same figure differ", () =>
+    Effect.gen(function* () {
+      const client = yield* HttpApiTest.groups(Api, ["views"])
+
+      const resolved = yield* client.views.resolve({
+        payload: trend({
+          indicator: unemployment,
+          countries: ["FRA"],
+          from: year(2022),
+          to: year(2024),
+        }),
+      })
+
+      // Eurostat agrees in 2024; the OECD has no recording, so it is left out.
+      expect(resolved.disagreements).toEqual([
+        {
+          source: {
+            indicator: "ESTAT,UNE_RT_A,1.0",
+            name: "Unemployment by sex and age - annual data",
+            source: "Eurostat",
+            dataset: "Unemployment by sex and age - annual data",
+            url: `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/UNE_RT_A/1.0/*?c[geo]=FR&c[freq]=A&c[age]=Y15-74&c[unit]=PC_ACT&c[sex]=T&c[TIME_PERIOD]=ge:2022+le:2024&compress=false`,
+            retrievedAt: expect.anything(),
+          },
+          observations: [
+            { country: "FRA", year: 2022, value: 7.3 },
+            { country: "FRA", year: 2023, value: 7.4 },
+          ],
+        },
+      ])
     }).pipe(Effect.provide(serve(worldBank, recordedEurostat))),
   )
 })

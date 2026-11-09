@@ -62,6 +62,7 @@ const resolve = http.post("/api/views/resolve", async ({ request }) => {
       ],
       missing: [],
       dimensions: [],
+      disagreements: [],
       sources: [
         {
           indicator: lifeExpectancy,

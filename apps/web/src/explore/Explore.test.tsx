@@ -114,6 +114,7 @@ const resolvedFor = (view: View): ResolvedView => {
       (country) => !observations.some((observation) => observation.country === country),
     ),
     dimensions: [],
+    disagreements: [],
   }
 
   return Match.value(view).pipe(
@@ -259,6 +260,7 @@ describe("Explore", () => {
             missing: resolved.missing,
             title: "Population on 1 January",
             dimensions: [],
+            disagreements: [],
             indicator: { id: eurostat, name: "Population on 1 January", definition: "" },
             sources: [
               {
@@ -324,6 +326,7 @@ describe("Explore", () => {
             observations: resolved.observations,
             missing: resolved.missing,
             dimensions: [sex],
+            disagreements: [],
             indicator: {
               id: unemployment,
               name: "Unemployment by sex and age - annual data",
@@ -363,6 +366,7 @@ describe("Explore", () => {
             indicator: resolved.indicator,
             missing: resolved.missing,
             dimensions: resolved.dimensions,
+            disagreements: [],
             sources: resolved.sources,
             // France's values are provisional; Germany's series breaks in 2020.
             observations: resolved.observations.map(({ country, year, value }) =>
@@ -394,6 +398,51 @@ describe("Explore", () => {
     expect(
       within(await screen.findByRole("table")).getAllByRole("cell", { name: "provisional" }),
     ).toHaveLength(2)
+  })
+
+  it("notes where another source's figures differ, citing it", async () => {
+    network.use(
+      http.post("/api/views/resolve", async ({ request }) => {
+        const view = Schema.decodeUnknownSync(Trend)(await request.json())
+        const resolved = resolvedFor(view)
+
+        return HttpResponse.json(
+          Schema.encodeSync(ResolvedViewSchema)({
+            view,
+            title: resolved.title,
+            indicator: resolved.indicator,
+            observations: resolved.observations,
+            missing: resolved.missing,
+            dimensions: resolved.dimensions,
+            sources: resolved.sources,
+            disagreements: [
+              {
+                source: {
+                  indicator: IndicatorId.make("ESTAT,TPS00001,1.0"),
+                  name: "Population on 1 January",
+                  source: "Eurostat",
+                  dataset: "Population on 1 January",
+                  url: "https://ec.europa.eu/eurostat/api/dissemination/sdmx/3.0/data/dataflow/ESTAT/TPS00001/1.0/*",
+                  retrievedAt: DateTime.makeUnsafe("2026-11-08T00:00:00Z"),
+                },
+                observations: [{ country: "FRA", year: Year.make(2019), value: 67_290_471 }],
+              },
+            ],
+          }),
+        )
+      }),
+    )
+
+    show(trend)
+
+    const note = await screen.findByRole("region", { name: "Other sources" })
+
+    expect(note.textContent).toContain(
+      "Eurostat, Population on 1 January: France 2019 67,290,471 (chart: 67,388,001).",
+    )
+    expect(
+      within(note).getByRole("link", { name: "Population on 1 January" }).getAttribute("href"),
+    ).toBe("https://ec.europa.eu/eurostat/databrowser/view/tps00001/default/table")
   })
 
   it("switches the chart to an indicator found by name", async () => {

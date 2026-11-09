@@ -48,6 +48,10 @@ const worldBank = Object.entries(published).flatMap(([id, { name, values }]) => 
   ),
 ])
 
+// Eurostat publishes population too. The Resolver asks it to check the
+// World Bank's figures; here it has nothing, so the check is left out.
+const eurostat = http.get("https://ec.europa.eu/*", () => new HttpResponse(null, { status: 404 }))
+
 const trend = (
   indicator = "SP.POP.TOTL",
   countries: [Country, ...Array<Country>] = ["FRA", "DEU"],
@@ -94,7 +98,7 @@ const decode = async (bytes: Uint8Array<ArrayBuffer>) => {
 
 describe("GET /explore.png", () => {
   it("draws the card for the chart at the same link", async () => {
-    network.use(...worldBank)
+    network.use(...worldBank, eurostat)
 
     const response = await get(toQuery(trend()))
 
@@ -130,7 +134,7 @@ describe("GET /explore.png", () => {
       }),
     ],
   ])("draws the card for %s", async (_, view) => {
-    network.use(...worldBank)
+    network.use(...worldBank, eurostat)
 
     const response = await get(toQuery(view))
 
@@ -180,6 +184,7 @@ describe("GET /explore.png", () => {
   it("fails with 502 when the World Bank sends what it cannot read", async () => {
     network.use(
       http.get("https://api.worldbank.org/*", () => HttpResponse.text("<html>Maintenance</html>")),
+      eurostat,
     )
 
     expect((await get(toQuery(trend()))).status).toBe(502)

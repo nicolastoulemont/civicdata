@@ -12,8 +12,8 @@ export const http = (respond: (url: string) => Response) =>
     ),
   )
 
-// For tests that never reach a source.
-export const offline = http(() => new Response("offline", { status: 503 }))
+// For tests that need no source: everything is missing.
+export const offline = http(() => new Response("not recorded", { status: 404 }))
 
 // A cache in memory whose entries the test can read and change.
 export const memory = () => {

@@ -179,7 +179,7 @@ const sdmx = Sdmx.layer.pipe(
             `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/UNE_RT_A/1.0/*?c[geo]=FR&c[freq]=A&c[age]=Y15-74&c[unit]=PC_ACT&c[sex]=T&c[TIME_PERIOD]=ge:2022+le:2024&compress=false`,
             new globalThis.Response(unemploymentRates),
           ],
-        ]).get(url) ?? new globalThis.Response("no recording", { status: 500 }),
+        ]).get(url) ?? new globalThis.Response("no recording", { status: 404 }),
     ),
   ),
 )
