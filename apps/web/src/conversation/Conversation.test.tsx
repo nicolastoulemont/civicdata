@@ -170,12 +170,15 @@ describe("Conversation", () => {
     reply.send(message(Searched.make({ text: "life expectancy" })))
     expect(await screen.findByText("Searched indicators for “life expectancy”")).toBeDefined()
 
-    reply.send(message(Answered.make({ view: brazil })))
+    reply.send(
+      message(Answered.make({ view: brazil, takeaway: "Life expectancy in Brazil rose." })),
+    )
     reply.end()
 
     expect(
       await screen.findByRole("heading", { name: "Life expectancy at birth (years)" }),
     ).toBeDefined()
+    expect(screen.getByText("Life expectancy in Brazil rose.")).toBeDefined()
     expect(screen.getByRole("link", { name: "Open in the explorer" })).toBeDefined()
     expect(screen.queryByText("Searched indicators for “life expectancy”")).toBeNull()
   })
