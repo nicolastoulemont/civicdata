@@ -4,7 +4,11 @@ export { CatalogEntry } from "./Catalog.ts"
 
 export {
   Answered,
+  Asked,
   ConversationId,
+  Described,
+  Ending,
+  Located,
   Rejected,
   Searched,
   Step,
@@ -12,7 +16,7 @@ export {
   Unanswered,
 } from "./Conversation.ts"
 
-export { Country, countries } from "./Country.ts"
+export { Country, countries, locate } from "./Country.ts"
 
 export {
   AgentUnavailable,

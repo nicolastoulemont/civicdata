@@ -2,12 +2,12 @@ import {
   type AgentUnavailable,
   type CatalogUnavailable,
   ConversationBusy,
+  Ending,
   type SourceUnavailable,
   type Step,
   type Turn,
-  type View,
 } from "@civicdata/domain"
-import { Context, Effect, Layer, Match, Option, Ref, Stream } from "effect"
+import { Context, Effect, Layer, Option, Ref, Schema, Stream } from "effect"
 import { Chat } from "effect/ai"
 
 import { Agent } from "./Agent.ts"
@@ -25,15 +25,8 @@ interface Interface {
   >
 }
 
-// The chart a finished answer leaves in its turn: a View, null when the agent
-// found none, and nothing while it is still working.
-const ending = (step: Step): Option.Option<View | null> =>
-  Match.valueTags(step, {
-    Searched: () => Option.none(),
-    Rejected: () => Option.none(),
-    Answered: ({ view }) => Option.some(view),
-    Unanswered: () => Option.some(null),
-  })
+// The step that ends an answer, and is kept in its turn.
+const isEnding = Schema.is(Ending)
 
 // One conversation: its turns, and follow-up questions answered with the
 // whole chat so far. A turn is saved once its answer ends; an answer that
@@ -69,18 +62,16 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
               }
         }).pipe(Effect.onError(() => Ref.set(answering, false)))
 
-        const save = (view: View | null) =>
+        const save = (answer: Ending) =>
           chat.exportJson.pipe(
             Effect.orDie,
             Effect.flatMap((json) =>
-              transcript.save({ chat: json, turns: [...before, { question, view }] }),
+              transcript.save({ chat: json, turns: [...before, { question, answer }] }),
             ),
           )
 
         return agent.ask(chat, question).pipe(
-          Stream.tap((step) =>
-            Option.match(ending(step), { onNone: () => Effect.void, onSome: save }),
-          ),
+          Stream.tap((step) => (isEnding(step) ? save(step) : Effect.void)),
           Stream.ensuring(Ref.set(answering, false)),
         )
       })
