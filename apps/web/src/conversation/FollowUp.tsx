@@ -3,11 +3,11 @@ import { Match } from "effect"
 
 import { Choices } from "./Choices.tsx"
 import { Lane } from "./Lane.tsx"
-import { QuestionForm } from "./QuestionForm.tsx"
+import { type Answering, QuestionForm } from "./QuestionForm.tsx"
 
 // What to suggest next, from how the agent last answered.
-const suggest = (last: Ending | undefined, answering: boolean) =>
-  answering
+const suggest = (last: Ending | undefined, answering: Answering | undefined) =>
+  answering !== undefined
     ? "Write your next question while civicdata answers"
     : last === undefined
       ? "How has life expectancy changed in Brazil?"
@@ -15,11 +15,12 @@ const suggest = (last: Ending | undefined, answering: boolean) =>
           Answered: () => "Add Mexico, or show it per person",
           Asked: () => "Pick a choice above, or say what you mean",
           Unanswered: () => "Name what to measure and where",
+          Stopped: () => "Ask again, or ask something else",
         })
 
 interface FollowUpProps {
   last: Ending | undefined
-  answering: boolean
+  answering: Answering | undefined
   pending: boolean
   ask: (question: string) => void
 }
@@ -29,7 +30,9 @@ interface FollowUpProps {
 // about the next question go above the composer, in this dock.
 export const FollowUp = ({ last, answering, pending, ask }: FollowUpProps) => {
   const question =
-    !pending && !answering && last !== undefined && "choices" in last ? last : undefined
+    !pending && answering === undefined && last !== undefined && "choices" in last
+      ? last
+      : undefined
 
   return (
     <div className="sticky bottom-0 z-10 mt-auto pb-3 sm:pb-4">

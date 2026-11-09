@@ -26,6 +26,7 @@ const Handlers = HttpApiBuilder.group(
     return handlers
       .handle("turns", () => conversation.turns)
       .handle("answer", () => conversation.follow)
+      .handle("stop", () => conversation.stop)
       .handle("ask", ({ payload, request }) =>
         limit
           .count(request.headers["cf-connecting-ip"] ?? "unknown")

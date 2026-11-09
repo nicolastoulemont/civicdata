@@ -12,6 +12,7 @@ export {
   Rejected,
   Searched,
   Step,
+  Stopped,
   Turn,
   Turns,
   Unanswered,

@@ -127,6 +127,12 @@ export const useConversation = (id: ConversationId) => {
       }),
   })
 
+  // Asks the server to stop the answer in progress. The answer's own stream
+  // then ends with Stopped, which joins the turns like any ending.
+  const stopping = useMutation({
+    mutationFn: () => call(page, (api) => api.conversation.stop({ params: { id } })),
+  })
+
   const answered = conversation.data?.answered.length ?? 0
   const answering = conversation.data?.answering
   const { mutate, isPending } = asking
@@ -158,6 +164,8 @@ export const useConversation = (id: ConversationId) => {
     // The question being answered, with what the agent did.
     pending: asking.isPending ? { question: asking.variables?.question, steps } : undefined,
     answering: asking.isPending,
+    stop: () => stopping.mutate(),
+    stopping: stopping.isPending,
     ask: (question: string) => mutate({ question, via: "ask", before: answered }),
   }
 }

@@ -15,7 +15,7 @@ export const ConversationId = Schema.String.check(Schema.isUUID(4)).pipe(
 export type ConversationId = typeof ConversationId.Type
 
 // What the agent did while answering, streamed as it happens. An answer ends
-// with Answered, Asked or Unanswered.
+// with Answered, Asked, Unanswered or Stopped.
 export const Searched = Schema.TaggedStruct("Searched", { text: Schema.String })
 
 // The agent read an indicator's full definition.
@@ -45,6 +45,9 @@ export const Asked = Schema.TaggedStruct("Asked", {
 // No World Bank indicator measures what the question asks.
 export const Unanswered = Schema.TaggedStruct("Unanswered", {})
 
+// The person stopped the answer before the agent finished it.
+export const Stopped = Schema.TaggedStruct("Stopped", {})
+
 export const Step = Schema.Union([
   Searched,
   Described,
@@ -53,12 +56,13 @@ export const Step = Schema.Union([
   Answered,
   Asked,
   Unanswered,
+  Stopped,
 ])
 
 export type Step = typeof Step.Type
 
 // How an answer ended.
-export const Ending = Schema.Union([Answered, Asked, Unanswered])
+export const Ending = Schema.Union([Answered, Asked, Unanswered, Stopped])
 
 export type Ending = typeof Ending.Type
 
