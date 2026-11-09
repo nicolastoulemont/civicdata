@@ -52,7 +52,10 @@ const ConversationRoutes = HttpApiBuilder.group(
         Effect.map(HttpServerResponse.fromWeb),
       )
 
-    return handlers.handleRaw("turns", forward).handleRaw("ask", forward)
+    return handlers
+      .handleRaw("turns", forward)
+      .handleRaw("ask", forward)
+      .handleRaw("answer", forward)
   }),
 )
 

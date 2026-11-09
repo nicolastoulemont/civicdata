@@ -12,6 +12,7 @@ import {
   TooManyQuestions,
   Trend,
   Turn,
+  Turns,
   Unanswered,
   View,
   Year,
@@ -72,9 +73,13 @@ const resolve = http.post("/api/views/resolve", async ({ request }) => {
   )
 })
 
-const turns = (saved: ReadonlyArray<Turn>) =>
+const encodeTurns = Schema.encodeSync(Schema.toCodecJson(Turns))
+
+const turns = (answered: ReadonlyArray<Turn>, answering?: string) =>
   http.get(`/api/conversations/${id}`, () =>
-    HttpResponse.json(Schema.encodeSync(Schema.Array(Schema.toCodecJson(Turn)))(saved)),
+    HttpResponse.json(
+      encodeTurns(answering === undefined ? { answered } : { answered, answering }),
+    ),
   )
 
 // Server-sent events as the API writes them: each step as a message, and a
@@ -97,8 +102,9 @@ const message = (step: Step) => `event: message\ndata: ${encodeStep(step)}\n\n`
 const failure = (error: AgentUnavailable) =>
   `event: effect/http-api/stream/failure\ndata: ${encodeFailure(Cause.fail(error))}\n\n`
 
-// An answer the test sends one event at a time.
-const answer = () => {
+// An answer the test sends one event at a time, in reply to a question or to
+// following the answer in progress.
+const answer = (via: "ask" | "follow" = "ask") => {
   const encoder = new TextEncoder()
   let controller: ReadableStreamDefaultController<Uint8Array> | undefined
 
@@ -108,13 +114,16 @@ const answer = () => {
     },
   })
 
+  const reply = () => new HttpResponse(body, { headers: { "content-type": "text/event-stream" } })
+
   return {
-    handler: http.post(
-      `/api/conversations/${id}/questions`,
-      () => new HttpResponse(body, { headers: { "content-type": "text/event-stream" } }),
-    ),
+    handler:
+      via === "ask"
+        ? http.post(`/api/conversations/${id}/questions`, reply)
+        : http.get(`/api/conversations/${id}/answer`, reply),
     send: (event: string) => controller?.enqueue(encoder.encode(event)),
     end: () => controller?.close(),
+    cut: () => controller?.error(new TypeError("The connection was lost")),
   }
 }
 
@@ -211,6 +220,60 @@ describe("Conversation", () => {
     expect(
       await screen.findByRole("heading", { name: "Life expectancy at birth, total (years)" }),
     ).toBeDefined()
+  })
+
+  it("follows an answer still in progress when the page opens", async () => {
+    const reply = answer("follow")
+
+    network.use(turns([], "Life expectancy in Brazil"), reply.handler, resolve)
+    show()
+
+    expect(await screen.findByText("Life expectancy in Brazil")).toBeDefined()
+    expect(screen.getByRole("button", { name: "Ask" }).hasAttribute("disabled")).toBe(true)
+
+    reply.send(message(Searched.make({ text: "life expectancy" })))
+    expect(await screen.findByText("Searched indicators for “life expectancy”")).toBeDefined()
+
+    reply.send(message(Answered.make({ view: brazil })))
+    reply.end()
+
+    expect(
+      await screen.findByRole("heading", { name: "Life expectancy at birth, total (years)" }),
+    ).toBeDefined()
+  })
+
+  it("picks the answer up again when the connection drops mid-answer", async () => {
+    const asked = answer()
+    const resumed = answer("follow")
+    let answering: string | undefined
+
+    network.use(
+      http.get(`/api/conversations/${id}`, () =>
+        HttpResponse.json(
+          encodeTurns(answering === undefined ? { answered: [] } : { answered: [], answering }),
+        ),
+      ),
+      asked.handler,
+      resumed.handler,
+      resolve,
+    )
+    show("Life expectancy in Brazil")
+
+    asked.send(message(Searched.make({ text: "life expectancy" })))
+    expect(await screen.findByText("Searched indicators for “life expectancy”")).toBeDefined()
+
+    // The server keeps answering after the page loses the stream.
+    answering = "Life expectancy in Brazil"
+    asked.cut()
+
+    resumed.send(message(Searched.make({ text: "life expectancy" })))
+    resumed.send(message(Answered.make({ view: brazil })))
+    resumed.end()
+
+    expect(
+      await screen.findByRole("heading", { name: "Life expectancy at birth, total (years)" }),
+    ).toBeDefined()
+    expect(screen.queryByText("The question could not be sent")).toBeNull()
   })
 
   it("explains a failure during the answer", async () => {

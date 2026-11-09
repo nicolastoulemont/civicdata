@@ -60,3 +60,12 @@ export type Ending = typeof Ending.Type
 export const Turn = Schema.Struct({ question: Question, answer: Ending })
 
 export interface Turn extends Schema.Schema.Type<typeof Turn> {}
+
+// A conversation as its page shows it: the questions answered so far, oldest
+// first, and the question being answered now, if any.
+export const Turns = Schema.Struct({
+  answered: Schema.Array(Turn),
+  answering: Schema.optionalKey(Question),
+})
+
+export interface Turns extends Schema.Schema.Type<typeof Turns> {}
