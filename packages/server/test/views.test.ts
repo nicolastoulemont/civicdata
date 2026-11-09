@@ -25,6 +25,7 @@ import { Catalog } from "../src/Catalog.ts"
 import { Conversations } from "../src/Conversations.ts"
 import { Handlers } from "../src/Handlers.ts"
 import { Notes } from "../src/Notes.ts"
+import { Politics } from "../src/Politics.ts"
 import { Sdmx } from "../src/Sdmx.ts"
 import { titles } from "../src/titles.gen.ts"
 import { WorldBank } from "../src/WorldBank.ts"
@@ -197,6 +198,7 @@ const serve = (source: Layer.Layer<WorldBank>, sdmx = Sdmx.layer.pipe(Layer.prov
       Layer.provide(Agent.unavailable),
       Layer.provide(AskLimit.none),
       Layer.provide(Catalog.unavailable),
+      Layer.provide(Politics.unavailable),
       Layer.provide(source),
       Layer.provide(sdmx),
     ),

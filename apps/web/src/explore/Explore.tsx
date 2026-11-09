@@ -3,6 +3,7 @@ import {
   Change,
   type Dimension,
   DimensionsMissing,
+  type Government,
   type IndicatorId,
   IndicatorNotFound,
   Ranking,
@@ -18,7 +19,7 @@ import {
 } from "@civicdata/domain"
 import { useQuery } from "@tanstack/react-query"
 import { Match } from "effect"
-import { lazy, Suspense, use, useState } from "react"
+import { Fragment, lazy, type ReactNode, Suspense, use, useState } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -37,7 +38,7 @@ import { Toggle } from "@/components/ui/toggle"
 import { Hold } from "@/hold"
 
 import { About } from "./About.tsx"
-import { resolveQuery } from "./api.ts"
+import { governmentsQuery, resolveQuery } from "./api.ts"
 import { ChangeChart } from "./ChangeChart.tsx"
 import { ChartType } from "./ChartType.tsx"
 import { CopyLink } from "./CopyLink.tsx"
@@ -57,6 +58,7 @@ import {
   subject,
   transformLabel,
 } from "./format.ts"
+import { archives, officialPages, type Overlay } from "./governments.ts"
 import { Indicator } from "./Indicator.tsx"
 import type { Paired } from "./points.ts"
 import { places } from "./preview.ts"
@@ -290,13 +292,19 @@ interface Picking {
 interface SingleProps {
   resolved: Exclude<ResolvedView, Paired>
   picking: Picking | undefined
+  governments: ReadonlyArray<Government> | undefined
 }
 
 // A chart of one indicator's values.
-const Single = ({ resolved, picking }: SingleProps) =>
+const Single = ({ resolved, picking, governments }: SingleProps) =>
   Match.valueTags(resolved.view, {
     Trend: (shown) => (
-      <TrendChart resolved={resolved} trend={picking?.trend ?? shown} history={picking?.history} />
+      <TrendChart
+        resolved={resolved}
+        trend={picking?.trend ?? shown}
+        history={picking?.history}
+        governments={governments}
+      />
     ),
     Ranking: (ranking) =>
       ranking.as === "Map" ? (
@@ -312,16 +320,17 @@ const Single = ({ resolved, picking }: SingleProps) =>
 interface ChartProps {
   resolved: ResolvedView
   picking?: Picking | undefined
+  governments: ReadonlyArray<Government> | undefined
 }
 
 // The chart, and under it the values its source flags and where other
 // sources disagree.
-const Chart = ({ resolved, picking }: ChartProps) => (
+const Chart = ({ resolved, picking, governments }: ChartProps) => (
   <div className="space-y-3">
     {"against" in resolved ? (
       <RelationChart resolved={resolved} />
     ) : (
-      <Single resolved={resolved} picking={picking} />
+      <Single resolved={resolved} picking={picking} governments={governments} />
     )}
     <Flags resolved={resolved} />
     <Disagreements resolved={resolved} />
@@ -399,13 +408,25 @@ interface SectionsProps {
   // Whether the chart is the previous one, shown while the changed one loads.
   stale: boolean
   picking: Picking | undefined
+  // What the chart tab shows above the chart: its overlays' controls and notes.
+  above: ReactNode
+  governments: ReadonlyArray<Government> | undefined
   heading: "h1" | "h3"
   onChange: (view: View) => void
 }
 
 // The chart, the table behind it, and what the indicator measures, a tab
 // each. A tab mounts only while open, so About asks for its notes then.
-const Sections = ({ view, resolved, stale, picking, heading, onChange }: SectionsProps) => {
+const Sections = ({
+  view,
+  resolved,
+  stale,
+  picking,
+  above,
+  governments,
+  heading,
+  onChange,
+}: SectionsProps) => {
   const hold = use(Hold)
 
   return (
@@ -416,6 +437,7 @@ const Sections = ({ view, resolved, stale, picking, heading, onChange }: Section
         <TabsTrigger value="about">About</TabsTrigger>
       </TabsList>
       <TabsContent value="chart" className="flex flex-col gap-4">
+        {above}
         {resolved.missing.length > 0 ? (
           <Alert>
             <AlertTitle>No data for {resolved.missing.map(countryName).join(", ")}</AlertTitle>
@@ -428,7 +450,7 @@ const Sections = ({ view, resolved, stale, picking, heading, onChange }: Section
           aria-busy={stale}
           className={stale ? "opacity-50 transition-opacity" : "transition-opacity"}
         >
-          <Chart resolved={resolved} picking={picking} />
+          <Chart resolved={resolved} picking={picking} governments={governments} />
         </div>
       </TabsContent>
       <TabsContent value="data">
@@ -447,9 +469,130 @@ const Sections = ({ view, resolved, stale, picking, heading, onChange }: Section
   )
 }
 
+interface GovernmentsProps {
+  // None for a chart other than a trend, which shows no governments.
+  trend: Trend | undefined
+  shown: boolean
+  // The trend's governments once loaded, or why they could not be.
+  records: ReadonlyArray<Government> | undefined
+  failed: boolean
+  onShow: (shown: boolean) => void
+}
+
+// The toggle that draws who governed over a trend, and what the chart cannot
+// show: a country without records says so, since no band would read as
+// nobody governing.
+const Governments = ({ trend, shown, records, failed, onShow }: GovernmentsProps) => {
+  const hold = use(Hold)
+
+  if (trend === undefined) return null
+
+  const unrecorded = trend.countries.filter(
+    (country) => records !== undefined && !records.some((record) => record.country === country),
+  )
+
+  return (
+    <>
+      <div className="flex flex-wrap gap-2">
+        <Toggle
+          variant="outline"
+          size="sm"
+          pressed={shown}
+          onPressedChange={(pressed) => {
+            hold()
+            onShow(pressed)
+          }}
+        >
+          Governments
+        </Toggle>
+      </div>
+      {shown && failed ? (
+        <Alert>
+          <AlertTitle>Government records are unavailable</AlertTitle>
+          <AlertDescription>Try again later.</AlertDescription>
+        </Alert>
+      ) : null}
+      {shown && unrecorded.length > 0 ? (
+        <Alert>
+          <AlertTitle>
+            No government records for {unrecorded.map(countryName).join(", ")}
+          </AlertTitle>
+          <AlertDescription>
+            PPEG and ParlGov record the governments of EU and OECD members, each from a different
+            year. Neither covers {period(trend)} for{" "}
+            {unrecorded.length > 1 ? "these countries" : "it"}.
+          </AlertDescription>
+        </Alert>
+      ) : null}
+    </>
+  )
+}
+
+interface CreditsProps {
+  // Whether the chart shows governments; it credits their sources only then.
+  shown: boolean
+  governments: ReadonlyArray<Government> | undefined
+}
+
+// The sources of the governments on a chart, as each asks to be cited.
+const Credits = ({ shown, governments }: CreditsProps) => {
+  if (!shown) return null
+
+  const pages = officialPages(governments ?? [])
+
+  return (
+    <>
+      {" Governments: "}
+      <a className="underline underline-offset-4" href={archives.PPEG.url}>
+        {archives.PPEG.name}
+      </a>
+      {", "}
+      <a className="underline underline-offset-4" href={archives.ParlGov.url}>
+        {archives.ParlGov.name}
+      </a>
+      {pages.length === 0 ? null : (
+        <>
+          {", official records "}
+          {pages.map((url, index) => (
+            <Fragment key={url}>
+              {index === 0 ? "" : " "}
+              <a className="underline underline-offset-4" href={url}>
+                {index + 1}
+              </a>
+            </Fragment>
+          ))}
+        </>
+      )}
+      .
+    </>
+  )
+}
+
+// The governments a card draws over its chart: only a trend's, and only
+// while its governments overlay is on.
+const useGovernments = (view: View, overlays: ReadonlyArray<Overlay>) => {
+  const trend = Match.value(view).pipe(
+    Match.tag("Trend", (shown) => shown),
+    Match.orElse(() => undefined),
+  )
+
+  const shown = trend !== undefined && overlays.includes("governments")
+  const query = useQuery(governmentsQuery(shown ? trend : undefined))
+
+  return {
+    trend,
+    shown,
+    records: shown ? query.data?.governments : undefined,
+    failed: shown && query.isError,
+  }
+}
+
 interface ExploreProps {
   view: View
   onChange: (view: View) => void
+  // What the chart draws over a trend's lines, outside the View.
+  overlays: ReadonlyArray<Overlay>
+  onOverlays: (overlays: ReadonlyArray<Overlay>) => void
   // The card's title: the page's own heading on /explore, or a heading under
   // the question in a conversation.
   heading: "h1" | "h3"
@@ -466,6 +609,8 @@ interface ExploreProps {
 export const Explore = ({
   view,
   onChange,
+  overlays,
+  onOverlays,
   heading: Heading,
   changing: initial = false,
   agent,
@@ -481,6 +626,8 @@ export const Explore = ({
   const query = useQuery(resolveQuery(view))
   const known = indicatorNames(query.data === undefined ? [] : [query.data])
   const picking = usePicking(view, { enabled: changing, onChange: change })
+
+  const governed = useGovernments(view, overlays)
 
   const dimensions =
     query.data?.dimensions ??
@@ -505,7 +652,7 @@ export const Explore = ({
           >
             Change
           </Toggle>
-          <CopyLink view={view} />
+          <CopyLink view={view} overlays={overlays} />
         </CardAction>
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -522,6 +669,13 @@ export const Explore = ({
               resolved={query.data}
               stale={query.isPlaceholderData}
               picking={picking}
+              above={
+                <Governments
+                  {...governed}
+                  onShow={(shown) => onOverlays(shown ? ["governments"] : [])}
+                />
+              }
+              governments={governed.records}
               heading={Heading}
               onChange={change}
             />
@@ -529,7 +683,12 @@ export const Explore = ({
         )}
       </CardContent>
       <CardFooter className="text-sm text-muted-foreground">
-        {query.data === undefined ? `Source: ${sourceOf(view.indicator)}` : attribution(query.data)}
+        <p>
+          {query.data === undefined
+            ? `Source: ${sourceOf(view.indicator)}`
+            : attribution(query.data)}
+          <Credits shown={governed.shown} governments={governed.records} />
+        </p>
       </CardFooter>
     </Card>
   )

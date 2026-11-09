@@ -82,3 +82,10 @@ export class NoChart extends Schema.TaggedError<NoChart, { readonly brand: uniqu
   { turn: Schema.Int },
   { httpApiStatus: 409 },
 ) {}
+
+// No elections or governments can be read in this runtime: outside Workers,
+// or before the scheduled build first stores them.
+export class PoliticsUnavailable extends Schema.TaggedError<
+  PoliticsUnavailable,
+  { readonly brand: unique symbol }
+>()("PoliticsUnavailable", {}, { httpApiStatus: 503 }) {}

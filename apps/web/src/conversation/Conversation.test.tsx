@@ -717,6 +717,21 @@ describe("Conversation", () => {
     expect(screen.queryByRole("link", { name: /explorer/ })).toBeNull()
   })
 
+  it("shows who governed in an answer's chart, and says when a country has no records", async () => {
+    const user = userEvent.setup()
+
+    network.use(
+      ...kept([brazilAnswer]).handlers,
+      resolve,
+      http.get("/api/politics", () => HttpResponse.json({ governments: [] })),
+    )
+    show()
+
+    await user.click(await screen.findByRole("button", { name: "Governments" }))
+
+    expect(await screen.findByText("No government records for Brazil")).toBeDefined()
+  })
+
   it("keeps a changed chart after a reload", async () => {
     const server = kept([brazilAnswer])
 

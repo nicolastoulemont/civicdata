@@ -7,9 +7,11 @@ import {
   TurnNotFound,
   type View,
 } from "@civicdata/domain"
+import { useState } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Explore } from "@/explore/Explore"
+import type { Overlay } from "@/explore/governments"
 
 import { useShow } from "./useConversation.ts"
 
@@ -38,10 +40,19 @@ interface AnswerProps {
 export const Answer = ({ id, turn, agent, shown }: AnswerProps) => {
   const showing = useShow(id, turn)
   const view = showing.isPending ? showing.variables : (shown ?? agent.view)
+  // Not kept with the conversation: a copied link carries them instead.
+  const [overlays, setOverlays] = useState<ReadonlyArray<Overlay>>([])
 
   return (
     <>
-      <Explore view={view} onChange={(next) => showing.mutate(next)} heading="h3" agent={agent} />
+      <Explore
+        view={view}
+        onChange={(next) => showing.mutate(next)}
+        overlays={overlays}
+        onOverlays={setOverlays}
+        heading="h3"
+        agent={agent}
+      />
       {showing.isError ? (
         <Alert variant="destructive">
           <AlertTitle>Your change could not be kept</AlertTitle>

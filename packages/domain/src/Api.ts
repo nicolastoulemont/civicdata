@@ -10,12 +10,14 @@ import {
   DimensionsMissing,
   IndicatorNotFound,
   NoChart,
+  PoliticsUnavailable,
   SourceUnavailable,
   TooManyQuestions,
   TransformNotApplicable,
   TurnNotFound,
 } from "./Errors.ts"
 import { IndicatorId, IndicatorNotes } from "./Indicator.ts"
+import { Politics as PoliticalRecords, PoliticsQuery } from "./Politics.ts"
 import { ResolvedView } from "./ResolvedView.ts"
 import { View } from "./View.ts"
 
@@ -69,6 +71,18 @@ class Catalog extends HttpApiGroup.make("catalog")
     }),
   )
   .prefix("/catalog") {}
+
+// The governments of some countries over some years, for a trend chart to
+// draw beside its lines.
+class Politics extends HttpApiGroup.make("politics")
+  .add(
+    HttpApiEndpoint.get("records", "/", {
+      query: PoliticsQuery,
+      success: PoliticalRecords,
+      error: PoliticsUnavailable,
+    }),
+  )
+  .prefix("/politics") {}
 
 // An answer's steps as they happen. Once the stream has started, a failure
 // arrives in it rather than as an HTTP status.
@@ -130,6 +144,7 @@ export class Api extends HttpApi.make("civicdata")
   .add(Views)
   .add(Indicators)
   .add(Catalog)
+  .add(Politics)
   .add(Conversation)
   .prefix("/api") {}
 

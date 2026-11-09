@@ -19,7 +19,8 @@
     "@civicdata/domain": "workspace:*",
     "@effect/ai-openai": "4.1.2",
     "@effect/sql-d1": "4.1.2",
-    "effect": "catalog:"
+    "effect": "catalog:",
+    "fflate": "0.8.3"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.6.0",

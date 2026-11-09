@@ -8,6 +8,7 @@ import { AskLimit } from "./AskLimit.ts"
 import { Catalog } from "./Catalog.ts"
 import { Conversations } from "./Conversations.ts"
 import { Notes } from "./Notes.ts"
+import { Politics } from "./Politics.ts"
 import { Resolver } from "./Resolver.ts"
 
 const System = HttpApiBuilder.group(Api, "system", (handlers) =>
@@ -52,6 +53,16 @@ const CatalogSearch = HttpApiBuilder.group(
   }),
 )
 
+const PoliticalRecords = HttpApiBuilder.group(
+  Api,
+  "politics",
+  Effect.fn(function* (handlers) {
+    const politics = yield* Politics
+
+    return handlers.handle("records", ({ query }) => politics.records(query))
+  }),
+)
+
 // A conversation's own Durable Object answers its requests, so they pass
 // through unread: the Worker only checks the id in the path.
 const ConversationRoutes = HttpApiBuilder.group(
@@ -82,12 +93,13 @@ const ConversationRoutes = HttpApiBuilder.group(
   }),
 )
 
-// Every API route, needing a WorldBank, an Sdmx, Notes, a Catalog,
+// Every API route, needing a WorldBank, an Sdmx, Notes, a Catalog, Politics,
 // Conversations, an Agent and an AskLimit.
 export const Handlers = Layer.mergeAll(
   System,
   Views,
   Indicators,
   CatalogSearch,
+  PoliticalRecords,
   ConversationRoutes,
 ).pipe(Layer.provide(Resolver.layer))
