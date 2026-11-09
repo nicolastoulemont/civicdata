@@ -148,6 +148,14 @@ describe("History", () => {
     expect(screen.getByRole("link", { name: "New conversation" }).getAttribute("href")).toBe("/")
   })
 
+  it("links to the source on GitHub", async () => {
+    show()
+
+    expect(
+      (await screen.findByRole("link", { name: "View the source on GitHub" })).getAttribute("href"),
+    ).toBe("https://github.com/nicolastoulemont/civicdata")
+  })
+
   it("lists this browser's conversations newest first, with how long ago each was asked", async () => {
     store(
       entry({ id: happiness, title: "Which countries are happiest?", askedAt: minutes(3 * 60) }),
