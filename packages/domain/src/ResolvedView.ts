@@ -17,6 +17,7 @@ export interface Observation extends Schema.Schema.Type<typeof Observation> {}
 // lists every series it was computed from, e.g. GDP and population.
 const Provenance = Schema.Struct({
   indicator: IndicatorId,
+  name: Schema.NonEmptyString,
   source: Schema.Literal("World Bank"),
   dataset: Schema.NonEmptyString,
   url: Schema.String,

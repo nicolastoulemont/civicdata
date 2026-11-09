@@ -2,7 +2,7 @@ import { Match, Schema } from "effect"
 
 import { Country } from "./Country.ts"
 import { IndicatorId } from "./Indicator.ts"
-import { Transform } from "./Transform.ts"
+import { Ratio, Transform } from "./Transform.ts"
 
 // World Bank series start in 1960.
 export const Year = Schema.Int.check(Schema.isBetween({ minimum: 1960, maximum: 2100 })).pipe(
@@ -18,6 +18,17 @@ const forwards = Schema.makeFilter(
     years.from <= years.to || "from must not be after to",
 )
 
+// A ratio of an indicator to itself is 1 everywhere.
+const divides = Schema.makeFilter(
+  (view: { readonly indicator: IndicatorId; readonly transform?: Transform }) =>
+    view.transform === undefined ||
+    Match.value(view.transform).pipe(
+      Match.when({ _tag: "Ratio" }, (ratio) => ratio.per !== view.indicator),
+      Match.orElse(() => true),
+    ) ||
+    "a ratio must divide by another indicator",
+)
+
 // One indicator for some countries over a range of years, drawn as lines.
 export const Trend = Schema.TaggedStruct("Trend", {
   indicator: IndicatorId,
@@ -25,7 +36,7 @@ export const Trend = Schema.TaggedStruct("Trend", {
   from: Year,
   to: Year,
   transform: Schema.optionalKey(Transform),
-}).check(forwards)
+}).check(forwards, divides)
 
 export interface Trend extends Schema.Schema.Type<typeof Trend> {}
 
@@ -35,19 +46,19 @@ export const Ranking = Schema.TaggedStruct("Ranking", {
   indicator: IndicatorId,
   countries: Countries,
   year: Year,
-  transform: Schema.optionalKey(Schema.Literals(["PerPerson", "Growth"])),
-})
+  transform: Schema.optionalKey(Schema.Union([Schema.Literals(["PerPerson", "Growth"]), Ratio])),
+}).check(divides)
 
 // One indicator for some countries in two years, drawn as a dot for each year
 // joined by a line. Growth and an index describe a change already, so only
-// "per person" applies.
+// "per person" and a ratio apply.
 export const Change = Schema.TaggedStruct("Change", {
   indicator: IndicatorId,
   countries: Countries,
   from: Year,
   to: Year,
-  transform: Schema.optionalKey(Schema.Literal("PerPerson")),
-}).check(forwards)
+  transform: Schema.optionalKey(Schema.Union([Schema.Literal("PerPerson"), Ratio])),
+}).check(forwards, divides)
 
 export interface Change extends Schema.Schema.Type<typeof Change> {}
 

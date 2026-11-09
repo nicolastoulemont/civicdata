@@ -13,7 +13,7 @@ import {
 import { Array as Arr, Context, Effect, Layer, Match } from "effect"
 
 import { titleOf } from "./Titles.ts"
-import { growth, indexed, perPerson } from "./transforms.ts"
+import { divide, growth, indexed } from "./transforms.ts"
 import { WorldBank } from "./WorldBank.ts"
 
 interface Interface {
@@ -56,6 +56,7 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
           observations: fetched.observations,
           source: {
             indicator: query.indicator,
+            name: described.indicator.name,
             source: "World Bank" as const,
             dataset: described.dataset,
             url: fetched.url,
@@ -81,18 +82,26 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
           return yield* new TransformNotApplicable({ indicator: query.indicator, transform })
         }
 
-        const people =
-          transform === "PerPerson" ? yield* series({ ...query, indicator: population }) : undefined
+        // Per person and a ratio divide by another series, which the chart cites.
+        const divisor = Match.value(transform).pipe(
+          Match.when("PerPerson", () => population),
+          Match.when({ _tag: "Ratio" }, (ratio) => ratio.per),
+          Match.orElse(() => undefined),
+        )
+
+        const by =
+          divisor === undefined ? undefined : yield* series({ ...query, indicator: divisor })
 
         const transformed = Match.value(transform).pipe(
-          Match.when("PerPerson", () => perPerson(main.observations, people?.observations ?? [])),
           Match.when("Growth", () => growth(main.observations)),
           Match.when("Index", () => indexed(main.observations, from)),
-          Match.orElse(() => main.observations),
+          Match.orElse(() =>
+            by === undefined ? main.observations : divide(main.observations, by.observations),
+          ),
         )
 
         const sources: ResolvedView["sources"] =
-          people === undefined ? [main.source] : [main.source, people.source]
+          by === undefined ? [main.source] : [main.source, by.source]
 
         return {
           title: titleOf(main.described.indicator),

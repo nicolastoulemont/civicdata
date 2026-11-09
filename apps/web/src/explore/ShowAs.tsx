@@ -1,18 +1,27 @@
-import { applies, type Transform, transformOf, type View } from "@civicdata/domain"
-import { Match, Schema } from "effect"
+import { applies, kindOf, type Transform, transformOf, type View } from "@civicdata/domain"
+import { Match } from "effect"
 
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 
-import { withTransform } from "./edits.ts"
+import { ratioFor, withTransform } from "./edits.ts"
 
 const choices = [
   { value: "Values", label: "Values" },
   { value: "PerPerson", label: "Per person" },
   { value: "Growth", label: "Growth" },
   { value: "Index", label: "Index" },
+  { value: "Ratio", label: "Ratio" },
 ] as const
 
-const isTransform = Schema.is(Schema.Literals(["PerPerson", "Growth", "Index"]))
+type Choice = (typeof choices)[number]["value"]
+
+// The transform a choice stands for. A ratio first divides by GDP.
+const transformFor = (choice: Choice, view: View): Transform | undefined =>
+  Match.value(choice).pipe(
+    Match.when("Values", () => undefined),
+    Match.when("Ratio", () => ratioFor(view.indicator)),
+    Match.orElse((plain) => plain),
+  )
 
 // What the chart shows: the indicator's values, or a transform of them. A
 // transform the indicator cannot take is disabled. A chart type offers only
@@ -30,35 +39,39 @@ export const ShowAs = ({
   const offered = Match.valueTags(view, {
     Trend: () => choices,
     Ranking: () => choices.filter((choice) => choice.value !== "Index"),
-    Change: () => choices.filter((choice) => ["Values", "PerPerson"].includes(choice.value)),
+    Change: () =>
+      choices.filter((choice) => ["Values", "PerPerson", "Ratio"].includes(choice.value)),
     Relation: () => [],
   })
 
   if (offered.length === 0) return null
 
-  const available = (transform: Transform) => name === undefined || applies(transform, name)
+  const transform = transformOf(view)
 
   return (
     <ToggleGroup
       aria-label="Show as"
       variant="outline"
-      value={[transformOf(view) ?? "Values"]}
+      value={[transform === undefined ? "Values" : kindOf(transform)]}
       onValueChange={(next: Array<string>) => {
-        const [picked] = next
+        const picked = offered.find((choice) => next.includes(choice.value))
 
-        if (picked !== undefined)
-          onChange(withTransform(view, isTransform(picked) ? picked : undefined))
+        if (picked !== undefined) onChange(withTransform(view, transformFor(picked.value, view)))
       }}
     >
-      {offered.map((choice) => (
-        <ToggleGroupItem
-          key={choice.value}
-          value={choice.value}
-          disabled={choice.value !== "Values" && !available(choice.value)}
-        >
-          {choice.label}
-        </ToggleGroupItem>
-      ))}
+      {offered.map((choice) => {
+        const shows = transformFor(choice.value, view)
+
+        return (
+          <ToggleGroupItem
+            key={choice.value}
+            value={choice.value}
+            disabled={shows !== undefined && name !== undefined && !applies(shows, name)}
+          >
+            {choice.label}
+          </ToggleGroupItem>
+        )
+      })}
     </ToggleGroup>
   )
 }

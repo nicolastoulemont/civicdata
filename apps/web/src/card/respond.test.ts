@@ -4,6 +4,7 @@ import {
   type Country,
   IndicatorId,
   Ranking,
+  Ratio,
   Relation,
   Trend,
   Year,
@@ -110,6 +111,15 @@ describe("GET /explore.png", () => {
   it.each([
     ["a ranking", Ranking.make({ ...both, year: Year.make(2020) })],
     ["a change", Change.make({ ...both, from: Year.make(2019), to: Year.make(2020) })],
+    [
+      "a ratio",
+      Trend.make({
+        ...both,
+        from: Year.make(2019),
+        to: Year.make(2020),
+        transform: Ratio.make({ per: IndicatorId.make("NY.GDP.PCAP.CD") }),
+      }),
+    ],
     [
       "a relation",
       Relation.make({

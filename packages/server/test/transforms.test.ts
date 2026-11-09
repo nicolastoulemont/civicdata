@@ -1,14 +1,14 @@
 import { Year } from "@civicdata/domain"
 import { describe, expect, it } from "vitest"
 
-import { growth, indexed, perPerson } from "../src/transforms.ts"
+import { divide, growth, indexed } from "../src/transforms.ts"
 
 const year = (value: number) => Year.make(value)
 
 describe("transforms", () => {
-  it("drops a value with no population for its year", () => {
+  it("drops a value with no divisor for its year", () => {
     expect(
-      perPerson(
+      divide(
         [
           { country: "FRA", year: year(2019), value: 100 },
           { country: "FRA", year: year(2020), value: 200 },

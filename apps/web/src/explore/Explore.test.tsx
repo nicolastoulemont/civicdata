@@ -25,6 +25,11 @@ const population = IndicatorId.make("SP.POP.TOTL")
 const catalog = [
   { indicator: population, name: "Population, total", definition: "Midyear estimates." },
   {
+    indicator: IndicatorId.make("NY.GDP.MKTP.CD"),
+    name: "GDP (current US$)",
+    definition: "Gross domestic product at purchaser's prices.",
+  },
+  {
     indicator: IndicatorId.make("NY.GDP.PCAP.CD"),
     name: "GDP per capita (current US$)",
     definition: "Gross domestic product divided by midyear population.",
@@ -64,6 +69,7 @@ const titled = (indicator: IndicatorId) => titles.get(indicator) ?? named(indica
 
 const source = (indicator: IndicatorId) => ({
   indicator,
+  name: named(indicator).name,
   source: "World Bank" as const,
   dataset: "World Development Indicators",
   url: `https://api.worldbank.org/v2/indicator/${indicator}`,
@@ -119,7 +125,14 @@ const resolvedFor = (view: View): ResolvedView => {
     Match.orElse((single) => ({
       view: single,
       ...fields,
-      sources: [source(single.indicator)] as const,
+      // A ratio cites the series it divides by.
+      sources: Match.value(single.transform).pipe(
+        Match.when(
+          { _tag: "Ratio" },
+          ({ per }) => [source(single.indicator), source(per)] as const,
+        ),
+        Match.orElse(() => [source(single.indicator)] as const),
+      ),
     })),
   )
 }
@@ -344,6 +357,24 @@ describe("Explore", () => {
     expect(await screen.findByRole("cell", { name: "67.39" })).toBeDefined()
   })
 
+  it("shows a total as a ratio of another indicator, citing both", async () => {
+    network.use(worldBank)
+    const user = userEvent.setup()
+
+    show(trend)
+
+    await screen.findByRole("heading", { name: "Total population" })
+    await user.click(screen.getByRole("button", { name: "Ratio" }))
+
+    expect(await screen.findByText("2019–2020 · per GDP (current US$)")).toBeDefined()
+    expect(screen.getByRole("combobox", { name: "Per" })).toBeDefined()
+
+    await user.click(screen.getByRole("button", { name: "Data" }))
+
+    expect(await screen.findByRole("link", { name: "NY.GDP.MKTP.CD request" })).toBeDefined()
+    expect(screen.getByRole("link", { name: "SP.POP.TOTL request" })).toBeDefined()
+  })
+
   it("offers no transform for a percentage", async () => {
     network.use(worldBank)
 
@@ -351,7 +382,7 @@ describe("Explore", () => {
 
     await screen.findByRole("heading", { name: "Unemployment, total (% of total labor force)" })
 
-    for (const name of ["Per person", "Growth", "Index"]) {
+    for (const name of ["Per person", "Growth", "Index", "Ratio"]) {
       expect(screen.getByRole("button", { name })).toHaveProperty("disabled", true)
     }
   })

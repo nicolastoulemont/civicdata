@@ -64,6 +64,7 @@ const resolve = http.post("/api/views/resolve", async ({ request }) => {
       sources: [
         {
           indicator: lifeExpectancy,
+          name: "Life expectancy at birth, total (years)",
           source: "World Bank",
           dataset: "World Development Indicators",
           url: `https://api.worldbank.org/v2/indicator/${lifeExpectancy}`,
