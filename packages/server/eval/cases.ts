@@ -13,7 +13,7 @@ export interface Case {
   readonly accepts: Arr.NonEmptyReadonlyArray<Expected>
 }
 
-const { Trend, Ranking, Asked, Unanswered } = Expected
+const { Trend, Ranking, Map, Change, Relation, Asked, Unanswered } = Expected
 
 // Close indicators that answer the same question equally well, by source:
 // World Bank codes, and the series of Eurostat and OECD dataflows. A case
@@ -128,6 +128,36 @@ const gdpPerPerson = {
 } as const
 
 const g7 = ["USA", "JPN", "DEU", "GBR", "FRA", "ITA", "CAN"] as const
+
+const eu = [
+  "AUT",
+  "BEL",
+  "BGR",
+  "HRV",
+  "CYP",
+  "CZE",
+  "DNK",
+  "EST",
+  "FIN",
+  "FRA",
+  "DEU",
+  "GRC",
+  "HUN",
+  "IRL",
+  "ITA",
+  "LVA",
+  "LTU",
+  "LUX",
+  "MLT",
+  "NLD",
+  "POL",
+  "PRT",
+  "ROU",
+  "SVK",
+  "SVN",
+  "ESP",
+  "SWE",
+] as const
 
 // Eurostat publishes these, with no World Bank counterpart, as a share of the
 // whole population.
@@ -399,6 +429,60 @@ export const cases: ReadonlyArray<Case> = [
       "Compare foreign direct investment inflows relative to GDP in Ireland, Singapore and Luxembourg",
     ],
     accepts: [Ranking({ indicators: ["BX.KLT.DINV.WD.GD.ZS"], countries: ["IRL", "SGP", "LUX"] })],
+  },
+
+  // Questions whose words do not name the chart type that answers them.
+  {
+    questions: [
+      "Which grew fastest between 2000 and 2020: the population of Nigeria, Egypt or Ethiopia?",
+    ],
+    accepts: [
+      Change({
+        indicators: population.worldBank,
+        countries: ["NGA", "EGY", "ETH"],
+        from: 2000,
+        to: 2020,
+      }),
+    ],
+  },
+  {
+    questions: ["How do the 27 EU countries compare on life expectancy?"],
+    accepts: [
+      Ranking({
+        indicators: lifeExpectancy.worldBank,
+        series: lifeExpectancy.eurostat,
+        countries: eu,
+      }),
+      Map({ indicators: lifeExpectancy.worldBank, series: lifeExpectancy.eurostat, countries: eu }),
+    ],
+  },
+  {
+    questions: ["Has India caught up with China on life expectancy?"],
+    accepts: [Trend({ indicators: lifeExpectancy.worldBank, countries: ["IND", "CHN"] })],
+  },
+  // Seven lines are too many for a trend.
+  {
+    questions: ["How has life expectancy changed in the G7 since 2000?"],
+    accepts: [Change({ indicators: lifeExpectancy.worldBank, countries: g7, from: 2000 })],
+  },
+  {
+    questions: ["Do people live longer in richer countries? Look at the G7."],
+    accepts: [
+      Relation({
+        indicators: lifeExpectancy.worldBank,
+        against: [
+          ...gdpPerPerson.worldBank,
+          ...gdpPerPerson.oecd.map(({ indicator }) => indicator),
+        ],
+        countries: g7,
+      }),
+      Relation({
+        indicators: gdpPerPerson.worldBank,
+        series: gdpPerPerson.oecd,
+        against: lifeExpectancy.worldBank,
+        countries: g7,
+      }),
+    ],
   },
 
   // Place names that are not a World Bank name, or name a group.

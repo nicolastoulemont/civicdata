@@ -4,6 +4,7 @@ import {
   Dimensions,
   IndicatorId,
   Ranking,
+  Relation,
   Trend,
   Unanswered,
   Year,
@@ -56,6 +57,39 @@ describe("score", () => {
     })
 
     expect(score([expected], ranking)).toEqual(["a ranking, want a trend"])
+  })
+
+  it("tells a map from a ranking of the same countries", () => {
+    const ranking = Ranking.make({
+      indicator: lifeExpectancy,
+      countries: ["BRA", "MEX"],
+      year: Year.make(2020),
+    })
+
+    const map = Expected.Map({ ...expected, year: 2020 })
+
+    expect(score([map], Answered.make({ view: Ranking.make({ ...ranking, as: "Map" }) }))).toEqual(
+      [],
+    )
+    expect(score([map], Answered.make({ view: ranking }))).toEqual(["a ranking, want a map"])
+  })
+
+  it("scores the indicator a relation plots against", () => {
+    const relation = Answered.make({
+      view: Relation.make({
+        indicator: lifeExpectancy,
+        against: IndicatorId.make("NY.GDP.PCAP.CD"),
+        countries: ["BRA", "MEX"],
+        year: Year.make(2020),
+      }),
+    })
+
+    expect(
+      score([Expected.Relation({ ...expected, against: ["NY.GDP.PCAP.CD"] })], relation),
+    ).toEqual([])
+    expect(
+      score([Expected.Relation({ ...expected, against: ["NY.GDP.PCAP.KD"] })], relation),
+    ).toEqual(["against NY.GDP.PCAP.CD, want NY.GDP.PCAP.KD"])
   })
 
   it("scores against the closest of the answers a case accepts", () => {

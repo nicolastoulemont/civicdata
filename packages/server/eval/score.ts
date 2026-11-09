@@ -30,10 +30,14 @@ interface Chart {
   readonly transform?: Transform
 }
 
-// One answer a case accepts.
+// One answer a case accepts. A relation plots its indicator against any of
+// `against`.
 export type Expected = Data.TaggedEnum<{
   Trend: Chart & { readonly from?: number; readonly to?: number }
   Ranking: Chart & { readonly year?: number }
+  Map: Chart & { readonly year?: number }
+  Change: Chart & { readonly from?: number; readonly to?: number }
+  Relation: Chart & { readonly against: ReadonlyArray<string>; readonly year?: number }
   // The agent asks which reading of the question is meant.
   Asked: {}
   // The agent shows no chart, because no indicator measures the question.
@@ -42,20 +46,34 @@ export type Expected = Data.TaggedEnum<{
 
 export const Expected = Data.taggedEnum<Expected>()
 
-// The parts of a chart a case scores, with a ranking's year as a one-year range.
+// The parts of a chart a case scores, with a ranking's year as a one-year
+// range, and the indicator a relation plots against.
 interface Parts {
-  readonly chart: "trend" | "ranking" | "change" | "relation"
+  readonly chart: "trend" | "ranking" | "map" | "change" | "relation"
   readonly from?: number | undefined
   readonly to?: number | undefined
+  readonly against?: string | undefined
 }
 
 const partsOf = (view: View): Parts =>
   Match.valueTags(view, {
     Trend: ({ from, to }): Parts => ({ chart: "trend", from, to }),
-    Ranking: ({ year }): Parts => ({ chart: "ranking", from: year, to: year }),
+    Ranking: ({ year, as }): Parts => ({
+      chart: as === "Map" ? "map" : "ranking",
+      from: year,
+      to: year,
+    }),
     Change: ({ from, to }): Parts => ({ chart: "change", from, to }),
-    Relation: ({ year }): Parts => ({ chart: "relation", from: year, to: year }),
+    Relation: ({ year, against }): Parts => ({ chart: "relation", from: year, to: year, against }),
   })
+
+// The parts a case wants, with the indicators a relation may plot against.
+interface Wanted extends Chart {
+  readonly chart: Parts["chart"]
+  readonly from?: number | undefined
+  readonly to?: number | undefined
+  readonly against?: ReadonlyArray<string>
+}
 
 const describe = (transform: Transform | undefined) =>
   transform === undefined
@@ -94,7 +112,7 @@ const sameCountries = (got: ReadonlyArray<Country>, want: ReadonlyArray<Country>
   got.length === want.length && want.every((country) => got.includes(country))
 
 // How the chart differs from the one expected, one line per difference.
-const compare = (view: View, want: Chart & Parts): ReadonlyArray<string> => {
+const compare = (view: View, want: Wanted): ReadonlyArray<string> => {
   const got = partsOf(view)
 
   if (got.chart !== want.chart) return [`a ${got.chart}, want a ${want.chart}`]
@@ -115,6 +133,11 @@ const compare = (view: View, want: Chart & Parts): ReadonlyArray<string> => {
     ],
     [want.from === undefined || got.from === want.from, `from ${got.from}, want ${want.from}`],
     [want.to === undefined || got.to === want.to, `to ${got.to}, want ${want.to}`],
+    [
+      want.against === undefined ||
+        (got.against !== undefined && want.against.includes(got.against)),
+      `against ${got.against}, want ${want.against?.join(" or ")}`,
+    ],
   ]
 
   return [
@@ -124,13 +147,17 @@ const compare = (view: View, want: Chart & Parts): ReadonlyArray<string> => {
 }
 
 const differencesFrom = (expected: Expected, ending: Ending): ReadonlyArray<string> => {
-  const chart = (want: Chart & Parts) =>
+  const chart = (want: Wanted) =>
     isAnswered(ending) ? compare(ending.view, want) : [`${endingOf(ending)}, want a ${want.chart}`]
 
   return Expected.$match(expected, {
     Trend: (trend) => chart({ ...trend, chart: "trend" }),
     Ranking: (ranking) =>
       chart({ ...ranking, chart: "ranking", from: ranking.year, to: ranking.year }),
+    Map: (map) => chart({ ...map, chart: "map", from: map.year, to: map.year }),
+    Change: (change) => chart({ ...change, chart: "change" }),
+    Relation: (relation) =>
+      chart({ ...relation, chart: "relation", from: relation.year, to: relation.year }),
     Asked: () => (isAsked(ending) ? [] : [`${endingOf(ending)}, want a question`]),
     Unanswered: () => (isUnanswered(ending) ? [] : [`${endingOf(ending)}, want no chart`]),
   })
