@@ -22,7 +22,9 @@ const load = async ({ queryClient, id }: PreloadOptions) => {
 
   await Promise.all(
     answered.flatMap(({ answer }) =>
-      isAnswered(answer) ? [queryClient.prefetchQuery(resolveQuery(answer.view))] : [],
+      isAnswered(answer)
+        ? answer.charts.map(({ view }) => queryClient.prefetchQuery(resolveQuery(view)))
+        : [],
     ),
   )
 }

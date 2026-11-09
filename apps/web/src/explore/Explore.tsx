@@ -1,5 +1,5 @@
 import {
-  type Answered,
+  type Chart as Drawn,
   areas,
   Change,
   type Dimension,
@@ -703,7 +703,7 @@ interface ExploreProps {
   // Whether the controls start open.
   changing?: boolean
   // The chart the agent answered with and its takeaway, in a conversation.
-  agent?: typeof Answered.Type | undefined
+  agent?: Drawn | undefined
 }
 
 // The explorer card for one View: its chart, the table behind it and what it

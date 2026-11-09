@@ -1,19 +1,19 @@
 import { IndicatorId, Trend as TrendView, Year } from "@civicdata/domain"
 import type { View } from "@civicdata/domain"
-import type { Array as Arr } from "effect"
+import { Array as Arr } from "effect"
 
 import { Expected } from "./score.ts"
 
 // Questions asked in one conversation, in order, and the answers to the last
-// one that count as right. `shown` is the chart a person changes the answer
-// before the last question to.
+// one that count as right. `shown` is the chart a person changes the first
+// chart of the answer before the last question to.
 export interface Case {
   readonly questions: Arr.NonEmptyReadonlyArray<string>
   readonly shown?: View
   readonly accepts: Arr.NonEmptyReadonlyArray<Expected>
 }
 
-const { Trend, Ranking, Map, Change, Relation, Asked, Unanswered } = Expected
+const { Trend, Ranking, Map, Change, Relation, Charts, Asked, Unanswered } = Expected
 
 // Close indicators that answer the same question equally well, by source:
 // World Bank codes, and the series of Eurostat and OECD dataflows. A case
@@ -158,6 +158,36 @@ const eu = [
   "ESP",
   "SWE",
 ] as const
+
+// Real GDP growth, the annual % change in volume.
+const gdpGrowth = {
+  worldBank: ["NY.GDP.MKTP.KD.ZG"],
+  eurostat: [
+    { indicator: "ESTAT,TEC00115,1.0", dimensions: { unit: ["CLV_PCH_PRE"] } },
+    {
+      indicator: "ESTAT,NAMA_10_GDP,1.0",
+      dimensions: { na_item: ["B1GQ"], unit: ["CLV_PCH_PRE"] },
+    },
+  ],
+} as const
+
+// Current spending on health, as a share of GDP or per person.
+const healthSpending = {
+  worldBank: ["SH.XPD.CHEX.GD.ZS", "SH.XPD.CHEX.PC.CD", "SH.XPD.CHEX.PP.CD"],
+  // Every scheme, function and provider.
+  oecd: [
+    {
+      indicator: "OECD.ELS.HD,DSD_SHA@DF_SHA,1.1",
+      dimensions: {
+        UNIT_MEASURE: ["PT_B1GQ", "USD_PPP_PS"],
+        FINANCING_SCHEME: ["_T"],
+        FUNCTION: ["_T"],
+        MODE_PROVISION: ["_T"],
+        PROVIDER: ["_T"],
+      },
+    },
+  ],
+} as const
 
 // Eurostat publishes these, with no World Bank counterpart, as a share of the
 // whole population.
@@ -481,6 +511,61 @@ export const cases: ReadonlyArray<Case> = [
         series: gdpPerPerson.oecd,
         against: lifeExpectancy.worldBank,
         countries: g7,
+      }),
+    ],
+  },
+
+  // Questions one chart cannot answer: measures with different units, and a
+  // comparison at one point with a change over time. The charts may come in
+  // either order when the question does not set one.
+  {
+    questions: ["How have GDP growth and unemployment moved in Spain since 2008?"],
+    accepts: Arr.flatMap(
+      [
+        Trend({
+          indicators: gdpGrowth.worldBank,
+          series: gdpGrowth.eurostat,
+          countries: ["ESP"],
+          from: 2008,
+        }),
+        Trend({
+          indicators: gdp.worldBank,
+          series: gdp.eurostat,
+          countries: ["ESP"],
+          from: 2008,
+          transform: "Growth",
+        }),
+      ],
+      (growth) => {
+        const jobless = Trend({
+          indicators: unemployment.worldBank,
+          series: [...unemployment.eurostat, ...unemployment.oecd],
+          countries: ["ESP"],
+          from: 2008,
+        })
+
+        return [Charts({ charts: [growth, jobless] }), Charts({ charts: [jobless, growth] })]
+      },
+    ),
+  },
+  // Seven countries: the change over time is a change, not a trend.
+  {
+    questions: ["Which G7 country spends most on health, and how has that changed since 2000?"],
+    accepts: [
+      Charts({
+        charts: [
+          Ranking({
+            indicators: healthSpending.worldBank,
+            series: healthSpending.oecd,
+            countries: g7,
+          }),
+          Change({
+            indicators: healthSpending.worldBank,
+            series: healthSpending.oecd,
+            countries: g7,
+            from: 2000,
+          }),
+        ],
       }),
     ],
   },

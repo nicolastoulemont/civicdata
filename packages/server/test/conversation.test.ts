@@ -4,6 +4,8 @@ import {
   Api,
   Asked,
   Change,
+  type Chart,
+  ChartIndex,
   ConversationBusy,
   Checked,
   ConversationId,
@@ -41,11 +43,12 @@ import {
   TurnNotFound,
   Turns,
   Unanswered,
-  type View,
+  View,
   Year,
 } from "@civicdata/domain"
 import { describe, expect, it } from "@effect/vitest"
 import {
+  type Array as Arr,
   Clock,
   DateTime,
   Deferred,
@@ -198,6 +201,9 @@ type Turn = Effect.Effect<ReadonlyArray<Response.PartEncoded>, AiError.AiError>
 // What the model writes once it has shown a chart, unless a test scripts it.
 const takeaway = "Life expectancy rose in Brazil."
 
+// The model answers in words after a takeaway: it has no more charts to draw.
+const done = Effect.succeed(words("That answers the question."))
+
 // A model that answers each request from a script, in order, and keeps the
 // prompts it was sent. Past the script it answers with the takeaway.
 const scripted = (turns: ReadonlyArray<Turn>) => {
@@ -331,10 +337,18 @@ const follow = Effect.flatMap(client, (api) => api.conversation.answer({ params:
 
 const stop = Effect.flatMap(client, (api) => api.conversation.stop({ params: { id } }))
 
-const show = (turn: number, view: View) =>
+// Changes the chart at `chart` in the turn at `turn`, the first chart unless
+// a test names another.
+const show = (turn: number, view: View, { chart = 0 }: { chart?: number } = {}) =>
   Effect.flatMap(client, (api) =>
-    api.conversation.show({ params: { id, turn: TurnIndex.make(turn) }, payload: view }),
+    api.conversation.show({
+      params: { id, turn: TurnIndex.make(turn), chart: ChartIndex.make(chart) },
+      payload: view,
+    }),
   )
+
+// An answer of these charts, in order.
+const charted = (...charts: Arr.NonEmptyReadonlyArray<Chart>) => Answered.make({ charts })
 
 const encodeTurns = Schema.encodeSync(Schema.toCodecJson(Turns))
 
@@ -371,7 +385,7 @@ const searched = (
   }),
 ) => Search.make({ id: StepId.make("call-search_indicators"), text: "life expectancy", state })
 
-interface Chart {
+interface Fetching {
   readonly step?: string
   readonly view?: View
 }
@@ -379,12 +393,15 @@ interface Chart {
 // Brazil's life expectancy fetched: three values, 2000 to 2002.
 const fetched = (
   state: typeof Fetch.Type.state = Fetched.make({ values: 3 }),
-  { step = "call-show_chart", view = brazilTrend }: Chart = {},
+  { step = "call-show_chart", view = brazilTrend }: Fetching = {},
 ) => Fetch.make({ id: StepId.make(step), view, state })
 
-// The takeaway written and checked, with no number in it.
-const wrote = (state: typeof Takeaway.Type.state = Checked.make({ numbers: 0 })) =>
-  Takeaway.make({ id: StepId.make("takeaway"), state })
+// The takeaway of the answer's first chart, or of the one at `chart`,
+// written and checked, with no number in it.
+const wrote = (
+  state: typeof Takeaway.Type.state = Checked.make({ numbers: 0 }),
+  { chart = 0 }: { chart?: number } = {},
+) => Takeaway.make({ id: StepId.make(`takeaway-${chart}`), state })
 
 const isThinking = Schema.is(Thinking)
 
@@ -403,7 +420,8 @@ describe("conversations", () => {
       expect(yield* turns).toEqual({ answered: [] })
 
       // Each round thinks before its tools, and each tool reports running,
-      // then done with what it found.
+      // then done with what it found. The chart's takeaway follows it, and
+      // a last round finds nothing more to draw.
       expect(yield* answer("How has life expectancy changed in Brazil?")).toEqual([
         ...thinking(0),
         searched(running),
@@ -413,14 +431,15 @@ describe("conversations", () => {
         fetched(),
         wrote(running),
         wrote(),
-        Answered.make({ view: brazilTrend, takeaway }),
+        ...thinking(2),
+        charted({ view: brazilTrend, takeaway }),
       ])
 
       expect(yield* turns).toEqual({
         answered: [
           {
             question: "How has life expectancy changed in Brazil?",
-            answer: Answered.make({ view: brazilTrend, takeaway }),
+            answer: charted({ view: brazilTrend, takeaway }),
             steps: [searched(), fetched(), wrote()],
             took: Duration.zero,
           },
@@ -433,6 +452,7 @@ describe("conversations", () => {
     const model = scripted([
       Effect.succeed(call("show_chart", brazil)),
       Effect.succeed(words(takeaway)),
+      done,
       Effect.succeed(call("show_chart", { ...brazil, countries: ["BRA", "MEX"] })),
     ])
 
@@ -442,7 +462,7 @@ describe("conversations", () => {
       const steps = yield* answer("Add Mexico")
 
       expect(steps.at(-1)).toEqual(
-        Answered.make({
+        charted({
           view: Trend.make({ ...brazilTrend, countries: ["BRA", "MEX"] }),
           takeaway,
         }),
@@ -468,6 +488,7 @@ describe("conversations", () => {
       questions.flatMap(() => [
         Effect.succeed(call("show_chart", brazil)),
         Effect.succeed(words(takeaway)),
+        done,
       ]),
     )
 
@@ -504,7 +525,7 @@ describe("conversations", () => {
         }),
         fetched(undefined, { step: "chart-3" }),
         wrote(),
-        Answered.make({ view: brazilTrend, takeaway }),
+        charted({ view: brazilTrend, takeaway }),
       ])
       expect(model.prompts[1]).toContain("LCN")
       expect(model.prompts[2]).toContain(
@@ -519,7 +540,7 @@ describe("conversations", () => {
       Effect.succeed(words("  Life expectancy in Brazil rose every year.  ")),
     ])
 
-    const answered = Answered.make({
+    const answered = charted({
       view: brazilTrend,
       takeaway: "Life expectancy in Brazil rose every year.",
     })
@@ -538,6 +559,7 @@ describe("conversations", () => {
     const model = scripted([
       Effect.succeed(call("show_chart", brazil)),
       Effect.succeed(words("Life expectancy in Brazil rose from 70 years in 2000 to 72 in 2002.")),
+      done,
       Effect.succeed(call("show_chart", brazil)),
       // 72 - 70, worked out by the model.
       Effect.succeed(words("Life expectancy in Brazil rose by 2 years.")),
@@ -547,14 +569,14 @@ describe("conversations", () => {
       expect(log(yield* answer("Life expectancy in Brazil")).slice(-2)).toEqual([
         // 70, 2000, 72 and 2002.
         wrote(Checked.make({ numbers: 4 })),
-        Answered.make({
+        charted({
           view: brazilTrend,
           takeaway: "Life expectancy in Brazil rose from 70 years in 2000 to 72 in 2002.",
         }),
       ])
       expect(log(yield* answer("Show it again")).slice(-2)).toEqual([
         wrote(Dropped.make({})),
-        Answered.make({ view: brazilTrend }),
+        charted({ view: brazilTrend }),
       ])
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
@@ -574,9 +596,9 @@ describe("conversations", () => {
     return Effect.gen(function* () {
       expect(log(yield* answer("Life expectancy in Brazil")).slice(-2)).toEqual([
         wrote(Failed.make({ reason: new AgentUnavailable() })),
-        Answered.make({ view: brazilTrend }),
+        charted({ view: brazilTrend }),
       ])
-      expect((yield* turns).answered[0]?.answer).toEqual(Answered.make({ view: brazilTrend }))
+      expect((yield* turns).answered[0]?.answer).toEqual(charted({ view: brazilTrend }))
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
@@ -587,7 +609,7 @@ describe("conversations", () => {
 
     return Effect.gen(function* () {
       expect((yield* answer("Life expectancy in Brazil since 2000")).at(-1)).toEqual(
-        Answered.make({ view: brazilTrend, takeaway }),
+        charted({ view: brazilTrend, takeaway }),
       )
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
@@ -607,7 +629,7 @@ describe("conversations", () => {
 
         expect(model.prompts[1]).toContain("Index")
         expect(steps.at(-1)).toEqual(
-          Answered.make({
+          charted({
             view: Change.make({
               indicator: lifeExpectancy,
               countries: ["BRA"],
@@ -639,7 +661,7 @@ describe("conversations", () => {
       const steps = yield* answer("Life expectancy across Latin America on a map")
 
       expect(steps.at(-1)).toEqual(
-        Answered.make({
+        charted({
           view: Ranking.make({
             indicator: lifeExpectancy,
             countries: latinAmerica,
@@ -695,7 +717,7 @@ describe("conversations", () => {
         // Only the change was fetched.
         expect(asked).toEqual([seven])
         expect(steps.at(-1)).toEqual(
-          Answered.make({
+          charted({
             view: Change.make({
               indicator: lifeExpectancy,
               countries: seven,
@@ -784,7 +806,7 @@ describe("conversations", () => {
         })
         expect(model.prompts[1]).toContain("sex (F Females, M Males, T Total)")
         expect(steps.at(-1)).toEqual(
-          Answered.make({
+          charted({
             view: Trend.make({
               indicator: IndicatorId.make("ESTAT,UNE_RT_A,1.0"),
               countries: ["FRA"],
@@ -1052,7 +1074,7 @@ describe("conversations", () => {
       expect(log(yield* answer("How long do people live in Brazil?"))).toEqual([asked])
 
       expect((yield* answer("Life expectancy")).at(-1)).toEqual(
-        Answered.make({ view: brazilTrend, takeaway }),
+        charted({ view: brazilTrend, takeaway }),
       )
       expect(model.prompts[1]).toContain("Which measure?")
       expect(yield* turns).toEqual({
@@ -1065,7 +1087,7 @@ describe("conversations", () => {
           },
           {
             question: "Life expectancy",
-            answer: Answered.make({ view: brazilTrend, takeaway }),
+            answer: charted({ view: brazilTrend, takeaway }),
             steps: [fetched(), wrote()],
             took: Duration.zero,
           },
@@ -1125,9 +1147,7 @@ describe("conversations", () => {
           call("search_indicators", { text: "life expectancy", source: null }),
         )
 
-        expect((yield* Fiber.join(first)).at(-1)).toEqual(
-          Answered.make({ view: brazilTrend, takeaway }),
-        )
+        expect((yield* Fiber.join(first)).at(-1)).toEqual(charted({ view: brazilTrend, takeaway }))
       }).pipe(Effect.provide(serveApi(model.layer)))
     }),
   )
@@ -1141,7 +1161,7 @@ describe("conversations", () => {
         Deferred.await(reply),
       ])
 
-      const answered = Answered.make({ view: brazilTrend, takeaway })
+      const answered = charted({ view: brazilTrend, takeaway })
 
       return yield* Effect.gen(function* () {
         // The visitor reads the first step, then closes the tab.
@@ -1294,7 +1314,7 @@ describe("conversations", () => {
         answered: [
           {
             question: "Life expectancy in Brazil",
-            answer: Answered.make({ view: brazilTrend, takeaway }),
+            answer: charted({ view: brazilTrend, takeaway }),
             steps: [fetched(), wrote()],
             took: Duration.zero,
           },
@@ -1335,7 +1355,7 @@ describe("conversations", () => {
           answered: [
             {
               question,
-              answer: Answered.make({ view: brazilTrend, takeaway }),
+              answer: charted({ view: brazilTrend, takeaway }),
               steps: [
                 searched(),
                 Definition.make({
@@ -1448,16 +1468,14 @@ describe("conversations", () => {
   })
 })
 
-// The chart the model was told is on screen in a prompt, as show_chart's
-// arguments, each time it was told.
+// The charts the model was told are on screen in a prompt, each with its
+// place in the answer and as show_chart's arguments, each time it was told.
 const onScreen = (prompt: string) =>
   [
     ...prompt
       .replaceAll(String.raw`\"`, '"')
-      .matchAll(
-        /The person changed the chart on screen since your last answer\. It is now show_chart (\{.*?\})\./g,
-      ),
-  ].map(([, json]) => JSON.parse(json ?? "null"))
+      .matchAll(/Chart (\d+) is now show_chart (\{.*?\})\./g),
+  ].map(([, place, json]) => ({ chart: Number(place), draft: JSON.parse(json ?? "null") }))
 
 // A model that answers `count` questions, each with a chart and its takeaway.
 const charts = (count: number) =>
@@ -1465,6 +1483,7 @@ const charts = (count: number) =>
     Array.from({ length: count }, () => [
       Effect.succeed(call("show_chart", brazil)),
       Effect.succeed(words(takeaway)),
+      done,
     ]).flat(),
   )
 
@@ -1478,14 +1497,12 @@ describe("changing a chart", () => {
       yield* answer("Life expectancy in Brazil")
       yield* show(0, perPerson)
 
-      expect((yield* turns).answered[0]?.shown).toEqual(perPerson)
+      expect((yield* turns).answered[0]?.shown).toEqual([perPerson])
 
       yield* show(0, brazilTrend)
 
       expect((yield* turns).answered[0]).not.toHaveProperty("shown")
-      expect((yield* turns).answered[0]?.answer).toEqual(
-        Answered.make({ view: brazilTrend, takeaway }),
-      )
+      expect((yield* turns).answered[0]?.answer).toEqual(charted({ view: brazilTrend, takeaway }))
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
@@ -1503,7 +1520,7 @@ describe("changing a chart", () => {
       expect(
         (yield* turns.pipe(Effect.provide(serveApi(model.layer, { storage: fake })))).answered[0]
           ?.shown,
-      ).toEqual(perPerson)
+      ).toEqual([perPerson])
     })
   })
 
@@ -1525,7 +1542,9 @@ describe("changing a chart", () => {
     return Effect.gen(function* () {
       yield* answer("What is the meaning of life?")
 
-      expect(yield* show(0, perPerson).pipe(Effect.flip)).toEqual(new NoChart({ turn: 0 }))
+      expect(yield* show(0, perPerson).pipe(Effect.flip)).toEqual(
+        new NoChart({ turn: 0, chart: 0 }),
+      )
       expect((yield* turns).answered[0]).not.toHaveProperty("shown")
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
@@ -1539,14 +1558,16 @@ describe("changing a chart", () => {
       yield* answer("Add Mexico")
 
       // The note leads the question's own message.
-      expect(onScreen(model.prompts[2] ?? "")).toEqual([{ ...brazil, transform: "PerPerson" }])
-      expect(model.prompts[2]).toContain(String.raw`\n\nAdd Mexico`)
+      expect(onScreen(model.prompts[3] ?? "")).toEqual([
+        { chart: 1, draft: { ...brazil, transform: "PerPerson" } },
+      ])
+      expect(model.prompts[3]).toContain(String.raw`\n\nAdd Mexico`)
 
       // The answer to "Add Mexico" is newer than the change: the next
       // question builds on it, and the chat holds the one note it had.
       yield* answer("Now as a ranking")
 
-      expect(onScreen(model.prompts[4] ?? "")).toHaveLength(1)
+      expect(onScreen(model.prompts[6] ?? "")).toHaveLength(1)
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
@@ -1572,6 +1593,7 @@ describe("changing a chart", () => {
       const model = scripted([
         Effect.succeed(call("show_chart", brazil)),
         Effect.succeed(words(takeaway)),
+        done,
         Deferred.succeed(deciding, undefined).pipe(Effect.andThen(Deferred.await(reply))),
         Effect.succeed(call("show_chart", brazil)),
       ])
@@ -1591,7 +1613,7 @@ describe("changing a chart", () => {
         yield* answer("Mexico")
 
         expect(onScreen(model.prompts.at(-2) ?? "")).toEqual([
-          { ...brazil, transform: "PerPerson" },
+          { chart: 1, draft: { ...brazil, transform: "PerPerson" } },
         ])
       }).pipe(Effect.provide(serveApi(model.layer)))
     }),
@@ -1605,6 +1627,7 @@ describe("changing a chart", () => {
       const model = scripted([
         Effect.succeed(call("show_chart", brazil)),
         Effect.succeed(words(takeaway)),
+        done,
         Deferred.succeed(deciding, undefined).pipe(Effect.andThen(Deferred.await(reply))),
       ])
 
@@ -1620,16 +1643,216 @@ describe("changing a chart", () => {
 
         const mexico = Trend.make({ ...brazilTrend, countries: ["BRA", "MEX"] })
 
-        expect((yield* Fiber.join(second)).at(-1)).toEqual(
-          Answered.make({ view: mexico, takeaway }),
-        )
+        expect((yield* Fiber.join(second)).at(-1)).toEqual(charted({ view: mexico, takeaway }))
 
         const [first, last] = (yield* turns).answered
 
-        expect(first?.shown).toEqual(perPerson)
-        expect(last?.answer).toEqual(Answered.make({ view: mexico, takeaway }))
+        expect(first?.shown).toEqual([perPerson])
+        expect(last?.answer).toEqual(charted({ view: mexico, takeaway }))
       }).pipe(Effect.provide(serveApi(model.layer)))
     }),
+  )
+})
+
+// A View as JSON, as storage keeps it.
+const encode = (view: View) => JSON.stringify(Schema.encodeSync(View)(view))
+
+describe("several charts", () => {
+  const change = { ...brazil, chart: "change" }
+
+  const brazilChange = Change.make({
+    indicator: lifeExpectancy,
+    countries: ["BRA"],
+    from: Year.make(2000),
+    to: Year.make(2002),
+  })
+
+  const rose = "Life expectancy in Brazil rose from 70 years in 2000 to 72 in 2002."
+
+  it.effect("answers with a chart and its checked takeaway for each part of the question", () => {
+    const model = scripted([
+      Effect.succeed(call("show_chart", brazil, { step: "chart-1" })),
+      Effect.succeed(words(takeaway)),
+      Effect.succeed(call("show_chart", change, { step: "chart-2" })),
+      Effect.succeed(words(rose)),
+      done,
+    ])
+
+    const answered = charted(
+      { view: brazilTrend, takeaway },
+      { view: brazilChange, takeaway: rose },
+    )
+
+    return Effect.gen(function* () {
+      expect(
+        log(yield* answer("How has life expectancy moved in Brazil, and by how much?")),
+      ).toEqual([
+        fetched(undefined, { step: "chart-1" }),
+        wrote(),
+        // A change reads its two years only.
+        fetched(Fetched.make({ values: 2 }), { step: "chart-2", view: brazilChange }),
+        // 70, 2000, 72 and 2002, checked against the change's own values.
+        wrote(Checked.make({ numbers: 4 }), { chart: 1 }),
+        answered,
+      ])
+      expect((yield* turns).answered[0]?.answer).toEqual(answered)
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("ends the answer after its third chart", () => {
+    const model = scripted([
+      Effect.succeed(call("show_chart", brazil, { step: "chart-1" })),
+      Effect.succeed(words(takeaway)),
+      Effect.succeed(call("show_chart", change, { step: "chart-2" })),
+      Effect.succeed(words(takeaway)),
+      Effect.succeed(call("show_chart", { ...brazil, countries: ["MEX"] }, { step: "chart-3" })),
+      Effect.succeed(words("Life expectancy rose in Mexico.")),
+      Effect.die("the model must not be asked for a fourth chart"),
+    ])
+
+    return Effect.gen(function* () {
+      const ending = (yield* answer("Life expectancy in Brazil and Mexico, three ways")).at(-1)
+
+      expect(ending).toEqual(
+        charted(
+          { view: brazilTrend, takeaway },
+          { view: brazilChange, takeaway },
+          {
+            view: Trend.make({ ...brazilTrend, countries: ["MEX"] }),
+            takeaway: "Life expectancy rose in Mexico.",
+          },
+        ),
+      )
+      expect(model.prompts).toHaveLength(6)
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("drops only the takeaway that fails the check", () => {
+    const model = scripted([
+      Effect.succeed(call("show_chart", brazil, { step: "chart-1" })),
+      // 72 - 70, worked out by the model.
+      Effect.succeed(words("Life expectancy in Brazil rose by 2 years.")),
+      Effect.succeed(call("show_chart", change, { step: "chart-2" })),
+      Effect.succeed(words(rose)),
+      done,
+    ])
+
+    return Effect.gen(function* () {
+      const steps = log(yield* answer("Life expectancy in Brazil, and its change"))
+
+      expect(steps.filter(Schema.is(Takeaway))).toEqual([
+        wrote(Dropped.make({})),
+        wrote(Checked.make({ numbers: 4 }), { chart: 1 }),
+      ])
+      expect(steps.at(-1)).toEqual(
+        charted({ view: brazilTrend }, { view: brazilChange, takeaway: rose }),
+      )
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("draws one chart a round, so each takeaway comes before the next chart", () => {
+    const both: ReadonlyArray<Response.PartEncoded> = [
+      { type: "tool-call", id: "chart-1", name: "show_chart", params: brazil },
+      { type: "tool-call", id: "chart-2", name: "show_chart", params: change },
+      finish,
+    ]
+
+    const model = scripted([
+      Effect.succeed(both),
+      Effect.succeed(words(takeaway)),
+      Effect.succeed(call("show_chart", change, { step: "chart-3" })),
+      Effect.succeed(words(rose)),
+      done,
+    ])
+
+    return Effect.gen(function* () {
+      const steps = log(yield* answer("Life expectancy in Brazil, and its change"))
+
+      // The chart refused is the model's to draw again, not a step.
+      expect(steps.filter(Schema.is(Fetch)).map((step) => step.id)).toEqual(["chart-1", "chart-3"])
+      expect(model.prompts[1]).toContain("Show one chart at a time.")
+      expect(steps.at(-1)).toEqual(
+        charted({ view: brazilTrend, takeaway }, { view: brazilChange, takeaway: rose }),
+      )
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("tells the model which chart a person changed, by its place in the answer", () => {
+    const model = scripted([
+      Effect.succeed(call("show_chart", brazil, { step: "chart-1" })),
+      Effect.succeed(words(takeaway)),
+      Effect.succeed(call("show_chart", change, { step: "chart-2" })),
+      Effect.succeed(words(rose)),
+      done,
+    ])
+
+    const perPerson = Change.make({ ...brazilChange, transform: "PerPerson" })
+
+    return Effect.gen(function* () {
+      yield* answer("Life expectancy in Brazil, and its change")
+      yield* show(0, perPerson, { chart: 1 })
+
+      expect((yield* turns).answered[0]?.shown).toEqual([null, perPerson])
+
+      yield* answer("Add Mexico")
+
+      expect(onScreen(model.prompts[5] ?? "")).toEqual([
+        { chart: 2, draft: { ...change, transform: "PerPerson" } },
+      ])
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("fails with NoChart for a place the answer has no chart at", () => {
+    const model = charts(1)
+
+    return Effect.gen(function* () {
+      yield* answer("Life expectancy in Brazil")
+
+      expect(yield* show(0, brazilTrend, { chart: 1 }).pipe(Effect.flip)).toEqual(
+        new NoChart({ turn: 0, chart: 1 }),
+      )
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect(
+    "loads turns saved when answers held one chart, and the chart a person changed it to",
+    () => {
+      const model = scripted([])
+      const perPerson = Trend.make({ ...brazilTrend, transform: "PerPerson" })
+
+      // As conversations were stored before answers held several charts.
+      const stored = new Map([
+        [
+          "conversation",
+          `{
+            "chat": "[]",
+            "turns": [
+              {
+                "question": "Life expectancy in Brazil",
+                "answer": { "_tag": "Answered", "view": ${encode(brazilTrend)}, "takeaway": "${takeaway}" },
+                "shown": ${encode(perPerson)}
+              },
+              {
+                "question": "Life expectancy in Brazil again",
+                "answer": { "_tag": "Answered", "view": ${encode(brazilTrend)} }
+              }
+            ],
+            "changed": 0
+          }`,
+        ],
+      ])
+
+      return Effect.gen(function* () {
+        expect((yield* turns).answered).toEqual([
+          {
+            question: "Life expectancy in Brazil",
+            answer: charted({ view: brazilTrend, takeaway }),
+            shown: [perPerson],
+          },
+          { question: "Life expectancy in Brazil again", answer: charted({ view: brazilTrend }) },
+        ])
+      }).pipe(Effect.provide(serveApi(model.layer, { storage: memoryStorage(stored).fake })))
+    },
   )
 })
 
@@ -1652,9 +1875,7 @@ describe("explaining a chart", () => {
     const model = scripted([Effect.succeed(words(written))])
 
     return Effect.gen(function* () {
-      expect(yield* explain(brazilTrend)).toEqual(
-        Answered.make({ view: brazilTrend, takeaway: written }),
-      )
+      expect(yield* explain(brazilTrend)).toEqual({ view: brazilTrend, takeaway: written })
       expect(model.prompts[0]).toContain(
         '\\"first\\":{\\"year\\":2000,\\"value\\":70},\\"last\\":{\\"year\\":2002,\\"value\\":72}',
       )

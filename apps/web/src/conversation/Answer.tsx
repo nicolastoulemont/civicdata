@@ -1,6 +1,7 @@
 import {
   AgentUnavailable,
-  type Answered,
+  type Chart,
+  type ChartIndex,
   type ConversationId,
   NoChart,
   type TurnIndex,
@@ -28,17 +29,19 @@ const problemOf = (error: Error) =>
 interface AnswerProps {
   id: ConversationId
   turn: TurnIndex
-  agent: typeof Answered.Type
+  // The chart's place in its answer.
+  chart: ChartIndex
+  agent: Chart
   // The chart a person changed the agent's to, once saved.
   shown: View | undefined
 }
 
-// The chart that answered a question, in the explorer card so it can be
+// One chart that answered a question, in the explorer card so it can be
 // changed where it is. The conversation keeps the change, and the next
 // question builds on it. A change shows at once; one the server refuses
 // returns to the chart kept before, with why.
-export const Answer = ({ id, turn, agent, shown }: AnswerProps) => {
-  const showing = useShow(id, turn)
+export const Answer = ({ id, turn, chart, agent, shown }: AnswerProps) => {
+  const showing = useShow(id, { turn, chart })
   const view = showing.isPending ? showing.variables : (shown ?? agent.view)
   // Not kept with the conversation: a copied link carries them instead.
   const [overlays, setOverlays] = useState<ReadonlyArray<Overlay>>([])

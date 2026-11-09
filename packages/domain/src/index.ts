@@ -5,6 +5,8 @@ export { CatalogEntry } from "./Catalog.ts"
 export {
   Answered,
   Asked,
+  Chart,
+  ChartIndex,
   Checked,
   ConversationId,
   Definition,
@@ -16,6 +18,7 @@ export {
   Fetched,
   Located,
   Lookup,
+  maxCharts,
   put,
   Read,
   Rejected,

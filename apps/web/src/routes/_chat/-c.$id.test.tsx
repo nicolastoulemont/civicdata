@@ -58,7 +58,7 @@ it("starts loading a conversation's charts when its sidebar row is hovered", asy
           answered: [
             {
               question: "How has life expectancy changed in Brazil?",
-              answer: Answered.make({ view: brazil }),
+              answer: Answered.make({ charts: [{ view: brazil }] }),
             },
           ],
         }),

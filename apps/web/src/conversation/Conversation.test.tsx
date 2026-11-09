@@ -110,8 +110,22 @@ const isAnswered = Schema.is(Answered)
 const sameView = (left: View, right: View) =>
   JSON.stringify(Schema.encodeSync(View)(left)) === JSON.stringify(Schema.encodeSync(View)(right))
 
+// The turn showing `view` in place of its chart at `chart`, as the server
+// keeps it: changed back to the agent's chart, a place keeps no change.
+const showing = (turn: Turn, { chart, view }: { chart: number; view: View }): Turn => {
+  const charts = isAnswered(turn.answer) ? turn.answer.charts : []
+
+  const shown = charts.map((agent, place) =>
+    place === chart ? (sameView(agent.view, view) ? null : view) : (turn.shown?.[place] ?? null),
+  )
+
+  return shown.every((each) => each === null)
+    ? Struct.omit(turn, ["shown"])
+    : Struct.assign(turn, { shown })
+}
+
 // A conversation the server keeps between page loads, with the charts people
-// changed its turns to. Showing the agent's own chart changes a turn back.
+// changed its turns' charts to. Showing the agent's own chart changes it back.
 const kept = (answered: ReadonlyArray<Turn>) => {
   let current = answered
 
@@ -119,15 +133,13 @@ const kept = (answered: ReadonlyArray<Turn>) => {
     http.get(`/api/conversations/${id}`, () =>
       HttpResponse.json(encodeTurns({ answered: current })),
     ),
-    http.put(`/api/conversations/${id}/turns/:turn/chart`, async ({ params, request }) => {
+    http.put(`/api/conversations/${id}/turns/:turn/charts/:chart`, async ({ params, request }) => {
       const view = Schema.decodeUnknownSync(View)(await request.json())
 
       current = current.map((turn, index) =>
-        index !== Number(params["turn"])
-          ? turn
-          : isAnswered(turn.answer) && sameView(turn.answer.view, view)
-            ? Struct.omit(turn, ["shown"])
-            : Struct.assign(turn, { shown: view }),
+        index === Number(params["turn"])
+          ? showing(turn, { chart: Number(params["chart"]), view })
+          : turn,
       )
 
       return new HttpResponse(null, { status: 204 })
@@ -139,7 +151,22 @@ const kept = (answered: ReadonlyArray<Turn>) => {
 
 const brazilAnswer = {
   question: "Life expectancy in Brazil",
-  answer: Answered.make({ view: brazil, takeaway: "Life expectancy in Brazil rose." }),
+  answer: Answered.make({
+    charts: [{ view: brazil, takeaway: "Life expectancy in Brazil rose." }],
+  }),
+}
+
+const mexico = Trend.make({ ...brazil, countries: ["MEX"] })
+
+// An answer that took two charts.
+const twoCharts = {
+  question: "Life expectancy in Brazil, and in Mexico",
+  answer: Answered.make({
+    charts: [
+      { view: brazil, takeaway: "Life expectancy in Brazil rose." },
+      { view: mexico, takeaway: "Life expectancy in Mexico rose." },
+    ],
+  }),
 }
 
 // Opens the chart's controls and adds Argentina to it.
@@ -253,6 +280,10 @@ const searchedFor = (text: string) =>
 const findStep = async (text: string) =>
   within(await screen.findByRole("list", { name: "Steps" })).findByText(text)
 
+// A chart fetched with two values, as a turn keeps it.
+const fetchedChart = (step: string, view: View) =>
+  Ended.cases.Fetch.make({ id: StepId.make(step), view, state: Fetched.make({ values: 2 }) })
+
 // A search for life expectancy, running until a test gives it another state.
 const searching = (state: typeof Search.Type.state = Running.make({})) =>
   Search.make({ id: StepId.make("search-1"), text: "life expectancy", state })
@@ -299,7 +330,9 @@ describe("Conversation", () => {
     ).toHaveLength(2)
 
     reply.send(
-      message(Answered.make({ view: brazil, takeaway: "Life expectancy in Brazil rose." })),
+      message(
+        Answered.make({ charts: [{ view: brazil, takeaway: "Life expectancy in Brazil rose." }] }),
+      ),
     )
     reply.end()
 
@@ -489,12 +522,12 @@ describe("Conversation", () => {
       answered = [
         {
           question,
-          answer: Answered.make({ view: brazil }),
+          answer: Answered.make({ charts: [{ view: brazil }] }),
           steps: [searched],
           took: Duration.seconds(8),
         },
       ]
-      reply.send(message(Answered.make({ view: brazil })))
+      reply.send(message(Answered.make({ charts: [{ view: brazil }] })))
       reply.end()
 
       const fold = await screen.findByRole("button", { name: "Worked for 8s · 1 search" })
@@ -518,7 +551,7 @@ describe("Conversation", () => {
       turns([
         {
           question: "Life expectancy in Brazil",
-          answer: Answered.make({ view: brazil }),
+          answer: Answered.make({ charts: [{ view: brazil }] }),
           steps: [
             searchedFor("life expectancy"),
             Ended.cases.Definition.make({
@@ -546,7 +579,7 @@ describe("Conversation", () => {
   })
 
   it("folds the saved steps of a reopened conversation, and none for older turns", async () => {
-    const answered = JSON.stringify(encodeAnswered(Answered.make({ view: brazil })))
+    const answered = JSON.stringify(encodeAnswered(Answered.make({ charts: [{ view: brazil }] })))
 
     // Turns as the server sends them when saved before steps had states.
     const saved = `{
@@ -575,9 +608,7 @@ describe("Conversation", () => {
 
     const user = userEvent.setup()
 
-    await user.click(
-      await screen.findByRole("button", { name: "Worked for 1m 05s · 1 search, 1 chart" }),
-    )
+    await user.click(await screen.findByRole("button", { name: "Worked for 1m 05s · 1 search" }))
 
     expect(
       within(await screen.findByRole("list", { name: "Steps" }))
@@ -664,7 +695,10 @@ describe("Conversation", () => {
   it("heads each question and answer with who wrote it, for screen readers", async () => {
     network.use(
       turns([
-        { question: "Life expectancy in Brazil", answer: Answered.make({ view: brazil }) },
+        {
+          question: "Life expectancy in Brazil",
+          answer: Answered.make({ charts: [{ view: brazil }] }),
+        },
         { question: "What about happiness?", answer: Unanswered.make({}) },
       ]),
       resolve,
@@ -746,6 +780,73 @@ describe("Conversation", () => {
     expect(screen.queryByRole("link", { name: /explorer/ })).toBeNull()
   })
 
+  it("shows each chart of an answer in order, each with its takeaway, and counts them", async () => {
+    network.use(
+      ...kept([
+        {
+          ...twoCharts,
+          steps: [
+            searchedFor("life expectancy"),
+            searchedFor("longevity"),
+            searchedFor("life expectancy Mexico"),
+            fetchedChart("chart-1", brazil),
+            Ended.cases.Fetch.make({
+              id: StepId.make("chart-2"),
+              view: mexico,
+              state: Rejected.make({ reason: Rejection.cases.NoValues.make({}) }),
+            }),
+            fetchedChart("chart-3", mexico),
+          ],
+          took: Duration.seconds(14),
+        },
+      ]).handlers,
+      resolve,
+    )
+    show()
+
+    const first = await screen.findByRole("region", { name: "Chart 1 of the answer" })
+    const second = screen.getByRole("region", { name: "Chart 2 of the answer" })
+
+    expect(await within(first).findByText("Brazil · 2000–2001")).toBeDefined()
+    expect(within(first).getByText("Life expectancy in Brazil rose.")).toBeDefined()
+    expect(await within(second).findByText("Mexico · 2000–2001")).toBeDefined()
+    expect(within(second).getByText("Life expectancy in Mexico rose.")).toBeDefined()
+    // The chart the data rejected is not one of them.
+    expect(
+      screen.getByRole("button", { name: "Worked for 14s · 3 searches, 2 charts" }),
+    ).toBeDefined()
+  })
+
+  it("changes the second chart of an answer and leaves the first as it was", async () => {
+    const user = userEvent.setup()
+    const server = kept([twoCharts])
+
+    network.use(...server.handlers, resolve)
+    show()
+
+    const second = await screen.findByRole("region", { name: "Chart 2 of the answer" })
+
+    await user.click(within(second).getByRole("button", { name: "Change" }))
+    await user.type(within(second).getByRole("combobox", { name: "Countries" }), "Argen")
+    await user.click(await screen.findByRole("option", { name: "Argentina" }))
+
+    expect(await within(second).findByText("Mexico and Argentina · 2000–2001")).toBeDefined()
+    expect(within(second).getByText("This describes the chart before your changes.")).toBeDefined()
+
+    const first = screen.getByRole("region", { name: "Chart 1 of the answer" })
+
+    expect(within(first).getByText("Brazil · 2000–2001")).toBeDefined()
+    expect(within(first).getByText("Life expectancy in Brazil rose.").className).not.toContain(
+      "text-muted-foreground",
+    )
+    await vi.waitFor(() =>
+      expect(server.turns()[0]?.shown).toEqual([
+        null,
+        Trend.make({ ...mexico, countries: ["MEX", "ARG"] }),
+      ]),
+    )
+  })
+
   it("shows who governed in an answer's chart, and says when a country has no records", async () => {
     const user = userEvent.setup()
 
@@ -809,7 +910,7 @@ describe("Conversation", () => {
   it("says why a change could not be kept, and shows the chart kept before", async () => {
     network.use(
       turns([brazilAnswer]),
-      http.put(`/api/conversations/${id}/turns/:turn/chart`, () =>
+      http.put(`/api/conversations/${id}/turns/:turn/charts/:chart`, () =>
         HttpResponse.json(Schema.encodeSync(TurnNotFound)(new TurnNotFound({ turn: 0 })), {
           status: 404,
         }),
@@ -829,7 +930,12 @@ describe("Conversation", () => {
     const asked: Array<Year> = []
 
     network.use(
-      turns([{ question: "Life expectancy in Brazil", answer: Answered.make({ view: brazil }) }]),
+      turns([
+        {
+          question: "Life expectancy in Brazil",
+          answer: Answered.make({ charts: [{ view: brazil }] }),
+        },
+      ]),
       // Records the first year asked for, then lets `resolve` answer.
       http.post("/api/views/resolve", async ({ request }) => {
         asked.push(Schema.decodeUnknownSync(Trend)(await request.clone().json()).from)
@@ -849,7 +955,12 @@ describe("Conversation", () => {
 
   it("holds the view where the reader changes a chart, instead of following the end", async () => {
     network.use(
-      turns([{ question: "Life expectancy in Brazil", answer: Answered.make({ view: brazil }) }]),
+      turns([
+        {
+          question: "Life expectancy in Brazil",
+          answer: Answered.make({ charts: [{ view: brazil }] }),
+        },
+      ]),
       resolve,
     )
     show()
@@ -875,7 +986,12 @@ describe("Conversation", () => {
     const reply = answer()
 
     network.use(
-      turns([{ question: "Life expectancy in Brazil", answer: Answered.make({ view: brazil }) }]),
+      turns([
+        {
+          question: "Life expectancy in Brazil",
+          answer: Answered.make({ charts: [{ view: brazil }] }),
+        },
+      ]),
       reply.handler,
       resolve,
     )
@@ -912,7 +1028,12 @@ describe("Conversation", () => {
     const user = userEvent.setup()
 
     network.use(
-      turns([{ question: "Life expectancy in Brazil", answer: Answered.make({ view: brazil }) }]),
+      turns([
+        {
+          question: "Life expectancy in Brazil",
+          answer: Answered.make({ charts: [{ view: brazil }] }),
+        },
+      ]),
       reply.handler,
       resolve,
     )
@@ -1090,7 +1211,7 @@ describe("Conversation", () => {
     reply.send(message(searching()))
     expect(await findStep("Searching for “life expectancy”…")).toBeDefined()
 
-    reply.send(message(Answered.make({ view: brazil })))
+    reply.send(message(Answered.make({ charts: [{ view: brazil }] })))
     reply.end()
 
     expect(
@@ -1123,7 +1244,7 @@ describe("Conversation", () => {
     asked.cut()
 
     resumed.send(message(searching()))
-    resumed.send(message(Answered.make({ view: brazil })))
+    resumed.send(message(Answered.make({ charts: [{ view: brazil }] })))
     resumed.end()
 
     expect(
@@ -1195,7 +1316,7 @@ describe("Conversation", () => {
         return events(
           sent.length === 1
             ? failure(new AgentUnavailable())
-            : message(Answered.make({ view: brazil })),
+            : message(Answered.make({ charts: [{ view: brazil }] })),
         )
       }),
     )

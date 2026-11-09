@@ -30,19 +30,30 @@ interface Chart {
   readonly transform?: Transform
 }
 
-// One answer a case accepts. A relation plots its indicator against any of
-// `against`.
-export type Expected = Data.TaggedEnum<{
+// The chart types a case can expect. A relation plots its indicator against
+// any of `against`.
+type Types = {
   Trend: Chart & { readonly from?: number; readonly to?: number }
   Ranking: Chart & { readonly year?: number }
   Map: Chart & { readonly year?: number }
   Change: Chart & { readonly from?: number; readonly to?: number }
   Relation: Chart & { readonly against: ReadonlyArray<string>; readonly year?: number }
-  // The agent asks which reading of the question is meant.
-  Asked: {}
-  // The agent shows no chart, because no indicator measures the question.
-  Unanswered: {}
-}>
+}
+
+// One chart a case expects.
+type Drawn = Data.TaggedEnum<Types>
+
+// One answer a case accepts: a single chart, several charts in the order the
+// agent draws them, a question back, or no chart.
+export type Expected = Data.TaggedEnum<
+  Types & {
+    Charts: { readonly charts: Arr.NonEmptyReadonlyArray<Drawn> }
+    // The agent asks which reading of the question is meant.
+    Asked: {}
+    // The agent shows no chart, because no indicator measures the question.
+    Unanswered: {}
+  }
+>
 
 export const Expected = Data.taggedEnum<Expected>()
 
@@ -83,9 +94,13 @@ const describe = (transform: Transform | undefined) =>
         Match.orElse((plain) => plain),
       )
 
+// "a trend", "a ranking and a change".
+const listed = (types: ReadonlyArray<Parts["chart"]>) =>
+  types.map((type) => `a ${type}`).join(" and ")
+
 const endingOf = (ending: Ending) =>
   Match.valueTags(ending, {
-    Answered: ({ view }) => `a ${partsOf(view).chart}`,
+    Answered: ({ charts }) => listed(charts.map(({ view }) => partsOf(view).chart)),
     Asked: ({ question }) => `the question "${question}"`,
     Unanswered: () => "no chart",
     Stopped: () => "stopped",
@@ -146,22 +161,66 @@ const compare = (view: View, want: Wanted): ReadonlyArray<string> => {
   ]
 }
 
-const differencesFrom = (expected: Expected, ending: Ending): ReadonlyArray<string> => {
-  const chart = (want: Wanted) =>
-    isAnswered(ending) ? compare(ending.view, want) : [`${endingOf(ending)}, want a ${want.chart}`]
+// The parts a case wants of a chart, with a year as a one-year range.
+const wantedOf = (drawn: Drawn): Wanted =>
+  Match.valueTags(drawn, {
+    Trend: (trend): Wanted => ({ ...trend, chart: "trend" }),
+    Ranking: (ranking): Wanted => ({
+      ...ranking,
+      chart: "ranking",
+      from: ranking.year,
+      to: ranking.year,
+    }),
+    Map: (map): Wanted => ({ ...map, chart: "map", from: map.year, to: map.year }),
+    Change: (change): Wanted => ({ ...change, chart: "change" }),
+    Relation: (relation): Wanted => ({
+      ...relation,
+      chart: "relation",
+      from: relation.year,
+      to: relation.year,
+    }),
+  })
 
-  return Expected.$match(expected, {
-    Trend: (trend) => chart({ ...trend, chart: "trend" }),
-    Ranking: (ranking) =>
-      chart({ ...ranking, chart: "ranking", from: ranking.year, to: ranking.year }),
-    Map: (map) => chart({ ...map, chart: "map", from: map.year, to: map.year }),
-    Change: (change) => chart({ ...change, chart: "change" }),
-    Relation: (relation) =>
-      chart({ ...relation, chart: "relation", from: relation.year, to: relation.year }),
+// How the answer's charts differ from those wanted, in order. Each chart's
+// differences name its place when either side has several.
+const chartsDiffer = (wanted: Arr.NonEmptyReadonlyArray<Wanted>, ending: Ending) => {
+  if (!isAnswered(ending)) {
+    return [`${endingOf(ending)}, want ${listed(wanted.map(({ chart }) => chart))}`]
+  }
+
+  const { charts } = ending
+  const several = charts.length > 1 || wanted.length > 1
+
+  const count =
+    charts.length === wanted.length
+      ? []
+      : [`${charts.length} ${charts.length === 1 ? "chart" : "charts"}, want ${wanted.length}`]
+
+  return [
+    ...count,
+    ...wanted.flatMap((want, place) => {
+      const drawn = charts[place]
+
+      if (drawn === undefined) return []
+
+      const differences = compare(drawn.view, want)
+
+      return several ? differences.map((line) => `chart ${place + 1}: ${line}`) : differences
+    }),
+  ]
+}
+
+const differencesFrom = (expected: Expected, ending: Ending): ReadonlyArray<string> =>
+  Expected.$match(expected, {
+    Trend: (one) => chartsDiffer([wantedOf(one)], ending),
+    Ranking: (one) => chartsDiffer([wantedOf(one)], ending),
+    Map: (one) => chartsDiffer([wantedOf(one)], ending),
+    Change: (one) => chartsDiffer([wantedOf(one)], ending),
+    Relation: (one) => chartsDiffer([wantedOf(one)], ending),
+    Charts: ({ charts }) => chartsDiffer(Arr.map(charts, wantedOf), ending),
     Asked: () => (isAsked(ending) ? [] : [`${endingOf(ending)}, want a question`]),
     Unanswered: () => (isUnanswered(ending) ? [] : [`${endingOf(ending)}, want no chart`]),
   })
-}
 
 // How the agent's answer differs from the closest answer a case accepts. An
 // empty list means the answer is right.

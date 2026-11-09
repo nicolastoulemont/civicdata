@@ -1,5 +1,5 @@
 import {
-  Answered,
+  Chart,
   CatalogUnavailable,
   Dimension,
   DimensionsMissing,
@@ -172,9 +172,7 @@ const explain = http.post("/api/views/explain", async ({ request }) => {
   })
 
   return HttpResponse.json(
-    Schema.encodeSync(Answered)(
-      Answered.make({ view, takeaway: `France grew, as a ${chart} shows.` }),
-    ),
+    Schema.encodeSync(Chart)({ view, takeaway: `France grew, as a ${chart} shows.` }),
   )
 })
 

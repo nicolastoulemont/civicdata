@@ -1,4 +1,4 @@
-import { Schema } from "effect"
+import { Schema, SchemaGetter } from "effect"
 
 import { Country } from "./Country.ts"
 import { DimensionId } from "./Dimension.ts"
@@ -179,12 +179,30 @@ const Legacy = Schema.Union([
   Schema.TaggedStruct("Rejected", { problem: Schema.String }),
 ])
 
-// The chart that answers the question, with what the agent says it shows.
-// An answer has no takeaway when the agent's text failed the check, and
-// answers saved before takeaways existed have none.
-export const Answered = Schema.TaggedStruct("Answered", {
+// A chart of an answer, with what the agent says it shows. A chart has no
+// takeaway when the agent's text failed the check, and charts saved before
+// takeaways existed have none.
+export const Chart = Schema.Struct({
   view: View,
   takeaway: Schema.optionalKey(Schema.NonEmptyString),
+})
+
+export interface Chart extends Schema.Schema.Type<typeof Chart> {}
+
+// The most charts one answer holds. Most answers hold one; the agent draws
+// more only when one chart cannot show what the question asks.
+export const maxCharts = 3
+
+// A chart's place in its answer, the first 0.
+export const ChartIndex = Schema.Int.check(
+  Schema.isBetween({ minimum: 0, maximum: maxCharts - 1 }),
+).pipe(Schema.brand("ChartIndex"))
+
+export type ChartIndex = typeof ChartIndex.Type
+
+// The charts that answer the question, in the order the agent drew them.
+export const Answered = Schema.TaggedStruct("Answered", {
+  charts: Schema.NonEmptyArray(Chart).check(Schema.isMaxLength(maxCharts)),
 })
 
 // The question can be read several ways that give different charts; the
@@ -218,17 +236,42 @@ export const Ending = Schema.Union([Answered, Asked, Unanswered, Stopped])
 
 export type Ending = typeof Ending.Type
 
+// An answer saved when answers held one chart reads as an answer of one.
+const OneChart = Schema.TaggedStruct("Answered", {
+  view: Schema.toEncoded(View),
+  takeaway: Schema.optionalKey(Schema.String),
+}).pipe(
+  Schema.decodeTo(Answered, {
+    decode: SchemaGetter.transform(({ _tag, ...chart }) => ({ _tag, charts: [chart] })),
+    encode: SchemaGetter.forbidden(() => "Answers are saved with their charts"),
+  }),
+)
+
+// The chart on screen in place of each of an answer's charts, at the same
+// place: one a person changed the agent's chart to, or null where they did
+// not change it.
+const Shown = Schema.Array(Schema.NullOr(View))
+
+// A turn saved when answers held one chart kept the chart its first chart
+// was changed to.
+const ShownOne = Schema.toEncoded(View).pipe(
+  Schema.decodeTo(Shown, {
+    decode: SchemaGetter.transform((view) => [view]),
+    encode: SchemaGetter.forbidden(() => "Changed charts are saved per chart"),
+  }),
+)
+
 // A question and how the agent answered it: the steps it ended on the way,
 // and how long the answer took from the question to its ending. Turns saved
-// before the work log have neither. `shown` is the chart on screen when a
-// person changed the one the agent answered with; a turn never changed, or
-// changed back, has none.
+// before the work log have neither. `shown` holds the charts on screen where
+// a person changed the ones the agent answered with; a turn never changed,
+// or changed back, has none.
 export const Turn = Schema.Struct({
   question: Question,
-  answer: Ending,
+  answer: Schema.Union([Ending, OneChart]),
   steps: Schema.optionalKey(Schema.Array(Schema.Union([Ended, Legacy]))),
   took: Schema.optionalKey(Schema.DurationFromMillis),
-  shown: Schema.optionalKey(View),
+  shown: Schema.optionalKey(Schema.Union([Shown, ShownOne])),
 })
 
 export interface Turn extends Schema.Schema.Type<typeof Turn> {}
