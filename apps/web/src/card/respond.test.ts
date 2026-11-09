@@ -1,5 +1,13 @@
 // @vitest-environment node
-import { type Country, IndicatorId, Trend, Year } from "@civicdata/domain"
+import {
+  Change,
+  type Country,
+  IndicatorId,
+  Ranking,
+  Relation,
+  Trend,
+  Year,
+} from "@civicdata/domain"
 import { http, HttpResponse } from "msw/http"
 import { describe, expect, it } from "vitest"
 
@@ -9,33 +17,35 @@ import { respond } from "./respond.ts"
 
 const page = { page: 1, pages: 1, per_page: 50, total: 4 }
 
-// The World Bank's answers, on the wire: one indicator and its values.
-const worldBank = [
-  http.get("https://api.worldbank.org/v2/indicator/SP.POP.TOTL", () =>
+// The World Bank's answers, on the wire: two indicators and their values.
+const published = {
+  "SP.POP.TOTL": {
+    name: "Population, total",
+    values: { FRA: [67_388_001, 67_571_107], DEU: [83_092_962, 83_160_871] },
+  },
+  "NY.GDP.PCAP.CD": {
+    name: "GDP per capita (current US$)",
+    values: { FRA: [40_494, 39_169], DEU: [46_805, 46_773] },
+  },
+} as const
+
+const worldBank = Object.entries(published).flatMap(([id, { name, values }]) => [
+  http.get(`https://api.worldbank.org/v2/indicator/${id}`, () =>
     HttpResponse.json([
       page,
-      [
-        {
-          id: "SP.POP.TOTL",
-          name: "Population, total",
-          sourceNote: "Midyear estimates.",
-          source: { value: "World Development Indicators" },
-        },
-      ],
+      [{ id, name, sourceNote: "", source: { value: "World Development Indicators" } }],
     ]),
   ),
-  http.get("https://api.worldbank.org/v2/country/:countries/indicator/SP.POP.TOTL", () =>
+  http.get(`https://api.worldbank.org/v2/country/:countries/indicator/${id}`, () =>
     HttpResponse.json([
       page,
-      [
-        { countryiso3code: "FRA", date: "2020", value: 67_571_107 },
-        { countryiso3code: "FRA", date: "2019", value: 67_388_001 },
-        { countryiso3code: "DEU", date: "2020", value: 83_160_871 },
-        { countryiso3code: "DEU", date: "2019", value: 83_092_962 },
-      ],
+      Object.entries(values).flatMap(([country, [first, last]]) => [
+        { countryiso3code: country, date: "2020", value: last },
+        { countryiso3code: country, date: "2019", value: first },
+      ]),
     ]),
   ),
-]
+])
 
 const trend = (
   indicator = "SP.POP.TOTL",
@@ -47,6 +57,11 @@ const trend = (
     from: Year.make(2019),
     to: Year.make(2020),
   })
+
+const both = {
+  indicator: IndicatorId.make("SP.POP.TOTL"),
+  countries: ["FRA", "DEU"] as const,
+}
 
 const get = (query: string) => respond(new Request(`http://localhost/explore.png${query}`))
 
@@ -90,6 +105,26 @@ describe("GET /explore.png", () => {
       height: 315,
       rows: 601 * 315,
     })
+  })
+
+  it.each([
+    ["a ranking", Ranking.make({ ...both, year: Year.make(2020) })],
+    ["a change", Change.make({ ...both, from: Year.make(2019), to: Year.make(2020) })],
+    [
+      "a relation",
+      Relation.make({
+        ...both,
+        against: IndicatorId.make("NY.GDP.PCAP.CD"),
+        year: Year.make(2020),
+      }),
+    ],
+  ])("draws the card for %s", async (_, view) => {
+    network.use(...worldBank)
+
+    const response = await get(toQuery(view))
+
+    expect(response.status).toBe(200)
+    expect((await decode(new Uint8Array(await response.arrayBuffer()))).width).toBe(600)
   })
 
   it("is missing for a link that describes no chart", async () => {

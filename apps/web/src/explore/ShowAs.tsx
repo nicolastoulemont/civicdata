@@ -1,4 +1,4 @@
-import { applies, type Transform, type View } from "@civicdata/domain"
+import { applies, type Transform, transformOf, type View } from "@civicdata/domain"
 import { Match, Schema } from "effect"
 
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
@@ -15,7 +15,8 @@ const choices = [
 const isTransform = Schema.is(Schema.Literals(["PerPerson", "Growth", "Index"]))
 
 // What the chart shows: the indicator's values, or a transform of them. A
-// transform the indicator cannot take is disabled; a ranking cannot be indexed.
+// transform the indicator cannot take is disabled. A chart type offers only
+// the transforms it takes, and a relation none, so it shows no choice.
 export const ShowAs = ({
   view,
   name,
@@ -29,7 +30,11 @@ export const ShowAs = ({
   const offered = Match.valueTags(view, {
     Trend: () => choices,
     Ranking: () => choices.filter((choice) => choice.value !== "Index"),
+    Change: () => choices.filter((choice) => ["Values", "PerPerson"].includes(choice.value)),
+    Relation: () => [],
   })
+
+  if (offered.length === 0) return null
 
   const available = (transform: Transform) => name === undefined || applies(transform, name)
 
@@ -37,7 +42,7 @@ export const ShowAs = ({
     <ToggleGroup
       aria-label="Show as"
       variant="outline"
-      value={[view.transform ?? "Values"]}
+      value={[transformOf(view) ?? "Values"]}
       onValueChange={(next: Array<string>) => {
         const [picked] = next
 

@@ -40,9 +40,12 @@ const statusOf = (text: string, search: UseQueryResult<ReadonlyArray<CatalogEntr
 // The current indicator stays among the options so it remains selected while
 // search results change.
 export const Indicator = ({
+  label = "Indicator",
   current,
   onChange,
 }: {
+  // Names which of the chart's indicators this picks, e.g. "Against".
+  label?: string
   current: { readonly indicator: IndicatorId; readonly name: string }
   onChange: (picked: { readonly id: IndicatorId; readonly name: string }) => void
 }) => {
@@ -67,7 +70,7 @@ export const Indicator = ({
 
   return (
     <Field>
-      <FieldLabel htmlFor={id}>Indicator</FieldLabel>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
       <Combobox
         items={items}
         value={selected}

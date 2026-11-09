@@ -1,9 +1,11 @@
 import {
   Api,
+  Change,
   IndicatorId,
   IndicatorNotFound,
   type ResolvedView,
   Ranking,
+  Relation,
   SourceUnavailable,
   TransformNotApplicable,
   Trend,
@@ -39,10 +41,12 @@ const published = new Map<IndicatorId, { name: string; values: ResolvedView["obs
     {
       name: "Population, total",
       values: [
+        { country: "FRA", year: year(2018), value: 66_000_000 },
         { country: "FRA", year: year(2019), value: 67_000_000 },
         { country: "FRA", year: year(2020), value: 68_000_000 },
         { country: "DEU", year: year(2019), value: 83_000_000 },
         { country: "DEU", year: year(2020), value: 84_000_000 },
+        { country: "ESP", year: year(2020), value: 47_000_000 },
       ],
     },
   ],
@@ -164,6 +168,57 @@ describe("POST /api/views/resolve", () => {
       })
 
       expect(resolved.observations.map((observation) => observation.year)).toEqual([2020, 2020])
+    }).pipe(Effect.provide(serve(worldBank))),
+  )
+
+  it.effect("resolves a change to its two years, missing a country without both", () =>
+    Effect.gen(function* () {
+      const client = yield* HttpApiTest.groups(Api, ["views"])
+
+      const resolved = yield* client.views.resolve({
+        payload: Change.make({
+          indicator: population,
+          countries: ["FRA", "ESP"],
+          from: year(2018),
+          to: year(2020),
+        }),
+      })
+
+      expect(resolved.observations).toEqual([
+        { country: "FRA", year: 2018, value: 66_000_000 },
+        { country: "FRA", year: 2020, value: 68_000_000 },
+        { country: "ESP", year: 2020, value: 47_000_000 },
+      ])
+      expect(resolved.missing).toEqual(["ESP"])
+    }).pipe(Effect.provide(serve(worldBank))),
+  )
+
+  it.effect("plots one indicator against another, citing both", () =>
+    Effect.gen(function* () {
+      const client = yield* HttpApiTest.groups(Api, ["views"])
+
+      const resolved = yield* client.views.resolve({
+        payload: Relation.make({
+          indicator: gdp,
+          against: population,
+          countries: ["FRA", "ESP"],
+          year: year(2020),
+        }),
+      })
+
+      expect(resolved).toMatchObject({
+        indicator: { name: "GDP (current US$)" },
+        observations: [{ country: "FRA", year: 2020, value: 2_720_000_000_000 }],
+        against: {
+          indicator: { name: "Population, total" },
+          observations: [
+            { country: "FRA", year: 2020, value: 68_000_000 },
+            { country: "ESP", year: 2020, value: 47_000_000 },
+          ],
+        },
+        missing: ["ESP"],
+      })
+      expect(resolved.sources.map((source) => source.indicator)).toEqual([gdp, population])
     }).pipe(Effect.provide(serve(worldBank))),
   )
 

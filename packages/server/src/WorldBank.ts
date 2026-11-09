@@ -4,7 +4,7 @@ import {
   Indicator,
   IndicatorId,
   IndicatorNotFound,
-  ResolvedView,
+  Observation,
   SourceUnavailable,
   Year,
 } from "@civicdata/domain"
@@ -33,7 +33,7 @@ const Described = Schema.Struct({
 type Described = typeof Described.Type
 
 const Series = Schema.Struct({
-  observations: ResolvedView.fields.observations,
+  observations: Schema.Array(Observation),
   url: Schema.String,
   retrievedAt: Schema.DateTimeUtc,
 })

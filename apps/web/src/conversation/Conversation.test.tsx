@@ -14,7 +14,6 @@ import {
   Turn,
   Turns,
   Unanswered,
-  View,
   Year,
 } from "@civicdata/domain"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
@@ -45,7 +44,8 @@ const brazil = Trend.make({
 })
 
 const resolve = http.post("/api/views/resolve", async ({ request }) => {
-  const view = Schema.decodeUnknownSync(View)(await request.json())
+  // The conversations here answer with trends only.
+  const view = Schema.decodeUnknownSync(Trend)(await request.json())
 
   return HttpResponse.json(
     Schema.encodeSync(ResolvedView)({

@@ -3,6 +3,7 @@ import {
   Answered,
   Api,
   Asked,
+  Change,
   ConversationBusy,
   ConversationId,
   Described,
@@ -102,6 +103,7 @@ const call = (
 const brazil = {
   chart: "trend",
   indicator: lifeExpectancy,
+  against: null,
   countries: ["BRA"],
   from: 2000,
   to: 2002,
@@ -291,6 +293,55 @@ describe("conversations", () => {
       expect((yield* answer("Life expectancy in Brazil since 2000")).at(-1)).toEqual(
         Answered.make({ view: brazilTrend }),
       )
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect(
+    "answers with a change between two years, rejecting a transform it does not take",
+    () => {
+      const change = { ...brazil, chart: "change", from: 2000, to: 2002 }
+
+      const model = scripted([
+        Effect.succeed(call("show_chart", { ...change, transform: "Index" })),
+        Effect.succeed(call("show_chart", change)),
+      ])
+
+      return Effect.gen(function* () {
+        const steps = yield* answer("How much did life expectancy in Brazil change since 2000?")
+
+        expect(steps.map(Schema.is(Rejected))).toEqual([true, false])
+        expect(steps.at(-1)).toEqual(
+          Answered.make({
+            view: Change.make({
+              indicator: lifeExpectancy,
+              countries: ["BRA"],
+              from: Year.make(2000),
+              to: Year.make(2002),
+            }),
+          }),
+        )
+      }).pipe(Effect.provide(serveApi(model.layer)))
+    },
+  )
+
+  it.effect("rejects a relation of an indicator to itself", () => {
+    const model = scripted([
+      Effect.succeed(
+        call("show_chart", {
+          ...brazil,
+          chart: "relation",
+          against: lifeExpectancy,
+          from: null,
+          to: null,
+          year: 2002,
+        }),
+      ),
+    ])
+
+    return Effect.gen(function* () {
+      const [step] = yield* answer("Life expectancy against life expectancy in Brazil")
+
+      expect(Schema.is(Rejected)(step)).toBe(true)
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
