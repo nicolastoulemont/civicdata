@@ -1,10 +1,10 @@
 import type { ConversationId } from "@civicdata/domain"
 import { useEffect, useRef } from "react"
 
+import { FollowUp } from "./FollowUp.tsx"
 import { Header } from "./Header.tsx"
 import { Lane } from "./Lane.tsx"
 import { Problem } from "./Problem.tsx"
-import { QuestionForm } from "./QuestionForm.tsx"
 import { Timeline } from "./Timeline.tsx"
 import { useConversation } from "./useConversation.ts"
 
@@ -32,7 +32,7 @@ export const Conversation = ({ id, first }: ConversationProps) => {
   return (
     <div className="flex min-h-svh flex-col">
       <Header title={all[0]?.question ?? pending?.question ?? first} />
-      <main className="flex flex-1 flex-col gap-8 pt-4 pb-6">
+      <main className="flex flex-1 flex-col gap-8 pt-4">
         <Lane>
           <div className="flex flex-col gap-6">
             {turns.isError ? <Problem error={turns.error} /> : null}
@@ -44,14 +44,7 @@ export const Conversation = ({ id, first }: ConversationProps) => {
             <Timeline turns={all} pending={pending} answering={answering} ask={ask} />
           </div>
         </Lane>
-        <Lane>
-          <QuestionForm
-            label="Ask a follow-up"
-            placeholder="Add Mexico, or show it per person"
-            disabled={answering}
-            onAsk={ask}
-          />
-        </Lane>
+        <FollowUp last={all.at(-1)?.answer} answering={answering} ask={ask} />
       </main>
     </div>
   )
