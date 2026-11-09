@@ -38,6 +38,7 @@
     "anti-slop/no-unknown-type-aliases": "error",
     "anti-slop/no-unsafe-dictionary-type": "error",
     "anti-slop/no-widen-then-assert": "error",
+    "anti-slop/require-named-props-type": "error",
     "anti-slop/require-readable-spacing": "error",
     "anti-slop/require-safety-comment-for-type-assertion": "error",
     "anti-slop-effect/no-manual-effect-error-tag": "error",
@@ -86,6 +87,7 @@
       "rules": {
         "anti-slop/no-runtime-typeof": "off",
         "anti-slop/no-unknown-parameters": "off",
+        "anti-slop/require-named-props-type": "off",
         "anti-slop/require-safety-comment-for-type-assertion": "off",
         "typescript/no-unsafe-type-assertion": "off",
         "typescript/restrict-template-expressions": "off",

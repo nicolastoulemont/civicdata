@@ -7,20 +7,17 @@ import { Agent } from "./Row.tsx"
 import type { useConversation } from "./useConversation.ts"
 import { Work } from "./Work.tsx"
 
-// The turns of a conversation, oldest first, then the one being answered.
-// Only the last answer's choices can still be picked, and none while the
-// agent answers.
-export const Timeline = ({
-  turns,
-  pending,
-  answering,
-  ask,
-}: {
+interface TimelineProps {
   turns: ReadonlyArray<Turn>
   pending: ReturnType<typeof useConversation>["pending"]
   answering: boolean
   ask: (question: string) => void
-}) => (
+}
+
+// The turns of a conversation, oldest first, then the one being answered.
+// Only the last answer's choices can still be picked, and none while the
+// agent answers.
+export const Timeline = ({ turns, pending, answering, ask }: TimelineProps) => (
   <ol aria-label="Questions and answers" className="flex flex-col gap-8">
     {turns.map((turn, index) => (
       // oxlint-disable-next-line react/no-array-index-key -- turns are only appended, so a position never changes meaning

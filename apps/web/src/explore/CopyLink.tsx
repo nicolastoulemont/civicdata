@@ -8,9 +8,13 @@ import { toQuery } from "./search.ts"
 
 const labels = { copied: "Link copied", failed: "Could not copy" } as const
 
+interface CopyLinkProps {
+  view: View
+}
+
 // Copies the explorer's address for the View. The outcome shows until the
 // View changes.
-export const CopyLink = ({ view }: { view: View }) => {
+export const CopyLink = ({ view }: CopyLinkProps) => {
   const query = toQuery(view)
   const { outcome, copy } = useCopy(query)
 

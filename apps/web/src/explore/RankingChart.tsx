@@ -12,7 +12,11 @@ import { countryName, formatCompact } from "./format.ts"
 
 const config = { value: { label: "Value", color: "var(--chart-4)" } } satisfies ChartConfig
 
-export const RankingChart = ({ resolved }: { resolved: ResolvedView }) => {
+interface RankingChartProps {
+  resolved: ResolvedView
+}
+
+export const RankingChart = ({ resolved }: RankingChartProps) => {
   const ranked = resolved.observations
     .map((observation) => ({ name: countryName(observation.country), value: observation.value }))
     .toSorted((left, right) => right.value - left.value)

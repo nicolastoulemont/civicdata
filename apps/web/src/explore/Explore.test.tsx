@@ -155,8 +155,12 @@ const search = http.get("/api/catalog/search", ({ request }) => {
   return HttpResponse.json(catalog.filter((entry) => entry.name.toLowerCase().includes(text)))
 })
 
+interface PageProps {
+  initial: View
+}
+
 // Stands in for the route, which keeps the View in the URL.
-const Page = ({ initial }: { initial: View }) => {
+const Page = ({ initial }: PageProps) => {
   const [view, setView] = useState(initial)
 
   return <Explore view={view} onChange={setView} />

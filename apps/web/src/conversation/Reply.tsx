@@ -6,16 +6,14 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Answer } from "./Answer.tsx"
 import { Choices } from "./Choices.tsx"
 
-// How the agent answered: a chart, a question back, or no indicator.
-export const Reply = ({
-  answer,
-  disabled,
-  choose,
-}: {
+interface ReplyProps {
   answer: Ending
   disabled: boolean
   choose: (choice: string) => void
-}) =>
+}
+
+// How the agent answered: a chart, a question back, or no indicator.
+export const Reply = ({ answer, disabled, choose }: ReplyProps) =>
   Match.valueTags(answer, {
     Answered: ({ view }) => <Answer view={view} />,
     Asked: ({ question, choices }) => (

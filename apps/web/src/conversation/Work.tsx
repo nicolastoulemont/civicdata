@@ -14,8 +14,13 @@ const describe = (step: Step) =>
     Unanswered: () => "Found no indicator",
   })
 
+interface WorkProps {
+  steps: ReadonlyArray<Step>
+  answering: boolean
+}
+
 // What the agent has done so far for the question it is answering.
-export const Work = ({ steps, answering }: { steps: ReadonlyArray<Step>; answering: boolean }) => (
+export const Work = ({ steps, answering }: WorkProps) => (
   <ol aria-live="polite" className="flex flex-col gap-1 text-sm text-muted-foreground">
     {steps.map((step, index) => (
       // oxlint-disable-next-line react/no-array-index-key -- steps are only appended

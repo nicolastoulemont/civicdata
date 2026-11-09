@@ -34,22 +34,18 @@ const lineOf = (
     })
     .join(" ")
 
-// Every country's whole history in miniature, with a window over the years
-// the chart shows. Dragging an end resizes the window; dragging the window
-// moves it. `onChange` follows the drag; `onCommit` fires when it ends.
-export const YearWindow = ({
-  history,
-  countries,
-  years,
-  onChange,
-  onCommit,
-}: {
+interface YearWindowProps {
   history: ResolvedView["observations"]
   countries: ReadonlyArray<Country>
   years: Years
   onChange: (years: Years) => void
   onCommit: (years: Years) => void
-}) => {
+}
+
+// Every country's whole history in miniature, with a window over the years
+// the chart shows. Dragging an end resizes the window; dragging the window
+// moves it. `onChange` follows the drag; `onCommit` fires when it ends.
+export const YearWindow = ({ history, countries, years, onChange, onCommit }: YearWindowProps) => {
   const pan = useRef<{ x: number; width: number; start: Years; moved: Years } | null>(null)
   const all = history.map((observation) => observation.year)
   const first = Math.min(...all)

@@ -19,9 +19,13 @@ const spans = (years: ReadonlyArray<number>) =>
     .map(([from, to]) => (from === to ? `${from}` : `${from}–${to}`))
     .join(", ")
 
+interface FlagsProps {
+  resolved: ResolvedView
+}
+
 // Under the chart, the values its source qualifies, e.g. "Provisional:
 // France 2024–2026, Greece 2026." Nothing when no value is flagged.
-export const Flags = ({ resolved }: { resolved: ResolvedView }) => {
+export const Flags = ({ resolved }: FlagsProps) => {
   const groups = order.flatMap((flag) => {
     const years = new Map<Country, Array<number>>()
 

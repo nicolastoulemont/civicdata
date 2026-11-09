@@ -31,8 +31,12 @@ const explain = (error: Error) =>
               }
             : { title: "The question could not be sent", description: "Try again in a moment." }
 
+interface ProblemProps {
+  error: Error
+}
+
 // Why the conversation or a question failed, and what to do about it.
-export const Problem = ({ error }: { error: Error }) => {
+export const Problem = ({ error }: ProblemProps) => {
   const { title, description } = explain(error)
 
   return (

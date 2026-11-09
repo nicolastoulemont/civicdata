@@ -19,14 +19,13 @@ import { countryName } from "./format.ts"
 
 const codes = countries.map((country) => country.code)
 
-// A View always has at least one country, so the last chip has no remove button.
-export const Countries = ({
-  selected,
-  onChange,
-}: {
+interface CountriesProps {
   selected: View["countries"]
   onChange: (countries: View["countries"]) => void
-}) => {
+}
+
+// A View always has at least one country, so the last chip has no remove button.
+export const Countries = ({ selected, onChange }: CountriesProps) => {
   const anchor = useComboboxAnchor()
   const id = useId()
 

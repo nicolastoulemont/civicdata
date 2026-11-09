@@ -23,19 +23,17 @@ const transformFor = (choice: Choice, view: View): Transform | undefined =>
     Match.orElse((plain) => plain),
   )
 
-// What the chart shows: the indicator's values, or a transform of them. A
-// transform the indicator cannot take is disabled. A chart type offers only
-// the transforms it takes, and a relation none, so it shows no choice.
-export const ShowAs = ({
-  view,
-  name,
-  onChange,
-}: {
+interface ShowAsProps {
   view: View
   // The indicator's name once loaded; until then every transform is offered.
   name: string | undefined
   onChange: (view: View) => void
-}) => {
+}
+
+// What the chart shows: the indicator's values, or a transform of them. A
+// transform the indicator cannot take is disabled. A chart type offers only
+// the transforms it takes, and a relation none, so it shows no choice.
+export const ShowAs = ({ view, name, onChange }: ShowAsProps) => {
   const offered = Match.valueTags(view, {
     Trend: () => choices,
     Ranking: () => choices.filter((choice) => choice.value !== "Index"),
