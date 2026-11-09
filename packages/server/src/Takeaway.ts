@@ -110,6 +110,11 @@ export const summarize = (resolved: ResolvedView): Summary =>
         Ranking: ({ year }) => bars(resolved, year),
       })
 
+// How a takeaway is written, for the agent's instructions and for explaining
+// a chart on its own.
+export const rules =
+  "two short sentences of plain text, without Markdown, on what the chart shows, read from its data. Say which way each country moves, which is highest or lowest, or how the two indicators go together. Take every number and year from that data, rounded if you like; never work one out, such as a difference, a ratio or an average."
+
 // A number as a takeaway writes it, e.g. "72", "1,234.5" or "2.1 trillion".
 // Digits inside a word, as in "G7" or "CO2", are part of a name, not a number.
 const numbers =

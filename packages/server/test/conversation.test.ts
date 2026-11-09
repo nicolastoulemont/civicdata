@@ -17,6 +17,7 @@ import {
   TooManyQuestions,
   Trend,
   Unanswered,
+  type View,
   Year,
 } from "@civicdata/domain"
 import { describe, expect, it } from "@effect/vitest"
@@ -189,8 +190,16 @@ const sdmx = Sdmx.layer.pipe(
 
 // The API as the Worker serves it, with each conversation answered in this
 // process the way its Durable Object would, from memory.
-const serveApi = (model: Layer.Layer<LanguageModel.LanguageModel>, limit = AskLimit.none) =>
-  Layer.mergeAll(
+const serveApi = (model: Layer.Layer<LanguageModel.LanguageModel>, limit = AskLimit.none) => {
+  const agent = Agent.layer.pipe(
+    Layer.provide(model),
+    Layer.provide(Resolver.layer),
+    Layer.provide(catalog),
+    Layer.provide(worldBank),
+    Layer.provide(sdmx),
+  )
+
+  return Layer.mergeAll(
     Handlers.pipe(
       Layer.provide(
         Conversations.local(
@@ -198,26 +207,21 @@ const serveApi = (model: Layer.Layer<LanguageModel.LanguageModel>, limit = AskLi
             HttpRouter.toWebHandler(
               serve.pipe(
                 Layer.provide(Transcript.memory),
-                Layer.provide(
-                  Agent.layer.pipe(
-                    Layer.provide(model),
-                    Layer.provide(Resolver.layer),
-                    Layer.provide(catalog),
-                    Layer.provide(worldBank),
-                    Layer.provide(sdmx),
-                  ),
-                ),
+                Layer.provide(agent),
                 Layer.provide(limit),
               ),
             ).handler,
         ),
       ),
+      Layer.provide(agent),
+      Layer.provide(limit),
       Layer.provide(catalog),
       Layer.provide(worldBank),
       Layer.provide(sdmx),
     ),
     HttpServer.layerServices,
   )
+}
 
 const client = HttpApiTest.groups(Api, ["conversation"])
 
@@ -754,5 +758,70 @@ describe("conversations", () => {
         ),
       ),
     )
+  })
+})
+
+describe("explaining a chart", () => {
+  const views = HttpApiTest.groups(Api, ["views"])
+
+  const explain = (view: View) =>
+    Effect.flatMap(views, (api) => api.views.explain({ payload: view }))
+
+  const fails = Effect.fail(
+    new AiError.AiError({
+      module: "OpenAI",
+      method: "generateText",
+      reason: new AiError.UnknownError({ description: "upstream 500" }),
+    }),
+  )
+
+  it.effect("writes a takeaway for a chart from a summary of its values", () => {
+    const written = "Life expectancy in Brazil rose from 70 years in 2000 to 72 in 2002."
+    const model = scripted([Effect.succeed(words(written))])
+
+    return Effect.gen(function* () {
+      expect(yield* explain(brazilTrend)).toEqual(
+        Answered.make({ view: brazilTrend, takeaway: written }),
+      )
+      expect(model.prompts[0]).toContain(
+        '\\"first\\":{\\"year\\":2000,\\"value\\":70},\\"last\\":{\\"year\\":2002,\\"value\\":72}',
+      )
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("fails with TooManyQuestions before asking the model when over the limit", () => {
+    const model = scripted([Effect.die("the model must not be asked")])
+
+    return Effect.gen(function* () {
+      expect(yield* explain(brazilTrend).pipe(Effect.flip)).toBeInstanceOf(TooManyQuestions)
+    }).pipe(
+      Effect.provide(
+        serveApi(
+          model.layer,
+          Layer.succeed(
+            AskLimit,
+            AskLimit.of({ count: () => Effect.fail(new TooManyQuestions()) }),
+          ),
+        ),
+      ),
+    )
+  })
+
+  it.effect("fails with AgentUnavailable when the model fails", () => {
+    const model = scripted([fails])
+
+    return Effect.gen(function* () {
+      expect(yield* explain(brazilTrend).pipe(Effect.flip)).toBeInstanceOf(AgentUnavailable)
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("fails with IndicatorNotFound for an indicator the World Bank does not have", () => {
+    const model = scripted([Effect.die("the model must not be asked")])
+
+    return Effect.gen(function* () {
+      const unknown = Trend.make({ ...brazilTrend, indicator: IndicatorId.make("NOPE") })
+
+      expect(yield* explain(unknown).pipe(Effect.flip)).toBeInstanceOf(IndicatorNotFound)
+    }).pipe(Effect.provide(serveApi(model.layer)))
   })
 })

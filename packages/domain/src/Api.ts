@@ -2,7 +2,7 @@ import { Schema } from "effect"
 import { HttpApi, HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/http-api"
 
 import { CatalogEntry, SearchText } from "./Catalog.ts"
-import { ConversationId, Question, Step, Turns } from "./Conversation.ts"
+import { Answered, ConversationId, Question, Step, Turns } from "./Conversation.ts"
 import {
   AgentUnavailable,
   CatalogUnavailable,
@@ -26,6 +26,23 @@ class Views extends HttpApiGroup.make("views")
       payload: View,
       success: ResolvedView,
       error: [IndicatorNotFound, SourceUnavailable, TransformNotApplicable, DimensionsMissing],
+    }),
+  )
+  // The agent's takeaway for a chart, e.g. one edited since the agent showed
+  // it. Each request costs a model call, so it counts against the same limit
+  // as questions.
+  .add(
+    HttpApiEndpoint.post("explain", "/explain", {
+      payload: View,
+      success: Answered,
+      error: [
+        AgentUnavailable,
+        TooManyQuestions,
+        IndicatorNotFound,
+        SourceUnavailable,
+        TransformNotApplicable,
+        DimensionsMissing,
+      ],
     }),
   )
   .prefix("/views") {}

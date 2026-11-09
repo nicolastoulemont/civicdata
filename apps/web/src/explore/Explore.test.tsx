@@ -1,4 +1,5 @@
 import {
+  Answered,
   CatalogUnavailable,
   Dimension,
   DimensionsMissing,
@@ -6,6 +7,7 @@ import {
   type ResolvedView,
   ResolvedView as ResolvedViewSchema,
   SourceUnavailable,
+  TooManyQuestions,
   transformOf,
   Trend,
   View,
@@ -153,6 +155,25 @@ const search = http.get("/api/catalog/search", ({ request }) => {
   const text = (new URL(request.url).searchParams.get("q") ?? "").toLowerCase()
 
   return HttpResponse.json(catalog.filter((entry) => entry.name.toLowerCase().includes(text)))
+})
+
+// The agent's takeaway names the chart it was asked about, so a test can
+// tell which chart a takeaway is for.
+const explain = http.post("/api/views/explain", async ({ request }) => {
+  const view = Schema.decodeUnknownSync(View)(await request.json())
+
+  const chart = Match.valueTags(view, {
+    Trend: () => "trend",
+    Ranking: () => "ranking",
+    Change: () => "change",
+    Relation: () => "relation",
+  })
+
+  return HttpResponse.json(
+    Schema.encodeSync(Answered)(
+      Answered.make({ view, takeaway: `France grew, as a ${chart} shows.` }),
+    ),
+  )
 })
 
 interface PageProps {
@@ -627,5 +648,49 @@ describe("Explore", () => {
     for (const name of ["Per person", "Growth", "Index", "Ratio"]) {
       expect(screen.getByRole("button", { name })).toHaveProperty("disabled", true)
     }
+  })
+
+  it("explains the chart on screen, and greys the explanation out after an edit", async () => {
+    network.use(worldBank, explain)
+    const user = userEvent.setup()
+
+    show(trend)
+
+    await screen.findByRole("heading", { name: "Total population" })
+    await user.click(screen.getByRole("button", { name: "Explain this chart" }))
+
+    expect(await screen.findByText("France grew, as a trend shows.")).toBeDefined()
+    expect(screen.queryByRole("button", { name: "Explain this chart" })).toBeNull()
+
+    await user.click(screen.getByRole("button", { name: "Bar chart ranking one year" }))
+
+    expect(await screen.findByText("This describes the chart before your changes.")).toBeDefined()
+    expect(screen.getByText("France grew, as a trend shows.").className).toContain(
+      "text-muted-foreground",
+    )
+
+    await user.click(screen.getByRole("button", { name: "Explain this chart" }))
+
+    expect(await screen.findByText("France grew, as a ranking shows.")).toBeDefined()
+    expect(screen.queryByText("This describes the chart before your changes.")).toBeNull()
+  })
+
+  it("explains when the visitor asked for too many explanations", async () => {
+    network.use(
+      worldBank,
+      http.post("/api/views/explain", () =>
+        HttpResponse.json(Schema.encodeSync(TooManyQuestions)(new TooManyQuestions()), {
+          status: 429,
+        }),
+      ),
+    )
+    const user = userEvent.setup()
+
+    show(trend)
+
+    await screen.findByRole("heading", { name: "Total population" })
+    await user.click(screen.getByRole("button", { name: "Explain this chart" }))
+
+    expect(await screen.findByText("Too many questions in a minute")).toBeDefined()
   })
 })

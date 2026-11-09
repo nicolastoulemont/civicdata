@@ -6,7 +6,9 @@ import {
   Change,
   Described,
   type Dimension,
+  type DimensionsMissing,
   IndicatorId,
+  type IndicatorNotFound,
   kindOf,
   Located,
   locate,
@@ -18,6 +20,7 @@ import {
   Searched,
   SourceUnavailable,
   type Step,
+  type TransformNotApplicable,
   Trend,
   Unanswered,
   View,
@@ -44,11 +47,19 @@ import { FetchHttpClient } from "effect/http"
 
 import { Catalog } from "./Catalog.ts"
 import { Resolver } from "./Resolver.ts"
-import { check, Summary, summarize } from "./Takeaway.ts"
+import { check, rules, Summary, summarize } from "./Takeaway.ts"
 import { WorldBank } from "./WorldBank.ts"
 
 // Why an answer could not be given at all.
 type Failure = AgentUnavailable | SourceUnavailable | CatalogUnavailable
+
+// Why a chart could not be explained.
+type Unexplained =
+  | AgentUnavailable
+  | SourceUnavailable
+  | IndicatorNotFound
+  | TransformNotApplicable
+  | DimensionsMissing
 
 interface Interface {
   // A new chat that knows how to answer, with no questions yet.
@@ -57,6 +68,10 @@ interface Interface {
   // stream ends with Answered or Unanswered, and the chat then holds the
   // question and the answer, so a follow-up can build on them.
   readonly ask: (chat: Chat.Chat, question: string) => Stream.Stream<Step, Failure>
+  // A takeaway for a chart on its own, outside a chat, e.g. after someone
+  // edited the chart the agent showed. It has none when the model's text
+  // fails the check.
+  readonly explain: (view: View) => Effect.Effect<typeof Answered.Type, Unexplained>
 }
 
 // Used when the deployment does not name a model in OPENAI_MODEL.
@@ -458,7 +473,7 @@ const instructions = (
    - Without years in the question, a trend covers the last 20 years and a ranking the latest year with data. It is ${year} now; most indicators have values up to ${year - 2}.
    - Use a transform only when the question asks for one.
 3. If show_chart rejects the chart, fix what it names and call it again.
-4. Once show_chart shows the chart, write its takeaway: two short sentences of plain text, without Markdown, on what the chart shows, read from the data show_chart returns. Say which way each country moves, which is highest or lowest, or how the two indicators go together. Take every number and year from that data, rounded if you like; never work one out, such as a difference, a ratio or an average.
+4. Once show_chart shows the chart, write its takeaway from the data show_chart returns: ${rules}
 
 If no World Bank indicator measures what the question asks, stop without calling show_chart.
 
@@ -473,6 +488,7 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
     Effect.gen(function* () {
       const model = yield* LanguageModel.LanguageModel
       const toolkit = yield* Tools
+      const resolver = yield* Resolver
 
       const start = Effect.gen(function* () {
         const now = yield* DateTime.now
@@ -485,13 +501,13 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
       // The chart's takeaway, written by the model from the data show_chart
       // returned. A model that fails or writes one that fails the check leaves
       // the chart without one.
-      const explain = Effect.fn("Agent.explain")(
+      const takeaway = Effect.fn("Agent.takeaway")(
         function* (chat: Chat.Chat, { view, data }: typeof Shown.Type) {
           const response = yield* chat.generateText({ prompt: [], toolkit, toolChoice: "none" })
 
           return Option.match(check(response.text, data), {
             onNone: () => Answered.make({ view }),
-            onSome: (takeaway) => Answered.make({ view, takeaway }),
+            onSome: (text) => Answered.make({ view, takeaway: text }),
           })
         },
         Effect.provideService(LanguageModel.LanguageModel, model),
@@ -525,7 +541,7 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
             if (Option.isSome(ending)) {
               Queue.offerUnsafe(
                 queue,
-                isShown(ending.value) ? yield* explain(chat, ending.value) : ending.value,
+                isShown(ending.value) ? yield* takeaway(chat, ending.value) : ending.value,
               )
 
               return
@@ -550,13 +566,43 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
           answer(chat, { question, queue }).pipe(Effect.andThen(Queue.end(queue))),
         )
 
-      return Agent.of({ start, ask })
+      const explain = Effect.fn("Agent.explain")(
+        function* (view: View) {
+          const data = summarize(yield* resolver.resolve(view))
+
+          const response = yield* model.generateText({
+            prompt: [
+              {
+                role: "system",
+                content: `You write the takeaway for a chart of public data, given the chart and its data: ${rules}`,
+              },
+              { role: "user", content: JSON.stringify({ view, data }) },
+            ],
+          })
+
+          return Option.match(check(response.text, data), {
+            onNone: () => Answered.make({ view }),
+            onSome: (text) => Answered.make({ view, takeaway: text }),
+          })
+        },
+        Effect.catchTag("AiError", (error) =>
+          Effect.logWarning("Language model failed on a takeaway", error.reason).pipe(
+            Effect.andThen(Effect.fail(new AgentUnavailable())),
+          ),
+        ),
+      )
+
+      return Agent.of({ start, ask, explain })
     }),
   ).pipe(Layer.provide(ToolsLayer))
 
   static readonly unavailable = Layer.succeed(
     Agent,
-    Agent.of({ start: Chat.empty, ask: () => Stream.fail(new AgentUnavailable()) }),
+    Agent.of({
+      start: Chat.empty,
+      ask: () => Stream.fail(new AgentUnavailable()),
+      explain: () => Effect.fail(new AgentUnavailable()),
+    }),
   )
 
   // OpenAI, when the deployment has an OPENAI_API_KEY binding. Without one

@@ -57,6 +57,7 @@ import type { Paired } from "./points.ts"
 import { RankingChart } from "./RankingChart.tsx"
 import { RelationChart } from "./RelationChart.tsx"
 import { ShowAs } from "./ShowAs.tsx"
+import { Takeaway } from "./Takeaway.tsx"
 import { type History, TrendChart } from "./TrendChart.tsx"
 import { range, YearSelect, years } from "./Years.tsx"
 import type { Years } from "./YearWindow.tsx"
@@ -422,6 +423,7 @@ export const Explore = ({ view, onChange }: ExploreProps) => {
               >
                 <Chart resolved={query.data} picking={picking} />
               </div>
+              <Takeaway view={view} />
             </>
           )}
         </CardContent>

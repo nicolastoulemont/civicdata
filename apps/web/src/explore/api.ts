@@ -32,3 +32,7 @@ export const searchQuery = (text: string) =>
     placeholderData: keepPreviousData,
     staleTime: 60 * 60 * 1000,
   })
+
+// The agent's takeaway for a chart. Rejects with AgentUnavailable,
+// TooManyQuestions or one of resolve's errors.
+export const explain = (view: View) => call(page, (api) => api.views.explain({ payload: view }))

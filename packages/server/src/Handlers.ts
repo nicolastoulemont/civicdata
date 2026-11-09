@@ -3,6 +3,8 @@ import { Effect, Layer } from "effect"
 import { HttpServerRequest, HttpServerResponse } from "effect/http"
 import { HttpApiBuilder } from "effect/http-api"
 
+import { Agent } from "./Agent.ts"
+import { AskLimit } from "./AskLimit.ts"
 import { Catalog } from "./Catalog.ts"
 import { Conversations } from "./Conversations.ts"
 import { Resolver } from "./Resolver.ts"
@@ -16,8 +18,16 @@ const Views = HttpApiBuilder.group(
   "views",
   Effect.fn(function* (handlers) {
     const resolver = yield* Resolver
+    const agent = yield* Agent
+    const limit = yield* AskLimit
 
-    return handlers.handle("resolve", ({ payload }) => resolver.resolve(payload))
+    return handlers
+      .handle("resolve", ({ payload }) => resolver.resolve(payload))
+      .handle("explain", ({ payload, request }) =>
+        limit
+          .count(request.headers["cf-connecting-ip"] ?? "unknown")
+          .pipe(Effect.andThen(agent.explain(payload))),
+      )
   }),
 )
 
@@ -59,7 +69,8 @@ const ConversationRoutes = HttpApiBuilder.group(
   }),
 )
 
-// Every API route, needing a WorldBank, an Sdmx, a Catalog and Conversations.
+// Every API route, needing a WorldBank, an Sdmx, a Catalog, Conversations, an
+// Agent and an AskLimit.
 export const Handlers = Layer.mergeAll(System, Views, CatalogSearch, ConversationRoutes).pipe(
   Layer.provide(Resolver.layer),
 )
