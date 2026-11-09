@@ -11,11 +11,23 @@ import { beforeEach, describe, expect, it } from "@effect/vitest"
 import { Effect, Layer } from "effect"
 import { HttpServer } from "effect/http"
 import { HttpApiTest } from "effect/http-api"
+import { TestClock } from "effect/testing"
 
 import { ArchiveUnavailable } from "../src/Archives.ts"
 import { Politics, PoliticsRoutes } from "../src/Politics.ts"
 import { PoliticsBuild, PoliticsBuildFailed } from "../src/PoliticsBuild.ts"
-import { build, emptyPolitics, gone, type Files, politicsOver, recorded } from "./politics.ts"
+import { steps } from "./fakes.ts"
+import parlgovCabinets from "./fixtures/parlgov/data_cabinet.csv?raw"
+import {
+  build,
+  dropFingerprints,
+  emptyPolitics,
+  gone,
+  type Files,
+  politicsOver,
+  published,
+  recorded,
+} from "./politics.ts"
 
 beforeEach(emptyPolitics)
 
@@ -269,6 +281,76 @@ describe("politics", () => {
       expect(heads((yield* records(["ESP"], 2012, 2012)).governments)).toEqual(["Mariano Rajoy"])
     }).pipe(Effect.provide(serve(files)))
   })
+
+  it.effect("skips every dataset whose records have not changed", () => {
+    const run = steps()
+
+    return Effect.gen(function* () {
+      yield* build(1)
+      // A week on, the archives hold the same records, fetched at another time.
+      yield* TestClock.adjust("7 days")
+
+      yield* PoliticsBuild.run(2).pipe(Effect.provide(run.layer))
+
+      expect(run.ran().toSorted()).toEqual([
+        "write Official elections",
+        "write Official governments",
+        "write PPEG elections",
+        "write PPEG governments",
+        "write ParlGov elections",
+        "write ParlGov governments",
+      ])
+      expect(yield* published()).toEqual([
+        { records: "elections", publisher: "Official", generation: 1 },
+        { records: "elections", publisher: "PPEG", generation: 1 },
+        { records: "elections", publisher: "ParlGov", generation: 1 },
+        { records: "governments", publisher: "Official", generation: 1 },
+        { records: "governments", publisher: "PPEG", generation: 1 },
+        { records: "governments", publisher: "ParlGov", generation: 1 },
+      ])
+      expect(heads((yield* records(["CAN"], 2016, 2016)).governments)).toEqual(["Trudeau J"])
+    }).pipe(Effect.provide(serve(recorded())))
+  })
+
+  it.effect("rebuilds only the dataset with a changed record", () => {
+    const files = recorded()
+
+    return Effect.gen(function* () {
+      yield* build(1)
+      files["https://parlgov.fly.dev/data-csv/data_cabinet/"] = () =>
+        new Response(parlgovCabinets.replace("Trudeau J I,", "Trudeau Justin I,"))
+
+      yield* build(2)
+
+      expect(yield* published()).toEqual([
+        { records: "elections", publisher: "Official", generation: 1 },
+        { records: "elections", publisher: "PPEG", generation: 1 },
+        { records: "elections", publisher: "ParlGov", generation: 1 },
+        { records: "governments", publisher: "Official", generation: 1 },
+        { records: "governments", publisher: "PPEG", generation: 1 },
+        { records: "governments", publisher: "ParlGov", generation: 2 },
+      ])
+      expect(heads((yield* records(["CAN"], 2016, 2016)).governments)).toEqual(["Trudeau Justin"])
+    }).pipe(Effect.provide(serve(files)))
+  })
+
+  it.effect("rebuilds every dataset over tables an earlier version made", () =>
+    Effect.gen(function* () {
+      yield* build(1).pipe(Effect.provide(politicsOver(recorded())))
+      yield* dropFingerprints
+
+      yield* build(2).pipe(Effect.provide(politicsOver(recorded())))
+
+      expect(yield* published()).toEqual([
+        { records: "elections", publisher: "Official", generation: 2 },
+        { records: "elections", publisher: "PPEG", generation: 2 },
+        { records: "elections", publisher: "ParlGov", generation: 2 },
+        { records: "governments", publisher: "Official", generation: 2 },
+        { records: "governments", publisher: "PPEG", generation: 2 },
+        { records: "governments", publisher: "ParlGov", generation: 2 },
+      ])
+    }),
+  )
 
   it.effect("rejects an archive whose rows do not decode, storing nothing", () =>
     Effect.gen(function* () {

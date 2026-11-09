@@ -7,14 +7,16 @@ import { BuildFailed, CatalogBuild } from "../src/CatalogBuild.ts"
 import {
   build,
   catalogOver,
+  dropFingerprints,
   emptyCatalog,
   entry,
   listings,
-  steps,
+  published,
   vectorize,
   workersAi,
   worldBankList,
 } from "./catalog.ts"
+import { steps } from "./fakes.ts"
 
 beforeEach(emptyCatalog)
 
@@ -158,7 +160,109 @@ describe("CatalogBuild", () => {
     })
   }
 
-  it.effect("keeps every old generation when Workers AI is down mid-build", () => {
+  it.effect("skips every source whose listing has not changed, embedding nothing", () => {
+    const { index, upserts } = vectorize()
+    const run = steps()
+
+    return Effect.gen(function* () {
+      yield* build(1)
+      const embedded = upserts().length
+
+      yield* CatalogBuild.run(2).pipe(Effect.provide(run.layer))
+
+      expect(run.ran().toSorted()).toEqual(["write Eurostat", "write OECD", "write World Bank"])
+      expect(upserts()).toHaveLength(embedded)
+      expect(yield* published()).toEqual([
+        { source: "Eurostat", generation: 1 },
+        { source: "OECD", generation: 1 },
+        { source: "World Bank", generation: 1 },
+      ])
+      expect(names(yield* (yield* Catalog).search("life expectancy"))).toEqual([
+        "Life expectancy at birth, total (years)",
+      ])
+    }).pipe(Effect.provide(catalogOver(listings(), { index })))
+  })
+
+  it.effect("rebuilds only the source with a changed entry", () => {
+    const lists = listings()
+    const { index, upserts } = vectorize()
+
+    return Effect.gen(function* () {
+      yield* build(1)
+      lists.Eurostat = [
+        entry("ESTAT,UNE_RT_A,1.0", "Unemployment by sex and age - annual data"),
+        entry("ESTAT,TPS00001,1.0", "Population on 1 January, renamed"),
+      ]
+      const embedded = upserts().length
+
+      yield* build(2)
+
+      expect(upserts().slice(embedded)).toEqual([2])
+      expect(yield* published()).toEqual([
+        { source: "Eurostat", generation: 2 },
+        { source: "OECD", generation: 1 },
+        { source: "World Bank", generation: 1 },
+      ])
+      expect(names(yield* (yield* Catalog).search("renamed"))).toEqual([
+        "Population on 1 January, renamed",
+      ])
+    }).pipe(Effect.provide(catalogOver(lists, { index })))
+  })
+
+  it.effect("rebuilds every source when the embedding model changes", () => {
+    const lists = listings()
+    const { index, upserts } = vectorize()
+
+    return Effect.gen(function* () {
+      yield* build(1).pipe(Effect.provide(catalogOver(lists, { index })))
+      const embedded = upserts().length
+
+      yield* build(2).pipe(Effect.provide(catalogOver(lists, { index, model: "@cf/other" })))
+
+      expect(
+        upserts()
+          .slice(embedded)
+          .toSorted((a, b) => a - b),
+      ).toEqual([1, 2, 8])
+      expect(yield* published()).toEqual([
+        { source: "Eurostat", generation: 2 },
+        { source: "OECD", generation: 2 },
+        { source: "World Bank", generation: 2 },
+      ])
+    })
+  })
+
+  it.effect("rebuilds every source over tables an earlier version made", () => {
+    const lists = listings()
+    const { index, upserts } = vectorize()
+
+    return Effect.gen(function* () {
+      yield* build(1).pipe(Effect.provide(catalogOver(lists, { index })))
+      // The catalog as the version before fingerprints left it.
+      yield* dropFingerprints
+      const embedded = upserts().length
+
+      yield* build(2).pipe(Effect.provide(catalogOver(lists, { index })))
+
+      expect(
+        upserts()
+          .slice(embedded)
+          .toSorted((a, b) => a - b),
+      ).toEqual([1, 2, 8])
+      expect(yield* published()).toEqual([
+        { source: "Eurostat", generation: 2 },
+        { source: "OECD", generation: 2 },
+        { source: "World Bank", generation: 2 },
+      ])
+
+      // The rebuild stored fingerprints, so the next build skips every source.
+      yield* build(3).pipe(Effect.provide(catalogOver(lists, { index })))
+
+      expect(upserts().slice(embedded)).toHaveLength(3)
+    })
+  })
+
+  it.effect("keeps a changed source's old generation when Workers AI is down mid-build", () => {
     const lists = listings()
     const ai = { up: true }
 
@@ -169,7 +273,8 @@ describe("CatalogBuild", () => {
 
       const error = yield* build(2).pipe(Effect.flip)
 
-      expect(error).toEqual(new BuildFailed({ sources: ["World Bank", "Eurostat", "OECD"] }))
+      // Eurostat and OECD list what they did, so they need no Workers AI.
+      expect(error).toEqual(new BuildFailed({ sources: ["World Bank"] }))
       expect(names(yield* (yield* Catalog).search("life expectancy"))).toEqual([
         "Life expectancy at birth, total (years)",
       ])

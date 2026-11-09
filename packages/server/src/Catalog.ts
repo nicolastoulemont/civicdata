@@ -54,8 +54,10 @@ const fuse = (rankings: ReadonlyArray<ReadonlyArray<CatalogEntry>>) => {
 
 // The catalog's tables. `catalog` holds every generation of every source's
 // entries in SQLite full-text search (FTS5); `catalog_current` names the
-// generation of each source that searches read. A build writes a new
-// generation and publishes it once complete (see CatalogBuild.ts).
+// generation of each source that searches read; `catalog_fingerprint` holds
+// a fingerprint of what each generation stores, which tells a build whether a
+// listing matches the published generation. A build writes a new generation
+// and publishes it once complete (see CatalogBuild.ts).
 export const tables = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient
 
@@ -69,6 +71,16 @@ export const tables = Effect.gen(function* () {
     CREATE TABLE IF NOT EXISTS catalog_current (
       source TEXT PRIMARY KEY,
       generation INTEGER NOT NULL
+    )
+  `
+  // A table of its own, rather than a column of catalog_current, so a stage
+  // whose tables an earlier version made gets it too.
+  yield* sql`
+    CREATE TABLE IF NOT EXISTS catalog_fingerprint (
+      source TEXT NOT NULL,
+      generation INTEGER NOT NULL,
+      fingerprint TEXT NOT NULL,
+      PRIMARY KEY (source, generation)
     )
   `
   // Left by the catalog that loaded and embedded itself during searches.

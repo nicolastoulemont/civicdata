@@ -4,7 +4,7 @@ import { env } from "cloudflare:workers"
 import { Effect, Layer } from "effect"
 
 import { Catalog } from "../src/Catalog.ts"
-import { CatalogBuild, Step, StepFailed } from "../src/CatalogBuild.ts"
+import { CatalogBuild, Step } from "../src/CatalogBuild.ts"
 import { Sdmx } from "../src/Sdmx.ts"
 import { type Ai, type Index, Vectors } from "../src/Vectors.ts"
 import { WorldBank } from "../src/WorldBank.ts"
@@ -150,43 +150,36 @@ if (db === undefined) throw new Error("vitest.config.ts must bind a D1 database 
 
 // The test Worker's D1 database is shared by every test that uses it.
 export const emptyCatalog = () =>
-  db.exec("DROP TABLE IF EXISTS catalog; DROP TABLE IF EXISTS catalog_current;")
+  db.exec(
+    "DROP TABLE IF EXISTS catalog; DROP TABLE IF EXISTS catalog_current; DROP TABLE IF EXISTS catalog_fingerprint;",
+  )
+
+// The catalog as the version before fingerprints left it.
+export const dropFingerprints = Effect.promise(() => db.exec("DROP TABLE catalog_fingerprint"))
+
+// The published generation of each source.
+export const published = () =>
+  Effect.promise(() =>
+    db.prepare("SELECT source, generation FROM catalog_current ORDER BY source").all(),
+  ).pipe(Effect.map(({ results }) => results))
 
 // The real catalog and its build over the test Worker's local D1 database,
 // with the sources faked as services and Workers AI and Vectorize faked at
-// their bindings.
+// their bindings. Each layer built is a Worker starting: it creates the
+// tables it lacks.
 export const catalogOver = (
   lists: Listings,
-  { ai = workersAi({ up: true }), index = vectorize().index }: { ai?: Ai; index?: Index } = {},
+  {
+    ai = workersAi({ up: true }),
+    index = vectorize().index,
+    model,
+  }: { ai?: Ai; index?: Index; model?: string } = {},
 ) =>
   Layer.mergeAll(Catalog.layer, CatalogBuild.layer).pipe(
     Layer.provide(sources(lists)),
-    Layer.provide(Vectors.cloudflare({ ai, index })),
+    Layer.provide(Vectors.cloudflare({ ai, index, model })),
     Layer.provide(D1Client.layer({ db }).pipe(Layer.orDie)),
   )
-
-// Runs each step at once, as Workflows does when a step succeeds, after
-// `before` (a test's look at the catalog mid-build). A failing step fails
-// for good: the test stands for a step whose retries all failed.
-export const steps = (
-  before: (name: string) => Effect.Effect<void, unknown> = () => Effect.void,
-) => {
-  const ran: Array<string> = []
-
-  const layer = Layer.succeed(
-    Step,
-    Step.of({
-      run: (name, effect) =>
-        before(name).pipe(
-          Effect.andThen(Effect.sync(() => ran.push(name))),
-          Effect.andThen(effect),
-          Effect.mapError((cause) => new StepFailed({ step: name, cause })),
-        ),
-    }),
-  )
-
-  return { layer, ran: () => ran }
-}
 
 export const build = (generation: number) =>
   CatalogBuild.run(generation).pipe(Effect.provide(Step.immediate))
