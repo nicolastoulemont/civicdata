@@ -22,6 +22,7 @@ import {
   build,
   dropFingerprints,
   emptyPolitics,
+  forgetPartyIds,
   gone,
   type Files,
   politicsOver,
@@ -141,6 +142,73 @@ describe("politics", () => {
       // Checked by hand without establishing who governed with him.
       expect(governments[2]?.parties).toEqual([])
       expect(governments[3]?.citation.publisher).toBe("Official")
+    }).pipe(Effect.provide(serve(recorded()))),
+  )
+
+  it.effect("colours a government by its head's party, joined by the publisher's party id", () =>
+    Effect.gen(function* () {
+      yield* build(1)
+
+      const { governments } = yield* records(["ESP"], 2018, 2018)
+
+      // PPEG's id for the People's Party has no colour; its id for the
+      // Spanish Socialist Workers' Party has Wikidata's.
+      expect(governments.map(({ head, color }) => ({ head, color }))).toEqual([
+        { head: "Mariano Rajoy", color: null },
+        {
+          head: "Pedro Sánchez",
+          color: {
+            hex: "#EF1C27",
+            kind: "representative",
+            url: "https://www.wikidata.org/wiki/Q138198#P465",
+          },
+        },
+      ])
+    }).pipe(Effect.provide(serve(recorded()))),
+  )
+
+  it.effect("colours a ParlGov government by ParlGov's own party id", () =>
+    Effect.gen(function* () {
+      // Without PPEG's governments, Spain's come from ParlGov.
+      yield* build(1).pipe(Effect.ignore)
+
+      const { governments } = yield* records(["ESP"], 2012, 2012)
+
+      expect(governments[0]?.citation.publisher).toBe("ParlGov")
+      expect(governments[0]?.color?.url).toBe("https://www.wikidata.org/wiki/Q185088#P465")
+    }).pipe(
+      Effect.provide(serve(recorded({ "https://ppeg.wzb.eu/www/ppeg_gov_2025v1.zip": gone }))),
+    ),
+  )
+
+  it.effect("leaves a government uncoloured when its head's party has none or is not named", () =>
+    Effect.gen(function* () {
+      yield* build(1)
+
+      const { governments } = yield* records(["NLD"], 2025, 2026)
+
+      // PPEG names independents as Schoof's party; the record checked by hand
+      // names no head's party.
+      expect(governments.map(({ head, color }) => ({ head, color }))).toEqual([
+        { head: "Hendrikus Schoof", color: null },
+        { head: "Dick Schoof", color: null },
+        { head: "Dick Schoof", color: null },
+        { head: "Rob Jetten", color: null },
+      ])
+    }).pipe(Effect.provide(serve(recorded()))),
+  )
+
+  it.effect("reads governments stored before party ids were kept, without colours", () =>
+    Effect.gen(function* () {
+      yield* build(1)
+      yield* forgetPartyIds
+
+      const { governments } = yield* records(["ESP"], 2019, 2019)
+
+      expect(governments.map(({ head, color }) => ({ head, color }))).toEqual([
+        { head: "Pedro Sánchez", color: null },
+        { head: "Pedro Sánchez", color: null },
+      ])
     }).pipe(Effect.provide(serve(recorded()))),
   )
 

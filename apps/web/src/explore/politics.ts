@@ -6,6 +6,7 @@ import {
   type Event,
   type Government,
   type Moment,
+  type PartyColor,
   type Publisher,
   type Reform,
   Scope,
@@ -45,6 +46,27 @@ export const terms = (governments: ReadonlyArray<Government>): ReadonlyArray<Ter
   }, [])
 
 const year = (day: string) => Number(day.slice(0, 4))
+
+// The colour a term's band takes: its head's party's, when every government
+// of the term has that one colour; none otherwise.
+export const tint = ({ governments: [first, ...rest] }: Term): PartyColor | null => {
+  const color = first.color
+
+  return color !== null && rest.every((government) => government.color?.hex === color.hex)
+    ? color
+    : null
+}
+
+// The colours of some terms' bands, each page that sets one once.
+export const tints = (all: ReadonlyArray<Term>) => [
+  ...new Map(
+    all.flatMap((term) => {
+      const color = tint(term)
+
+      return color === null ? [] : [[color.url, color] as const]
+    }),
+  ).values(),
+]
 
 const first = (term: Term) => term.governments[0]
 

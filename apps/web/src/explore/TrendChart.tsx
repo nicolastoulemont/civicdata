@@ -3,6 +3,7 @@ import {
   type Election,
   type Event,
   type Government,
+  type PartyColor,
   type Reform,
   type ResolvedView,
   type Trend,
@@ -41,6 +42,7 @@ import {
   spanOf,
   type Term,
   terms,
+  tint,
   votedIn,
   voting,
 } from "./politics.ts"
@@ -81,6 +83,32 @@ const Marked = ({ country, flagged, cx, cy, payload }: MarkedProps) =>
       strokeWidth={2}
     />
   ) : null
+
+interface BandProps {
+  x?: number
+  y?: number
+  width?: number
+  height?: number
+  fill?: string
+  fillOpacity?: number
+  clipPath?: string
+}
+
+// A head of government's band as a plain SVG rectangle, which Recharts sizes
+// and clips. Its own Rectangle draws nothing outside a browser's layout, so
+// tests could not see a band's colour.
+const Band = ({ x, y, width, height, fill: color, fillOpacity, clipPath }: BandProps) => (
+  <rect
+    className="recharts-reference-area-rect"
+    x={x}
+    y={y}
+    width={width}
+    height={height}
+    fill={color}
+    fillOpacity={fillOpacity}
+    clipPath={clipPath}
+  />
+)
 
 // The trend's whole history, for picking its years over it.
 export interface History {
@@ -162,10 +190,11 @@ const Tip = ({ terms: all, elections, events, reforms, countries, ...tooltip }: 
 const none: ReadonlyArray<never> = []
 
 interface CaptionOptions extends Record<
-  "bands" | "markers" | "periods" | "moments" | "reforming",
+  "markers" | "periods" | "moments" | "reforming",
   ReadonlyArray<unknown>
 > {
   countries: ReadonlyArray<Country>
+  bands: ReadonlyArray<{ readonly color: PartyColor | null }>
 }
 
 // What the chart shows, for a screen reader: "Line chart of Unemployment for
@@ -176,7 +205,13 @@ const caption = (
 ) =>
   [
     `Line chart of ${title} for ${countries.map(countryName).join(", ")}`,
-    ...(bands.length > 0 ? ["shaded by head of government"] : []),
+    ...(bands.length > 0
+      ? [
+          bands.some(({ color }) => color !== null)
+            ? "shaded by head of government and tinted by their party"
+            : "shaded by head of government",
+        ]
+      : []),
     ...(markers.length > 0 ? ["with election years marked"] : []),
     ...(periods.length + moments.length > 0 ? ["with events marked"] : []),
     ...(reforming.length > 0 ? ["with reforms marked"] : []),
@@ -209,7 +244,9 @@ const overlays = ({ axis, countries, heads, elections, events, reforms }: Overla
   return {
     bands:
       countries.length === 1
-        ? heads.flatMap((term) => within(span(term), axis).map(({ x1, x2 }) => ({ term, x1, x2 })))
+        ? heads.flatMap((term) =>
+            within(span(term), axis).map(({ x1, x2 }) => ({ term, x1, x2, color: tint(term) })),
+          )
         : [],
     markers: countries.flatMap((country) =>
       votedIn(elections, country).flatMap((year) => (shown.has(year) ? [{ country, year }] : [])),
@@ -253,7 +290,8 @@ interface TrendChartProps {
 // years; the value scale then fits the whole history, so it stays put while
 // the window moves. With governments, the tooltip names who governed each
 // country in the hovered year, and a chart of one country is shaded in a
-// band per head of government. Bands of several countries would overlap.
+// band per head of government, tinted by the head's party where its colour
+// is sourced. Bands of several countries would overlap.
 // With elections, a dashed line in each country's colour marks the years it
 // voted in, and the tooltip names the elections. With events, a light band
 // covers each period and a thin line marks each dated event, and a dotted
@@ -329,14 +367,19 @@ export const TrendChart = ({
       </figcaption>
       <ChartContainer config={config} className="aspect-auto h-80 w-full">
         <LineChart data={rows} accessibilityLayer>
-          {bands.map(({ term, x1, x2 }, index) => (
+          {bands.map(({ term, x1, x2, color }, index) => (
             <ReferenceArea
               key={`${term.head} ${term.governments[0].start}`}
               x1={x1}
               x2={x2}
               ifOverflow="hidden"
-              fill="var(--muted-foreground)"
-              fillOpacity={index % 2 === 0 ? 0.06 : 0.12}
+              // A light tint of the head's party's colour, the one colour a
+              // chart takes from data; grey without one. Neighbouring bands
+              // alternate in strength, so two heads of one party stay apart.
+              // oxlint-disable-next-line anti-slop/no-shape-in-symbol-names -- Recharts names the prop.
+              shape={Band}
+              fill={color?.hex ?? "var(--muted-foreground)"}
+              fillOpacity={(color === null ? 0.06 : 0.14) * (index % 2 === 0 ? 1 : 1.6)}
               // A band under two years wide has no room for a name; the
               // tooltip still gives it.
               {...(x2 - x1 >= 2

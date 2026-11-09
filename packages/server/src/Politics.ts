@@ -8,6 +8,7 @@ import {
   End,
   type Government,
   Party,
+  PartyColor,
   Politics as PoliticalRecords,
   PoliticsUnavailable,
   Publisher,
@@ -22,6 +23,7 @@ import { SqlClient, SqlSchema } from "effect/sql"
 
 import events from "./official/events.json"
 import reforms from "./official/reforms.json"
+import colors from "./parties/colors.json"
 
 interface Query {
   readonly countries: ReadonlyArray<Country>
@@ -103,12 +105,25 @@ export const politicsTables = Effect.gen(function* () {
   `
 })
 
+// A governing party as a build stored it. Builds before party ids were kept
+// stored neither the id nor the head's party; such a party reads as having
+// neither until the next build replaces it.
+const StoredParty = Schema.Struct({
+  ...Party.fields,
+  id: Schema.NullOr(Schema.NonEmptyString).pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed(null)),
+  ),
+  lead: Schema.Boolean.pipe(Schema.withDecodingDefaultKey(Effect.succeed(false))),
+})
+
+type StoredParty = typeof StoredParty.Type
+
 const Row = Schema.Struct({
   publisher: Publisher,
   country: Country,
   start: Day,
   head: Schema.NonEmptyString,
-  parties: Schema.fromJsonString(Schema.Array(Party)),
+  parties: Schema.fromJsonString(Schema.Array(StoredParty)),
   until: Schema.NullOr(Day),
   url: Schema.NonEmptyString,
   retrieved_at: Schema.DateTimeUtcFromString,
@@ -166,12 +181,54 @@ const ballots = (rows: ReadonlyArray<ElectionRow>): ReadonlyArray<Election> => {
 
 const byStart = (a: Row, b: Row) => a.start.localeCompare(b.start)
 
+// A party's colour as parties/colors.json lists it, under its publisher's id
+// for the party (see parties/README.md).
+const Colored = Schema.Struct({
+  country: Country,
+  publisher: Schema.Literals(["PPEG", "ParlGov"]),
+  party: Schema.NonEmptyString,
+  ...PartyColor.fields,
+})
+
+const keyOf = ({ publisher, party }: { publisher: Publisher; party: string }) =>
+  `${publisher} ${party}`
+
+const Palette = Schema.Struct({
+  colors: Schema.Array(Colored).check(
+    Schema.makeFilter(
+      (all) =>
+        new Set(all.map(keyOf)).size === all.length || "one colour per publisher and party id",
+    ),
+  ),
+})
+
+type Colors = ReadonlyMap<string, typeof Colored.Type>
+
+// The colour of a government's head's party: only when its publisher names
+// exactly one party as the head's, and that party has a colour under the
+// publisher's own id for it in the same country. Never by a party's name.
+const colorOf = (palette: Colors, row: Row): PartyColor | null => {
+  const leads = row.parties.filter((party) => party.lead)
+  const [lead] = leads
+
+  if (leads.length !== 1 || lead?.id == null) return null
+
+  const found = palette.get(keyOf({ publisher: row.publisher, party: lead.id }))
+
+  return found === undefined || found.country !== row.country
+    ? null
+    : { hex: found.hex, kind: found.kind, url: found.url }
+}
+
+// A party as the API names it, without its publisher's id.
+const named = ({ name, abbreviation }: StoredParty): Party => ({ name, abbreviation })
+
 // One country's governments from every publisher, in one sequence. PPEG
 // counts throughout its coverage; ParlGov fills the years before it. Records
 // checked by hand follow both, cutting the archives off where the first one
 // starts. Each government ends when the next starts; the last ends at its
 // publisher's cutoff if it was in office then, and is open otherwise.
-const sequence = (rows: ReadonlyArray<Row>): ReadonlyArray<Government> => {
+const sequence = (rows: ReadonlyArray<Row>, palette: Colors): ReadonlyArray<Government> => {
   const of = (publisher: Publisher) =>
     rows.filter((row) => row.publisher === publisher).toSorted(byStart)
 
@@ -193,7 +250,8 @@ const sequence = (rows: ReadonlyArray<Row>): ReadonlyArray<Government> => {
     return {
       country: row.country,
       head: row.head,
-      parties: row.parties,
+      parties: row.parties.map(named),
+      color: colorOf(palette, row),
       start: row.start,
       end:
         next !== undefined
@@ -229,6 +287,13 @@ export class Politics extends Context.Service<Politics, Interface>()("@civicdata
 
       const history = yield* Schema.decodeUnknownEffect(PoliticalRecords.fields.events)(events)
       const reformed = yield* Schema.decodeUnknownEffect(PoliticalRecords.fields.reforms)(reforms)
+
+      const palette: Colors = new Map(
+        (yield* Schema.decodeUnknownEffect(Palette)(colors)).colors.map((color) => [
+          keyOf(color),
+          color,
+        ]),
+      )
 
       // The datasets published so far, of either kind.
       const published = SqlSchema.findAll({
@@ -282,9 +347,10 @@ export class Politics extends Context.Service<Politics, Interface>()("@civicdata
 
           return {
             governments: countries.flatMap((country) =>
-              sequence(governed.filter((row) => row.country === country)).filter(
-                (government) => government.start <= last && lastDay(government) >= first,
-              ),
+              sequence(
+                governed.filter((row) => row.country === country),
+                palette,
+              ).filter((government) => government.start <= last && lastDay(government) >= first),
             ),
             elections: countries.flatMap((country) =>
               ballots(voted.filter((row) => row.country === country)).filter(
