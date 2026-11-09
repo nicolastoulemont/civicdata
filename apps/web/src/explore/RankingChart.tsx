@@ -9,8 +9,9 @@ import {
 } from "@/components/ui/chart"
 
 import { countryName, formatCompact } from "./format.ts"
+import { fill } from "./palette.ts"
 
-const config = { value: { label: "Value", color: "var(--chart-4)" } } satisfies ChartConfig
+const config = { value: { label: "Value", color: fill(1) } } satisfies ChartConfig
 
 interface RankingChartProps {
   resolved: ResolvedView

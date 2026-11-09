@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/chart"
 
 import { countryName, formatCompact } from "./format.ts"
-import { lineColor } from "./lines.ts"
+import { fill, slot } from "./palette.ts"
 import { type Years, YearWindow } from "./YearWindow.tsx"
 
 type Point = { readonly year: number } & Partial<Record<Country, number>>
@@ -104,7 +104,7 @@ export const TrendChart = ({ resolved, trend, history }: TrendChartProps) => {
   const config: ChartConfig = Object.fromEntries(
     trend.countries.map((country, index) => [
       country,
-      { label: countryName(country), color: lineColor(index) },
+      { label: countryName(country), color: fill(slot(index)) },
     ]),
   )
 

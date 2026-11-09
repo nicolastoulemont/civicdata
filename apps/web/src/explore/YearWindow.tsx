@@ -3,7 +3,7 @@ import { type PointerEvent, useRef } from "react"
 
 import { Slider } from "@/components/ui/slider"
 
-import { lineColor } from "./lines.ts"
+import { fill, slot } from "./palette.ts"
 
 export interface Years {
   readonly from: Year
@@ -101,7 +101,7 @@ export const YearWindow = ({ history, countries, years, onChange, onCommit }: Ye
               { first, last, low, high },
             )}
             fill="none"
-            stroke={lineColor(index)}
+            stroke={fill(slot(index))}
             strokeWidth={1.5}
             vectorEffect="non-scaling-stroke"
           />
