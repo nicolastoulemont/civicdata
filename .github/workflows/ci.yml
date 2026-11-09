@@ -115,6 +115,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
+          ACTION: ${{ github.event.action }}
           SHA: ${{ github.event.pull_request.head.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
@@ -123,6 +124,7 @@ jobs:
             deploying) status="🔵 Deploying" ;;
             success) status="🟢 [Ready]($URL)" ;;
             cancelled) status="🔴 Cancelled" ;;
+            removed) status="⚫ Removed" ;;
             *) status="🔴 Failed" ;;
           esac
           body="$marker
@@ -136,7 +138,9 @@ jobs:
           id=${ids%%$'\n'*}
           if [[ -n "$id" ]]; then
             gh api -X PATCH "repos/$REPO/issues/comments/$id" -f body="$body" > /dev/null
-          else
+          # A pull request that closes without a preview comment never had a
+          # preview, so there is nothing to report.
+          elif [[ "$ACTION" != closed ]]; then
             gh api -X POST "repos/$REPO/issues/$PR/comments" -f body="$body" > /dev/null
           fi
 
@@ -205,3 +209,18 @@ jobs:
         with:
           require-lockfile: true
       - run: pnpm --filter @civicdata/infra exec alchemy destroy --yes --stage "$STAGE"
+
+  preview-removed:
+    needs: cleanup
+    # A failed destroy may leave the preview running, so the comment says Failed
+    # and links the run instead of Removed.
+    if: always() && needs.cleanup.result != 'skipped'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: write
+    env:
+      STATE: ${{ needs.cleanup.result == 'success' && 'removed' || needs.cleanup.result }}
+      URL: ""
+    steps:
+      - *comment
