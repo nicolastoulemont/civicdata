@@ -14,6 +14,7 @@ import {
 } from "@civicdata/domain"
 import { useQuery } from "@tanstack/react-query"
 import { Match } from "effect"
+import { lazy, Suspense } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -233,11 +234,23 @@ const Problem = ({ error, retry }: { error: Error; retry: () => void }) =>
     </Alert>
   )
 
+// The map's outlines load only when a map is shown.
+const RankingMap = lazy(() =>
+  import("./RankingMap.tsx").then((module) => ({ default: module.RankingMap })),
+)
+
 // A chart of one indicator's values.
 const Single = ({ resolved }: { resolved: Exclude<ResolvedView, Paired> }) =>
   Match.valueTags(resolved.view, {
     Trend: (trend) => <TrendChart resolved={resolved} countries={trend.countries} />,
-    Ranking: () => <RankingChart resolved={resolved} />,
+    Ranking: (ranking) =>
+      ranking.as === "Map" ? (
+        <Suspense fallback={<Skeleton className="aspect-2/1 w-full" />}>
+          <RankingMap resolved={resolved} />
+        </Suspense>
+      ) : (
+        <RankingChart resolved={resolved} />
+      ),
     Change: (change) => <ChangeChart resolved={resolved} change={change} />,
   })
 

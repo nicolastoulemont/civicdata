@@ -10,6 +10,7 @@ import {
   IndicatorId,
   IndicatorNotFound,
   Located,
+  Ranking,
   Rejected,
   Searched,
   TooManyQuestions,
@@ -324,6 +325,36 @@ describe("conversations", () => {
       }).pipe(Effect.provide(serveApi(model.layer)))
     },
   )
+
+  it.effect("answers with a ranking drawn as a world map", () => {
+    const model = scripted([
+      Effect.succeed(
+        call("show_chart", {
+          ...brazil,
+          chart: "map",
+          countries: ["BRA", "MEX"],
+          from: null,
+          to: null,
+          year: 2002,
+        }),
+      ),
+    ])
+
+    return Effect.gen(function* () {
+      const steps = yield* answer("Life expectancy across Latin America on a map")
+
+      expect(steps.at(-1)).toEqual(
+        Answered.make({
+          view: Ranking.make({
+            indicator: lifeExpectancy,
+            countries: ["BRA", "MEX"],
+            year: Year.make(2002),
+            as: "Map",
+          }),
+        }),
+      )
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
 
   it.effect("rejects a relation of an indicator to itself", () => {
     const model = scripted([

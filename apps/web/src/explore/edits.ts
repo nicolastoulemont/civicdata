@@ -11,7 +11,7 @@ import {
   type View,
   Year,
 } from "@civicdata/domain"
-import { Match } from "effect"
+import { Match, Struct } from "effect"
 
 // Edits a user makes to a View through the page's controls. Each returns a
 // valid View: the `make` constructors check it.
@@ -35,10 +35,10 @@ export const withTransform = (view: View, transform: Transform | undefined) => {
       kept === undefined
         ? Trend.make({ indicator, countries, from, to })
         : Trend.make({ indicator, countries, from, to, transform: kept }),
-    Ranking: ({ indicator, countries, year }) =>
+    Ranking: (ranking) =>
       kept === undefined || kept === "Index"
-        ? Ranking.make({ indicator, countries, year })
-        : Ranking.make({ indicator, countries, year, transform: kept }),
+        ? Ranking.make(Struct.omit(ranking, ["transform"]))
+        : Ranking.make({ ...ranking, transform: kept }),
     Change: ({ indicator, countries, from, to }) =>
       kept === undefined || kept === "Growth" || kept === "Index"
         ? Change.make({ indicator, countries, from, to })
@@ -55,7 +55,8 @@ export const withIndicator = (view: View, indicator: Picked) => {
   const switched = Match.valueTags(view, {
     Trend: ({ countries, from, to }) =>
       Trend.make({ indicator: indicator.id, countries, from, to }),
-    Ranking: ({ countries, year }) => Ranking.make({ indicator: indicator.id, countries, year }),
+    Ranking: (ranking) =>
+      Ranking.make({ ...Struct.omit(ranking, ["transform"]), indicator: indicator.id }),
     Change: ({ countries, from, to }) =>
       Change.make({ indicator: indicator.id, countries, from, to }),
     Relation: (relation) =>
@@ -124,10 +125,21 @@ const against = (view: View) =>
     Match.orElse(({ indicator }) => (indicator === gdpPerPerson ? lifeExpectancy : gdpPerPerson)),
   )
 
+// The chart types a user picks from: a ranking drawn as bars or as a map.
+export type Chart = View["_tag"] | "Map"
+
+export const chartOf = (view: View): Chart =>
+  Match.valueTags(view, {
+    Trend: () => "Trend" as const,
+    Ranking: (ranking) => ranking.as ?? "Ranking",
+    Change: () => "Change" as const,
+    Relation: () => "Relation" as const,
+  })
+
 // Draws the View as another chart type, keeping its indicator, countries and
 // transform where the new type takes them. A single-year chart shows the last
 // of the years.
-export const withChart = (view: View, chart: View["_tag"]): View => {
+export const withChart = (view: View, chart: Chart): View => {
   const { indicator, countries } = view
   const { from, to } = span(view)
   const transform = transformOf(view)
@@ -138,6 +150,9 @@ export const withChart = (view: View, chart: View["_tag"]): View => {
     ),
     Match.when("Ranking", () =>
       withTransform(Ranking.make({ indicator, countries, year: to }), transform),
+    ),
+    Match.when("Map", () =>
+      withTransform(Ranking.make({ indicator, countries, year: to, as: "Map" }), transform),
     ),
     Match.when("Change", () =>
       withTransform(Change.make({ indicator, countries, from, to }), transform),

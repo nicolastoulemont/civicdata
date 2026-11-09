@@ -6,7 +6,10 @@
     // The tsconfig plugin name. @effect/tsgo provides it.
     "@effect/language-service",
     // Imported only by the vendored anti-slop rules, which are ignored above.
-    "@oxlint/plugins"
+    "@oxlint/plugins",
+    // Data files apps/web/scripts/world.ts reads by path, not by import.
+    "i18n-iso-countries",
+    "world-atlas"
   ],
   // The workspace packages are private, so an export nothing in the repo uses
   // is dead even when it sits in a package entry point.

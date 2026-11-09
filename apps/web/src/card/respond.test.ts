@@ -110,6 +110,7 @@ describe("GET /explore.png", () => {
 
   it.each([
     ["a ranking", Ranking.make({ ...both, year: Year.make(2020) })],
+    ["a map", Ranking.make({ ...both, year: Year.make(2020), as: "Map" })],
     ["a change", Change.make({ ...both, from: Year.make(2019), to: Year.make(2020) })],
     [
       "a ratio",

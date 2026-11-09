@@ -86,6 +86,73 @@ export const rect = (
   }
 }
 
+type Edges = Float64Array
+
+// The edges of the rings as x0, y0, x1, y1 in a row, for a fill to scan.
+const edgesOf = (rings: ReadonlyArray<ReadonlyArray<readonly [number, number]>>): Edges => {
+  const edges = new Float64Array(rings.reduce((total, ring) => total + ring.length, 0) * 4)
+  let at = 0
+
+  for (const ring of rings) {
+    for (let index = 0; index < ring.length; index += 1) {
+      const start = ring[index] ?? [0, 0]
+      const end = ring[(index + 1) % ring.length] ?? start
+
+      edges[at] = start[0]
+      edges[at + 1] = start[1]
+      edges[at + 2] = end[0]
+      edges[at + 3] = end[1]
+      at += 4
+    }
+  }
+
+  return edges
+}
+
+// Where the edges cross the horizontal line at `y`, left to right.
+const crossings = (edges: Edges, y: number) => {
+  const found: Array<number> = []
+
+  for (let edge = 0; edge < edges.length; edge += 4) {
+    const x0 = edges[edge] ?? 0
+    const y0 = edges[edge + 1] ?? 0
+    const x1 = edges[edge + 2] ?? 0
+    const y1 = edges[edge + 3] ?? 0
+
+    if (y0 <= y !== y1 <= y) found.push(x0 + ((y - y0) * (x1 - x0)) / (y1 - y0))
+  }
+
+  return found.toSorted((left, right) => left - right)
+}
+
+// Fills the area inside the rings with `ink`. A ring inside another is a
+// hole (even-odd). Each pixel row is sampled through its middle, without
+// antialiasing. Plain loops over a typed array keep a world map within the
+// card's CPU budget.
+export const fill = (
+  target: Canvas,
+  rings: ReadonlyArray<ReadonlyArray<readonly [number, number]>>,
+  ink: Ink,
+) => {
+  const edges = edgesOf(rings)
+  const ys = rings.flatMap((ring) => ring.map(([, y]) => y))
+  const rows = clip(Math.min(...ys), Math.max(...ys), target.height)
+
+  for (let y = rows.first; y <= rows.last; y += 1) {
+    const across = crossings(edges, y + 0.5)
+
+    for (let index = 0; index + 1 < across.length; index += 2) {
+      const left = Math.max(0, Math.round(across[index] ?? 0))
+      const right = Math.min(target.width, Math.round(across[index + 1] ?? 0))
+
+      if (right > left) {
+        target.pixels.fill(solid(ink), y * target.width + left, y * target.width + right)
+        target.levels.fill(steps, y * target.width + left, y * target.width + right)
+      }
+    }
+  }
+}
+
 // A stroke with round ends, antialiased by each pixel's distance to the
 // segment. A segment of zero length is a dot.
 export const line = (

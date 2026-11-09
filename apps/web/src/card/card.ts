@@ -1,4 +1,4 @@
-import type { Change, ResolvedView, Trend } from "@civicdata/domain"
+import { type Change, countries, type ResolvedView, type Trend } from "@civicdata/domain"
 import { Match } from "effect"
 
 import {
@@ -13,8 +13,9 @@ import {
 import { changes, type Paired, pairs } from "@/explore/points"
 import { places } from "@/explore/preview"
 import { around, ticks } from "@/explore/scale"
+import * as world from "@/explore/world"
 
-import { type Canvas, canvas, type Ink, line, png, rect, series, text } from "./canvas.ts"
+import { type Canvas, canvas, fill, type Ink, line, png, rect, series, text } from "./canvas.ts"
 import { body, label, title } from "./faces.gen.ts"
 import { fit, measure, wrap } from "./font.ts"
 
@@ -344,6 +345,51 @@ const drawRelation = (image: Canvas, resolved: Paired, box: Box) => {
   }
 }
 
+// A world map shaded by rank, as on the site, with the key to its right. A
+// country without a value stays the colour of a border.
+const drawMap = (image: Canvas, resolved: ResolvedView, box: Box) => {
+  const { byCountry, key } = world.shades(resolved.observations)
+
+  const labels = key.map(({ low, high }) =>
+    low === high ? formatCompact(low) : `${formatCompact(low)}–${formatCompact(high)}`,
+  )
+
+  const room = Math.max(widest(labels), widest(["No data"])) + 30
+
+  const scale = Math.min(
+    (box.right - box.left - room) / world.width,
+    (box.bottom - box.top) / world.height,
+  )
+
+  for (const { code } of countries) {
+    const shade = byCountry.get(code)
+
+    const projected = world
+      .rings(code)
+      .map((ring) => ring.map(([x, y]) => [box.left + x * scale, box.top + y * scale] as const))
+
+    if (projected.length > 0)
+      fill(image, projected, shade === undefined ? "border" : (series[shade] ?? "chart-1"))
+  }
+
+  const left = box.left + world.width * scale + 16
+
+  const rows = [
+    ...key.map(({ shade }, index) => ({
+      ink: series[shade] ?? "chart-1",
+      text: labels[index] ?? "",
+    })),
+    { ink: "border" as const, text: "No data" },
+  ]
+
+  for (const [index, row] of rows.entries()) {
+    const top = box.top + index * 16
+
+    rect(image, { x: left, y: top + 2, width: 10, height: 10 }, row.ink)
+    text(image, label, row.text, { x: left + 16, y: top + 11, ink: "muted" })
+  }
+}
+
 // Draws a resolved View as a PNG link-preview card: the indicator, the
 // countries and years, the chart, and the source.
 export const card = (resolved: ResolvedView) => {
@@ -395,7 +441,8 @@ export const card = (resolved: ResolvedView) => {
   } else {
     Match.valueTags(resolved.view, {
       Trend: (trend) => drawTrend(image, resolved, trend, box),
-      Ranking: () => drawRanking(image, resolved, box),
+      Ranking: (ranking) =>
+        ranking.as === "Map" ? drawMap(image, resolved, box) : drawRanking(image, resolved, box),
       Change: (change) => drawChange(image, resolved, change, box),
     })
   }
