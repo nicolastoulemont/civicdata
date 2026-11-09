@@ -142,7 +142,7 @@ export const Explore = ({ view, onChange }: { view: View; onChange: (view: View)
       <Card>
         <CardHeader>
           <CardTitle>
-            <h1>{query.data?.indicator.name ?? view.indicator}</h1>
+            <h1>{query.data?.title ?? view.indicator}</h1>
           </CardTitle>
           <CardDescription>
             {transformLabel(view) === undefined

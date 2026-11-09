@@ -19,6 +19,8 @@ export const About = ({ resolved }: { resolved: ResolvedView }) => (
     <CollapsibleContent className="space-y-3 px-4 pb-4 text-sm">
       <p>{resolved.indicator.definition}</p>
       <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
+        <dt className="text-muted-foreground">Official name</dt>
+        <dd>{resolved.indicator.name}</dd>
         <dt className="text-muted-foreground">Retrieved</dt>
         <dd>{retrieved(resolved)}</dd>
         {resolved.sources.map((source) => (

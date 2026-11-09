@@ -229,7 +229,7 @@ export const card = (resolved: ResolvedView) => {
   const shows = transformLabel(view)
   let y = margin
 
-  for (const row of wrap(title, resolved.indicator.name, { width: width - 2 * margin, lines: 2 })) {
+  for (const row of wrap(title, resolved.title, { width: width - 2 * margin, lines: 2 })) {
     text(image, title, row, { x: margin, y: y + title.ascent, ink: "foreground" })
     y += title.size * 1.25
   }

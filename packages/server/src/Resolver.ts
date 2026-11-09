@@ -10,6 +10,7 @@ import {
 } from "@civicdata/domain"
 import { Context, Effect, Layer, Match } from "effect"
 
+import { titleOf } from "./Titles.ts"
 import { growth, indexed, perPerson } from "./transforms.ts"
 import { WorldBank } from "./WorldBank.ts"
 
@@ -97,6 +98,7 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
 
         return {
           view,
+          title: titleOf(main.described.indicator),
           indicator: main.described.indicator,
           observations,
           missing: view.countries.filter((country) => !reported.has(country)),

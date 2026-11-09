@@ -6,8 +6,9 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "effect-tsgo tsc --noEmit",
-    "test": "vitest run"
+    "typecheck": "effect-tsgo tsc --noEmit && effect-tsgo tsc --noEmit -p scripts",
+    "test": "vitest run",
+    "titles": "node scripts/titles.ts"
   },
   "dependencies": {
     "@civicdata/domain": "workspace:*",
@@ -19,6 +20,7 @@
     "@cloudflare/vitest-plugin": "^1.6.0",
     "@cloudflare/workers-types": "^5.20261107.1",
     "@effect/vitest": "catalog:",
+    "@types/node": "^24.19.2",
     "vitest": "catalog:"
   }
 }

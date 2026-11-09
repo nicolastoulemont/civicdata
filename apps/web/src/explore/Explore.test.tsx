@@ -35,6 +35,10 @@ const catalog = [
   },
 ]
 
+// The server's plain-language titles. An indicator without one is titled
+// with its official name.
+const titles = new Map([[population, "Total population"]])
+
 const reported: ResolvedView["observations"] = [
   { country: "FRA", year: Year.make(2019), value: 67_388_001 },
   { country: "FRA", year: Year.make(2020), value: 67_571_107 },
@@ -61,13 +65,12 @@ const resolvedFor = (view: View): ResolvedView => {
       value: view.transform === "PerPerson" ? value / 1_000_000 : value,
     }))
 
+  const name = catalog.find((entry) => entry.indicator === view.indicator)?.name ?? view.indicator
+
   return {
     view,
-    indicator: {
-      id: view.indicator,
-      name: catalog.find((entry) => entry.indicator === view.indicator)?.name ?? view.indicator,
-      definition: "",
-    },
+    title: titles.get(view.indicator) ?? name,
+    indicator: { id: view.indicator, name, definition: "" },
     observations,
     missing: view.countries.filter(
       (country) => !observations.some((observation) => observation.country === country),
@@ -118,13 +121,24 @@ const trend = Trend.make({
 })
 
 describe("Explore", () => {
+  it("titles the chart in plain words and keeps the official name", async () => {
+    network.use(worldBank)
+    const user = userEvent.setup()
+
+    show(trend)
+
+    expect(await screen.findByRole("heading", { name: "Total population" })).toBeDefined()
+    await user.click(screen.getByRole("button", { name: "About this data" }))
+    expect(await screen.findByText("Population, total")).toBeDefined()
+  })
+
   it("adds a country and shows its data", async () => {
     network.use(worldBank)
     const user = userEvent.setup()
 
     show(trend)
 
-    expect(await screen.findByRole("heading", { name: "Population, total" })).toBeDefined()
+    expect(await screen.findByRole("heading", { name: "Total population" })).toBeDefined()
     await user.click(screen.getByRole("button", { name: "Data" }))
     expect(
       within(await screen.findByRole("table")).queryByRole("cell", { name: "Italy" }),
@@ -225,12 +239,10 @@ describe("Explore", () => {
 
     show(trend)
 
-    await screen.findByRole("heading", { name: "Population, total" })
+    await screen.findByRole("heading", { name: "Total population" })
     await user.click(screen.getByRole("button", { name: "Bar chart ranking one year" }))
 
-    expect(
-      await screen.findByText("Bar chart ranking countries by Population, total"),
-    ).toBeDefined()
+    expect(await screen.findByText("Bar chart ranking countries by Total population")).toBeDefined()
     expect(screen.getByRole("combobox", { name: "Year" }).textContent).toContain("2020")
     expect(screen.queryByRole("combobox", { name: "From" })).toBeNull()
   })
@@ -241,7 +253,7 @@ describe("Explore", () => {
 
     show(trend)
 
-    await screen.findByRole("heading", { name: "Population, total" })
+    await screen.findByRole("heading", { name: "Total population" })
     await user.click(screen.getByRole("button", { name: "Per person" }))
     await user.click(screen.getByRole("button", { name: "Data" }))
 

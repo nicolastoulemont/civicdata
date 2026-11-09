@@ -17,11 +17,15 @@ import { HttpApiTest } from "effect/http-api"
 import { Catalog } from "../src/Catalog.ts"
 import { Conversations } from "../src/Conversations.ts"
 import { Handlers } from "../src/Handlers.ts"
+import { titles } from "../src/titles.gen.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 
 const population = IndicatorId.make("SP.POP.TOTL")
 const gdp = IndicatorId.make("NY.GDP.MKTP.CD")
 const unemployment = IndicatorId.make("SL.UEM.TOTL.ZS")
+
+// Published after the titles were generated, so it has no plain title.
+const untitled = IndicatorId.make("XX.NEW.INDICATOR")
 
 // When the fake World Bank was asked; provenance must carry it through.
 const retrievedAt = DateTime.makeUnsafe("2026-11-01T09:30:00Z")
@@ -53,6 +57,7 @@ const published = new Map<IndicatorId, { name: string; values: ResolvedView["obs
     },
   ],
   [unemployment, { name: "Unemployment, total (% of total labor force)", values: [] }],
+  [untitled, { name: "New indicator (% of total)", values: [] }],
 ])
 
 // Answers like the real API: only the requested countries and years, and
@@ -126,12 +131,23 @@ describe("POST /api/views/resolve", () => {
       })
 
       expect(resolved.indicator.name).toBe("Population, total")
+      expect(resolved.title).toBe(titles.get(population))
       expect(resolved.observations).toHaveLength(4)
       expect(resolved.missing).toEqual(["ITA"])
       expect(resolved.sources.map((source) => source.dataset)).toEqual([
         "World Development Indicators",
       ])
       expect(DateTime.formatIso(resolved.sources[0].retrievedAt)).toBe("2026-11-01T09:30:00.000Z")
+    }).pipe(Effect.provide(serve(worldBank))),
+  )
+
+  it.effect("titles an indicator without a plain title by its official name", () =>
+    Effect.gen(function* () {
+      const client = yield* HttpApiTest.groups(Api, ["views"])
+
+      const resolved = yield* client.views.resolve({ payload: trend({ indicator: untitled }) })
+
+      expect(resolved.title).toBe("New indicator (% of total)")
     }).pipe(Effect.provide(serve(worldBank))),
   )
 
