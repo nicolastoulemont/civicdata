@@ -2,6 +2,7 @@ import { Effect, Layer, Option } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
 
 import { Cache } from "../src/Cache.ts"
+import type { Storage } from "../src/Transcript.ts"
 
 // An HttpClient that answers every request with `respond`, never the network.
 export const http = (respond: (url: string) => Response) =>
@@ -31,4 +32,17 @@ export const memory = () => {
   )
 
   return { store, layer }
+}
+
+// Durable Object storage in memory, recording each alarm set.
+export const memoryStorage = (values = new Map<string, string>()) => {
+  const alarms: Array<number> = []
+
+  const fake: Storage = {
+    get: (key) => Promise.resolve(values.get(key)),
+    put: (key, value) => Promise.resolve(void values.set(key, value)),
+    setAlarm: (time) => Promise.resolve(void alarms.push(time)),
+  }
+
+  return { fake, alarms }
 }

@@ -4,9 +4,10 @@ import {
   type Step,
   TooManyQuestions,
   type Turns,
+  Work,
 } from "@civicdata/domain"
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Effect, Option, Result, Schema, Stream } from "effect"
+import { DateTime, Effect, Option, Result, Schema, Stream } from "effect"
 import { useEffect, useRef, useState } from "react"
 
 import { call, page } from "@/api"
@@ -22,6 +23,8 @@ export const turnsQuery = (id: ConversationId) =>
   })
 
 const isEnding = Schema.is(Ending)
+
+const isWork = Schema.is(Work)
 
 // Passes each step of an answer to `onStep`, then resolves with how it ended:
 // its last step. An answer the server was not giving has no steps.
@@ -58,19 +61,22 @@ export const answerKey = (id: ConversationId) => ["conversation", id, "answer"]
 
 // A question being answered here: one asked on this page, or one the server
 // was already answering when the page opened. `before` counts the turns
-// answered when it started.
+// answered when it started, and `started` is when, in epoch milliseconds.
 interface Pending {
   readonly question: string
   readonly via: "ask" | "follow"
   readonly before: number
+  readonly started: number
 }
 
 type QuestionError = Result.Result.Failure<
   Awaited<ReturnType<typeof ask>> | Awaited<ReturnType<typeof follow>>
 >
 
+// A question whose answer failed, with the steps the agent took before it.
 export interface Failure {
   readonly question: string
+  readonly steps: ReadonlyArray<Step>
   readonly error: QuestionError
   readonly before: number
   readonly retryAt: number
@@ -93,28 +99,50 @@ export const useConversation = (id: ConversationId) => {
     onMutate: ({ question, via }) => {
       if (via === "ask") record(id, question)
     },
-    mutationFn: ({ question, via }: Pending) => {
-      const onStep = (step: Step) => setSteps((previous) => [...previous, step])
+    mutationFn: async ({ question, via }: Pending) => {
+      const seen: Array<Step> = []
+
+      const onStep = (step: Step) => {
+        seen.push(step)
+        setSteps([...seen])
+      }
 
       setSteps([])
 
-      return via === "ask" ? ask(id, question, onStep) : follow(id, onStep)
+      const result = await (via === "ask" ? ask(id, question, onStep) : follow(id, onStep))
+
+      return { result, steps: seen }
     },
-    onSuccess: (result, { question, before }) =>
+    onSuccess: ({ result, steps: seen }, { question, before }) =>
       Result.match(result, {
         onSuccess: (ending) =>
           Option.match(ending, {
             onNone: () => queryClient.invalidateQueries({ queryKey: turnsQuery(id).queryKey }),
-            onSome: (answer) =>
-              queryClient.setQueryData(turnsQuery(id).queryKey, (previous?: Turns) => ({
-                answered: [...(previous?.answered ?? []), { question, answer }],
-              })),
+            // The saved turn carries how long the server took to answer. If
+            // it cannot be read, the turn shows without that time.
+            onSome: async (answer) => {
+              const saved = await call(page, (api) =>
+                api.conversation.turns({ params: { id } }),
+              ).catch(() => undefined)
+
+              queryClient.setQueryData(turnsQuery(id).queryKey, (previous?: Turns) =>
+                saved !== undefined && saved.answered.length > before
+                  ? saved
+                  : {
+                      answered: [
+                        ...(previous?.answered ?? []),
+                        { question, answer, steps: seen.filter(isWork) },
+                      ],
+                    },
+              )
+            },
           }),
         onFailure: (error) => {
           setFailures((previous) => [
             ...previous,
             {
               question,
+              steps: seen,
               error,
               before,
               retryAt: Date.now() + (error instanceof TooManyQuestions ? 60_000 : 0),
@@ -137,6 +165,9 @@ export const useConversation = (id: ConversationId) => {
   const answering = conversation.data?.answering
   const { mutate, isPending } = asking
 
+  const send = (question: string) =>
+    mutate({ question, via: "ask", before: answered, started: Date.now() })
+
   // Follows an answer the server reports, once per report.
   const followed = useRef(0)
 
@@ -146,7 +177,12 @@ export const useConversation = (id: ConversationId) => {
     }
 
     followed.current = conversation.dataUpdatedAt
-    mutate({ question: answering, via: "follow", before: answered })
+    mutate({
+      question: answering.question,
+      via: "follow",
+      before: answered,
+      started: DateTime.toEpochMillis(answering.started),
+    })
   }, [answering, answered, isPending, mutate, conversation.dataUpdatedAt])
 
   return {
@@ -159,14 +195,17 @@ export const useConversation = (id: ConversationId) => {
     retry: (failure: Failure) => {
       if (isPending || Date.now() < failure.retryAt) return
       setFailures((previous) => previous.filter((entry) => entry !== failure))
-      mutate({ question: failure.question, via: "ask", before: answered })
+      send(failure.question)
     },
-    // The question being answered, with what the agent did.
-    pending: asking.isPending ? { question: asking.variables?.question, steps } : undefined,
+    // The question being answered, when it started, and what the agent did.
+    pending:
+      asking.variables === undefined || !asking.isPending
+        ? undefined
+        : { question: asking.variables.question, started: asking.variables.started, steps },
     answering: asking.isPending,
     stop: () => stopping.mutate(),
     stopping: stopping.isPending,
-    ask: (question: string) => mutate({ question, via: "ask", before: answered }),
+    ask: send,
   }
 }
 

@@ -7,9 +7,11 @@ import {
   type Step,
   Stopped,
   type Turns,
+  type Work,
 } from "@civicdata/domain"
 import {
   Context,
+  DateTime,
   Deferred,
   Effect,
   Layer,
@@ -47,10 +49,11 @@ const isEnding = Schema.is(Ending)
 // Steps kept for whoever follows an answer late: more than an answer has.
 const replay = 256
 
-// The question being answered, its steps so far for whoever follows it, and
-// whether someone asked to stop it.
+// The question being answered, when it was asked, its steps so far for
+// whoever follows it, and whether someone asked to stop it.
 interface Answer {
   readonly question: string
+  readonly started: DateTime.Utc
   readonly steps: PubSub.PubSub<Take.Take<Step, Failure>>
   readonly stop: Deferred.Deferred<void>
 }
@@ -85,7 +88,7 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
           answered: Option.match(saved, { onNone: () => [], onSome: (found) => found.turns }),
           ...Option.match(answer, {
             onNone: () => ({}),
-            onSome: ({ question }) => ({ answering: question }),
+            onSome: ({ question, started }) => ({ answering: { question, started } }),
           }),
         }
       }).pipe(Semaphore.withPermit(lock))
@@ -102,8 +105,9 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
       // question: the agent never finished its answer, so the next question
       // does not build on it.
       const answer = Effect.fn("Conversation.answer")(
-        function* ({ question, steps, stop }: Answer) {
+        function* ({ question, started, steps, stop }: Answer) {
           const saved = yield* transcript.load
+          const work = yield* Ref.make<ReadonlyArray<Work>>([])
 
           const chat = Option.isNone(saved)
             ? yield* agent.start
@@ -113,10 +117,17 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
 
           const asked = yield* chat.exportJson.pipe(Effect.orDie)
 
-          const save = (ending: Ending, json: string) =>
-            transcript
-              .save({ chat: json, turns: [...before, { question, answer: ending }] })
-              .pipe(Effect.andThen(done(steps)))
+          // A turn keeps what the agent did and how long it took, stopped
+          // or not.
+          const save = Effect.fnUntraced(function* (ending: Ending, json: string) {
+            const took = DateTime.distance(started, yield* DateTime.now)
+
+            yield* transcript.save({
+              chat: json,
+              turns: [...before, { question, answer: ending, steps: yield* Ref.get(work), took }],
+            })
+            yield* done(steps)
+          })
 
           // Nothing is kept or sent once a stop arrives. Stops are only
           // asked for under the lock, so a stop and an ending never both win.
@@ -128,7 +139,9 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
             }).pipe(Semaphore.withPermit(lock))
 
           yield* agent.ask(chat, question).pipe(
-            Stream.tap((step) => (isEnding(step) ? end(step) : Effect.void)),
+            Stream.tap((step) =>
+              isEnding(step) ? end(step) : Ref.update(work, (previous) => [...previous, step]),
+            ),
             Stream.interruptWhen(Deferred.await(stop)),
             Stream.runForEachArray((chunk) =>
               Effect.flatMap(Deferred.isDone(stop), (stopped) =>
@@ -157,16 +170,16 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
         const steps = yield* PubSub.unbounded<Take.Take<Step, Failure>>({ replay })
 
         const stop = yield* Deferred.make<void>()
+        const started = yield* DateTime.now
+        const next = { question, started, steps, stop }
 
-        const started = yield* Ref.modify(current, (answering) =>
-          Option.isSome(answering)
-            ? [false, answering]
-            : [true, Option.some({ question, steps, stop })],
+        const free = yield* Ref.modify(current, (answering) =>
+          Option.isSome(answering) ? [false, answering] : [true, Option.some(next)],
         )
 
-        if (!started) return yield* new ConversationBusy()
+        if (!free) return yield* new ConversationBusy()
 
-        yield* Effect.forkIn(answer({ question, steps, stop }), scope)
+        yield* Effect.forkIn(answer(next), scope)
 
         return Stream.fromPubSubTake(steps)
       })

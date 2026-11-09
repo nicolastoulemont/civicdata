@@ -161,3 +161,33 @@
     animation: none;
   }
 }
+
+/* A live label: a band of foreground light sweeps across muted text. Still
+   text when motion is reduced or the system forces its own colors. */
+@keyframes shimmer {
+  from {
+    background-position:
+      -4.5rem 0,
+      0 0;
+  }
+  to {
+    background-position:
+      calc(100% + 4.5rem) 0,
+      0 0;
+  }
+}
+
+@utility shimmer {
+  @media (prefers-reduced-motion: no-preference) and (forced-colors: none) {
+    color: transparent;
+    background-image:
+      linear-gradient(to right, transparent, var(--foreground), transparent),
+      linear-gradient(var(--muted-foreground), var(--muted-foreground));
+    background-size:
+      4.5rem 100%,
+      100% 100%;
+    background-repeat: no-repeat;
+    background-clip: text;
+    animation: shimmer 2.2s linear infinite;
+  }
+}

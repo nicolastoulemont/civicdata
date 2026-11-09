@@ -6,7 +6,7 @@ import { Question } from "./Question.tsx"
 import { Reply } from "./Reply.tsx"
 import { Agent } from "./Row.tsx"
 import type { useConversation } from "./useConversation.ts"
-import { Work } from "./Work.tsx"
+import { Steps, Worked, Working } from "./Work.tsx"
 
 interface TimelineProps {
   turns: ReadonlyArray<Turn>
@@ -17,6 +17,8 @@ interface TimelineProps {
 }
 
 // The turns of a conversation, oldest first, then the one being answered.
+// An answered turn folds the agent's steps under its answer; a failed one
+// keeps them open above the problem.
 export const Timeline = ({ turns, pending, failures, retry, answering }: TimelineProps) => (
   <ol aria-label="Questions and answers" className="flex flex-col gap-8">
     {Array.from({ length: turns.length + 1 }, (_, index) => (
@@ -28,6 +30,7 @@ export const Timeline = ({ turns, pending, failures, retry, answering }: Timelin
             <li key={failure.retryAt} className="flex flex-col gap-4">
               <Question text={failure.question} />
               <Agent>
+                {failure.steps.length === 0 ? null : <Steps steps={failure.steps} />}
                 <FailedQuestion failure={failure} answering={answering} retry={retry} />
               </Agent>
             </li>
@@ -36,6 +39,9 @@ export const Timeline = ({ turns, pending, failures, retry, answering }: Timelin
           <li className="flex flex-col gap-4">
             <Question text={turns[index].question} />
             <Agent>
+              {turns[index].steps === undefined ? null : (
+                <Worked steps={turns[index].steps} took={turns[index].took} />
+              )}
               <Reply answer={turns[index].answer} />
             </Agent>
           </li>
@@ -44,9 +50,9 @@ export const Timeline = ({ turns, pending, failures, retry, answering }: Timelin
     ))}
     {pending === undefined ? null : (
       <li data-scroll-anchor className="flex flex-col gap-4">
-        {pending.question === undefined ? null : <Question text={pending.question} />}
+        <Question text={pending.question} />
         <Agent>
-          <Work steps={pending.steps} answering={answering} />
+          <Working steps={pending.steps} started={pending.started} />
         </Agent>
       </li>
     )}

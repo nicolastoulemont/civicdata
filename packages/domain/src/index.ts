@@ -16,6 +16,7 @@ export {
   Turn,
   Turns,
   Unanswered,
+  Work,
 } from "./Conversation.ts"
 
 export { Country, countries, locate } from "./Country.ts"

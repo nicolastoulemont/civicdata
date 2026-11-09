@@ -61,21 +61,36 @@ export const Step = Schema.Union([
 
 export type Step = typeof Step.Type
 
+// What the agent did before its answer ended.
+export const Work = Schema.Union([Searched, Described, Located, Rejected])
+
+export type Work = typeof Work.Type
+
 // How an answer ended.
 export const Ending = Schema.Union([Answered, Asked, Unanswered, Stopped])
 
 export type Ending = typeof Ending.Type
 
-// A question and how the agent answered it.
-export const Turn = Schema.Struct({ question: Question, answer: Ending })
+// A question and how the agent answered it: what it did on the way, and how
+// long the answer took from the question to its ending. Turns saved before
+// the work log have neither.
+export const Turn = Schema.Struct({
+  question: Question,
+  answer: Ending,
+  steps: Schema.optionalKey(Schema.Array(Work)),
+  took: Schema.optionalKey(Schema.DurationFromMillis),
+})
 
 export interface Turn extends Schema.Schema.Type<typeof Turn> {}
+
+// The question being answered now, and when the server started answering it.
+const Answering = Schema.Struct({ question: Question, started: Schema.DateTimeUtc })
 
 // A conversation as its page shows it: the questions answered so far, oldest
 // first, and the question being answered now, if any.
 export const Turns = Schema.Struct({
   answered: Schema.Array(Turn),
-  answering: Schema.optionalKey(Question),
+  answering: Schema.optionalKey(Answering),
 })
 
 export interface Turns extends Schema.Schema.Type<typeof Turns> {}

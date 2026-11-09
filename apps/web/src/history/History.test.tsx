@@ -10,7 +10,7 @@ import {
 } from "@tanstack/react-router"
 import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { Option, Schema } from "effect"
+import { DateTime, Option, Schema } from "effect"
 import { http, HttpResponse } from "msw/http"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -246,7 +246,10 @@ describe("History", () => {
     network.use(
       turns(brazil, {
         answered: [],
-        answering: "How has life expectancy changed in Brazil?",
+        answering: {
+          question: "How has life expectancy changed in Brazil?",
+          started: DateTime.makeUnsafe("2026-11-09T12:00:00Z"),
+        },
       }),
     )
     show()
