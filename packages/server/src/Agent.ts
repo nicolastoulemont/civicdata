@@ -18,7 +18,9 @@ import {
   Relation,
   type ResolvedView,
   Searched,
+  Source,
   SourceUnavailable,
+  sourceOf,
   type Step,
   type TransformNotApplicable,
   Trend,
@@ -27,6 +29,7 @@ import {
 } from "@civicdata/domain"
 import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai"
 import {
+  Array as Arr,
   type Cause,
   Context,
   DateTime,
@@ -47,6 +50,7 @@ import { FetchHttpClient } from "effect/http"
 
 import { Catalog } from "./Catalog.ts"
 import { Resolver } from "./Resolver.ts"
+import { Sdmx } from "./Sdmx.ts"
 import { check, rules, Summary, summarize } from "./Takeaway.ts"
 import { WorldBank } from "./WorldBank.ts"
 
@@ -106,14 +110,22 @@ const forget = (prompt: Prompt.Prompt) => {
 
 const SearchIndicators = Tool.make("search_indicators", {
   description:
-    "Search World Bank indicators by words in their name or definition, or by code. Returns up to 10 matches, best first.",
+    "Search the indicators of the World Bank, Eurostat and the OECD by words in their name or definition, or by code. Returns up to 10 matches, best first, each with its source.",
   parameters: Schema.Struct({
     text: Schema.String.annotate({
       description: "Words to search for, e.g. 'life expectancy' or 'GDP per capita'",
     }),
+    source: Schema.NullOr(Source).annotate({
+      description: "Only this source's indicators; null for all three",
+    }),
   }),
   success: Schema.Array(
-    Schema.Struct({ indicator: IndicatorId, name: Schema.String, definition: Schema.String }),
+    Schema.Struct({
+      indicator: IndicatorId,
+      source: Source,
+      name: Schema.String,
+      definition: Schema.String,
+    }),
   ),
   failure: Schema.Union([SourceUnavailable, CatalogUnavailable]),
 })
@@ -126,6 +138,7 @@ const Rejected = Schema.TaggedStruct("Rejected", { problem: Schema.String })
 
 const Definition = Schema.TaggedStruct("Definition", {
   indicator: IndicatorId,
+  source: Source,
   name: Schema.String,
   definition: Schema.String,
   dataset: Schema.String,
@@ -133,7 +146,7 @@ const Definition = Schema.TaggedStruct("Definition", {
 
 const DescribeIndicator = Tool.make("describe_indicator", {
   description:
-    "Read an indicator's full World Bank definition, to tell close indicators apart, e.g. GDP in current dollars from GDP adjusted for inflation.",
+    "Read an indicator's full definition from its source, to tell close indicators apart, e.g. GDP in current dollars from GDP adjusted for inflation.",
   parameters: Schema.Struct({
     indicator: Schema.String.annotate({
       description: "An indicator code returned by search_indicators",
@@ -145,7 +158,7 @@ const DescribeIndicator = Tool.make("describe_indicator", {
 
 const FindCountries = Tool.make("find_countries", {
   description:
-    "Look up the World Bank codes of countries by name, e.g. 'Ivory Coast' or 'South Korea'. Returns the matches for each name, best first; several matches mean the name is ambiguous, none that the World Bank has no data for it.",
+    "Look up the ISO 3166-1 alpha-3 codes of countries by name, e.g. 'Ivory Coast' or 'South Korea'. show_chart takes these codes for every source. Returns the matches for each name, best first; several matches mean the name is ambiguous, none that no source has data for it.",
   parameters: Schema.Struct({
     names: Schema.Array(Schema.String).annotate({
       description: "Place names as the question writes them",
@@ -173,7 +186,7 @@ const AskUser = Tool.make("ask_user", {
 
 const ShowChart = Tool.make("show_chart", {
   description:
-    "Show one chart of a World Bank indicator. The chart is checked against the data; when it is rejected, fix what the problem names and call again.",
+    "Show one chart of a World Bank, Eurostat or OECD indicator. The chart is checked against the data; when it is rejected, fix what the problem names and call again.",
   parameters: Schema.Struct({
     chart: Schema.Literals(["trend", "ranking", "map", "change", "relation"]).annotate({
       description:
@@ -313,18 +326,27 @@ const listed = ({ id, options }: Dimension) =>
     .map(({ code, label }) => `${code} ${label}`)
     .join(", ")}${options.length > 20 ? ", …" : ""})`
 
+// Why a chart has no values. Eurostat and OECD charts read annual data
+// only, so a quarterly or monthly dataflow has none.
+const noValues = (source: Source) =>
+  source === "World Bank"
+    ? "The World Bank has no values for these countries and years. Try other years."
+    : `${source} has no annual values for these countries and years. Try other years, or another dataflow if this one is quarterly or monthly only.`
+
 const ToolsLayer = Tools.toLayer(
   Effect.gen(function* () {
     const catalog = yield* Catalog
     const resolver = yield* Resolver
     const worldBank = yield* WorldBank
+    const sdmx = yield* Sdmx
 
     return Tools.of({
-      search_indicators: ({ text }) =>
-        catalog.search(text).pipe(
+      search_indicators: ({ text, source }) =>
+        catalog.search(text, { source: source ?? undefined }).pipe(
           Effect.map((entries) =>
             entries.slice(0, 10).map(({ indicator, name, definition }) => ({
               indicator,
+              source: sourceOf(indicator),
               name,
               definition: definition.slice(0, 300),
             })),
@@ -332,10 +354,13 @@ const ToolsLayer = Tools.toLayer(
         ),
       describe_indicator: ({ indicator }) =>
         Schema.decodeEffect(IndicatorId)(indicator).pipe(
-          Effect.flatMap(worldBank.describe),
+          Effect.flatMap((id) =>
+            sourceOf(id) === "World Bank" ? worldBank.describe(id) : sdmx.describe(id),
+          ),
           Effect.map((described) =>
             Definition.make({
               indicator: described.indicator.id,
+              source: sourceOf(described.indicator.id),
               name: described.indicator.name,
               definition: described.indicator.definition,
               dataset: described.dataset,
@@ -358,7 +383,7 @@ const ToolsLayer = Tools.toLayer(
       ask_user: () =>
         Effect.succeed("The question is shown to the person. Their reply is the next message."),
       // Accepts only a View that decodes and resolves to at least one value.
-      // Mistakes go back to the model to fix; an unreachable World Bank fails
+      // Mistakes go back to the model to fix; an unreachable source fails
       // the question.
       show_chart: (draft) =>
         toView(draft).pipe(
@@ -368,9 +393,7 @@ const ToolsLayer = Tools.toLayer(
               .pipe(
                 Effect.map((resolved) =>
                   resolved.observations.length === 0
-                    ? rejected(
-                        "The World Bank has no values for these countries and years. Try other years.",
-                      )
+                    ? rejected(noValues(sourceOf(view.indicator)))
                     : Shown.make({ view: trim(resolved), data: summarize(resolved) }),
                 ),
               ),
@@ -405,24 +428,54 @@ type Round = LanguageModel.GenerateTextResponse<Toolkit.Tools<typeof Tools>, "op
 
 const isIndicator = Schema.is(IndicatorId)
 
-// What one tool call tells the person while the agent works.
-const stepOf = (call: Round["toolCalls"][number]): ReadonlyArray<Step> => {
-  if (call.name === "search_indicators" && isSearch(call.params)) {
-    return [Searched.make({ text: call.params.text })]
-  }
+// The search a call made: its text, the source it narrowed to, and the
+// sources it found indicators from, best first, once it answered.
+const searchedBy = (
+  round: Round,
+  { id, text, source }: { id: string; text: string; source: Source | null },
+) => {
+  const fields: SearchedFields = { text }
 
-  if (call.name === "describe_indicator" && isDescribe(call.params)) {
-    return isIndicator(call.params.indicator)
-      ? [Described.make({ indicator: call.params.indicator })]
-      : []
-  }
+  const [found] = round.toolResults.flatMap((result) =>
+    result.id === id && result.name === "search_indicators" && !result.isFailure
+      ? [Arr.dedupe(result.result.map((match) => match.source))]
+      : [],
+  )
 
-  if (call.name === "find_countries" && isFind(call.params)) {
-    return [Located.make({ names: call.params.names })]
-  }
+  if (source !== null) fields.source = source
 
-  return []
+  if (found !== undefined) fields.found = found
+
+  return Searched.make(fields)
 }
+
+// A search step's fields, each set once known.
+interface SearchedFields {
+  text: string
+  source?: Source
+  found?: ReadonlyArray<Source>
+}
+
+// What one tool call of a round tells the person while the agent works.
+const stepOf =
+  (round: Round) =>
+  (call: Round["toolCalls"][number]): ReadonlyArray<Step> => {
+    if (call.name === "search_indicators" && isSearch(call.params)) {
+      return [searchedBy(round, { id: call.id, ...call.params })]
+    }
+
+    if (call.name === "describe_indicator" && isDescribe(call.params)) {
+      return isIndicator(call.params.indicator)
+        ? [Described.make({ indicator: call.params.indicator })]
+        : []
+    }
+
+    if (call.name === "find_countries" && isFind(call.params)) {
+      return [Located.make({ names: call.params.names })]
+    }
+
+    return []
+  }
 
 // The question the agent asked the person in this round, if any.
 const askedIn = (round: Round) =>
@@ -457,32 +510,41 @@ const stepsOf = (round: Round) => {
   )
 
   return {
-    steps: [...round.toolCalls.flatMap(stepOf), ...rejections],
+    steps: [...round.toolCalls.flatMap(stepOf(round)), ...rejections],
     ending: Option.orElse(Option.fromUndefinedOr(shown[0]), () => askedIn(round)),
   }
 }
 
 const instructions = (
   year: number,
-) => `You turn a question about countries into one chart of World Bank data.
+) => `You turn a question about countries into one chart of data from the World Bank, Eurostat or the OECD.
 
-1. Call search_indicators to find the indicator that measures what the question asks. Use only codes it returns; never write a code from memory. When two results are close, call describe_indicator to read their definitions.
+Pick the source that fits the question when several measure the same thing:
+- Eurostat when every country in the question is in the European Union.
+- The OECD when every country is an OECD member and some are outside the European Union.
+- The World Bank for worldwide comparisons, and whenever the source above has no indicator for what the question asks.
+- The source the question names, if it names one.
+A measure only one source publishes comes from that source.
+
+1. Call search_indicators to find the indicator that measures what the question asks. Use only codes it returns; never write a code from memory. Pass a source to look in that source only, e.g. when its first results are another source's. When two results are close, call describe_indicator to read their definitions.
 2. Call show_chart with that indicator, the countries and the years.
-   - When a place name is not plainly one country, call find_countries. List the members of a group yourself, e.g. the G7 or the Nordic countries.
+   - Countries are ISO 3166-1 alpha-3 codes for every source. When a place name is not plainly one country, call find_countries. List the members of a group yourself, e.g. the G7 or the Nordic countries.
    - Use "trend" when the question is about change over time, and "ranking" when it compares countries at one point. Use "change" when it compares two years, and "relation" when it asks how one indicator goes with another; search for that second indicator too.
    - Without years in the question, a trend covers the last 20 years and a ranking the latest year with data. It is ${year} now; most indicators have values up to ${year - 2}.
+   - Charts show annual values. Prefer a Eurostat or OECD dataflow whose name does not say quarterly or monthly.
+   - A Eurostat or OECD dataflow holds several series, e.g. by sex or age. show_chart's rejection lists its dimensions and their codes: pick the series the question asks for, else the total.
    - Use a transform only when the question asks for one.
 3. If show_chart rejects the chart, fix what it names and call it again.
-4. Once show_chart shows the chart, write its takeaway from the data show_chart returns: ${rules}
+4. Once show_chart shows the chart, write its takeaway from the data show_chart returns: ${rules} When you picked one source over others that measure the same thing, name it, e.g. "Eurostat's figures show".
 
-If no World Bank indicator measures what the question asks, stop without calling show_chart.
+If no indicator of any source measures what the question asks, stop without calling show_chart.
 
 If the question can be read in ways that give different charts and none is a safe default, call ask_user instead of show_chart, with two to four short choices. Prefer a sensible default to asking: ask at most once per question.
 
 A later question can follow up on the last chart, e.g. "add Chile" or "now per person". Change what it asks for and keep the rest of that chart.`
 
 export class Agent extends Context.Service<Agent, Interface>()("@civicdata/server/Agent") {
-  // Needs a LanguageModel, a Catalog, a Resolver and a WorldBank.
+  // Needs a LanguageModel, a Catalog, a Resolver, a WorldBank and an Sdmx.
   static readonly layer = Layer.effect(
     Agent,
     Effect.gen(function* () {

@@ -30,6 +30,22 @@ const gdpPerPerson = [
 
 const g7 = ["USA", "JPN", "DEU", "GBR", "FRA", "ITA", "CAN"] as const
 
+// Eurostat publishes these, with no World Bank counterpart.
+const povertyOrExclusion = [
+  "ESTAT,ILC_PEPS01N,1.0",
+  "ESTAT,ILC_PECS01,1.0",
+  "ESTAT,TIPSLC10,1.0",
+  "ESTAT,SDG_01_10,1.0",
+] as const
+
+const housingCost = [
+  "ESTAT,TESPM140,1.0",
+  "ESTAT,ILC_LVHO07A,1.0",
+  "ESTAT,TESSI160,1.0",
+  "ESTAT,TESSI161,1.0",
+  "ESTAT,TESSI162,1.0",
+] as const
+
 export const cases: ReadonlyArray<Case> = [
   // Change over time, values as published.
   {
@@ -318,6 +334,66 @@ export const cases: ReadonlyArray<Case> = [
     accepts: [Ranking({ indicators: unemployment, countries: ["ESP", "PRT"], year: 2020 })],
   },
 
+  // Measures only Eurostat publishes.
+  {
+    questions: [
+      "Share of people at risk of poverty or social exclusion in Spain and Italy since 2015",
+    ],
+    accepts: [Trend({ indicators: povertyOrExclusion, countries: ["ESP", "ITA"], from: 2015 })],
+  },
+  {
+    questions: ["How has the housing cost overburden rate changed in Greece and Germany?"],
+    accepts: [Trend({ indicators: housingCost, countries: ["GRC", "DEU"] })],
+  },
+  {
+    questions: ["Early leavers from education and training in Spain, Italy and Romania since 2010"],
+    accepts: [
+      Trend({
+        indicators: ["ESTAT,EDAT_LFSE_14,1.0", "ESTAT,SDG_04_10,1.0", "ESTAT,TESEM020,1.0"],
+        countries: ["ESP", "ITA", "ROU"],
+        from: 2010,
+      }),
+    ],
+  },
+
+  // Measures only the OECD publishes.
+  {
+    questions: [
+      "Compare average annual hours actually worked per worker in Germany, South Korea and Mexico in 2022",
+    ],
+    accepts: [
+      Ranking({
+        indicators: ["OECD.ELS.SAE,DSD_HW@DF_AVG_ANN_HRS_WKD,1.0"],
+        countries: ["DEU", "KOR", "MEX"],
+        year: 2022,
+      }),
+    ],
+  },
+  {
+    questions: ["How has trade union density changed in Sweden and the United States?"],
+    accepts: [
+      Trend({ indicators: ["OECD.ELS.SAE,DSD_TUD_CBC@DF_TUD,1.0"], countries: ["SWE", "USA"] }),
+    ],
+  },
+
+  // Worldwide comparisons, where the World Bank still answers.
+  {
+    questions: ["Compare GDP per capita of Germany, Brazil and Nigeria in 2022"],
+    accepts: [
+      Ranking({ indicators: gdpPerPerson, countries: ["DEU", "BRA", "NGA"], year: 2022 }),
+      Ranking({
+        indicators: gdp,
+        countries: ["DEU", "BRA", "NGA"],
+        year: 2022,
+        transform: "PerPerson",
+      }),
+    ],
+  },
+  {
+    questions: ["How has unemployment changed in France, India and South Africa since 2010?"],
+    accepts: [Trend({ indicators: unemployment, countries: ["FRA", "IND", "ZAF"], from: 2010 })],
+  },
+
   // Questions that name no country, so the agent should ask which.
   {
     questions: ["Show me GDP"],
@@ -328,7 +404,7 @@ export const cases: ReadonlyArray<Case> = [
     accepts: [Asked()],
   },
 
-  // Questions no World Bank indicator answers.
+  // Questions no source answers.
   {
     questions: ["What is the meaning of life?"],
     accepts: [Unanswered()],

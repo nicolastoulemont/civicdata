@@ -1,6 +1,7 @@
 import { Schema } from "effect"
 
 import { IndicatorId } from "./Indicator.ts"
+import { Source } from "./Source.ts"
 import { View } from "./View.ts"
 
 // Questions are capped so one request cannot send the model an essay.
@@ -16,7 +17,15 @@ export type ConversationId = typeof ConversationId.Type
 
 // What the agent did while answering, streamed as it happens. An answer ends
 // with Answered, Asked, Unanswered or Stopped.
-export const Searched = Schema.TaggedStruct("Searched", { text: Schema.String })
+//
+// The agent searched indicators, of one source when `source` names it, and
+// found some from each of `found`, best first. Searches saved before sources
+// were recorded have neither.
+export const Searched = Schema.TaggedStruct("Searched", {
+  text: Schema.String,
+  source: Schema.optionalKey(Source),
+  found: Schema.optionalKey(Schema.Array(Source)),
+})
 
 // The agent read an indicator's full definition.
 export const Described = Schema.TaggedStruct("Described", { indicator: IndicatorId })

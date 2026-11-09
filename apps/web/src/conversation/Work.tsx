@@ -1,4 +1,4 @@
-import { Ending, type Step, type Work } from "@civicdata/domain"
+import { Ending, type Source, type Step, type Work } from "@civicdata/domain"
 import { Duration, Match, Schema } from "effect"
 import {
   BookOpen,
@@ -21,10 +21,26 @@ import { Hold } from "./Scroll.tsx"
 
 const isEnding = Schema.is(Ending)
 
+// "Searched Eurostat indicators for “housing”: Eurostat". Searches saved before
+// sources were recorded say only what was searched.
+const searched = (
+  text: string,
+  { source, found }: { source?: Source | undefined; found?: ReadonlyArray<Source> | undefined },
+) => {
+  const asked = `Searched ${source === undefined ? "" : `${source} `}indicators for “${text}”`
+
+  if (found === undefined) return asked
+
+  return `${asked}: ${found.length === 0 ? "none found" : found.join(", ")}`
+}
+
 // What a step did, and its icon.
 const describe = (step: Step) =>
   Match.valueTags(step, {
-    Searched: ({ text }) => ({ icon: Search, text: `Searched indicators for “${text}”` }),
+    Searched: ({ text, source, found }) => ({
+      icon: Search,
+      text: searched(text, { source, found }),
+    }),
     Described: ({ indicator }) => ({
       icon: BookOpen,
       text: `Read the definition of ${indicator}`,

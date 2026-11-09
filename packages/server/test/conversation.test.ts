@@ -14,6 +14,8 @@ import {
   Ranking,
   Rejected,
   Searched,
+  sourceOf,
+  SourceUnavailable,
   Stopped,
   TooManyQuestions,
   Trend,
@@ -60,7 +62,7 @@ const lifeExpectancy = IndicatorId.make("SP.DYN.LE00.IN")
 const id = ConversationId.make("0b5d7c1e-8f4a-4c2b-9d3e-1a2b3c4d5e6f")
 
 // A World Bank that publishes life expectancy for Brazil and Mexico, 2000 to 2002.
-const worldBank = Layer.succeed(
+const recordedWorldBank = Layer.succeed(
   WorldBank,
   WorldBank.of({
     describe: (indicator) =>
@@ -91,17 +93,35 @@ const worldBank = Layer.succeed(
   }),
 )
 
+// A catalog of one indicator from each source. A search finds those whose
+// name holds its text, of one source when it names one.
 const catalog = Layer.succeed(
   Catalog,
   Catalog.of({
-    search: () =>
-      Effect.succeed([
-        {
-          indicator: lifeExpectancy,
-          name: "Life expectancy at birth, total (years)",
-          definition: "",
-        },
-      ]),
+    search: (text, options) =>
+      Effect.succeed(
+        [
+          {
+            indicator: lifeExpectancy,
+            name: "Life expectancy at birth, total (years)",
+            definition: "",
+          },
+          {
+            indicator: IndicatorId.make("ESTAT,UNE_RT_A,1.0"),
+            name: "Unemployment by sex and age - annual data",
+            definition: "",
+          },
+          {
+            indicator: IndicatorId.make("OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M,1.0"),
+            name: "Monthly unemployment rates",
+            definition: "",
+          },
+        ].filter(
+          ({ indicator, name }) =>
+            name.toLowerCase().includes(text.toLowerCase()) &&
+            (options?.source === undefined || sourceOf(indicator) === options.source),
+        ),
+      ),
   }),
 )
 
@@ -180,7 +200,7 @@ const totalAged15To74 = Schema.decodeSync(Dimensions)({ age: "Y15-74", unit: "PC
 
 // Eurostat as recorded on 2026-11-09: unemployment rates for France, which
 // come in several series, and the total for 15 to 74 year-olds.
-const sdmx = Sdmx.layer.pipe(
+const recordedSdmx = Sdmx.layer.pipe(
   Layer.provide(
     http(
       (url) =>
@@ -207,6 +227,9 @@ const notes = Layer.succeed(Notes, Notes.of({ get: () => Effect.die("no notes in
 
 interface ServeOptions {
   readonly limit?: Layer.Layer<AskLimit>
+  // The sources, when a test needs one to fail.
+  readonly worldBank?: Layer.Layer<WorldBank>
+  readonly sdmx?: Layer.Layer<Sdmx>
   // The conversations' Durable Object storage. Without it, each conversation
   // keeps its transcript in memory.
   readonly storage?: Storage
@@ -216,7 +239,12 @@ interface ServeOptions {
 // process the way its Durable Object would, on the test's clock.
 const serveApi = (
   model: Layer.Layer<LanguageModel.LanguageModel>,
-  { limit = AskLimit.none, storage }: ServeOptions = {},
+  {
+    limit = AskLimit.none,
+    storage,
+    worldBank = recordedWorldBank,
+    sdmx = recordedSdmx,
+  }: ServeOptions = {},
 ) => {
   const agent = Agent.layer.pipe(
     Layer.provide(model),
@@ -284,7 +312,7 @@ const brazilTrend = Trend.make({
 describe("conversations", () => {
   it.effect("streams the steps of an answer and keeps the question with its chart", () => {
     const model = scripted([
-      Effect.succeed(call("search_indicators", { text: "life expectancy" })),
+      Effect.succeed(call("search_indicators", { text: "life expectancy", source: null })),
       Effect.succeed(call("show_chart", brazil)),
     ])
 
@@ -292,7 +320,7 @@ describe("conversations", () => {
       expect(yield* turns).toEqual({ answered: [] })
 
       expect(yield* answer("How has life expectancy changed in Brazil?")).toEqual([
-        Searched.make({ text: "life expectancy" }),
+        Searched.make({ text: "life expectancy", found: ["World Bank"] }),
         Answered.make({ view: brazilTrend, takeaway }),
       ])
 
@@ -301,7 +329,7 @@ describe("conversations", () => {
           {
             question: "How has life expectancy changed in Brazil?",
             answer: Answered.make({ view: brazilTrend, takeaway }),
-            steps: [Searched.make({ text: "life expectancy" })],
+            steps: [Searched.make({ text: "life expectancy", found: ["World Bank"] })],
             took: Duration.zero,
           },
         ],
@@ -635,6 +663,118 @@ describe("conversations", () => {
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
+  it.effect("searches every source, or one the model names, and reports which each found", () => {
+    const model = scripted([
+      Effect.succeed(call("search_indicators", { text: "unemployment", source: null })),
+      Effect.succeed(call("search_indicators", { text: "unemployment", source: "Eurostat" })),
+      Effect.succeed(call("search_indicators", { text: "happiness", source: null })),
+      Effect.succeed(words("No indicator measures that.")),
+    ])
+
+    return Effect.gen(function* () {
+      expect(yield* answer("Unemployment in France")).toEqual([
+        Searched.make({ text: "unemployment", found: ["Eurostat", "OECD"] }),
+        Searched.make({ text: "unemployment", source: "Eurostat", found: ["Eurostat"] }),
+        Searched.make({ text: "happiness", found: [] }),
+        Unanswered.make({}),
+      ])
+      // The model reads each match's source.
+      expect(model.prompts[1]).toContain('"source":"OECD"')
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("reads a Eurostat dataflow's name and source to the model", () => {
+    const model = scripted([
+      Effect.succeed(call("describe_indicator", { indicator: "ESTAT,UNE_RT_A,1.0" })),
+      Effect.succeed(words("No chart.")),
+    ])
+
+    return Effect.gen(function* () {
+      expect((yield* answer("Unemployment in France"))[0]).toEqual(
+        Described.make({ indicator: IndicatorId.make("ESTAT,UNE_RT_A,1.0") }),
+      )
+      expect(model.prompts[1]).toContain('"name":"Unemployment by sex and age - annual data"')
+      expect(model.prompts[1]).toContain('"source":"Eurostat"')
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("tells the model when a Eurostat dataflow has no annual values", () => {
+    const model = scripted([
+      Effect.succeed(
+        call("show_chart", {
+          ...brazil,
+          indicator: "ESTAT,UNE_RT_A,1.0",
+          countries: ["FRA"],
+          from: 2022,
+          to: 2024,
+          dimensions: [
+            { dimension: "age", code: "Y15-74" },
+            { dimension: "unit", code: "PC_ACT" },
+            { dimension: "sex", code: "T" },
+          ],
+        }),
+      ),
+      Effect.succeed(words("No chart.")),
+    ])
+
+    // Eurostat answers that the query matches no annual values.
+    const quarterly = Sdmx.layer.pipe(
+      Layer.provide(
+        http((url) =>
+          url.includes("/sdmx/2.1/dataflow/")
+            ? globalThis.Response.json(unemploymentFlow)
+            : new globalThis.Response("INVALID_QUERY_DIMENSION_VALUE", { status: 400 }),
+        ),
+      ),
+    )
+
+    return Effect.gen(function* () {
+      expect((yield* answer("Unemployment in France"))[0]).toEqual(
+        Rejected.make({
+          problem:
+            "Eurostat has no annual values for these countries and years. Try other years, or another dataflow if this one is quarterly or monthly only.",
+        }),
+      )
+    }).pipe(Effect.provide(serveApi(model.layer, { sdmx: quarterly })))
+  })
+
+  // A source that refuses every request, as one over its rate limit does.
+  const refusing = Sdmx.layer.pipe(
+    Layer.provide(http(() => new globalThis.Response("Too many requests", { status: 429 }))),
+  )
+
+  const failing = Layer.succeed(
+    WorldBank,
+    WorldBank.of({
+      describe: () => Effect.fail(new SourceUnavailable({ source: "World Bank" })),
+      observations: () => Effect.fail(new SourceUnavailable({ source: "World Bank" })),
+      indicators: Effect.fail(new SourceUnavailable({ source: "World Bank" })),
+    }),
+  )
+
+  const unavailable = [
+    { source: "World Bank", indicator: lifeExpectancy, options: { worldBank: failing } },
+    { source: "Eurostat", indicator: "ESTAT,UNE_RT_A,1.0", options: { sdmx: refusing } },
+    {
+      source: "OECD",
+      indicator: "OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M,1.0",
+      options: { sdmx: refusing },
+    },
+  ] as const
+
+  for (const { source, indicator, options } of unavailable) {
+    it.effect(`fails the answer with SourceUnavailable when ${source} is unreachable`, () => {
+      const model = scripted([Effect.succeed(call("describe_indicator", { indicator }))])
+
+      return Effect.gen(function* () {
+        const error = yield* answer("Unemployment in France").pipe(Effect.flip)
+
+        expect(error).toEqual(new SourceUnavailable({ source }))
+        expect(yield* turns).toEqual({ answered: [] })
+      }).pipe(Effect.provide(serveApi(model.layer, options)))
+    })
+  }
+
   it.effect("looks up place names for the model", () => {
     const model = scripted([
       Effect.succeed(call("find_countries", { names: ["Ivory Coast", "Korea"] })),
@@ -728,7 +868,10 @@ describe("conversations", () => {
 
         expect(yield* ask("Add Mexico").pipe(Effect.flip)).toBeInstanceOf(ConversationBusy)
 
-        yield* Deferred.succeed(reply, call("search_indicators", { text: "life expectancy" }))
+        yield* Deferred.succeed(
+          reply,
+          call("search_indicators", { text: "life expectancy", source: null }),
+        )
 
         expect((yield* Fiber.join(first)).at(-1)).toEqual(
           Answered.make({ view: brazilTrend, takeaway }),
@@ -742,11 +885,11 @@ describe("conversations", () => {
       const reply = yield* Deferred.make<ReadonlyArray<Response.PartEncoded>>()
 
       const model = scripted([
-        Effect.succeed(call("search_indicators", { text: "life expectancy" })),
+        Effect.succeed(call("search_indicators", { text: "life expectancy", source: null })),
         Deferred.await(reply),
       ])
 
-      const searched = Searched.make({ text: "life expectancy" })
+      const searched = Searched.make({ text: "life expectancy", found: ["World Bank"] })
       const answered = Answered.make({ view: brazilTrend, takeaway })
 
       return yield* Effect.gen(function* () {
@@ -788,14 +931,14 @@ describe("conversations", () => {
       const reply = yield* Deferred.make<ReadonlyArray<Response.PartEncoded>>()
 
       const model = scripted([
-        Effect.succeed(call("search_indicators", { text: "life expectancy" })),
+        Effect.succeed(call("search_indicators", { text: "life expectancy", source: null })),
         Deferred.succeed(waiting, undefined).pipe(Effect.andThen(Deferred.await(reply))),
       ])
 
       const stopped = {
         question: "Life expectancy in Brazil",
         answer: Stopped.make({}),
-        steps: [Searched.make({ text: "life expectancy" })],
+        steps: [Searched.make({ text: "life expectancy", found: ["World Bank"] })],
         took: Duration.seconds(6),
       }
 
@@ -817,7 +960,7 @@ describe("conversations", () => {
         yield* stop
 
         expect(yield* Fiber.join(steps)).toEqual([
-          Searched.make({ text: "life expectancy" }),
+          Searched.make({ text: "life expectancy", found: ["World Bank"] }),
           Stopped.make({}),
         ])
         expect(yield* turns).toEqual({ answered: [stopped] })
@@ -863,7 +1006,7 @@ describe("conversations", () => {
       const { fake } = memoryStorage()
 
       const model = scripted([
-        Effect.succeed(call("search_indicators", { text: "life expectancy" })),
+        Effect.succeed(call("search_indicators", { text: "life expectancy", source: null })),
         Effect.succeed(call("describe_indicator", { indicator: lifeExpectancy })),
         Deferred.await(reply),
       ])
@@ -890,7 +1033,7 @@ describe("conversations", () => {
               question,
               answer: Answered.make({ view: brazilTrend, takeaway }),
               steps: [
-                Searched.make({ text: "life expectancy" }),
+                Searched.make({ text: "life expectancy", found: ["World Bank"] }),
                 Described.make({ indicator: lifeExpectancy }),
               ],
               took: Duration.seconds(8),

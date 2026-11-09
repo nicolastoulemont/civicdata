@@ -214,6 +214,29 @@ describe("Conversation", () => {
     expect(screen.queryByText("Searched indicators for “life expectancy”")).toBeNull()
   })
 
+  it("shows which sources each search found", async () => {
+    const reply = answer()
+
+    network.use(turns([]), reply.handler, resolve)
+    show("Housing costs in Greece and Germany")
+
+    reply.send(message(Searched.make({ text: "housing", found: ["World Bank", "Eurostat"] })))
+    reply.send(
+      message(Searched.make({ text: "housing cost", source: "Eurostat", found: ["Eurostat"] })),
+    )
+    reply.send(message(Searched.make({ text: "rent burden", found: [] })))
+
+    expect(
+      await screen.findByText("Searched indicators for “housing”: World Bank, Eurostat"),
+    ).toBeDefined()
+    expect(
+      await screen.findByText("Searched Eurostat indicators for “housing cost”: Eurostat"),
+    ).toBeDefined()
+    expect(
+      await screen.findByText("Searched indicators for “rent burden”: none found"),
+    ).toBeDefined()
+  })
+
   it("times the agent's work while it answers, then folds its steps under the answer", async () => {
     const reply = answer()
     const question = "How has life expectancy changed in Brazil?"
