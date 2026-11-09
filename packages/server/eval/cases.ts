@@ -1,73 +1,192 @@
+import { IndicatorId, Trend as TrendView, Year } from "@civicdata/domain"
+import type { View } from "@civicdata/domain"
 import type { Array as Arr } from "effect"
 
 import { Expected } from "./score.ts"
 
 // Questions asked in one conversation, in order, and the answers to the last
-// one that count as right.
-interface Case {
+// one that count as right. `shown` is the chart a person changes the answer
+// before the last question to.
+export interface Case {
   readonly questions: Arr.NonEmptyReadonlyArray<string>
+  readonly shown?: View
   readonly accepts: Arr.NonEmptyReadonlyArray<Expected>
 }
 
 const { Trend, Ranking, Asked, Unanswered } = Expected
 
-// Close indicators that answer the same question equally well.
-const lifeExpectancy = ["SP.DYN.LE00.IN"] as const
-const population = ["SP.POP.TOTL"] as const
-const unemployment = ["SL.UEM.TOTL.ZS", "SL.UEM.TOTL.NE.ZS"] as const
+// Close indicators that answer the same question equally well, by source:
+// World Bank codes, and the series of Eurostat and OECD dataflows. A case
+// accepts a source when it covers all the case's countries: Eurostat the EU
+// and EFTA, the OECD its members.
+const lifeExpectancy = {
+  worldBank: ["SP.DYN.LE00.IN"],
+  // At birth, in years.
+  eurostat: [{ indicator: "ESTAT,TPS00205,1.0", dimensions: { sex: ["T"] } }],
+} as const
+
+const population = {
+  worldBank: ["SP.POP.TOTL"],
+  // On 1 January rather than at mid-year, as Counterparts.ts groups them.
+  eurostat: [{ indicator: "ESTAT,TPS00001,1.0", dimensions: {} }],
+  oecd: [
+    {
+      indicator: "OECD.ELS.SAE,DSD_POPULATION@DF_POP_HIST,1.0",
+      dimensions: { MEASURE: ["POP"], UNIT_MEASURE: ["PS"], SEX: ["_T"], AGE: ["_T"] },
+    },
+  ],
+} as const
+
+// Unemployed persons as a share of the labour force. The World Bank counts
+// ages 15 and over, Eurostat 15 to 74, the OECD either.
+const unemployment = {
+  worldBank: ["SL.UEM.TOTL.ZS", "SL.UEM.TOTL.NE.ZS"],
+  eurostat: [
+    { indicator: "ESTAT,TIPSUN20,1.0", dimensions: { age: ["Y15-74"] } },
+    {
+      indicator: "ESTAT,UNE_RT_A,1.0",
+      dimensions: { age: ["Y15-74"], sex: ["T"], unit: ["PC_ACT"] },
+    },
+  ],
+  oecd: [
+    {
+      indicator: "OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M,1.0",
+      dimensions: { SEX: ["_T"], AGE: ["Y_GE15"] },
+    },
+    {
+      indicator: "OECD.ELS.SAE,DSD_LFS@DF_LFS_INDIC,1.1",
+      dimensions: { MEASURE: ["UNE_RATE"], SEX: ["_T"], AGE: ["_T", "Y15T74"] },
+    },
+  ],
+} as const
+
+// The same share for ages 15 to 24.
+const youthUnemployment = {
+  worldBank: ["SL.UEM.1524.ZS", "SL.UEM.1524.NE.ZS"],
+  eurostat: [
+    { indicator: "ESTAT,TESEM140,1.0", dimensions: { sex: ["T"] } },
+    { indicator: "ESTAT,TIPSUN20,1.0", dimensions: { age: ["Y15-24"] } },
+    {
+      indicator: "ESTAT,UNE_RT_A,1.0",
+      dimensions: { age: ["Y15-24"], sex: ["T"], unit: ["PC_ACT"] },
+    },
+  ],
+  oecd: [
+    {
+      indicator: "OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M,1.0",
+      dimensions: { SEX: ["_T"], AGE: ["Y15T24"] },
+    },
+    {
+      indicator: "OECD.ELS.SAE,DSD_LFS@DF_LFS_INDIC,1.1",
+      dimensions: { MEASURE: ["UNE_RATE"], SEX: ["_T"], AGE: ["Y15T24"] },
+    },
+  ],
+} as const
+
 const inflation = ["FP.CPI.TOTL.ZG"] as const
 const infantMortality = ["SP.DYN.IMRT.IN"] as const
 
-// In current or constant dollars, at market rates or PPP.
-const gdp = ["NY.GDP.MKTP.CD", "NY.GDP.MKTP.KD", "NY.GDP.MKTP.PP.CD", "NY.GDP.MKTP.PP.KD"] as const
+// In current or constant prices, at market rates or purchasing power, in a
+// currency common to the countries compared.
+const gdp = {
+  worldBank: ["NY.GDP.MKTP.CD", "NY.GDP.MKTP.KD", "NY.GDP.MKTP.PP.CD", "NY.GDP.MKTP.PP.KD"],
+  eurostat: [
+    {
+      indicator: "ESTAT,NAMA_10_GDP,1.0",
+      dimensions: {
+        na_item: ["B1GQ"],
+        unit: ["CP_MEUR", "CLV10_MEUR", "CLV15_MEUR", "CLV20_MEUR", "CP_MPPS_EU27_2020"],
+      },
+    },
+  ],
+} as const
 
-const gdpPerPerson = [
-  "NY.GDP.PCAP.CD",
-  "NY.GDP.PCAP.KD",
-  "NY.GDP.PCAP.PP.CD",
-  "NY.GDP.PCAP.PP.KD",
-] as const
+const gdpPerPerson = {
+  worldBank: ["NY.GDP.PCAP.CD", "NY.GDP.PCAP.KD", "NY.GDP.PCAP.PP.CD", "NY.GDP.PCAP.PP.KD"],
+  eurostat: [
+    {
+      indicator: "ESTAT,NAMA_10_PC,1.0",
+      dimensions: {
+        na_item: ["B1GQ"],
+        unit: [
+          "CP_EUR_HAB",
+          "CLV10_EUR_HAB",
+          "CLV15_EUR_HAB",
+          "CLV20_EUR_HAB",
+          "CP_PPS_EU27_2020_HAB",
+        ],
+      },
+    },
+  ],
+  // In US dollars at current purchasing power parities.
+  oecd: [
+    {
+      indicator: "OECD.SDD.NAD,DSD_NAMAIN10@DF_TABLE1_EXPENDITURE_HCPC,2.0",
+      dimensions: { TRANSACTION: ["B1GQ_POP"] },
+    },
+  ],
+} as const
 
 const g7 = ["USA", "JPN", "DEU", "GBR", "FRA", "ITA", "CAN"] as const
 
-// Eurostat publishes these, with no World Bank counterpart.
+// Eurostat publishes these, with no World Bank counterpart, as a share of the
+// whole population.
 const povertyOrExclusion = [
-  "ESTAT,ILC_PEPS01N,1.0",
-  "ESTAT,ILC_PECS01,1.0",
-  "ESTAT,TIPSLC10,1.0",
-  "ESTAT,SDG_01_10,1.0",
+  {
+    indicator: "ESTAT,ILC_PEPS01N,1.0",
+    dimensions: { unit: ["PC"], age: ["TOTAL"], sex: ["T"] },
+  },
+  { indicator: "ESTAT,ILC_PECS01,1.0", dimensions: { unit: ["PC"], age: ["TOTAL"] } },
+  { indicator: "ESTAT,TIPSLC10,1.0", dimensions: { unit: ["PC"] } },
+  { indicator: "ESTAT,SDG_01_10,1.0", dimensions: { unit: ["PC"], age: ["TOTAL"] } },
 ] as const
 
 const housingCost = [
-  "ESTAT,TESPM140,1.0",
-  "ESTAT,ILC_LVHO07A,1.0",
-  "ESTAT,TESSI160,1.0",
-  "ESTAT,TESSI161,1.0",
-  "ESTAT,TESSI162,1.0",
+  { indicator: "ESTAT,TESPM140,1.0", dimensions: {} },
+  {
+    indicator: "ESTAT,ILC_LVHO07A,1.0",
+    dimensions: { rskpovth: ["TOTAL"], age: ["TOTAL"], sex: ["T"] },
+  },
+  { indicator: "ESTAT,TESSI160,1.0", dimensions: { sex: ["T"] } },
+  { indicator: "ESTAT,TESSI161,1.0", dimensions: { age: ["TOTAL"] } },
 ] as const
 
 export const cases: ReadonlyArray<Case> = [
   // Change over time, values as published.
   {
     questions: ["How has life expectancy changed in Brazil?"],
-    accepts: [Trend({ indicators: lifeExpectancy, countries: ["BRA"] })],
+    accepts: [Trend({ indicators: lifeExpectancy.worldBank, countries: ["BRA"] })],
   },
   {
     questions: ["Life expectancy in Japan and Nigeria since 2000"],
-    accepts: [Trend({ indicators: lifeExpectancy, countries: ["JPN", "NGA"], from: 2000 })],
+    accepts: [
+      Trend({ indicators: lifeExpectancy.worldBank, countries: ["JPN", "NGA"], from: 2000 }),
+    ],
   },
   {
     questions: ["Population of India from 1990 to 2020"],
-    accepts: [Trend({ indicators: population, countries: ["IND"], from: 1990, to: 2020 })],
+    accepts: [
+      Trend({ indicators: population.worldBank, countries: ["IND"], from: 1990, to: 2020 }),
+    ],
   },
   {
     questions: ["How has unemployment evolved in Spain?"],
-    accepts: [Trend({ indicators: unemployment, countries: ["ESP"] })],
+    accepts: [
+      Trend({
+        indicators: unemployment.worldBank,
+        series: [...unemployment.eurostat, ...unemployment.oecd],
+        countries: ["ESP"],
+      }),
+    ],
   },
   {
     questions: ["Youth unemployment in Italy and Greece over the last decade"],
     accepts: [
-      Trend({ indicators: ["SL.UEM.1524.ZS", "SL.UEM.1524.NE.ZS"], countries: ["ITA", "GRC"] }),
+      Trend({
+        indicators: youthUnemployment.worldBank,
+        series: [...youthUnemployment.eurostat, ...youthUnemployment.oecd],
+        countries: ["ITA", "GRC"],
+      }),
     ],
   },
   {
@@ -117,7 +236,15 @@ export const cases: ReadonlyArray<Case> = [
   {
     questions: ["How has the share of renewable energy changed in Germany and France?"],
     accepts: [
-      Trend({ indicators: ["EG.FEC.RNEW.ZS", "EG.ELC.RNEW.ZS"], countries: ["DEU", "FRA"] }),
+      Trend({
+        indicators: ["EG.FEC.RNEW.ZS", "EG.ELC.RNEW.ZS"],
+        // In gross final energy consumption, overall or of electricity.
+        series: [
+          { indicator: "ESTAT,SDG_07_40,1.0", dimensions: { nrg_bal: ["REN", "REN_ELC"] } },
+          { indicator: "ESTAT,NRG_IND_REN,1.0", dimensions: { nrg_bal: ["REN", "REN_ELC"] } },
+        ],
+        countries: ["DEU", "FRA"],
+      }),
     ],
   },
   {
@@ -132,13 +259,29 @@ export const cases: ReadonlyArray<Case> = [
   },
   {
     questions: ["How has the share of people aged 65 and over grown in Italy and Japan?"],
-    accepts: [Trend({ indicators: ["SP.POP.65UP.TO.ZS"], countries: ["ITA", "JPN"] })],
+    accepts: [
+      Trend({
+        indicators: ["SP.POP.65UP.TO.ZS"],
+        series: [
+          {
+            indicator: "OECD.ELS.SAE,DSD_POPULATION@DF_POP_HIST,1.0",
+            dimensions: {
+              MEASURE: ["POP"],
+              UNIT_MEASURE: ["PT_POP"],
+              SEX: ["_T"],
+              AGE: ["Y_GE65"],
+            },
+          },
+        ],
+        countries: ["ITA", "JPN"],
+      }),
+    ],
   },
   {
     questions: ["GDP growth in China since 2000"],
     accepts: [
       Trend({ indicators: ["NY.GDP.MKTP.KD.ZG"], countries: ["CHN"], from: 2000 }),
-      Trend({ indicators: gdp, countries: ["CHN"], from: 2000, transform: "Growth" }),
+      Trend({ indicators: gdp.worldBank, countries: ["CHN"], from: 2000, transform: "Growth" }),
     ],
   },
   {
@@ -149,14 +292,25 @@ export const cases: ReadonlyArray<Case> = [
   // Countries compared at one point.
   {
     questions: ["Which has the highest life expectancy: France, Germany or Italy?"],
-    accepts: [Ranking({ indicators: lifeExpectancy, countries: ["FRA", "DEU", "ITA"] })],
+    accepts: [
+      Ranking({
+        indicators: lifeExpectancy.worldBank,
+        series: lifeExpectancy.eurostat,
+        countries: ["FRA", "DEU", "ITA"],
+      }),
+    ],
   },
   {
     questions: ["Compare GDP per capita of Germany, France and the United Kingdom in 2022"],
     accepts: [
-      Ranking({ indicators: gdpPerPerson, countries: ["DEU", "FRA", "GBR"], year: 2022 }),
       Ranking({
-        indicators: gdp,
+        indicators: gdpPerPerson.worldBank,
+        series: gdpPerPerson.oecd,
+        countries: ["DEU", "FRA", "GBR"],
+        year: 2022,
+      }),
+      Ranking({
+        indicators: gdp.worldBank,
         countries: ["DEU", "FRA", "GBR"],
         year: 2022,
         transform: "PerPerson",
@@ -165,12 +319,18 @@ export const cases: ReadonlyArray<Case> = [
   },
   {
     questions: ["Rank the G7 by population"],
-    accepts: [Ranking({ indicators: population, countries: g7 })],
+    accepts: [
+      Ranking({ indicators: population.worldBank, series: population.oecd, countries: g7 }),
+    ],
   },
   {
     questions: ["Which Nordic country has the lowest unemployment?"],
     accepts: [
-      Ranking({ indicators: unemployment, countries: ["DNK", "FIN", "ISL", "NOR", "SWE"] }),
+      Ranking({
+        indicators: unemployment.worldBank,
+        series: [...unemployment.eurostat, ...unemployment.oecd],
+        countries: ["DNK", "FIN", "ISL", "NOR", "SWE"],
+      }),
     ],
   },
   {
@@ -184,6 +344,19 @@ export const cases: ReadonlyArray<Case> = [
     accepts: [
       Ranking({
         indicators: ["SH.XPD.CHEX.GD.ZS"],
+        // Current expenditure on health, every scheme, function and provider.
+        series: [
+          {
+            indicator: "OECD.ELS.HD,DSD_SHA@DF_SHA,1.1",
+            dimensions: {
+              UNIT_MEASURE: ["PT_B1GQ"],
+              FINANCING_SCHEME: ["_T"],
+              FUNCTION: ["_T"],
+              MODE_PROVISION: ["_T"],
+              PROVIDER: ["_T"],
+            },
+          },
+        ],
         countries: ["USA", "CAN", "GBR"],
         year: 2021,
       }),
@@ -205,7 +378,7 @@ export const cases: ReadonlyArray<Case> = [
   },
   {
     questions: ["Which economy is bigger, India or the United Kingdom?"],
-    accepts: [Ranking({ indicators: gdp, countries: ["IND", "GBR"] })],
+    accepts: [Ranking({ indicators: gdp.worldBank, countries: ["IND", "GBR"] })],
   },
   {
     questions: [
@@ -231,11 +404,17 @@ export const cases: ReadonlyArray<Case> = [
   // Place names that are not a World Bank name, or name a group.
   {
     questions: ["Life expectancy in Ivory Coast since 1990"],
-    accepts: [Trend({ indicators: lifeExpectancy, countries: ["CIV"], from: 1990 })],
+    accepts: [Trend({ indicators: lifeExpectancy.worldBank, countries: ["CIV"], from: 1990 })],
   },
   {
     questions: ["How has the population of Czechia and Slovakia changed?"],
-    accepts: [Trend({ indicators: population, countries: ["CZE", "SVK"] })],
+    accepts: [
+      Trend({
+        indicators: population.worldBank,
+        series: [...population.eurostat, ...population.oecd],
+        countries: ["CZE", "SVK"],
+      }),
+    ],
   },
   {
     questions: ["How has the fertility rate changed in North and South Korea?"],
@@ -243,14 +422,26 @@ export const cases: ReadonlyArray<Case> = [
   },
   {
     questions: ["How has unemployment changed in the Benelux countries?"],
-    accepts: [Trend({ indicators: unemployment, countries: ["BEL", "NLD", "LUX"] })],
+    accepts: [
+      Trend({
+        indicators: unemployment.worldBank,
+        series: [...unemployment.eurostat, ...unemployment.oecd],
+        countries: ["BEL", "NLD", "LUX"],
+      }),
+    ],
   },
   {
     questions: ["GDP per capita of the Baltic states in 2020"],
     accepts: [
-      Ranking({ indicators: gdpPerPerson, countries: ["EST", "LVA", "LTU"], year: 2020 }),
       Ranking({
-        indicators: gdp,
+        indicators: gdpPerPerson.worldBank,
+        series: [...gdpPerPerson.eurostat, ...gdpPerPerson.oecd],
+        countries: ["EST", "LVA", "LTU"],
+        year: 2020,
+      }),
+      Ranking({
+        indicators: gdp.worldBank,
+        series: gdp.eurostat,
         countries: ["EST", "LVA", "LTU"],
         year: 2020,
         transform: "PerPerson",
@@ -270,7 +461,19 @@ export const cases: ReadonlyArray<Case> = [
   {
     questions: ["How has net migration per person changed in Germany and Spain?"],
     accepts: [
-      Trend({ indicators: ["SM.POP.NETM"], countries: ["DEU", "ESP"], transform: "PerPerson" }),
+      Trend({
+        indicators: ["SM.POP.NETM"],
+        series: [
+          { indicator: "ESTAT,MIGR_NETMIGR,1.0", dimensions: { age: ["TOTAL"], sex: ["T"] } },
+        ],
+        countries: ["DEU", "ESP"],
+        transform: "PerPerson",
+      }),
+      // Per 1,000 people already, with Eurostat's statistical adjustment.
+      Trend({
+        series: [{ indicator: "ESTAT,TPS00019,1.0", dimensions: { indic_de: ["CNMIGRATRT"] } }],
+        countries: ["DEU", "ESP"],
+      }),
     ],
   },
   {
@@ -287,7 +490,12 @@ export const cases: ReadonlyArray<Case> = [
   {
     questions: ["Index the population of Nigeria and Japan to 100 in 2000"],
     accepts: [
-      Trend({ indicators: population, countries: ["NGA", "JPN"], from: 2000, transform: "Index" }),
+      Trend({
+        indicators: population.worldBank,
+        countries: ["NGA", "JPN"],
+        from: 2000,
+        transform: "Index",
+      }),
     ],
   },
   {
@@ -307,7 +515,9 @@ export const cases: ReadonlyArray<Case> = [
   // Follow-ups that change the last chart.
   {
     questions: ["Life expectancy in Brazil since 2000", "Add Mexico"],
-    accepts: [Trend({ indicators: lifeExpectancy, countries: ["BRA", "MEX"], from: 2000 })],
+    accepts: [
+      Trend({ indicators: lifeExpectancy.worldBank, countries: ["BRA", "MEX"], from: 2000 }),
+    ],
   },
   {
     questions: ["Inflation in Brazil and Argentina since 2010", "Remove Argentina"],
@@ -321,17 +531,49 @@ export const cases: ReadonlyArray<Case> = [
     questions: ["GDP of Germany, France and Italy in 2020", "Now per person"],
     accepts: [
       Ranking({
-        indicators: gdp,
+        indicators: gdp.worldBank,
+        series: gdp.eurostat,
         countries: ["DEU", "FRA", "ITA"],
         year: 2020,
         transform: "PerPerson",
       }),
-      Ranking({ indicators: gdpPerPerson, countries: ["DEU", "FRA", "ITA"], year: 2020 }),
+      Ranking({
+        indicators: gdpPerPerson.worldBank,
+        series: [...gdpPerPerson.eurostat, ...gdpPerPerson.oecd],
+        countries: ["DEU", "FRA", "ITA"],
+        year: 2020,
+      }),
     ],
   },
   {
     questions: ["Unemployment in Spain and Portugal since 2008", "Compare them in 2020 only"],
-    accepts: [Ranking({ indicators: unemployment, countries: ["ESP", "PRT"], year: 2020 })],
+    accepts: [
+      Ranking({
+        indicators: unemployment.worldBank,
+        series: [...unemployment.eurostat, ...unemployment.oecd],
+        countries: ["ESP", "PRT"],
+        year: 2020,
+      }),
+    ],
+  },
+
+  // A follow-up after the person changed the chart builds on their chart.
+  {
+    questions: ["Life expectancy in Brazil and Argentina since 2000", "Add Peru"],
+    shown: TrendView.make({
+      indicator: IndicatorId.make(infantMortality[0]),
+      countries: ["BRA", "ARG"],
+      from: Year.make(2000),
+      to: Year.make(2023),
+    }),
+    accepts: [
+      Trend({
+        indicators: infantMortality,
+        countries: ["BRA", "ARG", "PER"],
+        from: 2000,
+        to: 2023,
+      }),
+    ],
   },
 
   // Measures only Eurostat publishes.
@@ -339,17 +581,21 @@ export const cases: ReadonlyArray<Case> = [
     questions: [
       "Share of people at risk of poverty or social exclusion in Spain and Italy since 2015",
     ],
-    accepts: [Trend({ indicators: povertyOrExclusion, countries: ["ESP", "ITA"], from: 2015 })],
+    accepts: [Trend({ series: povertyOrExclusion, countries: ["ESP", "ITA"], from: 2015 })],
   },
   {
     questions: ["How has the housing cost overburden rate changed in Greece and Germany?"],
-    accepts: [Trend({ indicators: housingCost, countries: ["GRC", "DEU"] })],
+    accepts: [Trend({ series: housingCost, countries: ["GRC", "DEU"] })],
   },
   {
     questions: ["Early leavers from education and training in Spain, Italy and Romania since 2010"],
     accepts: [
       Trend({
-        indicators: ["ESTAT,EDAT_LFSE_14,1.0", "ESTAT,SDG_04_10,1.0", "ESTAT,TESEM020,1.0"],
+        series: [
+          { indicator: "ESTAT,EDAT_LFSE_14,1.0", dimensions: { sex: ["T"], wstatus: ["POP"] } },
+          { indicator: "ESTAT,SDG_04_10,1.0", dimensions: { sex: ["T"] } },
+          { indicator: "ESTAT,TESEM020,1.0", dimensions: {} },
+        ],
         countries: ["ESP", "ITA", "ROU"],
         from: 2010,
       }),
@@ -363,7 +609,13 @@ export const cases: ReadonlyArray<Case> = [
     ],
     accepts: [
       Ranking({
-        indicators: ["OECD.ELS.SAE,DSD_HW@DF_AVG_ANN_HRS_WKD,1.0"],
+        // Every worker, not only employees.
+        series: [
+          {
+            indicator: "OECD.ELS.SAE,DSD_HW@DF_AVG_ANN_HRS_WKD,1.0",
+            dimensions: { WORKER_STATUS: ["_T"] },
+          },
+        ],
         countries: ["DEU", "KOR", "MEX"],
         year: 2022,
       }),
@@ -372,7 +624,10 @@ export const cases: ReadonlyArray<Case> = [
   {
     questions: ["How has trade union density changed in Sweden and the United States?"],
     accepts: [
-      Trend({ indicators: ["OECD.ELS.SAE,DSD_TUD_CBC@DF_TUD,1.0"], countries: ["SWE", "USA"] }),
+      Trend({
+        series: [{ indicator: "OECD.ELS.SAE,DSD_TUD_CBC@DF_TUD,1.0", dimensions: {} }],
+        countries: ["SWE", "USA"],
+      }),
     ],
   },
 
@@ -380,9 +635,9 @@ export const cases: ReadonlyArray<Case> = [
   {
     questions: ["Compare GDP per capita of Germany, Brazil and Nigeria in 2022"],
     accepts: [
-      Ranking({ indicators: gdpPerPerson, countries: ["DEU", "BRA", "NGA"], year: 2022 }),
+      Ranking({ indicators: gdpPerPerson.worldBank, countries: ["DEU", "BRA", "NGA"], year: 2022 }),
       Ranking({
-        indicators: gdp,
+        indicators: gdp.worldBank,
         countries: ["DEU", "BRA", "NGA"],
         year: 2022,
         transform: "PerPerson",
@@ -391,7 +646,9 @@ export const cases: ReadonlyArray<Case> = [
   },
   {
     questions: ["How has unemployment changed in France, India and South Africa since 2010?"],
-    accepts: [Trend({ indicators: unemployment, countries: ["FRA", "IND", "ZAF"], from: 2010 })],
+    accepts: [
+      Trend({ indicators: unemployment.worldBank, countries: ["FRA", "IND", "ZAF"], from: 2010 }),
+    ],
   },
 
   // Questions that name no country, so the agent should ask which.

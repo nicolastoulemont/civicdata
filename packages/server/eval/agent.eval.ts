@@ -1,15 +1,17 @@
-import { Ending } from "@civicdata/domain"
-import { expect, layer } from "@effect/vitest"
+import { TurnIndex } from "@civicdata/domain"
+import { assert, layer } from "@effect/vitest"
 import { env } from "cloudflare:workers"
-import { Array as Arr, Clock, Effect, Layer, Option, Schema, Stream } from "effect"
+import { Array as Arr, Clock, Effect, Layer, Predicate, Schedule, Stream } from "effect"
 
 import { Agent } from "../src/Agent.ts"
 import { Catalog } from "../src/Catalog.ts"
 import { CatalogBuild, Step } from "../src/CatalogBuild.ts"
+import { Conversation } from "../src/Conversation.ts"
 import { Resolver } from "../src/Resolver.ts"
 import { Sdmx } from "../src/Sdmx.ts"
+import { Transcript } from "../src/Transcript.ts"
 import { WorldBank } from "../src/WorldBank.ts"
-import { cases } from "./cases.ts"
+import { type Case, cases } from "./cases.ts"
 import { score } from "./score.ts"
 
 // Builds the catalog from the live sources before the questions run. A
@@ -28,30 +30,52 @@ const Live = Layer.merge(Agent.live.pipe(Layer.provide(Resolver.layer)), Built).
   Layer.provide(Sdmx.live),
 )
 
-const isEnding = Schema.is(Ending)
+// Asks the questions in one conversation, as a person would, and returns the
+// last turn. A case's `shown` chart replaces the answer before the last
+// question, as when a person changes it.
+const answer = Effect.fn("eval.answer")(
+  function* ({ questions, shown }: Case) {
+    const conversation = yield* Conversation
 
-// Asks the questions in one chat and returns how the last answer ended.
-const answer = Effect.fn("eval.answer")(function* (questions: ReadonlyArray<string>) {
-  const agent = yield* Agent
-  const chat = yield* agent.start
-  let ending = Option.none<Ending>()
+    for (const [turn, question] of questions.entries()) {
+      if (shown !== undefined && turn === questions.length - 1) {
+        yield* conversation.show(TurnIndex.make(turn - 1), shown)
+      }
 
-  for (const question of questions) {
-    const steps = yield* Stream.runCollect(agent.ask(chat, { question }))
+      yield* Stream.runDrain(yield* conversation.ask(question))
+    }
 
-    ending = Option.filter(Arr.last(steps), isEnding)
-  }
+    return yield* Effect.fromOption(Arr.last((yield* conversation.turns).answered))
+  },
+  Effect.provide(Conversation.layer.pipe(Layer.provide(Transcript.memory))),
+  // The eval asks the OECD faster than the pacer in src/Pace.ts allows, and a
+  // spent budget fails the answer with SourceUnavailable. That measures the
+  // pacer, not the agent, so the case is asked again in a new conversation
+  // once the pacer's minute window has moved on.
+  Effect.retry({
+    while: Predicate.isTagged("SourceUnavailable"),
+    schedule: Schedule.spaced("1 minute"),
+    times: 3,
+  }),
+)
 
-  return yield* Effect.fromOption(ending)
-})
+const title = ({ questions, shown }: Case) =>
+  (shown === undefined
+    ? questions
+    : [...questions.slice(0, -1), "(the person changes the chart)", ...questions.slice(-1)]
+  ).join(" → ")
 
 layer(Live, { concurrent: true, excludeTestServices: true, timeout: "2 minutes" })(
   env.OPENAI_MODEL ?? "the default model",
   (it) => {
-    for (const { questions, accepts } of cases) {
-      it.effect(questions.join(" → "), () =>
+    for (const each of cases) {
+      it.effect(title(each), () =>
         Effect.gen(function* () {
-          expect(score(accepts, yield* answer(questions))).toEqual([])
+          const turn = yield* answer(each)
+
+          // A failure shows the turn: what the agent searched, fetched and
+          // picked. it.effect swallows logs.
+          assert.deepEqual(score(each.accepts, turn.answer), [], JSON.stringify(turn))
         }),
       )
     }
