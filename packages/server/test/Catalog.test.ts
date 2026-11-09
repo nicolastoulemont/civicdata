@@ -63,6 +63,19 @@ describe("Catalog", () => {
     }).pipe(Effect.provide(catalogOver(listings()))),
   )
 
+  it.effect("searches one source's indicators when asked", () =>
+    Effect.gen(function* () {
+      const catalog = yield* Catalog
+
+      yield* build(1)
+
+      expect(names(yield* catalog.search("unemployment", { source: "OECD" }))).toEqual([
+        "Monthly unemployment rates",
+      ])
+      expect(names(yield* catalog.search("how rich", { source: "Eurostat" }))).toEqual([])
+    }).pipe(Effect.provide(catalogOver(listings()))),
+  )
+
   it.effect("ranks indicators whose code starts with the search first", () =>
     Effect.gen(function* () {
       yield* build(1)

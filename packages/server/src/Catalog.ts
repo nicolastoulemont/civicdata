@@ -1,4 +1,4 @@
-import { CatalogEntry, CatalogUnavailable, type IndicatorId } from "@civicdata/domain"
+import { CatalogEntry, CatalogUnavailable, type IndicatorId, Source } from "@civicdata/domain"
 import { D1Client } from "@effect/sql-d1"
 import { Array as Arr, Context, Effect, Layer, Schema } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
@@ -6,7 +6,12 @@ import { SqlClient, SqlSchema } from "effect/sql"
 import { Vectors } from "./Vectors.ts"
 
 interface Interface {
-  readonly search: (text: string) => Effect.Effect<ReadonlyArray<CatalogEntry>, CatalogUnavailable>
+  // The entries that best match the text, best first, of one source when
+  // `source` names it.
+  readonly search: (
+    text: string,
+    options?: { readonly source?: Source | undefined },
+  ) => Effect.Effect<ReadonlyArray<CatalogEntry>, CatalogUnavailable>
 }
 
 const limit = 20
@@ -91,17 +96,21 @@ export class Catalog extends Context.Service<Catalog, Interface>()("@civicdata/s
       })
 
       const matches = SqlSchema.findAll({
-        Request: Schema.Struct({ match: Schema.String, code: Schema.String }),
+        Request: Schema.Struct({
+          match: Schema.String,
+          code: Schema.String,
+          source: Schema.NullOr(Source),
+        }),
         Result: CatalogEntry,
         // Codes the user typed the start of come first: "SP.POP" also matches
         // "Specialist ... population" by word prefixes. Then bm25, whose
         // weights follow the column order: a hit in the name counts ten times
         // one in the definition, a hit in the indicator code five times.
-        execute: ({ match, code }) => sql`
+        execute: ({ match, code, source }) => sql`
           SELECT catalog.indicator, catalog.name, catalog.definition FROM catalog
           JOIN catalog_current AS current
             ON current.source = catalog.source AND current.generation = catalog.generation
-          WHERE catalog MATCH ${match}
+          WHERE catalog MATCH ${match} AND (${source} IS NULL OR catalog.source = ${source})
           ORDER BY substr(lower(catalog.indicator), 1, length(${code})) = ${code} DESC,
             bm25(catalog, 0.0, 0.0, 5.0, 10.0, 1.0)
           LIMIT ${limit}
@@ -112,9 +121,10 @@ export class Catalog extends Context.Service<Catalog, Interface>()("@civicdata/s
         Request: Schema.Struct({
           indicators: Schema.Array(Schema.String),
           match: Schema.String,
+          source: Schema.NullOr(Source),
         }),
         Result: CatalogEntry,
-        execute: ({ indicators, match }) =>
+        execute: ({ indicators, match, source }) =>
           Schema.encodeEffect(IdsJson)(indicators).pipe(
             Effect.flatMap(
               (ids) => sql`
@@ -122,6 +132,7 @@ export class Catalog extends Context.Service<Catalog, Interface>()("@civicdata/s
                 JOIN catalog_current AS current
                   ON current.source = catalog.source AND current.generation = catalog.generation
                 WHERE catalog MATCH ${match}
+                  AND (${source} IS NULL OR catalog.source = ${source})
                   AND catalog.indicator IN (SELECT value FROM json_each(${ids}))
               `,
             ),
@@ -131,12 +142,12 @@ export class Catalog extends Context.Service<Catalog, Interface>()("@civicdata/s
       // The published entries closest in meaning to the text, closest first.
       // Without Vectors, keyword search still answers.
       const byMeaning = Effect.fn("Catalog.byMeaning")(
-        function* (text: string) {
+        function* (text: string, source: Source | null) {
           const indicators = yield* vectors.nearest(text)
 
           if (!Arr.isReadonlyArrayNonEmpty(indicators)) return []
 
-          const found = yield* listed({ indicators, match: toCodes(indicators) })
+          const found = yield* listed({ indicators, match: toCodes(indicators), source })
           const entries = new Map(found.map((entry) => [entry.indicator, entry]))
 
           // A neighbor missing from the catalog left it.
@@ -148,8 +159,9 @@ export class Catalog extends Context.Service<Catalog, Interface>()("@civicdata/s
       )
 
       const search = Effect.fn("Catalog.search")(
-        function* (text: string) {
+        function* (text: string, options?: { readonly source?: Source | undefined }) {
           const match = toMatch(text)
+          const source = options?.source ?? null
 
           if (match === undefined) return []
 
@@ -161,7 +173,7 @@ export class Catalog extends Context.Service<Catalog, Interface>()("@civicdata/s
           const code = text.trim().toLowerCase()
 
           const [byWords, nearest] = yield* Effect.all(
-            [matches({ match, code }), byMeaning(text)],
+            [matches({ match, code, source }), byMeaning(text, source)],
             { concurrency: "unbounded" },
           )
 
