@@ -14,13 +14,10 @@ interface TimelineProps {
   failures: ReturnType<typeof useConversation>["failures"]
   retry: ReturnType<typeof useConversation>["retry"]
   answering: boolean
-  ask: (question: string) => void
 }
 
 // The turns of a conversation, oldest first, then the one being answered.
-// Only the last answer's choices can still be picked, and none while the
-// agent answers.
-export const Timeline = ({ turns, pending, failures, retry, answering, ask }: TimelineProps) => (
+export const Timeline = ({ turns, pending, failures, retry, answering }: TimelineProps) => (
   <ol aria-label="Questions and answers" className="flex flex-col gap-8">
     {Array.from({ length: turns.length + 1 }, (_, index) => (
       // oxlint-disable-next-line react/no-array-index-key -- positions track append-only answered turns
@@ -39,11 +36,7 @@ export const Timeline = ({ turns, pending, failures, retry, answering, ask }: Ti
           <li className="flex flex-col gap-4">
             <Question text={turns[index].question} />
             <Agent>
-              <Reply
-                answer={turns[index].answer}
-                disabled={index < turns.length - 1 || pending !== undefined}
-                choose={ask}
-              />
+              <Reply answer={turns[index].answer} />
             </Agent>
           </li>
         )}

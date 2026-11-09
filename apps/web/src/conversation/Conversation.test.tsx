@@ -321,40 +321,78 @@ describe("Conversation", () => {
     )
   })
 
-  it("offers the choices the agent asked about, and sends the one picked", async () => {
-    const reply = answer()
-
+  it.each([
+    { via: "click", expected: "South Korea" },
+    { via: "number", expected: "North Korea" },
+    { via: "reply", expected: "Both since 2010" },
+  ])("sends an agent reply by $via", async ({ via, expected }) => {
+    const user = userEvent.setup()
+    const sent: Array<unknown> = []
     network.use(
       turns([
         {
-          question: "How long do people live in Brazil?",
-          answer: Asked.make({
-            question: "Which measure?",
-            choices: ["Life expectancy", "Healthy life expectancy"],
-          }),
+          question: "How long do people live in Korea?",
+          answer: Asked.make({ question: "Which Korea?", choices: ["South Korea", "North Korea"] }),
         },
       ]),
-      reply.handler,
-      resolve,
+      http.post(`/api/conversations/${id}/questions`, async ({ request }) => {
+        sent.push(await request.json())
+
+        return new HttpResponse(message(Unanswered.make({})), {
+          headers: { "content-type": "text/event-stream" },
+        })
+      }),
     )
     show()
 
-    expect(await screen.findByText("Which measure?")).toBeDefined()
+    const panel = await screen.findByRole("region", { name: "Which Korea?" })
+    expect(within(panel).getAllByRole("button")).toHaveLength(2)
+    expect((await findComposer()).getAttribute("placeholder")).toBe(
+      "Pick a choice above, or say what you mean",
+    )
 
-    await userEvent.setup().click(screen.getByRole("button", { name: "Life expectancy" }))
+    if (via === "click")
+      await user.click(within(panel).getByRole("button", { name: "South Korea" }))
 
-    // The choice is the next question, and the earlier choices can no longer be picked.
-    expect(await screen.findByText("Life expectancy", { selector: "p" })).toBeDefined()
-    expect(
-      screen.getByRole("button", { name: "Healthy life expectancy" }).hasAttribute("disabled"),
-    ).toBe(true)
+    if (via === "number") await user.keyboard("2")
 
-    reply.send(message(Answered.make({ view: brazil })))
-    reply.end()
+    if (via === "reply") {
+      await user.type(await findComposer(), "Both since 2010")
+      await user.keyboard("{Enter}")
+    }
 
-    expect(
-      await screen.findByRole("heading", { name: "Life expectancy at birth (years)" }),
-    ).toBeDefined()
+    expect(await findQuestion(expected)).toBeDefined()
+    expect(await screen.findByText("No World Bank indicator answers this question")).toBeDefined()
+    expect(sent).toEqual([{ question: expected }])
+    expect(screen.queryByRole("region", { name: "Which Korea?" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "South Korea" })).toBeNull()
+    expect(await findQuestion("Which Korea?")).toBeDefined()
+  })
+
+  it("keeps older questions read-only and gives keyboard focus to the latest choices", async () => {
+    const user = userEvent.setup()
+    network.use(
+      turns([
+        {
+          question: "Which measure?",
+          answer: Asked.make({ question: "Measure to use?", choices: ["GDP"] }),
+        },
+        {
+          question: "Life expectancy in Korea",
+          answer: Asked.make({ question: "Which Korea?", choices: ["South Korea", "North Korea"] }),
+        },
+      ]),
+    )
+    show()
+
+    const choice = await screen.findByRole("button", { name: "South Korea" })
+    expect(await findQuestion("Measure to use?")).toBeDefined()
+    expect(screen.queryByRole("button", { name: "GDP" })).toBeNull()
+    await user.click(await findComposer())
+    await user.tab({ shift: true })
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "North Korea" }))
+    await user.tab({ shift: true })
+    expect(document.activeElement).toBe(choice)
   })
 
   it("follows an answer still in progress when the page opens", async () => {
