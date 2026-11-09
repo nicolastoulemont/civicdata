@@ -2,10 +2,14 @@ import {
   type AgentUnavailable,
   Answered,
   type CatalogUnavailable,
+  type Chart,
   ChartIndex,
+  chartsOf,
   ConversationBusy,
   Ended,
+  Drawn,
   Ending,
+  Halted,
   NoChart,
   put,
   type SourceUnavailable,
@@ -73,28 +77,40 @@ const isStopped = Schema.is(Stopped)
 
 // A step still running when the answer stopped, as stopped.
 const halted = (step: Work): ReadonlyArray<Work> =>
-  Predicate.isTagged(step.state, "Running") ? [{ ...step, state: Stopped.make({}) }] : []
+  Predicate.isTagged(step.state, "Running") ? [{ ...step, state: Halted.make({}) }] : []
+
+const isDrawn = Schema.is(Drawn)
+
+// The charts the agent drew before a stop, in order, with the takeaways it
+// kept. A chart whose takeaway was being written keeps none.
+const drawnIn = (work: ReadonlyArray<Work>): ReadonlyArray<Chart> =>
+  work.flatMap((step) => {
+    if (!isDrawn(step)) return []
+
+    const { view, state } = step
+
+    return [
+      Predicate.isTagged(state, "Done") ? { view, ...Struct.omit(state, ["_tag"]) } : { view },
+    ]
+  })
 
 const isAnswered = Schema.is(Answered)
 
 // The charts a turn shows, in order: the ones a person changed its charts
-// to, else the agent's. A turn that did not end with charts shows none.
-const chartsOf = (turn: Turn): ReadonlyArray<View> =>
-  isAnswered(turn.answer)
-    ? turn.answer.charts.map(({ view }, place) => turn.shown?.[place] ?? view)
-    : []
+// to, else the agent's. A turn that ended with no charts shows none.
+const onScreen = (turn: Turn): ReadonlyArray<View> =>
+  chartsOf(turn.answer).map(({ view }, place) => turn.shown?.[place] ?? view)
 
 // The turn showing `view` in place of its chart at `chart`: changed to it,
 // or back when it is the agent's chart there. A turn changed back at every
 // place keeps no changes. A turn with no chart there has none to change.
 const showing = (turn: Turn, { chart, view }: Changed): Turn | undefined => {
-  if (!isAnswered(turn.answer)) return undefined
-
-  const agent = turn.answer.charts[chart]
+  const charts = chartsOf(turn.answer)
+  const agent = charts[chart]
 
   if (agent === undefined) return undefined
 
-  const shown = turn.answer.charts.map((_, place) =>
+  const shown = charts.map((_, place) =>
     place === chart
       ? Equal.equals(view, agent.view)
         ? null
@@ -113,9 +129,9 @@ const showing = (turn: Turn, { chart, view }: Changed): Turn | undefined => {
 const changedOf = ({ turns, changed }: Saved): ReadonlyArray<Changed> => {
   const shown = changed === undefined ? undefined : turns[changed]
   const last = turns.findLast((turn) => isAnswered(turn.answer))
-  const answered = last === undefined ? [] : chartsOf(Struct.omit(last, ["shown"]))
+  const answered = last === undefined ? [] : onScreen(Struct.omit(last, ["shown"]))
 
-  return (shown === undefined ? [] : chartsOf(shown)).flatMap((view, place) =>
+  return (shown === undefined ? [] : onScreen(shown)).flatMap((view, place) =>
     Equal.equals(view, answered[place]) ? [] : [{ chart: ChartIndex.make(place), view }],
   )
 }
@@ -244,8 +260,15 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
             const cut = (yield* Ref.get(work)).flatMap(halted)
 
             yield* Ref.update(work, (previous) => cut.reduce(put, previous))
-            yield* save(Stopped.make({}), asked).pipe(Semaphore.withPermit(lock))
-            yield* PubSub.publish(steps, Arr.append(cut, Stopped.make({})))
+
+            const charts = drawnIn(yield* Ref.get(work))
+
+            const stopped = Arr.isReadonlyArrayNonEmpty(charts)
+              ? Stopped.make({ charts })
+              : Stopped.make({})
+
+            yield* save(stopped, asked).pipe(Semaphore.withPermit(lock))
+            yield* PubSub.publish(steps, Arr.append(cut, stopped))
           }
         },
         (effect, { steps }) =>

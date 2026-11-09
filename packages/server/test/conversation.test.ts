@@ -12,10 +12,13 @@ import {
   Definition,
   DimensionId,
   Dimensions,
+  Drawn,
   Dropped,
+  Explained,
   Failed,
   Fetch,
   Fetched,
+  Halted,
   IndicatorId,
   IndicatorNotFound,
   Located,
@@ -57,6 +60,7 @@ import {
   Fiber,
   Layer,
   Option,
+  Predicate,
   Schema,
   Stream,
 } from "effect"
@@ -403,11 +407,20 @@ const wrote = (
   { chart = 0 }: { chart?: number } = {},
 ) => Takeaway.make({ id: StepId.make(`takeaway-${chart}`), state })
 
-const isThinking = Schema.is(Thinking)
+// The chart at `chart` in the answer, the first unless a test names another,
+// as the agent draws it: Brazil's trend unless a test names another view.
+const drew = (
+  state: typeof Drawn.Type.state,
+  { chart = 0, view = brazilTrend }: { chart?: number; view?: View } = {},
+) => Drawn.make({ id: StepId.make(`drawn-${chart}`), view, state })
 
-// Each step as it last was, in the order they started, without the model's thinking.
+const isThinking = Schema.is(Thinking)
+const isDrawn = Schema.is(Drawn)
+
+// The work log: each step as it last was, in the order they started, without
+// the model's thinking or the charts drawn.
 const log = (steps: ReadonlyArray<Step>) =>
-  steps.reduce(put<Step>, []).filter((step) => !isThinking(step))
+  steps.reduce(put<Step>, []).filter((step) => !isThinking(step) && !isDrawn(step))
 
 describe("conversations", () => {
   it.effect("streams the steps of an answer and keeps the question with its chart", () => {
@@ -429,8 +442,12 @@ describe("conversations", () => {
         ...thinking(1),
         fetched(running),
         fetched(),
+        // The chart goes out as soon as it is drawn, and again with its
+        // takeaway.
+        drew(running),
         wrote(running),
         wrote(),
+        drew(Explained.make({ takeaway })),
         ...thinking(2),
         charted({ view: brazilTrend, takeaway }),
       ])
@@ -1854,6 +1871,130 @@ describe("several charts", () => {
       }).pipe(Effect.provide(serveApi(model.layer, { storage: memoryStorage(stored).fake })))
     },
   )
+})
+
+// The first chart of an answer, once its takeaway is written.
+const firstWritten = (step: Step) =>
+  isDrawn(step) && step.id === "drawn-0" && Predicate.isTagged(step.state, "Done")
+
+describe("charts as they are drawn", () => {
+  const change = { ...brazil, chart: "change" }
+
+  const brazilChange = Change.make({
+    indicator: lifeExpectancy,
+    countries: ["BRA"],
+    from: Year.make(2000),
+    to: Year.make(2002),
+  })
+
+  const isFetch = Schema.is(Fetch)
+
+  // A model that draws a chart, writes its takeaway, then waits on `next`
+  // before it draws the second.
+  const twoCharts = (next: Deferred.Deferred<ReadonlyArray<Response.PartEncoded>>) =>
+    scripted([
+      Effect.succeed(call("show_chart", brazil, { step: "chart-1" })),
+      Effect.succeed(words(takeaway)),
+      Deferred.await(next),
+      Effect.succeed(words(takeaway)),
+      done,
+    ])
+
+  it.effect("sends the first chart and its takeaway before the second is fetched", () =>
+    Effect.gen(function* () {
+      const next = yield* Deferred.make<ReadonlyArray<Response.PartEncoded>>()
+      const model = twoCharts(next)
+
+      return yield* Effect.gen(function* () {
+        const first = yield* ask("Life expectancy in Brazil, and its change").pipe(
+          Effect.flatMap((steps) => steps.pipe(Stream.takeUntil(firstWritten), Stream.runCollect)),
+        )
+
+        expect(first.filter(isDrawn)).toEqual([drew(running), drew(Explained.make({ takeaway }))])
+        expect(first.filter(isFetch).map((step) => step.id)).not.toContain("chart-2")
+
+        const following = yield* follow
+
+        yield* Deferred.succeed(next, call("show_chart", change, { step: "chart-2" }))
+
+        expect((yield* Stream.runCollect(following)).at(-1)).toEqual(
+          charted({ view: brazilTrend, takeaway }, { view: brazilChange, takeaway }),
+        )
+      }).pipe(Effect.provide(serveApi(model.layer)))
+    }),
+  )
+
+  it.effect("sends a follower who joins late the charts drawn so far", () =>
+    Effect.gen(function* () {
+      const next = yield* Deferred.make<ReadonlyArray<Response.PartEncoded>>()
+      const model = twoCharts(next)
+
+      return yield* Effect.gen(function* () {
+        // The visitor sees the first chart, then closes the tab.
+        yield* ask("Life expectancy in Brazil, and its change").pipe(
+          Effect.flatMap((steps) => steps.pipe(Stream.takeUntil(firstWritten), Stream.runDrain)),
+        )
+
+        const following = yield* follow
+
+        yield* Deferred.succeed(next, call("show_chart", change, { step: "chart-2" }))
+
+        expect((yield* Stream.runCollect(following)).reduce(put<Step>, []).filter(isDrawn)).toEqual(
+          [
+            drew(Explained.make({ takeaway })),
+            drew(Explained.make({ takeaway }), { chart: 1, view: brazilChange }),
+          ],
+        )
+      }).pipe(Effect.provide(serveApi(model.layer)))
+    }),
+  )
+
+  it.effect("keeps the charts drawn before a stop, with their takeaways", () => {
+    // The model decides on a second chart until the stop.
+    const model = scripted([
+      Effect.succeed(call("show_chart", brazil)),
+      Effect.succeed(words(takeaway)),
+      Effect.never,
+    ])
+
+    const stopped = Stopped.make({ charts: [{ view: brazilTrend, takeaway }] })
+
+    return Effect.gen(function* () {
+      // The person sees the first chart, then stops the answer.
+      yield* ask("Life expectancy in Brazil, and its change").pipe(
+        Effect.flatMap((steps) => steps.pipe(Stream.takeUntil(firstWritten), Stream.runDrain)),
+      )
+
+      const following = yield* follow
+
+      yield* stop
+
+      expect((yield* Stream.runCollect(following)).at(-1)).toEqual(stopped)
+      expect((yield* turns).answered[0]?.answer).toEqual(stopped)
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("keeps a chart stopped while its takeaway was written, without one", () => {
+    const model = scripted([Effect.succeed(call("show_chart", brazil)), Effect.never])
+
+    return Effect.gen(function* () {
+      yield* ask("Life expectancy in Brazil").pipe(
+        Effect.flatMap((steps) => steps.pipe(Stream.takeUntil(isDrawn), Stream.runDrain)),
+      )
+
+      const following = yield* follow
+
+      yield* stop
+
+      expect((yield* Stream.runCollect(following)).slice(-2)).toEqual([
+        drew(Halted.make({})),
+        Stopped.make({ charts: [{ view: brazilTrend }] }),
+      ])
+      expect((yield* turns).answered[0]?.answer).toEqual(
+        Stopped.make({ charts: [{ view: brazilTrend }] }),
+      )
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
 })
 
 describe("explaining a chart", () => {

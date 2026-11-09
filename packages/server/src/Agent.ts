@@ -10,7 +10,9 @@ import {
   Definition,
   type Dimension,
   type DimensionsMissing,
+  Drawn,
   Dropped,
+  Explained,
   Failed,
   Fetch,
   Fetched,
@@ -151,7 +153,9 @@ class Report extends Context.Service<Report, (step: Work) => Effect.Effect<void>
 
 // Whether the answer's current round has drawn a chart. A round draws one at
 // most, so the model writes each chart's takeaway before it draws the next.
-class Drawn extends Context.Service<Drawn, Ref.Ref<boolean>>()("@civicdata/server/Agent/Drawn") {}
+class Drawing extends Context.Service<Drawing, Ref.Ref<boolean>>()(
+  "@civicdata/server/Agent/Drawing",
+) {}
 
 // Why a step failed.
 type Reason = typeof Failed.Type.reason
@@ -304,7 +308,7 @@ const ShowChart = Tool.make("show_chart", {
   }),
   success: Schema.Union([Shown, Refused]),
   failure: SourceUnavailable,
-  dependencies: [Report, Drawn],
+  dependencies: [Report, Drawing],
 })
 
 const Tools = Toolkit.make(SearchIndicators, DescribeIndicator, FindCountries, ShowChart, AskUser)
@@ -666,9 +670,9 @@ const ToolsLayer = Tools.toLayer(
       // refused frees the round for another.
       show_chart: (draft, { toolCallId }) =>
         Effect.gen(function* () {
-          const drawn = yield* Drawn
+          const drawing = yield* Drawing
 
-          if (yield* Ref.getAndSet(drawn, true)) {
+          if (yield* Ref.getAndSet(drawing, true)) {
             return rejected(
               "Show one chart at a time. Write the takeaway of the chart shown, then call show_chart for the next one.",
             )
@@ -676,7 +680,7 @@ const ToolsLayer = Tools.toLayer(
 
           const result = yield* draw(draft, toolCallId)
 
-          if (!isShown(result)) yield* Ref.set(drawn, false)
+          if (!isShown(result)) yield* Ref.set(drawing, false)
 
           return result
         }),
@@ -809,7 +813,7 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
         const send = (step: Step) => Effect.sync(() => Queue.offerUnsafe(queue, step))
 
         const thinking = yield* Ref.make(Option.none<StepId>())
-        const drawn = yield* Ref.make(false)
+        const drawing = yield* Ref.make(false)
 
         // Ends the Thinking step, if one runs, in `state`.
         const think = (state: typeof Thinking.Type.state) =>
@@ -824,16 +828,22 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
 
         const report = Report.of((step) => think(Thought.make({})).pipe(Effect.andThen(send(step))))
 
-        // The takeaway of the chart at `place` in the answer, reported as a
+        // The chart at `place` in the answer, sent as soon as it is drawn,
+        // then again with the takeaway it kept. Writing the takeaway is a
         // step of its own.
         const explained = Effect.fnUntraced(function* (shown: typeof Shown.Type, place: number) {
+          const drawn = (state: typeof Drawn.Type.state) =>
+            send(Drawn.make({ id: StepId.make(`drawn-${place}`), view: shown.view, state }))
+
           const id = StepId.make(`takeaway-${place}`)
 
+          yield* drawn(Running.make({}))
           yield* send(Takeaway.make({ id, state: Running.make({}) }))
 
           const { chart, state } = yield* takeaway(chat, shown)
 
           yield* send(Takeaway.make({ id, state }))
+          yield* drawn(Explained.make(Struct.omit(chart, ["view"])))
 
           return chart
         })
@@ -850,7 +860,7 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
             const id = StepId.make(`thinking-${round}`)
 
             yield* Ref.set(thinking, Option.some(id))
-            yield* Ref.set(drawn, false)
+            yield* Ref.set(drawing, false)
             yield* send(Thinking.make({ id, state: Running.make({}) }))
 
             const response = yield* chat.generateText({
@@ -881,7 +891,7 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
         yield* decided.pipe(
           Effect.flatMap(send),
           Effect.provideService(Report, report),
-          Effect.provideService(Drawn, drawn),
+          Effect.provideService(Drawing, drawing),
           Effect.provideService(LanguageModel.LanguageModel, model),
           Effect.catchTag("AiError", (error) =>
             Effect.logWarning("Language model failed", error.reason).pipe(

@@ -1,6 +1,9 @@
-import { type ConversationId, type Turn, TurnIndex } from "@civicdata/domain"
+import { type ConversationId, Drawn, type Turn, TurnIndex } from "@civicdata/domain"
+import { Schema } from "effect"
 import { Fragment } from "react"
 
+import { Charts } from "./Charts.tsx"
+import { Drawing } from "./Drawing.tsx"
 import { FailedQuestion } from "./Problem.tsx"
 import { Question } from "./Question.tsx"
 import { Reply } from "./Reply.tsx"
@@ -17,9 +20,12 @@ interface TimelineProps {
   answering: boolean
 }
 
+const isDrawn = Schema.is(Drawn)
+
 // The turns of a conversation, oldest first, then the one being answered.
 // An answered turn folds the agent's steps under its answer; a failed one
-// keeps them open above the problem.
+// keeps them open above the problem. The one being answered shows each chart
+// under the running steps as soon as the agent draws it.
 export const Timeline = ({ id, turns, pending, failures, retry, answering }: TimelineProps) => (
   <ol aria-label="Questions and answers" className="flex flex-col gap-8">
     {Array.from({ length: turns.length + 1 }, (_, index) => (
@@ -54,6 +60,13 @@ export const Timeline = ({ id, turns, pending, failures, retry, answering }: Tim
         <Question text={pending.question} />
         <Agent>
           <Working steps={pending.steps} started={pending.started} />
+          {pending.steps.some(isDrawn) ? (
+            <Charts
+              charts={pending.steps.filter(isDrawn).map((step) => (
+                <Drawing key={step.id} step={step} />
+              ))}
+            />
+          ) : null}
         </Agent>
       </li>
     )}
