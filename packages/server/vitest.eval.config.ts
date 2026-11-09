@@ -33,6 +33,7 @@ export default defineConfig({
       },
     }),
   ],
-  // The World Bank stalls on some requests when asked many at once.
-  test: { include: ["eval/**/*.eval.ts"], testTimeout: 180_000, maxConcurrency: 2 },
+  // The World Bank stalls on some requests when asked many at once. A case
+  // waits up to three minutes for the OECD's request budget (agent.eval.ts).
+  test: { include: ["eval/**/*.eval.ts"], testTimeout: 360_000, maxConcurrency: 2 },
 })

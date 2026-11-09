@@ -10,12 +10,22 @@ import {
 } from "@civicdata/domain"
 import { Array as Arr, Data, Match, Schema } from "effect"
 
-// What a chart in a case must show. Any of `indicators` is right, since some
-// questions fit close indicators equally well. Countries must match as a set.
-// No `transform` means values as published. Years left out are not scored:
+// Series of an SDMX dataflow that answer a question: the values the chart may
+// pick of each dimension named, e.g. { sex: ["T"], age: ["Y15-74"] }. A
+// dimension left out is not scored.
+interface Series {
+  readonly indicator: string
+  readonly dimensions: Readonly<Record<string, Arr.NonEmptyReadonlyArray<string>>>
+}
+
+// What a chart in a case must show. Any of `indicators`, World Bank codes, or
+// of `series`, Eurostat and OECD ones, is right, since some questions fit
+// close indicators equally well. Countries must match as a set. No
+// `transform` means values as published. Years left out are not scored:
 // without years in the question, the default range moves with the calendar.
 interface Chart {
-  readonly indicators: Arr.NonEmptyReadonlyArray<string>
+  readonly indicators?: ReadonlyArray<string>
+  readonly series?: ReadonlyArray<Series>
   readonly countries: ReadonlyArray<Country>
   readonly transform?: Transform
 }
@@ -67,6 +77,19 @@ const isAnswered = Schema.is(Answered)
 const isAsked = Schema.is(Asked)
 const isUnanswered = Schema.is(Unanswered)
 
+// How the chart's picks differ from the series wanted, one line per dimension.
+const seriesDifferences = (view: View, wanted: Series): ReadonlyArray<string> => {
+  const picks = new Map<string, string>(Object.entries(view.dimensions ?? {}))
+
+  return Object.entries(wanted.dimensions).flatMap(([dimension, codes]) => {
+    const picked = picks.get(dimension)
+
+    return picked !== undefined && codes.includes(picked)
+      ? []
+      : [`${dimension} ${picked ?? "none"}, want ${codes.join(" or ")}`]
+  })
+}
+
 const sameCountries = (got: ReadonlyArray<Country>, want: ReadonlyArray<Country>) =>
   got.length === want.length && want.every((country) => got.includes(country))
 
@@ -76,11 +99,12 @@ const compare = (view: View, want: Chart & Parts): ReadonlyArray<string> => {
 
   if (got.chart !== want.chart) return [`a ${got.chart}, want a ${want.chart}`]
 
+  const series = want.series ?? []
+  const codes = [...(want.indicators ?? []), ...series.map(({ indicator }) => indicator)]
+  const wanted = series.find(({ indicator }) => indicator === view.indicator)
+
   const checks: ReadonlyArray<readonly [boolean, string]> = [
-    [
-      want.indicators.includes(view.indicator),
-      `indicator ${view.indicator}, want ${want.indicators.join(" or ")}`,
-    ],
+    [codes.includes(view.indicator), `indicator ${view.indicator}, want ${codes.join(" or ")}`],
     [
       sameCountries(view.countries, want.countries),
       `countries ${view.countries.join(", ")}, want ${want.countries.join(", ")}`,
@@ -93,7 +117,10 @@ const compare = (view: View, want: Chart & Parts): ReadonlyArray<string> => {
     [want.to === undefined || got.to === want.to, `to ${got.to}, want ${want.to}`],
   ]
 
-  return checks.flatMap(([right, difference]) => (right ? [] : [difference]))
+  return [
+    ...checks.flatMap(([right, difference]) => (right ? [] : [difference])),
+    ...(wanted === undefined ? [] : seriesDifferences(view, wanted)),
+  ]
 }
 
 const differencesFrom = (expected: Expected, ending: Ending): ReadonlyArray<string> => {

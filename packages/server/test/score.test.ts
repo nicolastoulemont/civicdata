@@ -1,4 +1,14 @@
-import { Answered, Asked, IndicatorId, Ranking, Trend, Unanswered, Year } from "@civicdata/domain"
+import {
+  Answered,
+  Asked,
+  Dimensions,
+  IndicatorId,
+  Ranking,
+  Trend,
+  Unanswered,
+  Year,
+} from "@civicdata/domain"
+import { Schema } from "effect"
 import { describe, expect, it } from "vitest"
 
 import { Expected, score } from "../eval/score.ts"
@@ -67,5 +77,58 @@ describe("score", () => {
       'the question "Which GDP?", want no chart',
     ])
     expect(score([expected], Unanswered.make({}))).toEqual(["no chart, want a trend"])
+  })
+
+  describe("series", () => {
+    const unemployment = IndicatorId.make("ESTAT,UNE_RT_A,1.0")
+
+    const sdmx = (dimensions: Record<string, string>) =>
+      trend({ indicator: unemployment, dimensions: Schema.decodeSync(Dimensions)(dimensions) })
+
+    const wants = Expected.Trend({
+      ...expected,
+      indicators: ["SL.UEM.TOTL.ZS"],
+      series: [
+        {
+          indicator: unemployment,
+          dimensions: { age: ["Y15-74", "Y15-64"], sex: ["T"], unit: ["PC_ACT"] },
+        },
+      ],
+    })
+
+    it("accepts the series the case names, whatever else the chart picks", () => {
+      expect(score([wants], sdmx({ age: "Y15-74", sex: "T", unit: "PC_ACT", extra: "X" }))).toEqual(
+        [],
+      )
+    })
+
+    it("accepts any of the values a dimension lists", () => {
+      expect(score([wants], sdmx({ age: "Y15-64", sex: "T", unit: "PC_ACT" }))).toEqual([])
+    })
+
+    it("names each dimension whose pick differs or is missing", () => {
+      expect(score([wants], sdmx({ age: "Y15-24", sex: "T" }))).toEqual([
+        "age Y15-24, want Y15-74 or Y15-64",
+        "unit none, want PC_ACT",
+      ])
+    })
+
+    it("scores no series of an indicator listed without them", () => {
+      const plain = Expected.Trend({ ...expected, indicators: [unemployment] })
+
+      expect(score([plain], sdmx({ age: "Y15-24" }))).toEqual([])
+    })
+
+    it("scores no series of an indicator the case does not accept", () => {
+      const other = Expected.Trend({
+        ...expected,
+        indicators: [],
+        series: [{ indicator: "ESTAT,TIPSUN20,1.0", dimensions: { age: ["Y15-74"] } }],
+      })
+
+      expect(score([other], sdmx({ age: "Y15-24" }))).toEqual([
+        `indicator ${unemployment}, want ESTAT,TIPSUN20,1.0`,
+      ])
+    })
   })
 })
