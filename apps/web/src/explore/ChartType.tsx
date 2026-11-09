@@ -18,9 +18,14 @@ const choices = [
   },
 ] as const
 
+interface ChartTypeProps {
+  view: View
+  onChange: (view: View) => void
+}
+
 // How the View is drawn: lines over years, bars or a map ranking one year, a
 // change between two years, or one indicator against another.
-export const ChartType = ({ view, onChange }: { view: View; onChange: (view: View) => void }) => (
+export const ChartType = ({ view, onChange }: ChartTypeProps) => (
   <ToggleGroup
     aria-label="Chart type"
     variant="outline"

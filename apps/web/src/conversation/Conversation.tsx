@@ -8,9 +8,14 @@ import { QuestionForm } from "./QuestionForm.tsx"
 import { Timeline } from "./Timeline.tsx"
 import { useConversation } from "./useConversation.ts"
 
+interface ConversationProps {
+  id: ConversationId
+  first: string | undefined
+}
+
 // A conversation with the agent, newest question last. `first` is a question
 // to ask as soon as the conversation opens: the one typed on the home page.
-export const Conversation = ({ id, first }: { id: ConversationId; first: string | undefined }) => {
+export const Conversation = ({ id, first }: ConversationProps) => {
   const { turns, pending, answering, ask } = useConversation(id)
   const sent = useRef(false)
 

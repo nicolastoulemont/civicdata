@@ -84,9 +84,13 @@ const csv = ({ columns, rows }: ReturnType<typeof tableOf>) =>
     ),
   ].join("\n")
 
+interface DataProps {
+  resolved: ResolvedView
+}
+
 // Level 3: every observation behind the chart, as a table and a CSV, with the
 // exact request made to the source.
-export const Data = ({ resolved }: { resolved: ResolvedView }) => {
+export const Data = ({ resolved }: DataProps) => {
   const table = tableOf(resolved)
 
   return (

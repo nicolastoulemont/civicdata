@@ -12,15 +12,13 @@ import {
 
 import { withPick } from "./edits.ts"
 
-const Pick = ({
-  dimension,
-  value,
-  onChange,
-}: {
+interface PickProps {
   dimension: Dimension
   value: Code | undefined
   onChange: (code: Code) => void
-}) => {
+}
+
+const Pick = ({ dimension, value, onChange }: PickProps) => {
   const id = useId()
 
   return (
@@ -48,17 +46,15 @@ const Pick = ({
   )
 }
 
-// One select per dimension an SDMX indicator's series differ by, such as sex
-// or age, showing the value the View picks.
-export const Dimensions = ({
-  view,
-  dimensions,
-  onChange,
-}: {
+interface DimensionsProps {
   view: View
   dimensions: ReadonlyArray<Dimension>
   onChange: (view: View) => void
-}) =>
+}
+
+// One select per dimension an SDMX indicator's series differ by, such as sex
+// or age, showing the value the View picks.
+export const Dimensions = ({ view, dimensions, onChange }: DimensionsProps) =>
   dimensions.map((dimension) => (
     <Pick
       key={dimension.id}

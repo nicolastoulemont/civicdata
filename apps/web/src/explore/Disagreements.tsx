@@ -5,10 +5,14 @@ import { countryName, formatValue, page } from "./format.ts"
 // How many of a source's differing values the note spells out.
 const shown = 4
 
+interface DisagreementsProps {
+  resolved: ResolvedView
+}
+
 // Under the chart, the other sources whose values for the same figure differ
 // from the chart's, each cited with its dataset: "Eurostat, Unemployment by
 // sex and age: France 2022 7.3 (chart: 7.9)". Nothing when they agree.
-export const Disagreements = ({ resolved }: { resolved: ResolvedView }) => {
+export const Disagreements = ({ resolved }: DisagreementsProps) => {
   if (resolved.disagreements.length === 0) return null
 
   const ours = new Map(

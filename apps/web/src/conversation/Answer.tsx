@@ -29,9 +29,13 @@ import { toSearch } from "@/explore/search"
 
 import { Actions } from "./Row.tsx"
 
+interface AnswerProps {
+  view: View
+}
+
 // The chart that answered a question, with its source, then links to change
 // it in the explorer and to share it.
-export const Answer = ({ view }: { view: View }) => {
+export const Answer = ({ view }: AnswerProps) => {
   const query = useQuery(resolveQuery(view))
   const known = indicatorNames(query.data === undefined ? [] : [query.data])
   const shows = transformLabel(view, known)

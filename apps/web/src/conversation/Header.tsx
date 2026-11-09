@@ -9,9 +9,13 @@ import {
 } from "@/components/ui/breadcrumb"
 import { buttonVariants } from "@/components/ui/button"
 
+interface HeaderProps {
+  title: string | undefined
+}
+
 // Names the conversation by its first question, cut to one line, under the
 // site. A conversation with no question yet is just "Conversation".
-export const Header = ({ title }: { title: string | undefined }) => (
+export const Header = ({ title }: HeaderProps) => (
   <header className="flex items-center justify-between gap-4 px-3 py-3 sm:px-12">
     <Breadcrumb className="min-w-0">
       <BreadcrumbList className="flex-nowrap">

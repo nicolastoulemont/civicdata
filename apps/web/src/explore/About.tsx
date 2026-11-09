@@ -7,8 +7,12 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 
 import { indicators, page, retrieved } from "./format.ts"
 
+interface AboutProps {
+  resolved: ResolvedView
+}
+
 // Level 1: what the indicators measure and where they come from.
-export const About = ({ resolved }: { resolved: ResolvedView }) => (
+export const About = ({ resolved }: AboutProps) => (
   <Collapsible className="rounded-lg border">
     <CollapsibleTrigger
       className={buttonVariants({ variant: "ghost", className: "w-full justify-between" })}

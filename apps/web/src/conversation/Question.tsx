@@ -8,7 +8,11 @@ import { Actions, Author } from "./Row.tsx"
 
 const labels = { copied: "Copied", failed: "Could not copy" } as const
 
-const CopyQuestion = ({ text }: { text: string }) => {
+interface CopyQuestionProps {
+  text: string
+}
+
+const CopyQuestion = ({ text }: CopyQuestionProps) => {
   const { outcome, copy } = useCopy(text)
   const label = outcome === undefined ? "Copy question" : labels[outcome]
 
@@ -26,8 +30,12 @@ const CopyQuestion = ({ text }: { text: string }) => {
   )
 }
 
+interface QuestionProps {
+  text: string
+}
+
 // A question the visitor asked: a bubble on the right of the lane.
-export const Question = ({ text }: { text: string }) => (
+export const Question = ({ text }: QuestionProps) => (
   <div className="group flex flex-col items-end gap-1">
     <Author>You</Author>
     <p className="max-w-4/5 min-w-0 rounded-2xl bg-message-surface px-4 py-3 wrap-break-word whitespace-pre-wrap">

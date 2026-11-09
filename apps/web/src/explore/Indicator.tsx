@@ -36,19 +36,17 @@ const statusOf = (text: string, search: UseQueryResult<ReadonlyArray<CatalogEntr
   return search.data.length === 0 ? "No indicator matches." : null
 }
 
-// Switches the chart to another indicator found by name, definition or code.
-// The current indicator stays among the options so it remains selected while
-// search results change.
-export const Indicator = ({
-  label = "Indicator",
-  current,
-  onChange,
-}: {
+interface IndicatorProps {
   // Names which of the chart's indicators this picks, e.g. "Against".
   label?: string
   current: { readonly indicator: IndicatorId; readonly name: string }
   onChange: (picked: { readonly id: IndicatorId; readonly name: string }) => void
-}) => {
+}
+
+// Switches the chart to another indicator found by name, definition or code.
+// The current indicator stays among the options so it remains selected while
+// search results change.
+export const Indicator = ({ label = "Indicator", current, onChange }: IndicatorProps) => {
   const id = useId()
   const [text, setText] = useState("")
   const search = useQuery(searchQuery(useDeferredValue(text.trim())))

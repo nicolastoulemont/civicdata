@@ -30,21 +30,17 @@ const byYear = (observations: ResolvedView["observations"]) => {
   return [...rows.values()].toSorted((left, right) => left.year - right.year)
 }
 
-// A dot on a point its source flags, and nothing on the others. Recharts
-// passes each point's position and row.
-const Marked = ({
-  country,
-  flagged,
-  cx,
-  cy,
-  payload,
-}: {
+interface MarkedProps {
   country: Country
   flagged: ReadonlySet<string>
   cx?: number
   cy?: number
   payload?: Point
-}) =>
+}
+
+// A dot on a point its source flags, and nothing on the others. Recharts
+// passes each point's position and row.
+const Marked = ({ country, flagged, cx, cy, payload }: MarkedProps) =>
   payload !== undefined && flagged.has(`${country}:${payload.year}`) ? (
     <circle
       cx={cx}
@@ -66,19 +62,17 @@ export interface History {
   readonly onChange: (years: Years) => void
 }
 
-// One line per country. With a history, a window under the chart picks its
-// years; the value scale then fits the whole history, so it stays put while
-// the window moves.
-export const TrendChart = ({
-  resolved,
-  trend,
-  history,
-}: {
+interface TrendChartProps {
   resolved: ResolvedView
   // The trend on screen, which `resolved` may not have caught up with yet.
   trend: Trend
   history?: History | undefined
-}) => {
+}
+
+// One line per country. With a history, a window under the chart picks its
+// years; the value scale then fits the whole history, so it stays put while
+// the window moves.
+export const TrendChart = ({ resolved, trend, history }: TrendChartProps) => {
   // The points a source flags get a dot; the note under the chart says why.
   const flagged = new Set(
     resolved.observations.flatMap(({ country, year, flags }) =>

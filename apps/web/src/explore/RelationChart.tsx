@@ -11,9 +11,13 @@ import { countryName, formatCompact } from "./format.ts"
 import { type Paired, pairs } from "./points.ts"
 import { around } from "./scale.ts"
 
+interface RelationChartProps {
+  resolved: Paired
+}
+
 // A dot per country: the indicator up the side, the one it is plotted against
 // along the bottom.
-export const RelationChart = ({ resolved }: { resolved: Paired }) => {
+export const RelationChart = ({ resolved }: RelationChartProps) => {
   const points = pairs(resolved).map(({ country, x, y }) => ({
     country,
     x,

@@ -19,17 +19,14 @@ export const range = (from: number, to: number) =>
 // inside render: Workers freeze the clock at module scope.
 export const years = () => range(first, new Date().getUTCFullYear())
 
-export const YearSelect = ({
-  label,
-  value,
-  options,
-  onChange,
-}: {
+interface YearSelectProps {
   label: string
   value: Year
   options: ReadonlyArray<Year>
   onChange: (year: Year) => void
-}) => {
+}
+
+export const YearSelect = ({ label, value, options, onChange }: YearSelectProps) => {
   const id = useId()
 
   return (

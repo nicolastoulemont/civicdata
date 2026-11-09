@@ -8,6 +8,13 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group"
 
+interface QuestionFormProps {
+  label: string
+  placeholder: string
+  disabled?: boolean
+  onAsk: (question: string) => void
+}
+
 // A question box. `onAsk` gets the question; the box then empties for the next
 // one. While `disabled`, the button cannot send.
 export const QuestionForm = ({
@@ -15,12 +22,7 @@ export const QuestionForm = ({
   placeholder,
   disabled = false,
   onAsk,
-}: {
-  label: string
-  placeholder: string
-  disabled?: boolean
-  onAsk: (question: string) => void
-}) => {
+}: QuestionFormProps) => {
   const [question, setQuestion] = useState("")
 
   return (

@@ -16,9 +16,14 @@ import { around } from "./scale.ts"
 
 const row = 36
 
+interface ChangeChartProps {
+  resolved: ResolvedView
+  change: Change
+}
+
 // One row per country, the largest rise first: a dot for each year, joined by
 // a thin bar from the lower value to the higher.
-export const ChangeChart = ({ resolved, change }: { resolved: ResolvedView; change: Change }) => {
+export const ChangeChart = ({ resolved, change }: ChangeChartProps) => {
   const config = {
     from: { label: `${change.from}`, color: "var(--chart-2)" },
     to: { label: `${change.to}`, color: "var(--chart-5)" },
