@@ -52,6 +52,8 @@ Trend charts can mark each country's national elections and shade who governed i
 
 PPEG counts within its coverage, ParlGov fills the years before it, and records checked by hand follow both. PPEG and ParlGov can date the same election differently (France's first or second round), so they are never added together. The sources record when a government starts, never when it ends: it ends when the next starts. No winner or coalition is inferred from an election. European Parliament elections are left out. The chart credits PPEG and ParlGov with the citations they ask for.
 
+The same route answers major events and pension reforms from a snapshot checked in beside the official pages (`events.json`, `reforms.json`, ported from countries-comparison; see `official/README.md`). Every record cites at least one https page, which the card's source line links. An event shows on a country's chart only if it concerns that country, and a reform only on a chart of its policy area: `areas` in `packages/domain/src/Politics.ts` lists the Eurostat and OECD indicators of each. No build stores them, but the route still answers "unavailable" until the first build stores elections and governments.
+
 To rebuild a deployed stage by hand, start an instance from the Cloudflare dashboard (Workers & Pages, Workflows, `civicdata-<stage>-catalog`) or with `POST /accounts/<account>/workflows/civicdata-<stage>-catalog/instances`.
 
 ### Agent eval

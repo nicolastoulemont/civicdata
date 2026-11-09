@@ -1,4 +1,14 @@
-import type { Country, Election, Government, ResolvedView, Trend } from "@civicdata/domain"
+import {
+  type Country,
+  type Election,
+  type Event,
+  type Government,
+  type Reform,
+  type ResolvedView,
+  type Trend,
+  When,
+  yearOf,
+} from "@civicdata/domain"
 import { Match } from "effect"
 import { type ComponentProps, useState } from "react"
 import {
@@ -22,7 +32,18 @@ import {
 
 import { countryName, formatCompact } from "./format.ts"
 import { fill, slot } from "./palette.ts"
-import { governing, span, type Term, terms, votedIn, voting } from "./politics.ts"
+import {
+  cited,
+  governing,
+  happening,
+  reformed,
+  span,
+  spanOf,
+  type Term,
+  terms,
+  votedIn,
+  voting,
+} from "./politics.ts"
 import { type Years, YearWindow } from "./YearWindow.tsx"
 
 type Point = { readonly year: number } & Partial<Record<Country, number>>
@@ -71,31 +92,40 @@ export interface History {
   readonly onChange: (years: Years) => void
 }
 
-// The years a term spans that the chart shows, as the first and last year
-// on its axis; none when the chart shows none of them.
-const bandOf = (term: Term, shown: ReadonlyArray<number>) => {
-  const { from, to } = span(term)
+// The years of a span that the chart shows, as the first and last year on
+// its axis; none when the chart shows none of them.
+const within = ({ from, to }: { from: number; to: number }, shown: ReadonlyArray<number>) => {
   const x1 = shown.find((year) => year >= from)
   const x2 = shown.findLast((year) => year <= to)
 
-  return x1 === undefined || x2 === undefined || x1 > x2 ? [] : [{ term, x1, x2 }]
+  return x1 === undefined || x2 === undefined || x1 > x2 ? [] : [{ x1, x2 }]
 }
 
 interface PoliticsProps {
   terms: ReadonlyArray<Term>
   elections: ReadonlyArray<Election>
+  events: ReadonlyArray<Event>
+  reforms: ReadonlyArray<Reform>
   countries: ReadonlyArray<Country>
   year: number
 }
 
-// Who governed each country in the hovered year and the elections it held,
-// under its values. Nothing when the chart shows neither.
-const Politics = ({ terms: all, elections, countries, year }: PoliticsProps) => {
-  const lines = countries.flatMap((country) =>
-    [...governing(all, country, year), ...voting(elections, country, year)].map((line) =>
-      countries.length === 1 ? line : `${countryName(country)}: ${line}`,
+// Who governed each country in the hovered year, the elections it held and
+// the reforms it made, then the events of the year, under its values.
+// Nothing when the chart shows none of them.
+const Politics = ({ terms: all, elections, events, reforms, countries, year }: PoliticsProps) => {
+  const pages = cited([...events, ...reforms])
+
+  const lines = [
+    ...countries.flatMap((country) =>
+      [
+        ...governing(all, country, year),
+        ...voting(elections, country, year),
+        ...reformed(reforms, { country, shown: year, pages }),
+      ].map((line) => (countries.length === 1 ? line : `${countryName(country)}: ${line}`)),
     ),
-  )
+    ...happening(events, { countries, shown: year, pages }),
+  ]
 
   return lines.length === 0 ? null : (
     <ul className="grid max-w-72 gap-1 border-t pt-1.5 text-muted-foreground">
@@ -114,28 +144,107 @@ interface TipProps
     Omit<PoliticsProps, "year"> {}
 
 // The values of the hovered year and the political context of that year.
-const Tip = ({ terms: all, elections, countries, ...tooltip }: TipProps) => (
+const Tip = ({ terms: all, elections, events, reforms, countries, ...tooltip }: TipProps) => (
   <ChartTooltipContent {...tooltip}>
     <Politics
       terms={all}
       elections={elections}
+      events={events}
+      reforms={reforms}
       countries={countries}
       year={Number(tooltip.label)}
     />
   </ChartTooltipContent>
 )
 
-const none: ReadonlyArray<Election> = []
+const none: ReadonlyArray<never> = []
+
+interface CaptionOptions extends Record<
+  "bands" | "markers" | "periods" | "moments" | "reforming",
+  ReadonlyArray<unknown>
+> {
+  countries: ReadonlyArray<Country>
+}
+
+// What the chart shows, for a screen reader: "Line chart of Unemployment for
+// Spain, shaded by head of government, with election years marked".
+const caption = (
+  title: string,
+  { countries, bands, markers, periods, moments, reforming }: CaptionOptions,
+) =>
+  [
+    `Line chart of ${title} for ${countries.map(countryName).join(", ")}`,
+    ...(bands.length > 0 ? ["shaded by head of government"] : []),
+    ...(markers.length > 0 ? ["with election years marked"] : []),
+    ...(periods.length + moments.length > 0 ? ["with events marked"] : []),
+    ...(reforming.length > 0 ? ["with reforms marked"] : []),
+  ].join(", ")
+
+interface OverlaysOptions {
+  // The years on the chart's axis, oldest first.
+  axis: ReadonlyArray<number>
+  countries: ReadonlyArray<Country>
+  heads: ReadonlyArray<Term>
+  elections: ReadonlyArray<Election>
+  events: ReadonlyArray<Event>
+  reforms: ReadonlyArray<Reform>
+}
+
+// Where the political context goes on a chart's axis: a band per head of
+// government on a chart of one country (bands of several would overlap), a
+// marker per country and year it voted in, a band per event period (one
+// still going on runs to the chart's end), a marker per year of a dated
+// event, and a marker per country and year it reformed.
+const overlays = ({ axis, countries, heads, elections, events, reforms }: OverlaysOptions) => {
+  const shown = new Set(axis)
+  const last = axis.at(-1) ?? 0
+
+  const reformedIn = (country: Country) =>
+    reforms.flatMap((reform) =>
+      reform.country === country && shown.has(yearOf(reform.date)) ? [yearOf(reform.date)] : [],
+    )
+
+  return {
+    bands:
+      countries.length === 1
+        ? heads.flatMap((term) => within(span(term), axis).map(({ x1, x2 }) => ({ term, x1, x2 })))
+        : [],
+    markers: countries.flatMap((country) =>
+      votedIn(elections, country).flatMap((year) => (shown.has(year) ? [{ country, year }] : [])),
+    ),
+    periods: events.flatMap((event) =>
+      When.match(event.when, {
+        Point: () => [],
+        Period: () => within(spanOf(event, last), axis).map(({ x1, x2 }) => ({ event, x1, x2 })),
+      }),
+    ),
+    moments: [
+      ...new Set(
+        events.flatMap((event) =>
+          When.match(event.when, {
+            Point: ({ at }) => (shown.has(yearOf(at.date)) ? [yearOf(at.date)] : []),
+            Period: () => [],
+          }),
+        ),
+      ),
+    ],
+    reforming: countries.flatMap((country) =>
+      [...new Set(reformedIn(country))].map((year) => ({ country, year })),
+    ),
+  }
+}
 
 interface TrendChartProps {
   resolved: ResolvedView
   // The trend on screen, which `resolved` may not have caught up with yet.
   trend: Trend
   history?: History | undefined
-  // The governments and elections of the trend's countries, when the chart
-  // shows them.
+  // The governments, elections, events and reforms of the trend's countries,
+  // when the chart shows them.
   governments?: ReadonlyArray<Government> | undefined
   elections?: ReadonlyArray<Election> | undefined
+  events?: ReadonlyArray<Event> | undefined
+  reforms?: ReadonlyArray<Reform> | undefined
 }
 
 // One line per country. With a history, a window under the chart picks its
@@ -144,13 +253,18 @@ interface TrendChartProps {
 // country in the hovered year, and a chart of one country is shaded in a
 // band per head of government. Bands of several countries would overlap.
 // With elections, a dashed line in each country's colour marks the years it
-// voted in, and the tooltip names the elections.
+// voted in, and the tooltip names the elections. With events, a light band
+// covers each period and a thin line marks each dated event, and a dotted
+// line in a country's colour marks each of its reforms; the tooltip names
+// them and numbers their sources in the card's source line.
 export const TrendChart = ({
   resolved,
   trend,
   history,
   governments,
   elections = none,
+  events = none,
+  reforms = none,
 }: TrendChartProps) => {
   // The points a source flags get a dot; the note under the chart says why.
   const flagged = new Set(
@@ -183,23 +297,14 @@ export const TrendChart = ({
   const rows = byYear(observations)
   const heads = governments === undefined ? [] : terms(governments)
 
-  const bands =
-    trend.countries.length === 1
-      ? heads.flatMap((term) =>
-          bandOf(
-            term,
-            rows.map((row) => row.year),
-          ),
-        )
-      : []
-
-  const shown = new Set(rows.map((row) => row.year))
-
-  const markers = trend.countries.flatMap((country) =>
-    votedIn(elections, country)
-      .filter((year) => shown.has(year))
-      .map((year) => ({ country, year })),
-  )
+  const { bands, markers, periods, moments, reforming } = overlays({
+    axis: rows.map((row) => row.year),
+    countries: trend.countries,
+    heads,
+    elections,
+    events,
+    reforms,
+  })
 
   const config: ChartConfig = Object.fromEntries(
     trend.countries.map((country, index) => [
@@ -210,7 +315,16 @@ export const TrendChart = ({
 
   return (
     <figure className="flex flex-col gap-3">
-      <figcaption className="sr-only">{`Line chart of ${resolved.title} for ${trend.countries.map(countryName).join(", ")}${bands.length > 0 ? ", shaded by head of government" : ""}${markers.length > 0 ? ", with election years marked" : ""}`}</figcaption>
+      <figcaption className="sr-only">
+        {caption(resolved.title, {
+          countries: trend.countries,
+          bands,
+          markers,
+          periods,
+          moments,
+          reforming,
+        })}
+      </figcaption>
       <ChartContainer config={config} className="aspect-auto h-80 w-full">
         <LineChart data={rows} accessibilityLayer>
           {bands.map(({ term, x1, x2 }, index) => (
@@ -235,7 +349,36 @@ export const TrendChart = ({
                 : {})}
             />
           ))}
+          {periods.map(({ event, x1, x2 }) => (
+            <ReferenceArea
+              key={event.id}
+              x1={x1}
+              x2={x2}
+              ifOverflow="hidden"
+              fill="var(--foreground)"
+              fillOpacity={0.05}
+            />
+          ))}
           <CartesianGrid vertical={false} />
+          {moments.map((year) => (
+            <ReferenceLine
+              key={`event ${year}`}
+              x={year}
+              stroke="var(--foreground)"
+              strokeOpacity={0.45}
+              ifOverflow="hidden"
+            />
+          ))}
+          {reforming.map(({ country, year }) => (
+            <ReferenceLine
+              key={`reform ${country} ${year}`}
+              x={year}
+              stroke={`var(--color-${country})`}
+              strokeDasharray="1 3"
+              strokeWidth={2}
+              ifOverflow="hidden"
+            />
+          ))}
           {markers.map(({ country, year }) => (
             <ReferenceLine
               key={`${country} ${year}`}
@@ -257,7 +400,15 @@ export const TrendChart = ({
             width={56}
           />
           <ChartTooltip
-            content={<Tip terms={heads} elections={elections} countries={trend.countries} />}
+            content={
+              <Tip
+                terms={heads}
+                elections={elections}
+                events={events}
+                reforms={reforms}
+                countries={trend.countries}
+              />
+            }
           />
           <ChartLegend content={<ChartLegendContent />} />
           {trend.countries.map((country) => (

@@ -1,0 +1,347 @@
+[
+  {
+    "id": "fr-pensions-1993-balladur",
+    "country": "FRA",
+    "area": "pensions",
+    "date": "1993-08-27",
+    "milestone": "adopted",
+    "name": "Balladur reform",
+    "summary": "Private-sector workers needed 40 years of contributions instead of 37.5 for a full pension, and the reference wage moved from the best 10 to the best 25 years, phased in by birth year.",
+    "sources": [
+      {
+        "publisher": "Légifrance",
+        "title": "Décret n° 93-1022 du 27 août 1993 relatif au calcul des pensions de retraite",
+        "url": "https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000000347819"
+      },
+      {
+        "publisher": "Légifrance",
+        "title": "Loi n° 93-936 du 22 juillet 1993 relative aux pensions de retraite et à la sauvegarde de la protection sociale",
+        "url": "https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000000545719"
+      }
+    ]
+  },
+  {
+    "id": "fr-pensions-2003-fillon",
+    "country": "FRA",
+    "area": "pensions",
+    "date": "2003-08-21",
+    "milestone": "adopted",
+    "name": "Fillon reform",
+    "summary": "Civil servants moved to the private sector's 40-year contribution period, the period then rose to 41 years by 2012, and the law added a reduction per missing quarter and early retirement for long careers.",
+    "sources": [
+      {
+        "publisher": "Légifrance",
+        "title": "Loi n° 2003-775 du 21 août 2003 portant réforme des retraites",
+        "url": "https://www.legifrance.gouv.fr/jorf/id/JORFSCTA000000893173"
+      }
+    ]
+  },
+  {
+    "id": "fr-pensions-2010-woerth",
+    "country": "FRA",
+    "area": "pensions",
+    "date": "2010-11-09",
+    "milestone": "adopted",
+    "name": "Woerth reform",
+    "summary": "The minimum pension age rose from 60 to 62 by four months per birth cohort, reaching 62 for people born from 1956, for pensions starting from July 2011.",
+    "sources": [
+      {
+        "publisher": "Légifrance",
+        "title": "Loi n° 2010-1330 du 9 novembre 2010 portant réforme des retraites",
+        "url": "https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000023022127"
+      }
+    ]
+  },
+  {
+    "id": "fr-pensions-2014-touraine",
+    "country": "FRA",
+    "area": "pensions",
+    "date": "2014-01-20",
+    "milestone": "adopted",
+    "name": "Touraine reform",
+    "summary": "The contribution period for a full pension rose by one quarter every three birth years, from 167 quarters for people born 1958 to 1960 to 172 quarters (43 years) for people born from 1973.",
+    "sources": [
+      {
+        "publisher": "Légifrance",
+        "title": "Loi n° 2014-40 du 20 janvier 2014 garantissant l'avenir et la justice du système de retraites",
+        "url": "https://www.legifrance.gouv.fr/jorf/id/JORFSCTA000028493484"
+      }
+    ]
+  },
+  {
+    "id": "fr-pensions-2023-age-64",
+    "country": "FRA",
+    "area": "pensions",
+    "date": "2023-04-14",
+    "milestone": "adopted",
+    "name": "Retirement age 64",
+    "summary": "The minimum pension age rose from 62 to 64 by three months per birth cohort from people born on 1 September 1961, reaching 64 for people born from 1968.",
+    "sources": [
+      {
+        "publisher": "Légifrance",
+        "title": "Loi n° 2023-270 du 14 avril 2023 de financement rectificative de la sécurité sociale pour 2023",
+        "url": "https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000047445077"
+      }
+    ]
+  },
+  {
+    "id": "de-pensions-2001-riester",
+    "country": "DEU",
+    "area": "pensions",
+    "date": "2001-06-26",
+    "milestone": "adopted",
+    "name": "Riester reform",
+    "summary": "Introduced state-subsidised voluntary private and occupational pensions, with allowances and a tax deduction, alongside a planned gradual fall in the statutory pension level.",
+    "sources": [
+      {
+        "publisher": "Deutscher Bundestag",
+        "title": "Wissenschaftliche Dienste, WD 6 - 3000 - 057/16 on the Altersvermögensgesetz of 26 June 2001",
+        "url": "https://www.bundestag.de/resource/blob/424074/b0267ea82ce53047b4ea8d7cbf4a22a4/WD-6-057-16-pdf-data.pdf"
+      },
+      {
+        "publisher": "gesetze-im-internet.de",
+        "title": "Altersvorsorgeverträge-Zertifizierungsgesetz (Article 7 of the Altersvermögensgesetz)",
+        "url": "https://www.gesetze-im-internet.de/altzertg/BJNR132200001.html"
+      }
+    ]
+  },
+  {
+    "id": "de-pensions-2007-retirement-67",
+    "country": "DEU",
+    "area": "pensions",
+    "date": "2007-04-20",
+    "milestone": "adopted",
+    "name": "Retirement at 67",
+    "summary": "Raises the standard retirement age from 65 to 67 in steps for people born from 1947 to 1964, starting in 2012, and adds a pension at 65 after 45 years of contributions.",
+    "sources": [
+      {
+        "publisher": "Deutsche Rentenversicherung",
+        "title": "rvRecht, commentary on § 235 SGB VI (RV-Altersgrenzenanpassungsgesetz of 20 April 2007)",
+        "url": "https://rvrecht.deutsche-rentenversicherung.de/SharedDocs/rvRecht/01_GRA_SGB/06_SGB_VI/pp_0226_250/gra_sgb006_p_0235.html"
+      }
+    ]
+  },
+  {
+    "id": "it-pensions-1992-amato",
+    "country": "ITA",
+    "area": "pensions",
+    "date": "1992-12-30",
+    "milestone": "adopted",
+    "name": "Amato reform",
+    "summary": "Raised old-age pension ages in steps, based pensionable pay on the last 10 years for workers with over 15 years of contributions, and indexed pensions to consumer prices from 1994.",
+    "sources": [
+      {
+        "publisher": "Normattiva",
+        "title": "Decreto legislativo 30 dicembre 1992, n. 503",
+        "url": "https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.legislativo:1992-12-30;503"
+      }
+    ]
+  },
+  {
+    "id": "it-pensions-1995-dini",
+    "country": "ITA",
+    "area": "pensions",
+    "date": "1995-08-08",
+    "milestone": "adopted",
+    "name": "Dini reform",
+    "summary": "New entrants moved to a notional defined-contribution formula; workers with under 18 years of contributions at the end of 1995 got a pro-rata mixed pension, others kept the earnings-based formula.",
+    "sources": [
+      {
+        "publisher": "Normattiva",
+        "title": "Legge 8 agosto 1995, n. 335",
+        "url": "https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:legge:1995-08-08;335"
+      }
+    ]
+  },
+  {
+    "id": "it-pensions-2011-fornero",
+    "country": "ITA",
+    "area": "pensions",
+    "date": "2011-12-06",
+    "milestone": "adopted",
+    "name": "Fornero reform",
+    "summary": "Applied the contributory formula to all workers for contributions from 2012, raised the old-age pension age toward 66, and linked every age and contribution requirement to life expectancy.",
+    "sources": [
+      {
+        "publisher": "Normattiva",
+        "title": "Decreto-legge 6 dicembre 2011, n. 201, art. 24, converted by Legge 22 dicembre 2011, n. 214",
+        "url": "https://www.normattiva.it/uri-res/N2Ls?urn:nir:stato:decreto.legge:2011-12-06;201~art24"
+      }
+    ]
+  },
+  {
+    "id": "se-pensions-1994-ndc-decision",
+    "country": "SWE",
+    "area": "pensions",
+    "date": "1994-06-08",
+    "milestone": "adopted",
+    "name": "NDC decision",
+    "summary": "The Riksdag approved guidelines for a new old-age pension system that replaced the defined-benefit ATP pension with notional defined-contribution income pensions and a funded premium pension.",
+    "sources": [
+      {
+        "publisher": "Riksdagen",
+        "title": "Betänkande 1993/94:SfU24 Reformering av det allmänna pensionssystemet",
+        "url": "https://www.riksdagen.se/sv/dokument-och-lagar/dokument/betankande/reformering-av-det-allmanna-pensionssystemet_gh01sfu24/"
+      },
+      {
+        "publisher": "Riksdagen",
+        "title": "Proposition 1994/95:41 Förändringar i finansieringen av det allmänna pensionssystemet",
+        "url": "https://www.riksdagen.se/sv/dokument-och-lagar/dokument/proposition/forandringar-i-finansieringen-av-det-allmanna_gi0341/"
+      }
+    ]
+  },
+  {
+    "id": "se-pensions-1999-ndc-start",
+    "country": "SWE",
+    "area": "pensions",
+    "date": "1999-01-01",
+    "milestone": "in-force",
+    "name": "NDC system starts",
+    "summary": "The income-based old-age pension law took effect, so pension rights in the new notional and premium accounts accrued from 1999 income; the first income pensions were paid from 2001.",
+    "sources": [
+      {
+        "publisher": "Riksdagen",
+        "title": "SFS 1998:675 Lag om införande av lagen (1998:674) om inkomstgrundad ålderspension",
+        "url": "https://data.riksdagen.se/dokument/sfs-1998-675.text"
+      },
+      {
+        "publisher": "Riksdagen",
+        "title": "SFS 1998:674 Lag om inkomstgrundad ålderspension",
+        "url": "https://data.riksdagen.se/dokument/sfs-1998-674.text"
+      }
+    ]
+  },
+  {
+    "id": "nl-pensions-2019-agreement",
+    "country": "NLD",
+    "area": "pensions",
+    "date": "2019-06-05",
+    "milestone": "adopted",
+    "name": "Pension agreement",
+    "summary": "Cabinet and social partners agreed to hold the state pension age at 66 years 4 months in 2020 and 2021, reach 67 in 2024, and end age-independent average-premium accrual in occupational pensions.",
+    "sources": [
+      {
+        "publisher": "Rijksoverheid",
+        "title": "Kamerbrief principeakkoord vernieuwing pensioenstelsel",
+        "url": "https://www.rijksoverheid.nl/documenten/kamerstukken/2019/06/05/kamerbrief-principeakkoord-vernieuwing-pensioenstelsel"
+      }
+    ]
+  },
+  {
+    "id": "nl-pensions-2023-future-pensions-act",
+    "country": "NLD",
+    "area": "pensions",
+    "date": "2023-07-01",
+    "milestone": "in-force",
+    "name": "Future Pensions Act",
+    "summary": "Occupational pensions move to age-independent contributions with accrual matching the premiums paid, ending the average-premium system, with a transition period for funds to convert existing schemes.",
+    "sources": [
+      {
+        "publisher": "Officiële bekendmakingen",
+        "title": "Staatsblad 2023, 216, Wet toekomst pensioenen",
+        "url": "https://zoek.officielebekendmakingen.nl/stb-2023-216.html"
+      },
+      {
+        "publisher": "Officiële bekendmakingen",
+        "title": "Staatsblad 2023, 218, Besluit tot vaststelling van het tijdstip van inwerkingtreding van de Wet toekomst pensioenen",
+        "url": "https://zoek.officielebekendmakingen.nl/stb-2023-218.html"
+      }
+    ]
+  },
+  {
+    "id": "at-pensions-2003-reform",
+    "country": "AUT",
+    "area": "pensions",
+    "date": "2003-08-20",
+    "milestone": "adopted",
+    "name": "2003 pension reform",
+    "summary": "Phased out early retirement for long insurance periods, lowered accrual from 2% to 1.78% a year, and lengthened the assessment period from the best 15 to the best 40 years by 2028.",
+    "sources": [
+      {
+        "publisher": "Rechtsinformationssystem des Bundes (RIS)",
+        "title": "Bundesgesetzblatt I Nr. 71/2003, Budgetbegleitgesetz 2003",
+        "url": "https://ris.bka.gv.at/Dokumente/BgblPdf/2003_71_1/2003_71_1.pdf"
+      }
+    ]
+  },
+  {
+    "id": "at-pensions-2004-harmonisation",
+    "country": "AUT",
+    "area": "pensions",
+    "date": "2004-12-15",
+    "milestone": "adopted",
+    "name": "Pension harmonisation",
+    "summary": "Created one pension law for people born after 1954, with a personal pension account crediting 1.78% of earnings a year, so 45 years give 80% at age 65.",
+    "sources": [
+      {
+        "publisher": "Rechtsinformationssystem des Bundes (RIS)",
+        "title": "Bundesgesetzblatt I Nr. 142/2004, Pensionsharmonisierungsgesetz",
+        "url": "https://www.ris.bka.gv.at/Dokumente/BgblAuth/BGBLA_2004_I_142/BGBLA_2004_I_142.html"
+      }
+    ]
+  },
+  {
+    "id": "es-pensions-2011-retirement-67",
+    "country": "ESP",
+    "area": "pensions",
+    "date": "2011-08-01",
+    "milestone": "adopted",
+    "name": "Retirement at 67",
+    "summary": "Raised the standard retirement age from 65 to 67 by 2027, keeping 65 with 38.5 years of contributions, and lengthened the pension calculation period from 15 to 25 years by 2022.",
+    "sources": [
+      {
+        "publisher": "Boletín Oficial del Estado (BOE)",
+        "title": "Ley 27/2011, de 1 de agosto, sobre actualización, adecuación y modernización del sistema de Seguridad Social",
+        "url": "https://www.boe.es/buscar/act.php?id=BOE-A-2011-13242"
+      }
+    ]
+  },
+  {
+    "id": "es-pensions-2013-sustainability-factor",
+    "country": "ESP",
+    "area": "pensions",
+    "date": "2013-12-23",
+    "milestone": "adopted",
+    "name": "Sustainability factor",
+    "summary": "Replaced price indexation with a revaluation index bounded between 0.25% and inflation plus 0.5%, and tied new retirement pensions from 2019 to life expectancy through a sustainability factor.",
+    "sources": [
+      {
+        "publisher": "Boletín Oficial del Estado (BOE)",
+        "title": "Ley 23/2013, de 23 de diciembre, reguladora del Factor de Sostenibilidad y del Índice de Revalorización del Sistema de Pensiones de la Seguridad Social",
+        "url": "https://www.boe.es/buscar/act.php?id=BOE-A-2013-13617"
+      }
+    ]
+  },
+  {
+    "id": "es-pensions-2021-indexation",
+    "country": "ESP",
+    "area": "pensions",
+    "date": "2021-12-28",
+    "milestone": "adopted",
+    "name": "Price indexation restored",
+    "summary": "Pensions are revalued each year by average consumer price inflation and never cut; the 2013 sustainability factor was repealed and replaced by an intergenerational equity mechanism.",
+    "sources": [
+      {
+        "publisher": "Boletín Oficial del Estado (BOE)",
+        "title": "Ley 21/2021, de 28 de diciembre, de garantía del poder adquisitivo de las pensiones y de otras medidas de refuerzo de la sostenibilidad financiera y social del sistema público de pensiones",
+        "url": "https://www.boe.es/buscar/act.php?id=BOE-A-2021-21652"
+      }
+    ]
+  },
+  {
+    "id": "es-pensions-2023-contributions",
+    "country": "ESP",
+    "area": "pensions",
+    "date": "2023-03-16",
+    "milestone": "adopted",
+    "name": "Contribution reform",
+    "summary": "Raised the intergenerational equity contribution and the maximum contribution base above inflation, added a solidarity contribution on high earnings, and allowed a 29-year calculation period that drops the worst two years.",
+    "sources": [
+      {
+        "publisher": "Boletín Oficial del Estado (BOE)",
+        "title": "Real Decreto-ley 2/2023, de 16 de marzo, de medidas urgentes para la ampliación de derechos de los pensionistas, la reducción de la brecha de género y el establecimiento de un nuevo marco de sostenibilidad del sistema público de pensiones",
+        "url": "https://www.boe.es/buscar/act.php?id=BOE-A-2023-6967"
+      }
+    ]
+  }
+]

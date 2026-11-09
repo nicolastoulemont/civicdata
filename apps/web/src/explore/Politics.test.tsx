@@ -1,16 +1,24 @@
 import {
-  type Country,
+  Country,
+  covers,
   Day,
   type Election,
   End,
+  type Event,
   type Government,
   IndicatorId,
+  Moment,
   Politics,
   PoliticsUnavailable,
+  type Reform,
   ResolvedView,
+  Scope,
   Trend,
   View,
+  When,
   Year,
+  yearOf,
+  yearsOf,
 } from "@civicdata/domain"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen, within } from "@testing-library/react"
@@ -25,6 +33,9 @@ import { Explore } from "./Explore.tsx"
 import type { Overlay } from "./politics.ts"
 
 const unemployment = IndicatorId.make("SL.UEM.TOTL.ZS")
+
+// Eurostat's pension spending, a chart of the pensions policy area.
+const pensions = IndicatorId.make("ESTAT,TPS00103,1.0")
 
 // A government as PPEG records it, valid by default; a test names what it
 // asserts on.
@@ -97,16 +108,145 @@ const elections: ReadonlyArray<Election> = [
   election({ country: "PRT", date: Day.make("2011-06-05") }),
 ]
 
-// The API's records: the governments and elections of the countries asked
-// for. The fake answers every year.
+const day = (date: string) => ({ date: Moment.make(date), approximate: false })
+
+const eu27: readonly [Country, ...Array<Country>] = [
+  "AUT",
+  "BEL",
+  "BGR",
+  "HRV",
+  "CYP",
+  "CZE",
+  "DNK",
+  "EST",
+  "FIN",
+  "FRA",
+  "DEU",
+  "GRC",
+  "HUN",
+  "IRL",
+  "ITA",
+  "LVA",
+  "LTU",
+  "LUX",
+  "MLT",
+  "NLD",
+  "POL",
+  "PRT",
+  "ROU",
+  "SVK",
+  "SVN",
+  "ESP",
+  "SWE",
+]
+
+// An event as the API answers it, valid by default: the Maastricht Treaty's
+// signature.
+const event = (fields: Partial<Event> = {}): Event => ({
+  id: "maastricht-signature",
+  name: "Maastricht Treaty: signature",
+  when: When.cases.Point.make({ at: day("1992-02-07") }),
+  scope: Scope.cases.Countries.make({
+    countries: ["BEL", "DNK", "DEU", "GRC", "ESP", "FRA", "IRL", "ITA", "LUX", "NLD", "PRT", "GBR"],
+  }),
+  summary: "The treaty created the European Union and the framework for monetary union.",
+  sources: [
+    {
+      publisher: "EUR-Lex",
+      title: "Treaty on European Union, Official Journal C 191, 29 July 1992",
+      url: "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:11992M/TXT",
+    },
+  ],
+  kind: "event",
+  reach: "european",
+  relation: "eu-specific",
+  topics: ["institutions"],
+  impact: { level: "structural", reason: "The treaty created the EU." },
+  ...fields,
+})
+
+const events: ReadonlyArray<Event> = [
+  event({
+    id: "oil-shock-1973",
+    name: "First oil shock and recession",
+    when: When.cases.Period.make({
+      from: { date: Moment.make("1973"), approximate: true },
+      to: { date: Moment.make("1975"), approximate: true },
+    }),
+    scope: Scope.cases.Countries.make({ countries: eu27 }),
+    summary: "Supply restrictions and higher oil prices disrupted growth and raised inflation.",
+    sources: [
+      {
+        publisher: "European Central Bank (ECB)",
+        title: "Lessons from the 1970s energy crises",
+        url: "https://www.ecb.europa.eu/press/blog/date/2026/html/ecb.blog20260807~b7ab24866e.en.html",
+      },
+    ],
+  }),
+  event({
+    id: "german-reunification",
+    name: "German reunification",
+    when: When.cases.Point.make({ at: day("1990-10-03") }),
+    scope: Scope.cases.Countries.make({ countries: ["DEU"] }),
+    summary: "Reunification extended the Federal Republic and Community membership to the east.",
+  }),
+  event(),
+  event({
+    id: "maastricht-force",
+    name: "Maastricht Treaty: entry into force",
+    when: When.cases.Point.make({ at: day("1993-11-01") }),
+  }),
+]
+
+// A reform as the API answers it, valid by default: France's 2010 pension
+// reform.
+const reform = (fields: Partial<Reform> = {}): Reform => ({
+  id: "fr-pensions-2010-woerth",
+  country: "FRA",
+  area: "pensions",
+  date: Moment.make("2010-11-09"),
+  milestone: "adopted",
+  name: "Woerth reform",
+  summary: "The minimum pension age rose from 60 to 62 by four months per birth cohort.",
+  sources: [
+    {
+      publisher: "Légifrance",
+      title: "Loi n° 2010-1330 du 9 novembre 2010 portant réforme des retraites",
+      url: "https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000023022127",
+    },
+  ],
+  ...fields,
+})
+
+// The API's records: the governments, elections and reforms of the countries
+// asked for, and the events that concern any of them. The fake answers every
+// year's governments and elections, and the events and reforms of the years
+// asked for.
 const politics = http.get("/api/politics", ({ request }) => {
   const query = new URL(request.url).searchParams
-  const countries = (query.get("countries") ?? "").split(",")
+  const from = Number(query.get("from"))
+  const to = Number(query.get("to"))
+
+  const countries = Schema.decodeUnknownSync(Schema.Array(Country))(
+    (query.get("countries") ?? "").split(","),
+  )
+
+  const during = ({ from: first, to: last }: { from: number; to: number | null }) =>
+    first <= to && (last ?? to) >= from
 
   return HttpResponse.json(
     Schema.encodeSync(Politics)({
       governments: recorded.filter((each) => countries.includes(each.country)),
       elections: elections.filter((each) => countries.includes(each.country)),
+      events: events.filter(
+        (each) =>
+          countries.some((country) => covers(each.scope, country)) && during(yearsOf(each.when)),
+      ),
+      reforms: [reform()].filter(
+        (each) =>
+          countries.includes(each.country) &&
+          during({ from: yearOf(each.date), to: yearOf(each.date) }),
+      ),
     }),
   )
 })
@@ -132,7 +272,7 @@ const resolve = http.post("/api/views/resolve", async ({ request }) => {
     Schema.encodeSync(ResolvedView)({
       view: trend,
       title: "Unemployment, total (% of total labor force)",
-      indicator: { id: unemployment, name: "Unemployment, total", definition: "" },
+      indicator: { id: trend.indicator, name: "Unemployment, total", definition: "" },
       observations,
       missing: [],
       dimensions: [],
@@ -172,20 +312,22 @@ const Page = ({ initial, trend }: PageProps) => {
   )
 }
 
+interface ShowOptions {
+  overlays?: ReadonlyArray<Overlay>
+  indicator?: IndicatorId
+  from?: number
+  to?: number
+}
+
 const show = (
   countries: readonly [Country, ...Array<Country>],
-  initial: ReadonlyArray<Overlay> = [],
+  { overlays = [], indicator = unemployment, from = 2010, to = 2020 }: ShowOptions = {},
 ) =>
   render(
     <QueryClientProvider client={new QueryClient()}>
       <Page
-        initial={initial}
-        trend={Trend.make({
-          indicator: unemployment,
-          countries,
-          from: Year.make(2010),
-          to: Year.make(2020),
-        })}
+        initial={overlays}
+        trend={Trend.make({ indicator, countries, from: Year.make(from), to: Year.make(to) })}
       />
     </QueryClientProvider>,
   )
@@ -201,13 +343,20 @@ beforeEach(() => {
 
 afterEach(() => bounds?.mockRestore())
 
-// Moves the chart's tooltip to its second year, 2011: clicking the chart
-// shows its first year, and the arrow key moves on one.
-const hover2011 = async (user: ReturnType<typeof userEvent.setup>, figure: HTMLElement) => {
-  await within(figure).findByText("Spain")
+// Moves the chart's tooltip to a year `after` its first: clicking the chart
+// shows its first year, and each arrow key moves on one.
+const hover = async (
+  user: ReturnType<typeof userEvent.setup>,
+  { figure, country, after }: { figure: HTMLElement; country: string; after: number },
+) => {
+  await within(figure).findByText(country)
   await user.click(within(figure).getByRole("application"))
-  await user.keyboard("{ArrowRight}")
+
+  if (after > 0) await user.keyboard("{ArrowRight}".repeat(after))
 }
+
+const hover2011 = (user: ReturnType<typeof userEvent.setup>, figure: HTMLElement) =>
+  hover(user, { figure, country: "Spain", after: 1 })
 
 describe("Elections and governments on a trend", () => {
   it("shades a one-country trend in bands named by head of government", async () => {
@@ -236,7 +385,7 @@ describe("Elections and governments on a trend", () => {
     network.use(resolve, politics)
     const user = userEvent.setup()
 
-    show(["ESP", "PRT"], ["governments"])
+    show(["ESP", "PRT"], { overlays: ["governments"] })
 
     const figure = await screen.findByRole("figure")
 
@@ -278,7 +427,7 @@ describe("Elections and governments on a trend", () => {
   it("says so when a country has no election or government records", async () => {
     network.use(resolve, politics)
 
-    show(["ESP", "BRA"], ["elections", "governments"])
+    show(["ESP", "BRA"], { overlays: ["elections", "governments"] })
 
     expect(await screen.findByText("No election or government records for Brazil")).toBeDefined()
   })
@@ -293,9 +442,9 @@ describe("Elections and governments on a trend", () => {
       ),
     )
 
-    show(["ESP"], ["governments"])
+    show(["ESP"], { overlays: ["governments"] })
 
-    expect(await screen.findByText("Election and government records are unavailable")).toBeDefined()
+    expect(await screen.findByText("Government records are unavailable")).toBeDefined()
   })
 
   it("copies a link that opens with the governments shown", async () => {
@@ -311,5 +460,118 @@ describe("Elections and governments on a trend", () => {
     expect(new URL(await navigator.clipboard.readText()).searchParams.get("overlays")).toBe(
       "governments",
     )
+  })
+})
+
+describe("Events and reforms on a trend", () => {
+  it("bands a period and marks dated events, naming each with its sources", async () => {
+    network.use(resolve, politics)
+    const user = userEvent.setup()
+
+    show(["FRA"], { from: 1970, to: 1995 })
+
+    await user.click(await screen.findByRole("button", { name: "Events" }))
+
+    const figure = await screen.findByRole("figure")
+
+    // 1974, inside the oil shock's band.
+    await hover(user, { figure, country: "France", after: 4 })
+
+    expect(
+      await within(figure).findByText(
+        "First oil shock and recession · about 1973 to about 1975 · Today's 27 EU members · Supply restrictions and higher oil prices disrupted growth and raised inflation. · Source 1 below",
+      ),
+    ).toBeDefined()
+
+    // 1992 and 1993: the treaty's signature, then its entry into force.
+    await user.keyboard("{ArrowRight}".repeat(18))
+
+    expect(
+      await within(figure).findByText(/^Maastricht Treaty: signature · 7 February 1992 · /),
+    ).toBeDefined()
+
+    await user.keyboard("{ArrowRight}")
+
+    expect(
+      await within(figure).findByText(/^Maastricht Treaty: entry into force · 1 November 1993 · /),
+    ).toBeDefined()
+    expect(within(figure).getByText(/with events marked/)).toBeDefined()
+    // The source line links each source the tooltip numbers.
+    expect(
+      screen
+        .getByRole("link", {
+          name: "1, European Central Bank (ECB): Lessons from the 1970s energy crises",
+        })
+        .getAttribute("href"),
+    ).toBe(
+      "https://www.ecb.europa.eu/press/blog/date/2026/html/ecb.blog20260807~b7ab24866e.en.html",
+    )
+    // Events credit no election archive.
+    expect(screen.queryByRole("link", { name: /PPEG/ })).toBeNull()
+  })
+
+  it("leaves out an event that does not concern the chart's countries", async () => {
+    network.use(resolve, politics)
+    const user = userEvent.setup()
+
+    show(["FRA"], { overlays: ["events"], from: 1990, to: 1995 })
+
+    const figure = await screen.findByRole("figure")
+
+    await hover(user, { figure, country: "France", after: 2 })
+
+    expect(await within(figure).findByText(/^Maastricht Treaty: signature/)).toBeDefined()
+
+    await user.keyboard("{ArrowLeft}{ArrowLeft}")
+
+    // 1990: German reunification concerns Germany only.
+    await vi.waitFor(() =>
+      expect(within(figure).queryByText(/^Maastricht Treaty: signature/)).toBeNull(),
+    )
+    expect(within(figure).queryByText(/German reunification/)).toBeNull()
+  })
+
+  it("names the country an event concerns on a chart of several", async () => {
+    network.use(resolve, politics)
+    const user = userEvent.setup()
+
+    show(["FRA", "DEU"], { overlays: ["events"], from: 1990, to: 1995 })
+
+    const figure = await screen.findByRole("figure")
+
+    await hover(user, { figure, country: "France", after: 0 })
+
+    expect(
+      await within(figure).findByText(/^German reunification · 3 October 1990 · Germany · /),
+    ).toBeDefined()
+  })
+
+  it("marks a pension reform on pension spending, and not on unemployment", async () => {
+    network.use(resolve, politics)
+    const user = userEvent.setup()
+
+    const pension = show(["FRA"], { overlays: ["events"], indicator: pensions })
+
+    const figure = await screen.findByRole("figure")
+
+    await hover(user, { figure, country: "France", after: 0 })
+
+    expect(
+      await within(figure).findByText(
+        "Woerth reform · Adopted 9 November 2010 · The minimum pension age rose from 60 to 62 by four months per birth cohort. · Source 1 below",
+      ),
+    ).toBeDefined()
+
+    pension.unmount()
+    show(["FRA"], { overlays: ["events"] })
+
+    const other = await screen.findByRole("figure")
+
+    await hover(user, { figure: other, country: "France", after: 0 })
+
+    // The tooltip names France beside its legend, and no reform.
+    await vi.waitFor(() => expect(within(other).getAllByText("France").length).toBeGreaterThan(1))
+    expect(within(other).queryByText(/Woerth reform/)).toBeNull()
+    expect(within(other).queryByText(/with reforms marked/)).toBeNull()
   })
 })

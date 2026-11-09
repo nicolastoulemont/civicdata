@@ -1,0 +1,1159 @@
+[
+  {
+    "id": "oil-shock-1973",
+    "name": "First oil shock and recession",
+    "when": {
+      "_tag": "Period",
+      "from": {
+        "date": "1973",
+        "approximate": true
+      },
+      "to": {
+        "date": "1975",
+        "approximate": true
+      }
+    },
+    "scope": {
+      "_tag": "Countries",
+      "countries": [
+        "AUT",
+        "BEL",
+        "BGR",
+        "HRV",
+        "CYP",
+        "CZE",
+        "DNK",
+        "EST",
+        "FIN",
+        "FRA",
+        "DEU",
+        "GRC",
+        "HUN",
+        "IRL",
+        "ITA",
+        "LVA",
+        "LTU",
+        "LUX",
+        "MLT",
+        "NLD",
+        "POL",
+        "PRT",
+        "ROU",
+        "SVK",
+        "SVN",
+        "ESP",
+        "SWE"
+      ]
+    },
+    "summary": "Supply restrictions and higher oil prices disrupted growth and raised inflation. The oil shock was in 1973–1974, with recessionary effects into 1975.",
+    "sources": [
+      {
+        "publisher": "European Central Bank (ECB)",
+        "title": "Lessons from the 1970s energy crises",
+        "url": "https://www.ecb.europa.eu/press/blog/date/2026/html/ecb.blog20260807~b7ab24866e.en.html"
+      }
+    ],
+    "kind": "event",
+    "reach": "worldwide",
+    "relation": "global-context",
+    "topics": ["economy", "energy"],
+    "impact": {
+      "level": "world-shaping",
+      "reason": "The first oil shock changed international energy relationships and the growth and inflation setting beyond one European episode."
+    }
+  },
+  {
+    "id": "oil-shock-1979",
+    "name": "Second oil shock",
+    "when": {
+      "_tag": "Period",
+      "from": {
+        "date": "1979",
+        "approximate": false
+      },
+      "to": {
+        "date": "1980",
+        "approximate": false
+      }
+    },
+    "scope": {
+      "_tag": "Countries",
+      "countries": [
+        "AUT",
+        "BEL",
+        "BGR",
+        "HRV",
+        "CYP",
+        "CZE",
+        "DNK",
+        "EST",
+        "FIN",
+        "FRA",
+        "DEU",
+        "GRC",
+        "HUN",
+        "IRL",
+        "ITA",
+        "LVA",
+        "LTU",
+        "LUX",
+        "MLT",
+        "NLD",
+        "POL",
+        "PRT",
+        "ROU",
+        "SVK",
+        "SVN",
+        "ESP",
+        "SWE"
+      ]
+    },
+    "summary": "A second sharp oil-price rise renewed inflation and pressure to diversify energy supply.",
+    "sources": [
+      {
+        "publisher": "European Central Bank (ECB)",
+        "title": "Lessons from the 1970s energy crises",
+        "url": "https://www.ecb.europa.eu/press/blog/date/2026/html/ecb.blog20260807~b7ab24866e.en.html"
+      }
+    ],
+    "kind": "event",
+    "reach": "worldwide",
+    "relation": "global-context",
+    "topics": ["economy", "energy"],
+    "impact": {
+      "level": "structural",
+      "reason": "The renewed oil-price rise reinforced energy diversification and economic adjustment across importing economies."
+    }
+  },
+  {
+    "id": "german-reunification",
+    "name": "German reunification",
+    "when": {
+      "_tag": "Point",
+      "at": {
+        "date": "1990-10-03",
+        "approximate": false
+      }
+    },
+    "scope": {
+      "_tag": "Countries",
+      "countries": ["DEU"]
+    },
+    "summary": "Reunification extended the Federal Republic and Community membership to the east.",
+    "sources": [
+      {
+        "publisher": "German government",
+        "title": "Reunification chronology",
+        "url": "https://www.bundesregierung.de/breg-de/themen/deutsche-einheit/3-10-1990-die-einheit-ist-wirklichkeit-432814"
+      }
+    ],
+    "kind": "event",
+    "reach": "national",
+    "relation": "eu-adjacent",
+    "topics": ["territory", "institutions", "economy"],
+    "impact": {
+      "level": "structural",
+      "reason": "Reunification changed Germany's state boundary and extended its institutions to former East Germany."
+    }
+  },
+  {
+    "id": "swedish-crisis",
+    "name": "Swedish financial crisis",
+    "when": {
+      "_tag": "Period",
+      "from": {
+        "date": "1990",
+        "approximate": true
+      },
+      "to": {
+        "date": "1994",
+        "approximate": true
+      }
+    },
+    "scope": {
+      "_tag": "Countries",
+      "countries": ["SWE"]
+    },
+    "summary": "Banking and currency stress accompanied a deep recession.",
+    "sources": [
+      {
+        "publisher": "Sveriges Riksbank",
+        "title": "Crisis and inflation targeting",
+        "url": "https://www.riksbank.se/en-gb/monetary-policy/the-inflation-target/history-of-the-inflation-target/"
+      }
+    ],
+    "kind": "event",
+    "reach": "national",
+    "relation": "eu-adjacent",
+    "topics": ["economy", "fiscal"],
+    "impact": {
+      "level": "structural",
+      "reason": "Deep recessions and banking and currency crises changed national monetary arrangements; Sweden and Finland followed different paths."
+    }
+  },
+  {
+    "id": "finnish-crisis",
+    "name": "Finnish financial crisis",
+    "when": {
+      "_tag": "Period",
+      "from": {
+        "date": "1990",
+        "approximate": true
+      },
+      "to": {
+        "date": "1994",
+        "approximate": true
+      }
+    },
+    "scope": {
+      "_tag": "Countries",
+      "countries": ["FIN"]
+    },
+    "summary": "Banking and currency stress accompanied a deep recession; Finland also suffered the collapse of Soviet trade.",
+    "sources": [
+      {
+        "publisher": "European Commission",
+        "title": "Finland's early-1990s crisis",
+        "url": "https://ec.europa.eu/economy_finance/publications/european_economy/2010/pdf/ee-2010-4_en.pdf"
+      }
+    ],
+    "kind": "event",
+    "reach": "national",
+    "relation": "eu-adjacent",
+    "topics": ["economy", "fiscal"],
+    "impact": {
+      "level": "structural",
+      "reason": "Deep recessions and banking and currency crises changed national monetary arrangements; Sweden and Finland followed different paths."
+    }
+  },
+  {
+    "id": "maastricht-signature",
+    "name": "Maastricht Treaty: signature",
+    "when": {
+      "_tag": "Point",
+      "at": {
+        "date": "1992-02-07",
+        "approximate": false
+      }
+    },
+    "scope": {
+      "_tag": "Countries",
+      "countries": [
+        "BEL",
+        "FRA",
+        "DEU",
+        "ITA",
+        "LUX",
+        "NLD",
+        "DNK",
+        "IRL",
+        "GRC",
+        "ESP",
+        "PRT",
+        "GBR"
+      ]
+    },
+    "summary": "The treaty created the European Union and the framework for monetary union, with new political cooperation.",
+    "sources": [
+      {
+        "publisher": "Council of the EU",
+        "title": "Treaty record, Maastricht",
+        "url": "https://www.consilium.europa.eu/en/documents/treaties-agreements/agreement/?docLanguage=en&id=1992004"
+      },
+      {
+        "publisher": "EUR-Lex",
+        "title": "Treaty on European Union, Official Journal C 191, 29 July 1992",
+        "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:11992M/TXT"
+      }
+    ],
+    "kind": "event",
+    "reach": "european",
+    "relation": "eu-specific",
+    "topics": ["institutions", "fiscal", "economy"],
+    "impact": {
+      "level": "structural",
+      "reason": "The treaty created the EU and the framework for monetary union, changing Europe's institutional order."
+    }
+  },
+  {
+    "id": "maastricht-force",
+    "name": "Maastricht Treaty: entry into force",
+    "when": {
+      "_tag": "Point",
+      "at": {
+        "date": "1993-11-01",
+        "approximate": false
+      }
+    },
+    "scope": {
+      "_tag": "Countries",
+      "countries": [
+        "BEL",
+        "FRA",
+        "DEU",
+        "ITA",
+        "LUX",
+        "NLD",
+        "DNK",
+        "IRL",
+        "GRC",
+        "ESP",
+        "PRT",
+        "GBR"
+      ]
+    },
+    "summary": "The treaty created the European Union and the framework for monetary union, with new political cooperation.",
+    "sources": [
+      {
+        "publisher": "Council of the EU",
+        "title": "Treaty record, Maastricht",
+        "url": "https://www.consilium.europa.eu/en/documents/treaties-agreements/agreement/?docLanguage=en&id=1992004"
+      },
+      {
+        "publisher": "EUR-Lex",
+        "title": "Treaty on European Union, Official Journal C 191, 29 July 1992",
+        "url": "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:11992M/TXT"
+      }
+    ],
+    "kind": "event",
+    "reach": "european",
+    "relation": "eu-specific",
+    "topics": ["institutions", "fiscal", "economy"],
+    "impact": {
+      "level": "structural",
+      "reason": "The treaty created the EU and the framework for monetary union, changing Europe's institutional order."
+    }
+  },
+  {
+    "id": "financial-crisis",
+    "name": "Global financial crisis and Great Recession",
+    "when": {
+      "_tag": "Period",
+      "from": {
+        "date": "2007",
+        "approximate": false
+      },
+      "to": {
+        "date": "2009",
+        "approximate": false
+      }
+    },
+    "scope": {
+      "_tag": "Countries",
+      "countries": [
+        "AUT",
+        "BEL",
+        "BGR",
+        "HRV",
+        "CYP",
+        "CZE",
+        "DNK",
+        "EST",
+        "FIN",
+        "FRA",
+        "DEU",
+        "GRC",
+        "HUN",
+        "IRL",
+        "ITA",
+        "LVA",
+        "LTU",
+        "LUX",
+        "MLT",
+        "NLD",
+        "POL",
+        "PRT",
+        "ROU",
+        "SVK",
+        "SVN",
+        "ESP",
+        "SWE"
+      ]
+    },
+    "summary": "Financial stress began in 2007, with an acute phase in September 2008 and recession in 2008–2009. Bank distress and collapsing demand damaged public finances.",
+    "sources": [
+      {
+        "publisher": "European Central Bank (ECB)",
+        "title": "Retrospective on the financial crisis and policy",
+        "url": "https://www.ecb.europa.eu/press/key/date/2018/html/ecb.sp180504.en.html"
+      }
+    ],
+    "kind": "event",
+    "reach": "worldwide",
+    "relation": "global-context",
+    "topics": ["economy", "fiscal"],
+    "impact": {
+      "level": "world-shaping",
+      "reason": "Global bank distress and recession changed the setting for monetary policy, public finances and financial institutions across regions."
+    }
+  },
+  {
+    "id": "sovereign-debt-crisis",
+    "name": "Euro-area sovereign debt crisis",
+    "when": {
+      "_tag": "Period",
+      "from": {
+        "date": "2009",
+        "approximate": true
+      },
+      "to": {
+        "date": "2015",
+        "approximate": true
+      }
+    },
+    "scope": {
+      "_tag": "Countries",
+      "countries": [
+        "AUT",
+        "BEL",
+        "CYP",
+        "EST",
+        "FIN",
+        "FRA",
+        "DEU",
+        "GRC",
+        "IRL",
+        "ITA",
+        "LVA",
+        "LTU",
+        "LUX",
+        "MLT",
+        "NLD",
+        "PRT",
+        "SVK",
+        "SVN",
+        "ESP"
+      ]
+    },
+    "summary": "Sovereign and bank financing stress reinforced each other, leading to assistance, fiscal adjustment and institutional reform.",
+    "sources": [
+      {
+        "publisher": "European Stability Mechanism (ESM)",
+        "title": "Programme countries and dates",
+        "url": "https://www.esm.europa.eu/financial-assistance"
+      },
+      {
+        "publisher": "European Central Bank (ECB)",
+        "title": "Retrospective on the financial crisis and policy",
+        "url": "https://www.ecb.europa.eu/press/key/date/2018/html/ecb.sp180504.en.html"
+      }
+    ],
+    "kind": "event",
+    "reach": "european",
+    "relation": "eu-specific",
+    "topics": ["economy", "fiscal", "institutions"],
+    "impact": {
+      "level": "structural",
+      "reason": "Sovereign and bank stress prompted lasting reform of euro-area assistance and financial institutions."
+    }
+  },
+  {
+    "id": "greece-assistance",
+    "name": "Greek assistance programmes",
+    "when": {
+      "_tag": "Period",
+      "from": {
+        "date": "2010-05",
+        "approximate": false
+      },
+      "to": {
+        "date": "2018-08",
+        "approximate": false
+      }
+    },
+    "scope": {
+      "_tag": "Countries",
+      "countries": ["GRC"]
+    },
+    "summary": "Successive programmes combined financing with economic and fiscal conditions. The final European Stability Mechanism (ESM) programme ran from 2015 to 2018.",
+    "sources": [
+      {
+        "publisher": "European Stability Mechanism (ESM)",
+        "title": "Successive Greek assistance programmes",
+        "url": "https://www.esm.europa.eu/assistance/greece"
+      }
+    ],
+    "kind": "programme",
+    "reach": "national",
+    "relation": "eu-specific",
+    "topics": ["fiscal", "economy", "society"],
+    "impact": {
+      "level": "structural",
+      "reason": "Successive programmes required changes to Greek economic and fiscal arrangements over several years."
+    }
+  },
+  {
+    "id": "ireland-assistance",
+    "name": "Irish assistance programme",
+    "when": {
+      "_tag": "Period",
+      "from": {
+        "date": "2010-12",
+        "approximate": false
+      },
+      "to": {
+        "date": "2013-12",
+        "approximate": false
+      }
+    },
+    "scope": {
+      "_tag": "Countries",
+      "countries": ["IRL"]
+    },
+    "summary": "Assistance addressed financing needs alongside an adjustment programme.",
+    "sources": [
+      {
+        "publisher": "European Stability Mechanism (ESM)",
+        "title": "Programme countries and dates",
+        "url": "https://www.esm.europa.eu/financial-assistance"
+      }
+    ],
+    "kind": "programme",
+    "reach": "national",
+    "relation": "eu-specific",
+    "topics": ["fiscal", "economy"],
+    "impact": {
+      "level": "bounded",
+      "reason": "The entry groups two finite financing and adjustment programmes with different national measures and dates."
+    }
+  },
+  {
+    "id": "portugal-assistance",
+    "name": "Portuguese assistance programme",
+    "when": {
+      "_tag": "Period",
+      "from": {
+        "date": "2011-05",
+        "approximate": false
+      },
+      "to": {
+        "date": "2014-05",
+        "approximate": false
+      }
+    },
+    "scope": {
+      "_tag": "Countries",
+      "countries": ["PRT"]
+    },
+    "summary": "Assistance addressed financing needs alongside an adjustment programme.",
+    "sources": [
+      {
+        "publisher": "European Stability Mechanism (ESM)",
+        "title": "Programme countries and dates",
+        "url": "https://www.esm.europa.eu/financial-assistance"
+      }
+    ],
+    "kind": "programme",
+    "reach": "national",
+    "relation": "eu-specific",
+    "topics": ["fiscal", "economy"],
+    "impact": {
+      "level": "bounded",
+      "reason": "The entry groups two finite financing and adjustment programmes with different national measures and dates."
+    }
+  },
+  {
+    "id": "spain-bank-assistance",
+    "name": "Spanish bank assistance",
+    "when": {
+      "_tag": "Period",
+      "from": {
+        "date": "2012-12",
+        "approximate": false
+      },
+      "to": {
+        "date": "2013-12",
+        "approximate": false
+      }
+    },
+    "scope": {
+      "_tag": "Countries",
+      "countries": ["ESP"]
+    },
+    "summary": "Spain received bank-recapitalisation assistance.",
+    "sources": [
+      {
+        "publisher": "European Stability Mechanism (ESM)",
+        "title": "Programme countries and dates",
+        "url": "https://www.esm.europa.eu/financial-assistance"
+      }
+    ],
+    "kind": "programme",
+    "reach": "national",
+    "relation": "eu-specific",
+    "topics": ["fiscal", "economy"],
+    "impact": {
+      "level": "bounded",
+      "reason": "These finite interventions had different scopes: Spanish bank assistance and a broader Cypriot adjustment programme."
+    }
+  },
+  {
+    "id": "cyprus-assistance",
+    "name": "Cyprus adjustment programme",
+    "when": {
+      "_tag": "Period",
+      "from": {
+        "date": "2013-04",
+        "approximate": false
+      },
+      "to": {
+        "date": "2016-03",
+        "approximate": false
+      }
+    },
+    "scope": {
+      "_tag": "Countries",
+      "countries": ["CYP"]
+    },
+    "summary": "Cyprus entered a broader economic adjustment programme.",
+    "sources": [
+      {
+        "publisher": "European Stability Mechanism (ESM)",
+        "title": "Programme countries and dates",
+        "url": "https://www.esm.europa.eu/financial-assistance"
+      }
+    ],
+    "kind": "programme",
+    "reach": "national",
+    "relation": "eu-specific",
+    "topics": ["fiscal", "economy"],
+    "impact": {
+      "level": "bounded",
+      "reason": "These finite interventions had different scopes: Spanish bank assistance and a broader Cypriot adjustment programme."
+    }
+  },
+  {
+    "id": "irish-gdp-observation",
+    "name": "Irish gross domestic product (GDP) level shift: reference year",
+    "when": {
+      "_tag": "Point",
+      "at": {
+        "date": "2015",
+        "approximate": false
+      }
+    },
+    "scope": {
+      "_tag": "Countries",
+      "countries": ["IRL"]
+    },
+    "summary": "The Central Statistics Office (CSO) recorded a level shift in 2015 gross domestic product (GDP) after multinational companies relocated assets to Ireland, and later introduced modified gross national income (GNI) as a supplementary domestic measure.",
+    "sources": [
+      {
+        "publisher": "Central Statistics Office (CSO)",
+        "title": "2015 GDP level shift and modified gross national income (GNI)",
+        "url": "https://www.cso.ie/en/methods/nationalaccounts/din/nie2017faq/"
+      }
+    ],
+    "kind": "statistical-break",
+    "reach": "national",
+    "relation": "eu-adjacent",
+    "topics": ["economy", "fiscal"],
+    "impact": {
+      "level": "measurement",
+      "reason": "Multinational relocations changed recorded GDP and how Irish spending ratios should be interpreted; this is not a score of historical importance."
+    }
+  },
+  {
+    "id": "irish-gdp-publication",
+    "name": "Irish gross domestic product (GDP) level shift: first publication",
+    "when": {
+      "_tag": "Point",
+      "at": {
+        "date": "2016-07",
+        "approximate": false
+      }
+    },
+    "scope": {
+      "_tag": "Countries",
+      "countries": ["IRL"]
+    },
+    "summary": "The 2015 gross domestic product (GDP) level shift was first reported in July 2016.",
+    "sources": [
+      {
+        "publisher": "Central Statistics Office (CSO)",
+        "title": "2015 GDP level shift and modified gross national income (GNI)",
+        "url": "https://www.cso.ie/en/methods/nationalaccounts/din/nie2017faq/"
+      }
+    ],
+    "kind": "statistical-break",
+    "reach": "national",
+    "relation": "eu-adjacent",
+    "topics": ["economy", "fiscal"],
+    "impact": {
+      "level": "measurement",
+      "reason": "Multinational relocations changed recorded GDP and how Irish spending ratios should be interpreted; this is not a score of historical importance."
+    }
+  },
+  {
+    "id": "covid-emergency",
+    "name": "coronavirus disease 2019 (COVID-19) emergency and economic disruption",
+    "when": {
+      "_tag": "Period",
+      "from": {
+        "date": "2020",
+        "approximate": false
+      },
+      "to": {
+        "date": "2023-05",
+        "approximate": false
+      }
+    },
+    "scope": {
+      "_tag": "World"
+    },
+    "summary": "The pandemic disrupted health systems and economic activity, prompting extraordinary support and European coordination.",
+    "sources": [
+      {
+        "publisher": "European Union",
+        "title": "History of the EU, 2020 to today",
+        "url": "https://european-union.europa.eu/principles-countries-history/history-eu/2020-today_en"
+      },
+      {
+        "publisher": "World Health Organization (WHO)",
+        "title": "End of the COVID-19 international health emergency, 5 May 2023",
+        "url": "https://www.who.int/news/item/05-05-2023-statement-on-the-fifteenth-meeting-of-the-international-health-regulations-(2005)-emergency-committee-regarding-the-coronavirus-disease-(covid-19)-pandemic"
+      }
+    ],
+    "kind": "event",
+    "reach": "worldwide",
+    "relation": "global-context",
+    "topics": ["health", "economy", "fiscal", "society"],
+    "impact": {
+      "level": "world-shaping",
+      "reason": "A global health emergency disrupted economic and social arrangements and prompted extraordinary policy intervention across regions."
+    }
+  },
+  {
+    "id": "escape-clause",
+    "name": "General escape clause activated",
+    "when": {
+      "_tag": "Period",
+      "from": {
+        "date": "2020",
+        "approximate": false
+      },
+      "to": {
+        "date": "2023",
+        "approximate": false
+      }
+    },
+    "scope": {
+      "_tag": "Countries",
+      "countries": [
+        "AUT",
+        "BEL",
+        "BGR",
+        "HRV",
+        "CYP",
+        "CZE",
+        "DNK",
+        "EST",
+        "FIN",
+        "FRA",
+        "DEU",
+        "GRC",
+        "HUN",
+        "IRL",
+        "ITA",
+        "LVA",
+        "LTU",
+        "LUX",
+        "MLT",
+        "NLD",
+        "POL",
+        "PRT",
+        "ROU",
+        "SVK",
+        "SVN",
+        "ESP",
+        "SWE"
+      ]
+    },
+    "summary": "Allowed exceptional departures from normal fiscal adjustment requirements during the pandemic and subsequent disruption.",
+    "sources": [
+      {
+        "publisher": "Council of the EU",
+        "title": "General escape clause 2020 to 2023",
+        "url": "https://www.consilium.europa.eu/en/press/press-releases/2024/07/26/stability-and-growth-pact-council-launches-excessive-deficit-procedures-against-seven-member-states/"
+      }
+    ],
+    "kind": "programme",
+    "reach": "european",
+    "relation": "eu-specific",
+    "topics": ["fiscal", "institutions"],
+    "impact": {
+      "level": "bounded",
+      "reason": "The clause temporarily relaxed adjustment requirements within the fiscal framework; it did not replace that framework."
+    }
+  },
+  {
+    "id": "recovery-agreement",
+    "name": "NextGenerationEU: recovery agreement",
+    "when": {
+      "_tag": "Point",
+      "at": {
+        "date": "2020-07",
+        "approximate": false
+      }
+    },
+    "scope": {
+      "_tag": "Countries",
+      "countries": [
+        "AUT",
+        "BEL",
+        "BGR",
+        "HRV",
+        "CYP",
+        "CZE",
+        "DNK",
+        "EST",
+        "FIN",
+        "FRA",
+        "DEU",
+        "GRC",
+        "HUN",
+        "IRL",
+        "ITA",
+        "LVA",
+        "LTU",
+        "LUX",
+        "MLT",
+        "NLD",
+        "POL",
+        "PRT",
+        "ROU",
+        "SVK",
+        "SVN",
+        "ESP",
+        "SWE"
+      ]
+    },
+    "summary": "The recovery agreement provided for common EU borrowing to finance support tied to national investment and reform plans.",
+    "sources": [
+      {
+        "publisher": "Council of the EU",
+        "title": "Recovery agreement and financing",
+        "url": "https://www.consilium.europa.eu/en/policies/eu-recovery-plan/"
+      }
+    ],
+    "kind": "event",
+    "reach": "european",
+    "relation": "eu-specific",
+    "topics": ["fiscal", "institutions", "economy"],
+    "impact": {
+      "level": "structural",
+      "reason": "Common borrowing and national investment and reform plans changed the EU's recovery-financing arrangements."
+    }
+  },
+  {
+    "id": "rrf-force",
+    "name": "Recovery and Resilience Facility: entry into force",
+    "when": {
+      "_tag": "Point",
+      "at": {
+        "date": "2021-02-19",
+        "approximate": false
+      }
+    },
+    "scope": {
+      "_tag": "Countries",
+      "countries": [
+        "AUT",
+        "BEL",
+        "BGR",
+        "HRV",
+        "CYP",
+        "CZE",
+        "DNK",
+        "EST",
+        "FIN",
+        "FRA",
+        "DEU",
+        "GRC",
+        "HUN",
+        "IRL",
+        "ITA",
+        "LVA",
+        "LTU",
+        "LUX",
+        "MLT",
+        "NLD",
+        "POL",
+        "PRT",
+        "ROU",
+        "SVK",
+        "SVN",
+        "ESP",
+        "SWE"
+      ]
+    },
+    "summary": "The Recovery and Resilience Facility took legal effect.",
+    "sources": [
+      {
+        "publisher": "European Commission",
+        "title": "Recovery and Resilience Facility",
+        "url": "https://reforms-investments.ec.europa.eu/recovery-and-resilience-facility-1_en"
+      }
+    ],
+    "kind": "event",
+    "reach": "european",
+    "relation": "eu-specific",
+    "topics": ["fiscal", "institutions", "economy"],
+    "impact": {
+      "level": "structural",
+      "reason": "Common borrowing and national investment and reform plans changed the EU's recovery-financing arrangements."
+    }
+  },
+  {
+    "id": "rrf-implementation",
+    "name": "Recovery and Resilience Facility: implementation",
+    "when": {
+      "_tag": "Period",
+      "from": {
+        "date": "2021",
+        "approximate": false
+      },
+      "to": {
+        "date": "2026",
+        "approximate": false
+      }
+    },
+    "scope": {
+      "_tag": "Countries",
+      "countries": [
+        "AUT",
+        "BEL",
+        "BGR",
+        "HRV",
+        "CYP",
+        "CZE",
+        "DNK",
+        "EST",
+        "FIN",
+        "FRA",
+        "DEU",
+        "GRC",
+        "HUN",
+        "IRL",
+        "ITA",
+        "LVA",
+        "LTU",
+        "LUX",
+        "MLT",
+        "NLD",
+        "POL",
+        "PRT",
+        "ROU",
+        "SVK",
+        "SVN",
+        "ESP",
+        "SWE"
+      ]
+    },
+    "summary": "Recovery support financed investment and reform plans, with implementation through 2026.",
+    "sources": [
+      {
+        "publisher": "European Commission",
+        "title": "Recovery and Resilience Facility",
+        "url": "https://reforms-investments.ec.europa.eu/recovery-and-resilience-facility-1_en"
+      }
+    ],
+    "kind": "programme",
+    "reach": "european",
+    "relation": "eu-specific",
+    "topics": ["fiscal", "institutions", "economy"],
+    "impact": {
+      "level": "structural",
+      "reason": "Common borrowing and national investment and reform plans changed the EU's recovery-financing arrangements."
+    }
+  },
+  {
+    "id": "energy-inflation",
+    "name": "Energy and inflation shock",
+    "when": {
+      "_tag": "Period",
+      "from": {
+        "date": "2021",
+        "approximate": false
+      },
+      "to": {
+        "date": "2023",
+        "approximate": false
+      }
+    },
+    "scope": {
+      "_tag": "Countries",
+      "countries": [
+        "AUT",
+        "BEL",
+        "BGR",
+        "HRV",
+        "CYP",
+        "CZE",
+        "DNK",
+        "EST",
+        "FIN",
+        "FRA",
+        "DEU",
+        "GRC",
+        "HUN",
+        "IRL",
+        "ITA",
+        "LVA",
+        "LTU",
+        "LUX",
+        "MLT",
+        "NLD",
+        "POL",
+        "PRT",
+        "ROU",
+        "SVK",
+        "SVN",
+        "ESP",
+        "SWE"
+      ]
+    },
+    "summary": "Energy prices and inflation prompted tax reductions, subsidies, transfers and price support. The acute phase was in 2022–2023.",
+    "sources": [
+      {
+        "publisher": "European Central Bank (ECB)",
+        "title": "Energy and inflation fiscal support, March 2023",
+        "url": "https://www.ecb.europa.eu/press/economic-bulletin/focus/2023/html/ecb.ebbox202302_09~37755e445d.en.html"
+      }
+    ],
+    "kind": "event",
+    "reach": "european",
+    "relation": "eu-adjacent",
+    "topics": ["economy", "energy", "fiscal"],
+    "impact": {
+      "level": "bounded",
+      "reason": "This entry describes Europe's acute price and support episode; it does not establish a permanent change to the international order."
+    }
+  },
+  {
+    "id": "ukraine-invasion",
+    "name": "Russia’s full-scale invasion of Ukraine",
+    "when": {
+      "_tag": "Period",
+      "from": {
+        "date": "2022-02-24",
+        "approximate": false
+      },
+      "to": null
+    },
+    "scope": {
+      "_tag": "Countries",
+      "countries": [
+        "AUT",
+        "BEL",
+        "BGR",
+        "HRV",
+        "CYP",
+        "CZE",
+        "DNK",
+        "EST",
+        "FIN",
+        "FRA",
+        "DEU",
+        "GRC",
+        "HUN",
+        "IRL",
+        "ITA",
+        "LVA",
+        "LTU",
+        "LUX",
+        "MLT",
+        "NLD",
+        "POL",
+        "PRT",
+        "ROU",
+        "SVK",
+        "SVN",
+        "ESP",
+        "SWE",
+        "UKR",
+        "RUS"
+      ]
+    },
+    "summary": "War prompted sanctions, assistance to Ukraine and changes in European security and energy policy.",
+    "sources": [
+      {
+        "publisher": "Council of the EU",
+        "title": "EU response to Russia's invasion of Ukraine",
+        "url": "https://www.consilium.europa.eu/en/policies/eu-response-ukraine-invasion/"
+      },
+      {
+        "publisher": "United Nations General Assembly",
+        "title": "Resolution ES-11/1, Aggression against Ukraine, 2 March 2022",
+        "url": "https://documents.un.org/doc/undoc/gen/n22/293/36/pdf/n2229336.pdf"
+      }
+    ],
+    "kind": "event",
+    "reach": "cross-border",
+    "relation": "eu-adjacent",
+    "topics": ["defence", "territory", "energy", "institutions"],
+    "impact": {
+      "level": "structural",
+      "reason": "War has changed European security, sanctions and energy arrangements; its ongoing duration does not establish the final global order."
+    }
+  },
+  {
+    "id": "fiscal-framework",
+    "name": "Reformed EU fiscal framework: entry into force",
+    "when": {
+      "_tag": "Point",
+      "at": {
+        "date": "2024-04-30",
+        "approximate": false
+      }
+    },
+    "scope": {
+      "_tag": "Countries",
+      "countries": [
+        "AUT",
+        "BEL",
+        "BGR",
+        "HRV",
+        "CYP",
+        "CZE",
+        "DNK",
+        "EST",
+        "FIN",
+        "FRA",
+        "DEU",
+        "GRC",
+        "HUN",
+        "IRL",
+        "ITA",
+        "LVA",
+        "LTU",
+        "LUX",
+        "MLT",
+        "NLD",
+        "POL",
+        "PRT",
+        "ROU",
+        "SVK",
+        "SVN",
+        "ESP",
+        "SWE"
+      ]
+    },
+    "summary": "Introduced medium-term fiscal plans and country-specific adjustment paths with debt and deficit safeguards.",
+    "sources": [
+      {
+        "publisher": "European Commission",
+        "title": "Fiscal framework effective 30 April 2024",
+        "url": "https://economy-finance.ec.europa.eu/economic-governance-framework/what-economic-governance-framework/evolution-eu-economic-governance/new-economic-governance-framework_en"
+      }
+    ],
+    "kind": "event",
+    "reach": "european",
+    "relation": "eu-specific",
+    "topics": ["fiscal", "institutions"],
+    "impact": {
+      "level": "structural",
+      "reason": "Medium-term plans and country-specific paths changed the lasting framework for fiscal surveillance."
+    }
+  }
+]

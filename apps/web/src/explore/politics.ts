@@ -3,14 +3,23 @@ import {
   type Country,
   type Election,
   End,
+  type Event,
   type Government,
+  type Moment,
   type Publisher,
+  type Reform,
+  Scope,
+  When,
+  yearOf,
+  yearsOf,
 } from "@civicdata/domain"
-import { Schema } from "effect"
+import { Match, Schema } from "effect"
+
+import { countryName } from "./format.ts"
 
 // What a trend chart can draw over its lines besides the data. Kept in the
 // card and its link, not in the View: the agent's charts never set it.
-export const Overlay = Schema.Literals(["elections", "governments"])
+export const Overlay = Schema.Literals(["elections", "governments", "events"])
 
 export type Overlay = typeof Overlay.Type
 
@@ -164,3 +173,159 @@ export const officialPages = (records: ReadonlyArray<Government | Election>) => 
     records.flatMap(({ citation }) => (citation.publisher === "Official" ? [citation.url] : [])),
   ),
 ]
+
+// Today's 27 EU members: the countries most events concern.
+const eu = new Set<Country>([
+  "AUT",
+  "BEL",
+  "BGR",
+  "HRV",
+  "CYP",
+  "CZE",
+  "DNK",
+  "EST",
+  "FIN",
+  "FRA",
+  "DEU",
+  "GRC",
+  "HUN",
+  "IRL",
+  "ITA",
+  "LVA",
+  "LTU",
+  "LUX",
+  "MLT",
+  "NLD",
+  "POL",
+  "PRT",
+  "ROU",
+  "SVK",
+  "SVN",
+  "ESP",
+  "SWE",
+])
+
+// A moment as precise as its source: "1973", "May 2010", "3 October 1990".
+const spoken = (moment: Moment) =>
+  Match.value(moment.length).pipe(
+    Match.when(4, () => moment),
+    Match.when(7, () =>
+      new Date(`${moment}-01`).toLocaleDateString("en-GB", {
+        month: "long",
+        year: "numeric",
+        timeZone: "UTC",
+      }),
+    ),
+    Match.orElse(() => longDate(moment)),
+  )
+
+interface Dated {
+  readonly date: Moment
+  readonly approximate: boolean
+}
+
+const dated = ({ date, approximate }: Dated) => `${approximate ? "about " : ""}${spoken(date)}`
+
+// When an event happened, as the tooltip says it: "3 October 1990", "about
+// 1973 to about 1975", or "since 24 February 2022" for one still going on.
+const whenSaid = (happened: When) =>
+  When.match(happened, {
+    Point: ({ at }) => dated(at),
+    Period: ({ from, to }) =>
+      to === null ? `since ${dated(from)}` : `${dated(from)} to ${dated(to)}`,
+  })
+
+// Who an event concerns, named for a chart of some countries: "Worldwide",
+// "Today's 27 EU members", a few countries by name, or how many with the
+// chart's among them.
+const concerned = (scope: Scope, shown: ReadonlyArray<Country>) =>
+  Scope.match(scope, {
+    World: () => "Worldwide",
+    Countries: ({ countries }) => {
+      if (countries.length === eu.size && countries.every((country) => eu.has(country)))
+        return "Today's 27 EU members"
+
+      if (countries.length <= 3) return countries.map(countryName).join(", ")
+
+      const among = shown.flatMap((country) =>
+        countries.includes(country) ? [countryName(country)] : [],
+      )
+
+      return `${countries.length} countries, including ${among.join(" and ")}`
+    },
+  })
+
+// The years each event spans that a chart of years up to `last` shows: one
+// still going on runs to the chart's end.
+export const spanOf = (event: Event, last: number) => {
+  const { from, to } = yearsOf(event.when)
+
+  return { from, to: to ?? last }
+}
+
+// The source pages of the events and reforms on a chart, each once, in the
+// order the card's source line numbers them.
+export const cited = (records: ReadonlyArray<Event | Reform>) => [
+  ...new Map(
+    records.flatMap(({ sources }) => sources).map((source) => [source.url, source] as const),
+  ).values(),
+]
+
+type Pages = ReturnType<typeof cited>
+
+// "Sources 2 and 3 below": where the source line links a record's sources.
+const sourcesOf = (record: Event | Reform, pages: Pages) => {
+  const numbers = record.sources.map(
+    (source) => pages.findIndex((page) => page.url === source.url) + 1,
+  )
+
+  return `${numbers.length === 1 ? "Source" : "Sources"} ${numbers.join(" and ")} below`
+}
+
+// The events of a year on a chart of some countries, one line each:
+// "German reunification · 3 October 1990 · Germany · Reunification extended
+// ... · Source 1 below". Each says what happened, never what it did to the
+// line.
+export const happening = (
+  events: ReadonlyArray<Event>,
+  { countries, shown, pages }: { countries: ReadonlyArray<Country>; shown: number; pages: Pages },
+) =>
+  events.flatMap((event) => {
+    const { from, to } = spanOf(event, shown)
+
+    return shown >= from && shown <= to
+      ? [
+          [
+            event.name,
+            whenSaid(event.when),
+            concerned(event.scope, countries),
+            event.summary,
+            sourcesOf(event, pages),
+          ].join(" · "),
+        ]
+      : []
+  })
+
+const milestones: Record<Reform["milestone"], string> = {
+  adopted: "Adopted",
+  "in-force": "In force",
+}
+
+// A country's reforms of a year, one line each: "Woerth reform · Adopted 9
+// November 2010 · The minimum pension age rose ... · Source 4 below".
+export const reformed = (
+  reforms: ReadonlyArray<Reform>,
+  { country, shown, pages }: { country: Country; shown: number; pages: Pages },
+) =>
+  reforms.flatMap((reform) =>
+    reform.country === country && yearOf(reform.date) === shown
+      ? [
+          [
+            reform.name,
+            `${milestones[reform.milestone]} ${spoken(reform.date)}`,
+            reform.summary,
+            sourcesOf(reform, pages),
+          ].join(" · "),
+        ]
+      : [],
+  )
