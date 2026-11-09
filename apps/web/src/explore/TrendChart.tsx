@@ -30,6 +30,32 @@ const byYear = (observations: ResolvedView["observations"]) => {
   return [...rows.values()].toSorted((left, right) => left.year - right.year)
 }
 
+// A dot on a point its source flags, and nothing on the others. Recharts
+// passes each point's position and row.
+const Marked = ({
+  country,
+  flagged,
+  cx,
+  cy,
+  payload,
+}: {
+  country: Country
+  flagged: ReadonlySet<string>
+  cx?: number
+  cy?: number
+  payload?: Point
+}) =>
+  payload !== undefined && flagged.has(`${country}:${payload.year}`) ? (
+    <circle
+      cx={cx}
+      cy={cy}
+      r={4}
+      fill="var(--background)"
+      stroke={`var(--color-${country})`}
+      strokeWidth={2}
+    />
+  ) : null
+
 // The trend's whole history, for picking its years over it.
 export interface History {
   readonly observations: ResolvedView["observations"]
@@ -53,6 +79,13 @@ export const TrendChart = ({
   trend: Trend
   history?: History | undefined
 }) => {
+  // The points a source flags get a dot; the note under the chart says why.
+  const flagged = new Set(
+    resolved.observations.flatMap(({ country, year, flags }) =>
+      flags === undefined ? [] : [`${country}:${year}`],
+    ),
+  )
+
   const [dragged, setDragged] = useState<Years | null>(null)
   const years = dragged ?? { from: trend.from, to: trend.to }
 
@@ -107,7 +140,7 @@ export const TrendChart = ({
               type="monotone"
               stroke={`var(--color-${country})`}
               strokeWidth={2}
-              dot={false}
+              dot={<Marked country={country} flagged={flagged} />}
               connectNulls={false}
               isAnimationActive={dragged === null}
             />

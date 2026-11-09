@@ -18,6 +18,7 @@ import population from "./fixtures/eurostat/population-flow.json"
 import franceOptions from "./fixtures/eurostat/population-france-options.csv?raw"
 import france from "./fixtures/eurostat/population-france.csv?raw"
 import populationOptions from "./fixtures/eurostat/population-options.csv?raw"
+import recent from "./fixtures/eurostat/population-recent.csv?raw"
 import uncovered from "./fixtures/eurostat/population-uncovered.xml?raw"
 import outsideYears from "./fixtures/eurostat/population-years.xml?raw"
 import populations from "./fixtures/eurostat/population.csv?raw"
@@ -85,6 +86,10 @@ const recorded = new Map<string, () => Response>([
     () => new Response(uncovered, { status: 400 }),
   ],
   [eurostatData("TPS00001", { geo: "FR", years: "ge:2019+le:2021" }), () => new Response(france)],
+  [
+    eurostatData("TPS00001", { geo: "FR,EL", years: "ge:2024+le:2026" }),
+    () => new Response(recent),
+  ],
   [
     eurostatData("TPS00001", { geo: "FR", years: "ge:1960+le:1961" }),
     () => new Response(outsideYears, { status: 400 }),
@@ -182,6 +187,24 @@ describe("Sdmx with Eurostat", () => {
       ])
       expect(series.url).toBe(eurostatData("TPS00001", { geo: "FR,EL", years: "ge:2019+le:2021" }))
       expect(series.dimensions).toEqual([])
+    }).pipe(Effect.provide(recording().layer)),
+  )
+
+  it.effect("keeps Eurostat's flags on each value", () =>
+    Effect.gen(function* () {
+      const series = yield* (yield* Sdmx).observations(
+        query({ from: Year.make(2024), to: Year.make(2026) }),
+      )
+
+      expect(series.observations.filter((observation) => observation.year === 2026)).toEqual([
+        { country: "GRC", year: 2026, value: 10366586, flags: ["Estimated", "Provisional"] },
+        { country: "FRA", year: 2026, value: 69112309, flags: ["Provisional"] },
+      ])
+      expect(series.observations.find((observation) => observation.year === 2025)).toEqual({
+        country: "GRC",
+        year: 2025,
+        value: 10372335,
+      })
     }).pipe(Effect.provide(recording().layer)),
   )
 

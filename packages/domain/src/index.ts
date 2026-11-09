@@ -34,7 +34,7 @@ export {
 
 export { Indicator, IndicatorId } from "./Indicator.ts"
 
-export { Observation, ResolvedView } from "./ResolvedView.ts"
+export { type Flag, Observation, ResolvedView } from "./ResolvedView.ts"
 
 export { Source, sourceOf } from "./Source.ts"
 
