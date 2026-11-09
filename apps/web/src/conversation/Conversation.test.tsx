@@ -25,8 +25,10 @@ import {
   TooManyQuestions,
   Trend,
   Turn,
+  TurnNotFound,
   Turns,
   Unanswered,
+  View,
   Year,
 } from "@civicdata/domain"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
@@ -45,7 +47,7 @@ import {
   within,
 } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { Cause, DateTime, Duration, Schema } from "effect"
+import { Cause, DateTime, Duration, Schema, Struct } from "effect"
 import { http, HttpResponse } from "msw/http"
 import { describe, expect, it, vi } from "vitest"
 
@@ -102,6 +104,50 @@ const resolve = http.post("/api/views/resolve", async ({ request }) => {
 const encodeTurns = Schema.encodeSync(Schema.toCodecJson(Turns))
 
 const encodeAnswered = Schema.encodeSync(Schema.toCodecJson(Answered))
+
+const isAnswered = Schema.is(Answered)
+
+const sameView = (left: View, right: View) =>
+  JSON.stringify(Schema.encodeSync(View)(left)) === JSON.stringify(Schema.encodeSync(View)(right))
+
+// A conversation the server keeps between page loads, with the charts people
+// changed its turns to. Showing the agent's own chart changes a turn back.
+const kept = (answered: ReadonlyArray<Turn>) => {
+  let current = answered
+
+  const handlers = [
+    http.get(`/api/conversations/${id}`, () =>
+      HttpResponse.json(encodeTurns({ answered: current })),
+    ),
+    http.put(`/api/conversations/${id}/turns/:turn/chart`, async ({ params, request }) => {
+      const view = Schema.decodeUnknownSync(View)(await request.json())
+
+      current = current.map((turn, index) =>
+        index !== Number(params["turn"])
+          ? turn
+          : isAnswered(turn.answer) && sameView(turn.answer.view, view)
+            ? Struct.omit(turn, ["shown"])
+            : Struct.assign(turn, { shown: view }),
+      )
+
+      return new HttpResponse(null, { status: 204 })
+    }),
+  ]
+
+  return { handlers, turns: () => current }
+}
+
+const brazilAnswer = {
+  question: "Life expectancy in Brazil",
+  answer: Answered.make({ view: brazil, takeaway: "Life expectancy in Brazil rose." }),
+}
+
+// Opens the chart's controls and adds Argentina to it.
+const addArgentina = async (user: ReturnType<typeof userEvent.setup>) => {
+  await user.click(await screen.findByRole("button", { name: "Change" }))
+  await user.type(screen.getByRole("combobox", { name: "Countries" }), "Argen")
+  await user.click(await screen.findByRole("option", { name: "Argentina" }))
+}
 
 const turns = (answered: ReadonlyArray<Turn>, answering?: Turns["answering"]) =>
   http.get(`/api/conversations/${id}`, () =>
@@ -179,7 +225,7 @@ const show = (first?: string) => {
     ),
   })
 
-  render(
+  return render(
     <QueryClientProvider client={new QueryClient()}>
       <RouterProvider router={createRouter({ routeTree: root, history: createMemoryHistory() })} />
     </QueryClientProvider>,
@@ -643,23 +689,13 @@ describe("Conversation", () => {
   it("changes an answer's chart where it is, and copies a link to the changed chart", async () => {
     const user = userEvent.setup()
 
-    network.use(
-      turns([
-        {
-          question: "Life expectancy in Brazil",
-          answer: Answered.make({ view: brazil, takeaway: "Life expectancy in Brazil rose." }),
-        },
-      ]),
-      resolve,
-    )
+    network.use(...kept([brazilAnswer]).handlers, resolve)
     show()
 
     expect(await screen.findByText("Brazil · 2000–2001")).toBeDefined()
     expect(screen.queryByRole("combobox", { name: "Countries" })).toBeNull()
 
-    await user.click(screen.getByRole("button", { name: "Change" }))
-    await user.type(screen.getByRole("combobox", { name: "Countries" }), "Argen")
-    await user.click(await screen.findByRole("option", { name: "Argentina" }))
+    await addArgentina(user)
 
     expect(await screen.findByText("Brazil and Argentina · 2000–2001")).toBeDefined()
     expect(screen.getByText("Life expectancy in Brazil rose.").className).toContain(
@@ -679,6 +715,68 @@ describe("Conversation", () => {
       "http://localhost:3000/explore?chart=trend&indicator=SP.DYN.LE00.IN&countries=BRA%2CARG&from=2000&to=2001",
     )
     expect(screen.queryByRole("link", { name: /explorer/ })).toBeNull()
+  })
+
+  it("keeps a changed chart after a reload", async () => {
+    const server = kept([brazilAnswer])
+
+    network.use(...server.handlers, resolve)
+    const page = show()
+
+    await addArgentina(userEvent.setup())
+    expect(await screen.findByText("Brazil and Argentina · 2000–2001")).toBeDefined()
+    await vi.waitFor(() => expect(server.turns()[0]?.shown).toBeDefined())
+
+    page.unmount()
+    show()
+
+    expect(await screen.findByText("Brazil and Argentina · 2000–2001")).toBeDefined()
+    expect(await screen.findByText("This describes the chart before your changes.")).toBeDefined()
+  })
+
+  it("goes back to the agent's chart and its takeaway, after a reload too", async () => {
+    const user = userEvent.setup()
+    const server = kept([brazilAnswer])
+
+    network.use(...server.handlers, resolve)
+    const page = show()
+
+    await addArgentina(user)
+    await vi.waitFor(() => expect(server.turns()[0]?.shown).toBeDefined())
+    await user.click(await screen.findByRole("button", { name: "Back to the agent's chart" }))
+
+    expect(await screen.findByText("Brazil · 2000–2001")).toBeDefined()
+    expect(screen.getByText("Life expectancy in Brazil rose.").className).not.toContain(
+      "text-muted-foreground",
+    )
+    expect(screen.queryByRole("button", { name: "Back to the agent's chart" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Explain this chart" })).toBeNull()
+    await vi.waitFor(() => expect(server.turns()[0]).not.toHaveProperty("shown"))
+
+    page.unmount()
+    show()
+
+    expect(await screen.findByText("Brazil · 2000–2001")).toBeDefined()
+    expect(screen.queryByText("This describes the chart before your changes.")).toBeNull()
+  })
+
+  it("says why a change could not be kept, and shows the chart kept before", async () => {
+    network.use(
+      turns([brazilAnswer]),
+      http.put(`/api/conversations/${id}/turns/:turn/chart`, () =>
+        HttpResponse.json(Schema.encodeSync(TurnNotFound)(new TurnNotFound({ turn: 0 })), {
+          status: 404,
+        }),
+      ),
+      resolve,
+    )
+    show()
+
+    await addArgentina(userEvent.setup())
+
+    expect(await screen.findByText("Your change could not be kept")).toBeDefined()
+    expect(screen.getByText("This conversation no longer has this answer.")).toBeDefined()
+    expect(screen.getByText("Brazil · 2000–2001")).toBeDefined()
   })
 
   it("loads a trend's whole history only once its chart is being changed", async () => {

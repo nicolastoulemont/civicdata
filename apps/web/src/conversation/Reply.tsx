@@ -1,4 +1,4 @@
-import type { Ending } from "@civicdata/domain"
+import type { ConversationId, Turn, TurnIndex } from "@civicdata/domain"
 import { Match } from "effect"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -6,14 +6,16 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Answer } from "./Answer.tsx"
 
 interface ReplyProps {
-  answer: Ending
+  id: ConversationId
+  index: TurnIndex
+  turn: Turn
 }
 
 // How the agent answered: a chart, a question back, no indicator, or nothing
 // because the person stopped it.
-export const Reply = ({ answer }: ReplyProps) =>
-  Match.valueTags(answer, {
-    Answered: (answered) => <Answer agent={answered} />,
+export const Reply = ({ id, index, turn }: ReplyProps) =>
+  Match.valueTags(turn.answer, {
+    Answered: (answered) => <Answer id={id} turn={index} agent={answered} shown={turn.shown} />,
     Asked: ({ question }) => <p>{question}</p>,
     Unanswered: () => (
       <Alert>

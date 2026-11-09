@@ -1,17 +1,22 @@
 import {
+  Answered,
   type ConversationId,
   Ended,
   Ending,
   put,
   type Step,
   TooManyQuestions,
+  type Turn,
+  type TurnIndex,
   type Turns,
+  type View,
 } from "@civicdata/domain"
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { DateTime, Effect, Option, Result, Schema, Stream } from "effect"
+import { DateTime, Effect, Option, Result, Schema, Stream, Struct } from "effect"
 import { useEffect, useRef, useState } from "react"
 
 import { call, page } from "@/api"
+import { toQuery } from "@/explore/search"
 import { record } from "@/history/store"
 
 // The questions answered so far, and the one being answered, if any. Rejects
@@ -28,6 +33,8 @@ export const turnsQuery = (id: ConversationId) =>
 const isEnding = Schema.is(Ending)
 
 const isEnded = Schema.is(Ended)
+
+const isAnswered = Schema.is(Answered)
 
 // Passes each step of an answer to `onStep`, then resolves with how it ended:
 // its last step. An answer the server was not giving has no steps.
@@ -212,6 +219,35 @@ export const useConversation = (id: ConversationId) => {
     stopping: stopping.isPending,
     ask: send,
   }
+}
+
+// The turn showing `view`: changed to it, or back when it is the agent's chart.
+const showing = (turn: Turn, view: View): Turn =>
+  isAnswered(turn.answer) && toQuery(turn.answer.view) === toQuery(view)
+    ? Struct.omit(turn, ["shown"])
+    : Struct.assign(turn, { shown: view })
+
+// Keeps the chart a person changed a turn's chart to, one save at a time and
+// in order. While a save runs, `variables` holds the chart to show; once the
+// server keeps it, the saved conversation shows it too. Rejects with
+// TurnNotFound, NoChart or AgentUnavailable, and the turn keeps its chart.
+export const useShow = (id: ConversationId, turn: TurnIndex) => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    scope: { id: `conversation-${id}-turn-${turn}` },
+    mutationFn: (view: View) =>
+      call(page, (api) => api.conversation.show({ params: { id, turn }, payload: view })),
+    onSuccess: (_, view) =>
+      queryClient.setQueryData(turnsQuery(id).queryKey, (previous?: Turns) =>
+        previous === undefined
+          ? previous
+          : Struct.evolve(previous, {
+              answered: (answered) =>
+                answered.map((each, index) => (index === turn ? showing(each, view) : each)),
+            }),
+      ),
+  })
 }
 
 declare module "@tanstack/react-router" {

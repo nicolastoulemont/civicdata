@@ -30,6 +30,7 @@ export {
   Thinking,
   Thought,
   Turn,
+  TurnIndex,
   Turns,
   Unanswered,
   type Work,
@@ -45,9 +46,11 @@ export {
   ConversationBusy,
   DimensionsMissing,
   IndicatorNotFound,
+  NoChart,
   SourceUnavailable,
   TooManyQuestions,
   TransformNotApplicable,
+  TurnNotFound,
 } from "./Errors.ts"
 
 export { Indicator, IndicatorId, IndicatorNotes } from "./Indicator.ts"

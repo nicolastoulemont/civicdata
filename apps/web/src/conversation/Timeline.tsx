@@ -1,4 +1,4 @@
-import type { Turn } from "@civicdata/domain"
+import { type ConversationId, type Turn, TurnIndex } from "@civicdata/domain"
 import { Fragment } from "react"
 
 import { FailedQuestion } from "./Problem.tsx"
@@ -9,6 +9,7 @@ import type { useConversation } from "./useConversation.ts"
 import { Steps, Worked, Working } from "./Work.tsx"
 
 interface TimelineProps {
+  id: ConversationId
   turns: ReadonlyArray<Turn>
   pending: ReturnType<typeof useConversation>["pending"]
   failures: ReturnType<typeof useConversation>["failures"]
@@ -19,7 +20,7 @@ interface TimelineProps {
 // The turns of a conversation, oldest first, then the one being answered.
 // An answered turn folds the agent's steps under its answer; a failed one
 // keeps them open above the problem.
-export const Timeline = ({ turns, pending, failures, retry, answering }: TimelineProps) => (
+export const Timeline = ({ id, turns, pending, failures, retry, answering }: TimelineProps) => (
   <ol aria-label="Questions and answers" className="flex flex-col gap-8">
     {Array.from({ length: turns.length + 1 }, (_, index) => (
       // oxlint-disable-next-line react/no-array-index-key -- positions track append-only answered turns
@@ -42,7 +43,7 @@ export const Timeline = ({ turns, pending, failures, retry, answering }: Timelin
               {turns[index].steps === undefined ? null : (
                 <Worked steps={turns[index].steps} took={turns[index].took} />
               )}
-              <Reply answer={turns[index].answer} />
+              <Reply id={id} index={TurnIndex.make(index)} turn={turns[index]} />
             </Agent>
           </li>
         )}

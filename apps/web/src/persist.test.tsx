@@ -196,6 +196,36 @@ describe("persist", () => {
     await waitFor(() => expect(reload.sent.turns).toBe(true))
   })
 
+  it("shows a chart changed before from what this browser saved", async () => {
+    const { store, values } = memory()
+    const user = userEvent.setup()
+
+    network.use(
+      turns({ answered: [charted] }),
+      http.put(
+        `/api/conversations/${id}/turns/0/chart`,
+        () => new HttpResponse(null, { status: 204 }),
+      ),
+      resolve,
+    )
+    show(store)
+    await findChart()
+    await user.click(screen.getByRole("button", { name: "Change" }))
+    await user.type(screen.getByRole("combobox", { name: "Countries" }), "Argen")
+    await user.click(await screen.findByRole("option", { name: "Argentina" }))
+    await waitFor(() =>
+      expect([...values.values()].some((value) => String(value).includes('"shown"'))).toBe(true),
+    )
+    cleanup()
+
+    const reload = hanging()
+
+    network.use(reload.handler, resolve)
+    show(store)
+
+    expect(await screen.findByText("Brazil and Argentina · 2000–2001")).toBeDefined()
+  })
+
   it("restores a conversation saved before steps had states", async () => {
     const { store, values } = memory()
 

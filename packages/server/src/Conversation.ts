@@ -1,14 +1,20 @@
 import {
   type AgentUnavailable,
+  Answered,
   type CatalogUnavailable,
   ConversationBusy,
   Ended,
   Ending,
+  NoChart,
   put,
   type SourceUnavailable,
   type Step,
   Stopped,
+  type Turn,
+  type TurnIndex,
+  TurnNotFound,
   type Turns,
+  type View,
   type Work,
 } from "@civicdata/domain"
 import {
@@ -17,6 +23,7 @@ import {
   DateTime,
   Deferred,
   Effect,
+  Equal,
   Layer,
   Option,
   Predicate,
@@ -25,12 +32,13 @@ import {
   Schema,
   Semaphore,
   Stream,
+  Struct,
   type Take,
 } from "effect"
 import { Chat } from "effect/ai"
 
 import { Agent } from "./Agent.ts"
-import { Transcript } from "./Transcript.ts"
+import { type Saved, Transcript } from "./Transcript.ts"
 
 // Why an answer stopped short.
 type Failure = AgentUnavailable | SourceUnavailable | CatalogUnavailable
@@ -45,6 +53,10 @@ interface Interface {
   // Stops the answer in progress and keeps its turn as Stopped, returning
   // once it is kept. Does nothing when no answer is in progress.
   readonly stop: Effect.Effect<void>
+  // Keeps the chart a person changed a turn's chart to, and builds the next
+  // question on it. The agent's own chart changes the turn back. Fails with
+  // TurnNotFound or, for a turn that did not end with a chart, NoChart.
+  readonly show: (turn: TurnIndex, view: View) => Effect.Effect<void, TurnNotFound | NoChart>
 }
 
 // The step that ends an answer, and is kept in its turn.
@@ -53,9 +65,38 @@ const isEnding = Schema.is(Ending)
 // The steps of work a turn keeps: those that ended.
 const isEnded = Schema.is(Ended)
 
+const isStopped = Schema.is(Stopped)
+
 // A step still running when the answer stopped, as stopped.
 const halted = (step: Work): ReadonlyArray<Work> =>
   Predicate.isTagged(step.state, "Running") ? [{ ...step, state: Stopped.make({}) }] : []
+
+const isAnswered = Schema.is(Answered)
+
+// The chart a turn shows: the one a person changed it to, else the agent's.
+const chartOf = (turn: Turn) =>
+  turn.shown ?? (isAnswered(turn.answer) ? turn.answer.view : undefined)
+
+// The turn showing `view`: changed to it, or back when it is the agent's
+// chart. A turn that did not end with a chart has none to change.
+const showing = (turn: Turn, view: View): Turn | undefined => {
+  if (!isAnswered(turn.answer)) return undefined
+
+  return Equal.equals(view, turn.answer.view)
+    ? Struct.omit(turn, ["shown"])
+    : Struct.assign(turn, { shown: view })
+}
+
+// The chart on screen when a person changed one since the agent's last
+// answer, and it is not that answer's chart: the next question builds on it.
+const changedOf = ({ turns, changed }: Saved): View | undefined => {
+  const shown = changed === undefined ? undefined : turns[changed]
+  const chart = shown === undefined ? undefined : chartOf(shown)
+  const last = turns.findLast((turn) => isAnswered(turn.answer))
+  const answered = last !== undefined && isAnswered(last.answer) ? last.answer.view : undefined
+
+  return chart === undefined || Equal.equals(chart, answered) ? undefined : chart
+}
 
 // Steps kept for whoever follows an answer late: more than an answer has.
 const replay = 256
@@ -124,20 +165,35 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
             ? yield* agent.start
             : yield* Chat.fromJson(saved.value.chat).pipe(Effect.orDie)
 
-          const before = Option.match(saved, { onNone: () => [], onSome: (found) => found.turns })
+          const shown = Option.match(saved, { onNone: () => undefined, onSome: changedOf })
 
           const asked = yield* chat.exportJson.pipe(Effect.orDie)
 
           // A turn keeps the steps the agent ended and how long it took,
-          // stopped or not.
+          // stopped or not. The turns are read again under the lock, as a
+          // chart may have been changed meanwhile. A new chart makes earlier
+          // changes old news. Otherwise a change stays for the next question
+          // unless the model heard of it with this one: a stopped answer
+          // leaves the chat as it was, and a change made while the agent
+          // answered never reached it.
           const save = Effect.fnUntraced(function* (ending: Ending, json: string) {
             const took = DateTime.distance(started, yield* DateTime.now)
             const kept = (yield* Ref.get(work)).filter(isEnded)
+            const latest = Option.getOrUndefined(yield* transcript.load)
 
-            yield* transcript.save({
+            const heard =
+              isAnswered(ending) ||
+              (!isStopped(ending) &&
+                Equal.equals(latest === undefined ? undefined : changedOf(latest), shown))
+
+            const changed = heard ? undefined : latest?.changed
+
+            const next: Saved = {
               chat: json,
-              turns: [...before, { question, answer: ending, steps: kept, took }],
-            })
+              turns: [...(latest?.turns ?? []), { question, answer: ending, steps: kept, took }],
+            }
+
+            yield* transcript.save(changed === undefined ? next : { ...next, changed })
             yield* done(steps)
           })
 
@@ -150,7 +206,7 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
               yield* save(ending, yield* chat.exportJson.pipe(Effect.orDie))
             }).pipe(Semaphore.withPermit(lock))
 
-          yield* agent.ask(chat, question).pipe(
+          yield* agent.ask(chat, { question, shown }).pipe(
             Stream.tap((step) =>
               isEnding(step) ? end(step) : Ref.update(work, (previous) => put(previous, step)),
             ),
@@ -224,7 +280,24 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
         }
       }).pipe(Effect.withSpan("Conversation.stop"))
 
-      return Conversation.of({ turns, ask, follow, stop })
+      const show = Effect.fn("Conversation.show")(function* (turn: TurnIndex, view: View) {
+        const saved = yield* transcript.load
+        const found = Option.flatMap(saved, ({ turns: all }) => Arr.get(all, turn))
+
+        if (Option.isNone(saved) || Option.isNone(found)) return yield* new TurnNotFound({ turn })
+
+        const next = showing(found.value, view)
+
+        if (next === undefined) return yield* new NoChart({ turn })
+
+        return yield* transcript.save({
+          ...saved.value,
+          turns: saved.value.turns.with(turn, next),
+          changed: turn,
+        })
+      }, Semaphore.withPermit(lock))
+
+      return Conversation.of({ turns, ask, follow, stop, show })
     }),
   )
 }

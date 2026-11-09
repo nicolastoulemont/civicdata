@@ -1,17 +1,53 @@
-import type { Answered } from "@civicdata/domain"
-import { useState } from "react"
+import {
+  AgentUnavailable,
+  type Answered,
+  type ConversationId,
+  NoChart,
+  type TurnIndex,
+  TurnNotFound,
+  type View,
+} from "@civicdata/domain"
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Explore } from "@/explore/Explore"
 
+import { useShow } from "./useConversation.ts"
+
+// Why a changed chart could not be kept, in plain words.
+const problemOf = (error: Error) =>
+  error instanceof TurnNotFound
+    ? "This conversation no longer has this answer."
+    : error instanceof NoChart
+      ? "This answer has no chart to change."
+      : error instanceof AgentUnavailable
+        ? "Conversations cannot be reached. Try again in a moment."
+        : "Try again in a moment."
+
 interface AnswerProps {
+  id: ConversationId
+  turn: TurnIndex
   agent: typeof Answered.Type
+  // The chart a person changed the agent's to, once saved.
+  shown: View | undefined
 }
 
 // The chart that answered a question, in the explorer card so it can be
-// changed where it is. Changes stay in the page: a reload shows the agent's
-// chart again.
-export const Answer = ({ agent }: AnswerProps) => {
-  const [view, setView] = useState(agent.view)
+// changed where it is. The conversation keeps the change, and the next
+// question builds on it. A change shows at once; one the server refuses
+// returns to the chart kept before, with why.
+export const Answer = ({ id, turn, agent, shown }: AnswerProps) => {
+  const showing = useShow(id, turn)
+  const view = showing.isPending ? showing.variables : (shown ?? agent.view)
 
-  return <Explore view={view} onChange={setView} heading="h3" agent={agent} />
+  return (
+    <>
+      <Explore view={view} onChange={(next) => showing.mutate(next)} heading="h3" agent={agent} />
+      {showing.isError ? (
+        <Alert variant="destructive">
+          <AlertTitle>Your change could not be kept</AlertTitle>
+          <AlertDescription>{problemOf(showing.error)}</AlertDescription>
+        </Alert>
+      ) : null}
+    </>
+  )
 }
