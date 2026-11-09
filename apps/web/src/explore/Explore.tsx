@@ -60,7 +60,7 @@ import {
 } from "./format.ts"
 import { Indicator } from "./Indicator.tsx"
 import type { Paired } from "./points.ts"
-import { archives, cited, officialPages, Overlay } from "./politics.ts"
+import { archives, cited, officialPages, Overlay, terms, tints } from "./politics.ts"
 import { places } from "./preview.ts"
 import { RankingChart } from "./RankingChart.tsx"
 import { RelationChart } from "./RelationChart.tsx"
@@ -566,6 +566,7 @@ const Overlays = ({ trend, overlays, records, failed, onOverlays }: OverlaysProp
 interface CreditsProps {
   overlays: ReadonlyArray<Overlay>
   records: Politics | undefined
+  countries: View["countries"]
 }
 
 interface EventCreditsProps {
@@ -640,11 +641,43 @@ const ArchiveCredits = ({ overlays, records }: ArchiveCreditsProps) => {
   )
 }
 
+interface ColorCreditsProps {
+  records: Politics | undefined
+  countries: View["countries"]
+}
+
+// The page that sets each party colour a chart's bands take: the party's own
+// brand page, or the party's Wikidata entry. Bands show on a chart of one
+// country only.
+const ColorCredits = ({ records, countries }: ColorCreditsProps) => {
+  const colors = countries.length === 1 ? tints(terms(records?.governments ?? [])) : []
+
+  return colors.length === 0 ? null : (
+    <>
+      {" Party colours "}
+      {colors.map((color, index) => (
+        <Fragment key={color.url}>
+          {index === 0 ? "" : " "}
+          <a
+            className="underline underline-offset-4"
+            href={color.url}
+            aria-label={`Party colour ${index + 1}, ${color.kind === "brand" ? "the party's brand" : "Wikidata"}`}
+          >
+            {index + 1}
+          </a>
+        </Fragment>
+      ))}
+      .
+    </>
+  )
+}
+
 // The sources of the elections, governments and events on a chart, as each
 // asks to be cited. Nothing while the chart shows none of them.
-const Credits = ({ overlays, records }: CreditsProps) => (
+const Credits = ({ overlays, records, countries }: CreditsProps) => (
   <>
     <ArchiveCredits overlays={archived(overlays)} records={records} />
+    <ColorCredits records={records} countries={countries} />
     {overlays.includes("events") ? <EventCredits records={records} /> : null}
   </>
 )
@@ -785,7 +818,11 @@ export const Explore = ({
           {query.data === undefined
             ? `Source: ${sourceOf(view.indicator)}`
             : attribution(query.data)}
-          <Credits overlays={political.overlays} records={political.records} />
+          <Credits
+            overlays={political.overlays}
+            records={political.records}
+            countries={view.countries}
+          />
         </p>
       </CardFooter>
     </Card>

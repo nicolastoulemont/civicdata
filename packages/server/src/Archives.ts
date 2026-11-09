@@ -9,6 +9,18 @@ import east from "./official/government-updates-east.json"
 import west from "./official/government-updates-west.json"
 import { table } from "./Table.ts"
 
+// A governing party as its publisher records it, with the publisher's own id
+// for it (PPEG's `party_id`, ParlGov's `party_id`) and whether the publisher
+// names it as the head of government's party. Records checked by hand name
+// parties without an id and never say which is the head's.
+const PartyRecord = Schema.Struct({
+  ...Party.fields,
+  id: Schema.NullOr(Schema.NonEmptyString),
+  lead: Schema.Boolean,
+})
+
+interface PartyRecord extends Schema.Schema.Type<typeof PartyRecord> {}
+
 // One government as its publisher records it: when it started, who headed
 // it, and its governing parties, the head's party first. `until` is the day
 // the publisher's records end, for a government still in office then; the
@@ -16,7 +28,7 @@ import { table } from "./Table.ts"
 export const GovernmentRecord = Schema.Struct({
   country: Country,
   head: Schema.NonEmptyString,
-  parties: Schema.Array(Party),
+  parties: Schema.Array(PartyRecord),
   start: Day,
   until: Schema.NullOr(Day),
   url: Schema.NonEmptyString,
@@ -96,6 +108,7 @@ const PpegRow = Schema.Struct({
     "Other",
     "Notappl",
   ]),
+  party_id: Schema.NonEmptyString,
   pname_en: Schema.NonEmptyString,
   pinitials: Schema.String,
   pm_party: Schema.Literals(["yes", "no"]),
@@ -123,7 +136,11 @@ const ppegGovernments = Effect.fn("Archives.ppeg")(function* (
   // Each cabinet's parties, the head's first, under its country and day.
   const cabinets = new Map<
     string,
-    { recorded: Omit<GovernmentRecord, "parties">; lead: Array<Party>; rest: Array<Party> }
+    {
+      recorded: Omit<GovernmentRecord, "parties">
+      lead: Array<PartyRecord>
+      rest: Array<PartyRecord>
+    }
   >()
 
   for (const row of decoded) {
@@ -148,9 +165,14 @@ const ppegGovernments = Effect.fn("Archives.ppeg")(function* (
 
     // Support parties back the cabinet in parliament but are not in it.
     if (row.gov_party === "yes") {
-      const party = { name: row.pname_en, abbreviation: initials(row.pinitials) }
+      const party = {
+        name: row.pname_en,
+        abbreviation: initials(row.pinitials),
+        id: row.party_id,
+        lead: row.pm_party === "yes",
+      }
 
-      if (row.pm_party === "yes") cabinet.lead.push(party)
+      if (party.lead) cabinet.lead.push(party)
       else cabinet.rest.push(party)
     }
 
@@ -299,6 +321,8 @@ const parlgovGovernments = Effect.fn("Archives.parlgov")(function* (
               {
                 name: party.name_english === "" ? party.name : party.name_english,
                 abbreviation: row.party === "" ? null : row.party,
+                id: row.party_id,
+                lead: row.pm === "True",
               },
             ]
       })
@@ -383,7 +407,12 @@ const officialGovernments = Effect.fn("Archives.official")(function* () {
         : formations.map((formation) => ({
             country,
             head: formation.primeMinister,
-            parties: formation.parties.map((name) => ({ name, abbreviation: null })),
+            parties: formation.parties.map((name) => ({
+              name,
+              abbreviation: null,
+              id: null,
+              lead: false,
+            })),
             start: formation.start,
             until: null,
             url: formation.sources[0].url,

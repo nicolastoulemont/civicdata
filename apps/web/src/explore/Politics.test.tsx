@@ -43,6 +43,7 @@ const government = (fields: Partial<Government> = {}): Government => ({
   country: "ESP",
   head: "Mariano Rajoy",
   parties: [{ name: "People's Party", abbreviation: "PP" }],
+  color: null,
   start: Day.make("2011-12-21"),
   end: End.cases.Open.make({}),
   citation: {
@@ -68,6 +69,12 @@ const recorded: ReadonlyArray<Government> = [
   government({
     head: "Pedro Sánchez",
     parties: [{ name: "Spanish Socialist Workers' Party", abbreviation: "PSOE" }],
+    // The source names one head's party, and that party has a colour.
+    color: {
+      hex: "#EF1C27",
+      kind: "representative",
+      url: "https://www.wikidata.org/wiki/Q138198#P465",
+    },
     start: Day.make("2018-06-07"),
     end: End.cases.Cutoff.make({ day: Day.make("2025-10-31") }),
   }),
@@ -379,6 +386,32 @@ describe("Elections and governments on a trend", () => {
     expect(
       screen.getByRole("link", { name: "PPEG (Krause, Döring, Stoppe, WZB Berlin, 2025)" }),
     ).toBeDefined()
+  })
+
+  it("tints a head's band by their party's colour, and leaves one without a colour grey", async () => {
+    network.use(resolve, politics)
+
+    show(["ESP"], { overlays: ["governments"] })
+
+    const shown = await screen.findByRole("figure")
+    const figure = within(shown)
+
+    await figure.findByText("Pedro Sánchez")
+
+    // One band per head, oldest first: Zapatero's and Rajoy's parties have no
+    // sourced colour.
+    await vi.waitFor(() =>
+      expect(
+        [...shown.querySelectorAll(".recharts-reference-area-rect")].map((band) =>
+          band.getAttribute("fill"),
+        ),
+      ).toEqual(["var(--muted-foreground)", "var(--muted-foreground)", "#EF1C27"]),
+    )
+    expect(figure.getByText(/shaded by head of government and tinted by their party/)).toBeDefined()
+    // The source line links the page that sets the colour.
+    expect(
+      screen.getByRole("link", { name: "Party colour 1, Wikidata" }).getAttribute("href"),
+    ).toBe("https://www.wikidata.org/wiki/Q138198#P465")
   })
 
   it("names each country's government in the tooltip of a trend of two", async () => {

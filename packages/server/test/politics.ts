@@ -61,6 +61,14 @@ export const emptyPolitics = () =>
 // The records as the version before fingerprints left them.
 export const dropFingerprints = Effect.promise(() => db.exec("DROP TABLE politics_fingerprint"))
 
+// The governments as a build stored them before it kept each party's id and
+// whether it is the head's.
+export const forgetPartyIds = Effect.promise(() =>
+  db.exec(
+    "UPDATE governments SET parties = (SELECT json_group_array(json_remove(value, '$.id', '$.lead')) FROM json_each(governments.parties))",
+  ),
+)
+
 // The published generation of each dataset.
 export const published = () =>
   Effect.promise(() =>

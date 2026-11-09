@@ -88,6 +88,17 @@ export const Party = Schema.Struct({
 
 export interface Party extends Schema.Schema.Type<typeof Party> {}
 
+// A party's colour and the page that sets it: the party's own brand, or a
+// representative colour from Wikidata's "sRGB colour" (P465). It identifies
+// the party; it says nothing about where the party stands.
+export const PartyColor = Schema.Struct({
+  hex: Schema.String.check(Schema.isPattern(/^#[0-9A-F]{6}$/)),
+  kind: Schema.Literals(["brand", "representative"]),
+  url: Schema.String.check(Schema.isPattern(/^https:\/\/\S+$/)),
+})
+
+export interface PartyColor extends Schema.Schema.Type<typeof PartyColor> {}
+
 // How a government's time in office ends. The sources record when each
 // government starts, never when it ends: a government ends when the next one
 // starts (Next), was still in office when its publisher's records end
@@ -100,11 +111,14 @@ export const End = Schema.TaggedUnion({
 
 // One government: a cabinet with its head and governing parties, from its
 // start. An empty party list means its composition is not established, not
-// that it had no parties.
+// that it had no parties. Its colour is its head's party's, when its
+// publisher names exactly one party as the head's and that party has a
+// sourced colour; otherwise none.
 const Government = Schema.Struct({
   country: Country,
   head: Schema.NonEmptyString,
   parties: Schema.Array(Party),
+  color: Schema.NullOr(PartyColor),
   start: Day,
   end: End,
   citation: Citation,

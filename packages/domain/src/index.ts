@@ -75,6 +75,7 @@ export {
   members,
   Moment,
   Party,
+  PartyColor,
   Politics,
   Publisher,
   type Reform,
