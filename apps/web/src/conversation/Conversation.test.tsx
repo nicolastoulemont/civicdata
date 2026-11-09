@@ -5,8 +5,15 @@ import {
   CatalogUnavailable,
   ConversationBusy,
   ConversationId,
+  Definition,
   Ended,
+  Failed,
+  Fetch,
+  Fetched,
   IndicatorId,
+  Read,
+  Rejected,
+  Rejection,
   ResolvedView,
   Running,
   Search,
@@ -188,6 +195,18 @@ const findQuestion = async (text: string, options?: Parameters<typeof screen.fin
 
 const findComposer = () => screen.findByRole("textbox", { name: "Ask a follow-up" })
 
+// A search that ended with one match, as a turn keeps it.
+const searchedFor = (text: string) =>
+  Ended.cases.Search.make({
+    id: StepId.make(text),
+    text,
+    state: Searched.make({ count: 1, top: [] }),
+  })
+
+// A step's row in the work log, not its line for screen readers.
+const findStep = async (text: string) =>
+  within(await screen.findByRole("list", { name: "Steps" })).findByText(text)
+
 // A search for life expectancy, running until a test gives it another state.
 const searching = (state: typeof Search.Type.state = Running.make({})) =>
   Search.make({ id: StepId.make("search-1"), text: "life expectancy", state })
@@ -217,13 +236,21 @@ describe("Conversation", () => {
     ).toBeDefined()
     expect(await findQuestion("How has life expectancy changed in Brazil?")).toBeDefined()
 
+    // The agent thinks before its first step.
+    expect(await findStep("Thinking…")).toBeDefined()
+
+    // A running step reads in the present tense, then in the past tense with
+    // its result, in the same row.
     reply.send(message(searching()))
-    expect(await screen.findByText("Searched indicators for “life expectancy”")).toBeDefined()
+    expect(await findStep("Searching for “life expectancy”…")).toBeDefined()
+    expect(screen.queryByText("Thinking…")).toBeNull()
 
     reply.send(message(searched))
+    expect(await findStep("Searched for “life expectancy”: 1 found")).toBeDefined()
+    expect(screen.queryByText("Searching for “life expectancy”…")).toBeNull()
     expect(
-      await screen.findByText("Searched indicators for “life expectancy”: 1 found"),
-    ).toBeDefined()
+      within(screen.getByRole("list", { name: "Steps" })).getAllByRole("listitem"),
+    ).toHaveLength(2)
 
     reply.send(
       message(Answered.make({ view: brazil, takeaway: "Life expectancy in Brazil rose." })),
@@ -235,40 +262,125 @@ describe("Conversation", () => {
     ).toBeDefined()
     expect(screen.getByText("Life expectancy in Brazil rose.")).toBeDefined()
     expect(screen.getByRole("link", { name: "Open in the explorer" })).toBeDefined()
-    expect(screen.queryByText("Searched indicators for “life expectancy”: 1 found")).toBeNull()
+    expect(screen.queryByText("Searched for “life expectancy”: 1 found")).toBeNull()
   })
 
-  it("replaces a running step with what it found once it ends", async () => {
+  it("opens a search to its best matches and their source", async () => {
     const reply = answer()
-    const step = StepId.make("search-2")
+    const user = userEvent.setup()
 
     network.use(turns([]), reply.handler, resolve)
     show("Housing costs in Greece and Germany")
 
     reply.send(
       message(
-        Search.make({ id: step, text: "housing", source: "Eurostat", state: Running.make({}) }),
-      ),
-    )
-    expect(await screen.findByText("Searched Eurostat indicators for “housing”")).toBeDefined()
-
-    reply.send(
-      message(
         Search.make({
-          id: step,
+          id: StepId.make("search-2"),
           text: "housing",
           source: "Eurostat",
-          state: Searched.make({ count: 12, top: [] }),
+          state: Searched.make({
+            count: 12,
+            top: [
+              {
+                indicator: IndicatorId.make("ESTAT,ILC_LVHO07A,1.0"),
+                name: "Housing cost overburden rate",
+              },
+            ],
+          }),
+        }),
+      ),
+    )
+    reply.send(
+      message(
+        Definition.make({
+          id: StepId.make("definition-1"),
+          indicator: IndicatorId.make("ESTAT,ILC_LVHO07A,1.0"),
+          state: Read.make({ name: "Housing cost overburden rate" }),
         }),
       ),
     )
 
-    expect(
-      await screen.findByText("Searched Eurostat indicators for “housing”: 12 found"),
-    ).toBeDefined()
-    expect(
-      within(screen.getByRole("list", { name: "Steps" })).getAllByRole("listitem"),
-    ).toHaveLength(2)
+    const row = await screen.findByRole("button", {
+      name: "Searched Eurostat for “housing”: 12 found",
+    })
+
+    expect(row.getAttribute("aria-expanded")).toBe("false")
+
+    await user.click(row)
+
+    expect(await findStep("Housing cost overburden rate · Eurostat")).toBeDefined()
+    // A row with nothing more to show does not open.
+    expect(await findStep("Read “Housing cost overburden rate”")).toBeDefined()
+    expect(screen.queryByRole("button", { name: /^Read/ })).toBeNull()
+  })
+
+  it("opens a chart the data rejected to why", async () => {
+    const reply = answer()
+    const step = StepId.make("chart-1")
+    const later = Trend.make({ ...brazil, from: Year.make(2024), to: Year.make(2025) })
+
+    network.use(turns([]), reply.handler, resolve)
+    show("Life expectancy in Brazil")
+
+    reply.send(message(Fetch.make({ id: step, view: later, state: Running.make({}) })))
+    expect(await findStep("Fetching the World Bank data for 1 country, 2024–2025…")).toBeDefined()
+
+    reply.send(
+      message(
+        Fetch.make({
+          id: step,
+          view: later,
+          state: Rejected.make({ reason: Rejection.cases.NoValues.make({}) }),
+        }),
+      ),
+    )
+    await userEvent.setup().click(
+      await screen.findByRole("button", {
+        name: "Tried a chart the data can't show, trying again",
+      }),
+    )
+
+    expect(await findStep("The World Bank has no values for Brazil in 2024–2025.")).toBeDefined()
+  })
+
+  it("says in plain words why a step failed", async () => {
+    const reply = answer()
+
+    network.use(turns([]), reply.handler)
+    show("Unemployment in Spain and Japan")
+
+    reply.send(
+      message(
+        Definition.make({
+          id: StepId.make("definition-1"),
+          indicator: IndicatorId.make("OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M,1.0"),
+          state: Failed.make({ reason: new SourceUnavailable({ source: "OECD" }) }),
+        }),
+      ),
+    )
+    reply.send(failure(new SourceUnavailable({ source: "OECD" })))
+    reply.end()
+
+    expect(await findStep("Couldn't read the definition: the OECD didn't answer")).toBeDefined()
+  })
+
+  it("tells screen readers each step once, when it ends", async () => {
+    const reply = answer()
+
+    network.use(turns([]), reply.handler)
+    show("Life expectancy in Brazil")
+
+    reply.send(message(searching()))
+    await findStep("Searching for “life expectancy”…")
+
+    const log = screen.getByRole("log", { name: "Finished steps" })
+    expect(log.textContent).toBe("")
+
+    reply.send(message(searched))
+    await findStep("Searched for “life expectancy”: 1 found")
+
+    expect(within(log).getAllByText("Searched for “life expectancy”: 1 found")).toHaveLength(1)
+    reply.end()
   })
 
   it("times the agent's work while it answers, then folds its steps under the answer", async () => {
@@ -291,10 +403,8 @@ describe("Conversation", () => {
 
       reply.send(message(searched))
       const steps = await screen.findByRole("list", { name: "Steps" })
-      expect(
-        within(steps).getByText("Searched indicators for “life expectancy”: 1 found"),
-      ).toBeDefined()
-      expect(within(steps).getByText("Finding a chart…")).toBeDefined()
+      expect(within(steps).getByText("Searched for “life expectancy”: 1 found")).toBeDefined()
+      expect(within(steps).getByText("Thinking…")).toBeDefined()
 
       await act(async () => {
         vi.advanceTimersByTime(4_000)
@@ -313,7 +423,7 @@ describe("Conversation", () => {
       reply.send(message(Answered.make({ view: brazil })))
       reply.end()
 
-      const fold = await screen.findByRole("button", { name: "Worked for 8s" })
+      const fold = await screen.findByRole("button", { name: "Worked for 8s · 1 search" })
       expect(fold.getAttribute("aria-expanded")).toBe("false")
       expect(screen.queryByText(/^Working for/)).toBeNull()
       expect(screen.queryByRole("list", { name: "Steps" })).toBeNull()
@@ -324,12 +434,40 @@ describe("Conversation", () => {
       vi.useRealTimers()
     }
 
-    await userEvent.setup().click(screen.getByRole("button", { name: "Worked for 8s" }))
+    await userEvent.setup().click(screen.getByRole("button", { name: "Worked for 8s · 1 search" }))
+
+    expect(await findStep("Searched for “life expectancy”: 1 found")).toBeDefined()
+  })
+
+  it("counts the two kinds of work the agent did most on the folded line", async () => {
+    network.use(
+      turns([
+        {
+          question: "Life expectancy in Brazil",
+          answer: Answered.make({ view: brazil }),
+          steps: [
+            searchedFor("life expectancy"),
+            Ended.cases.Definition.make({
+              id: StepId.make("definition-1"),
+              indicator: lifeExpectancy,
+              state: Read.make({ name: "Life expectancy at birth, total (years)" }),
+            }),
+            searchedFor("longevity"),
+            Ended.cases.Fetch.make({
+              id: StepId.make("chart-1"),
+              view: brazil,
+              state: Fetched.make({ values: 2 }),
+            }),
+          ],
+          took: Duration.seconds(8),
+        },
+      ]),
+      resolve,
+    )
+    show()
 
     expect(
-      within(await screen.findByRole("list", { name: "Steps" })).getByText(
-        "Searched indicators for “life expectancy”: 1 found",
-      ),
+      await screen.findByRole("button", { name: "Worked for 8s · 2 searches, 1 definition" }),
     ).toBeDefined()
   })
 
@@ -361,16 +499,22 @@ describe("Conversation", () => {
     )
     show()
 
-    await userEvent.setup().click(await screen.findByRole("button", { name: "Worked for 1m 05s" }))
+    const user = userEvent.setup()
+
+    await user.click(
+      await screen.findByRole("button", { name: "Worked for 1m 05s · 1 search, 1 chart" }),
+    )
 
     expect(
       within(await screen.findByRole("list", { name: "Steps" }))
         .getAllByRole("listitem")
         .map((item) => item.textContent),
-    ).toEqual([
-      "Searched indicators for “life expectancy”",
-      "Tried a chart the data cannot show: The World Bank has no values for these years.",
-    ])
+    ).toEqual(["Searched for “life expectancy”", "Tried a chart the data can't show, trying again"])
+
+    await user.click(
+      screen.getByRole("button", { name: "Tried a chart the data can't show, trying again" }),
+    )
+    expect(await findStep("The World Bank has no values for these years.")).toBeDefined()
     expect(screen.getAllByRole("button", { name: /^Worked/ })).toHaveLength(1)
   })
 
@@ -387,7 +531,7 @@ describe("Conversation", () => {
     )
     show()
 
-    const fold = await screen.findByRole("button", { name: "Worked for 3s" })
+    const fold = await screen.findByRole("button", { name: "Worked for 3s · 1 search" })
     const viewport = screen.getByRole("region", { name: "Conversation" })
     // happy-dom has no layout: the conversation is taller than its viewport.
     Object.defineProperties(viewport, {
@@ -429,14 +573,14 @@ describe("Conversation", () => {
 
     network.use(turns([]), reply.handler)
     show("Life expectancy in Brazil")
-    reply.send(message(searching()))
+    reply.send(message(searched))
     reply.send(failure(new AgentUnavailable()))
     reply.end()
 
     expect(await screen.findByRole("alert")).toBeDefined()
     expect(
       within(screen.getByRole("list", { name: "Steps" })).getByText(
-        "Searched indicators for “life expectancy”",
+        "Searched for “life expectancy”: 1 found",
       ),
     ).toBeDefined()
     expect(screen.queryByRole("button", { name: /^Worked/ })).toBeNull()
@@ -594,8 +738,10 @@ describe("Conversation", () => {
     network.use(
       turns([]),
       reply.handler,
-      // The server stops the answer, which ends its stream with Stopped.
+      // The server stops the answer and the step running, then ends its
+      // stream with Stopped.
       http.delete(`/api/conversations/${id}/answer`, () => {
+        reply.send(message(searching(Stopped.make({}))))
         reply.send(message(Stopped.make({})))
         reply.end()
 
@@ -605,7 +751,7 @@ describe("Conversation", () => {
     show("Life expectancy in Brazil")
 
     reply.send(message(searching()))
-    expect(await screen.findByText("Searched indicators for “life expectancy”")).toBeDefined()
+    expect(await findStep("Searching for “life expectancy”…")).toBeDefined()
 
     // A draft takes the stop button's place until the box is empty again.
     await user.type(await findComposer(), "Add Mexico")
@@ -625,6 +771,9 @@ describe("Conversation", () => {
 
     expect(document.activeElement).toBe(composer)
     expect(composer.getAttribute("placeholder")).toBe("Ask again, or ask something else")
+
+    await user.click(screen.getByRole("button", { name: "Worked · 1 search" }))
+    expect(await findStep("Stopped searching for “life expectancy”")).toBeDefined()
 
     await user.type(composer, "Life expectancy in Mexico")
     expect(screen.getByRole("button", { name: "Send" }).getAttribute("aria-disabled")).not.toBe(
@@ -731,7 +880,7 @@ describe("Conversation", () => {
     ).toBe("true")
 
     reply.send(message(searching()))
-    expect(await screen.findByText("Searched indicators for “life expectancy”")).toBeDefined()
+    expect(await findStep("Searching for “life expectancy”…")).toBeDefined()
 
     reply.send(message(Answered.make({ view: brazil })))
     reply.end()
@@ -759,7 +908,7 @@ describe("Conversation", () => {
     show("Life expectancy in Brazil")
 
     asked.send(message(searching()))
-    expect(await screen.findByText("Searched indicators for “life expectancy”")).toBeDefined()
+    expect(await findStep("Searching for “life expectancy”…")).toBeDefined()
 
     // The server keeps answering after the page loses the stream.
     answering = { question: "Life expectancy in Brazil", started }

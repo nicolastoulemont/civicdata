@@ -187,7 +187,7 @@ describe("persist", () => {
     expect(await findChart()).toBeDefined()
     expect((await timeline()).getByText("How has life expectancy changed in Brazil?")).toBeDefined()
     expect(screen.getByText("Life expectancy in Brazil rose.")).toBeDefined()
-    expect(screen.getByRole("button", { name: "Worked for 8s" })).toBeDefined()
+    expect(screen.getByRole("button", { name: "Worked for 8s · 1 search" })).toBeDefined()
     expect(
       screen.getByText(
         "Source: World Bank, World Development Indicators. Retrieved 8 November 2026.",
@@ -231,10 +231,12 @@ describe("persist", () => {
     network.use(reload.handler)
     show(store)
 
-    await userEvent.setup().click(await screen.findByRole("button", { name: "Worked for 8s" }))
+    await userEvent
+      .setup()
+      .click(await screen.findByRole("button", { name: "Worked for 8s · 1 search" }))
     expect(
       within(screen.getByRole("list", { name: "Steps" })).getByText(
-        "Searched indicators for “life expectancy”: World Bank",
+        "Searched for “life expectancy”: World Bank",
       ),
     ).toBeDefined()
   })
