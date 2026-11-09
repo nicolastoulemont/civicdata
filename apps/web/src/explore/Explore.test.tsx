@@ -240,6 +240,50 @@ describe("Explore", () => {
     expect(screen.getByRole("button", { name: "Retry" })).toBeDefined()
   })
 
+  it("credits Eurostat on a Eurostat chart and links to its data browser", async () => {
+    const eurostat = IndicatorId.make("ESTAT,TPS00001,1.0")
+
+    network.use(
+      http.post("/api/views/resolve", async ({ request }) => {
+        const view = Schema.decodeUnknownSync(Trend)(await request.json())
+        const resolved = resolvedFor(view)
+
+        return HttpResponse.json(
+          Schema.encodeSync(ResolvedViewSchema)({
+            view,
+            observations: resolved.observations,
+            missing: resolved.missing,
+            title: "Population on 1 January",
+            indicator: { id: eurostat, name: "Population on 1 January", definition: "" },
+            sources: [
+              {
+                indicator: eurostat,
+                name: "Population on 1 January",
+                source: "Eurostat",
+                dataset: "Population on 1 January",
+                url: "https://ec.europa.eu/eurostat/api/dissemination/sdmx/3.0/data/dataflow/ESTAT/TPS00001/1.0/*",
+                retrievedAt: DateTime.makeUnsafe("2026-11-08T00:00:00Z"),
+              },
+            ],
+          }),
+        )
+      }),
+    )
+    const user = userEvent.setup()
+
+    show(Trend.make({ ...trend, indicator: eurostat }))
+
+    expect(
+      await screen.findByText(
+        "Source: Eurostat, Population on 1 January. Retrieved 8 November 2026.",
+      ),
+    ).toBeDefined()
+    await user.click(screen.getByRole("button", { name: "About this data" }))
+    expect(
+      (await screen.findByRole("link", { name: "ESTAT,TPS00001,1.0" })).getAttribute("href"),
+    ).toBe("https://ec.europa.eu/eurostat/databrowser/view/tps00001/default/table")
+  })
+
   it("switches the chart to an indicator found by name", async () => {
     network.use(worldBank, search)
     const user = userEvent.setup()

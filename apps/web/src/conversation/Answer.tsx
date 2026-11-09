@@ -1,4 +1,4 @@
-import type { View } from "@civicdata/domain"
+import { sourceOf, type View } from "@civicdata/domain"
 import { useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 
@@ -57,7 +57,7 @@ export const Answer = ({ view }: { view: View }) => {
         {query.data === undefined ? null : <Chart resolved={query.data} />}
       </CardContent>
       <CardFooter className="text-sm text-muted-foreground">
-        {query.data === undefined ? "Source: World Bank" : attribution(query.data)}
+        {query.data === undefined ? `Source: ${sourceOf(view.indicator)}` : attribution(query.data)}
       </CardFooter>
     </Card>
   )

@@ -1,11 +1,13 @@
 import {
   Change,
+  DimensionsMissing,
   type IndicatorId,
   IndicatorNotFound,
   Ranking,
   Relation,
   type ResolvedView,
   SourceUnavailable,
+  sourceOf,
   TransformNotApplicable,
   transformOf,
   Trend,
@@ -41,6 +43,7 @@ import {
   attribution,
   countryName,
   indicatorNames,
+  named,
   period,
   subject,
   transformLabel,
@@ -214,16 +217,25 @@ const Problem = ({ error, retry }: { error: Error; retry: () => void }) =>
         index or as a ratio.
       </AlertDescription>
     </Alert>
+  ) : error instanceof DimensionsMissing ? (
+    <Alert variant="destructive">
+      <AlertTitle>{error.indicator} holds several series</AlertTitle>
+      <AlertDescription>
+        Its values differ by {error.dimensions.join(", ")}, and this chart cannot pick one yet.
+      </AlertDescription>
+    </Alert>
   ) : error instanceof IndicatorNotFound ? (
     <Alert variant="destructive">
       <AlertTitle>Unknown indicator</AlertTitle>
-      <AlertDescription>The World Bank has no indicator {error.indicator}.</AlertDescription>
+      <AlertDescription>
+        {named(sourceOf(error.indicator))} has no indicator {error.indicator}.
+      </AlertDescription>
     </Alert>
   ) : (
     <Alert variant="destructive">
       <AlertTitle>
         {error instanceof SourceUnavailable
-          ? "The World Bank is not responding"
+          ? `${named(error.source)} is not responding`
           : "The data could not be loaded"}
       </AlertTitle>
       <AlertDescription>
@@ -363,7 +375,7 @@ export const Explore = ({ view, onChange }: { view: View; onChange: (view: View)
                     No data for {query.data.missing.map(countryName).join(", ")}
                   </AlertTitle>
                   <AlertDescription>
-                    The World Bank has no values for {period(view)}.
+                    {named(sourceOf(view.indicator))} has no values for {period(view)}.
                   </AlertDescription>
                 </Alert>
               ) : null}
@@ -379,7 +391,9 @@ export const Explore = ({ view, onChange }: { view: View; onChange: (view: View)
           )}
         </CardContent>
         <CardFooter className="text-sm text-muted-foreground">
-          {query.data === undefined ? "Source: World Bank" : attribution(query.data)}
+          {query.data === undefined
+            ? `Source: ${sourceOf(view.indicator)}`
+            : attribution(query.data)}
         </CardFooter>
       </Card>
       {query.data === undefined ? null : (

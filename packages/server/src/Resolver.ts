@@ -1,10 +1,12 @@
 import {
   applies,
+  type DimensionsMissing,
   IndicatorId,
   IndicatorNotFound,
   type Observation,
   type ResolvedView,
   SourceUnavailable,
+  sourceOf,
   type Transform,
   TransformNotApplicable,
   type View,
@@ -12,6 +14,8 @@ import {
 } from "@civicdata/domain"
 import { Array as Arr, Context, Effect, Layer, Match } from "effect"
 
+import { Sdmx } from "./Sdmx.ts"
+import type { Query } from "./Series.ts"
 import { titleOf } from "./Titles.ts"
 import { divide, growth, indexed } from "./transforms.ts"
 import { WorldBank } from "./WorldBank.ts"
@@ -19,18 +23,14 @@ import { WorldBank } from "./WorldBank.ts"
 interface Interface {
   readonly resolve: (
     view: View,
-  ) => Effect.Effect<ResolvedView, IndicatorNotFound | SourceUnavailable | TransformNotApplicable>
+  ) => Effect.Effect<
+    ResolvedView,
+    IndicatorNotFound | SourceUnavailable | TransformNotApplicable | DimensionsMissing
+  >
 }
 
 // "Per person" divides by this World Bank series.
 const population = IndicatorId.make("SP.POP.TOTL")
-
-interface Query {
-  readonly indicator: IndicatorId
-  readonly countries: View["countries"]
-  readonly from: Year
-  readonly to: Year
-}
 
 // The requested countries without a value in each of `series`: a change needs
 // a value in both years, a relation one for both indicators.
@@ -44,10 +44,15 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
     Resolver,
     Effect.gen(function* () {
       const worldBank = yield* WorldBank
+      const sdmx = yield* Sdmx
 
       const series = Effect.fn("Resolver.series")(function* (query: Query) {
+        const source = sourceOf(query.indicator)
+        // Eurostat and OECD both publish SDMX.
+        const adapter = source === "World Bank" ? worldBank : sdmx
+
         const [described, fetched] = yield* Effect.all(
-          [worldBank.describe(query.indicator), worldBank.observations(query)],
+          [adapter.describe(query.indicator), adapter.observations(query)],
           { concurrency: 2 },
         )
 
@@ -57,7 +62,7 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
           source: {
             indicator: query.indicator,
             name: described.indicator.name,
-            source: "World Bank" as const,
+            source,
             dataset: described.dataset,
             url: fetched.url,
             retrievedAt: fetched.retrievedAt,

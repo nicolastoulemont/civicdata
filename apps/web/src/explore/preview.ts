@@ -1,4 +1,4 @@
-import type { IndicatorId, View } from "@civicdata/domain"
+import { type IndicatorId, sourceOf, type View } from "@civicdata/domain"
 import { Match } from "effect"
 
 import { countryName, period, subject, transformLabel } from "./format.ts"
@@ -13,7 +13,7 @@ export const places = (view: View) => {
 }
 
 // What a shared link shows before it is opened: the page title and the
-// description in a link preview. Names come from the World Bank, never from
+// description in a link preview. Names come from the source, never from
 // the link, so a crafted URL cannot put words in a preview. Without an
 // indicator's name the title falls back to its code.
 export const preview = (view: View, names: ReadonlyMap<IndicatorId, string>) => {
@@ -28,6 +28,6 @@ export const preview = (view: View, names: ReadonlyMap<IndicatorId, string>) => 
 
   return {
     title: `${subject(view, names)} · ${period(view)}`,
-    description: `${verb} ${places(view)}${label === undefined ? "" : ` (${label})`}. Source: World Bank.`,
+    description: `${verb} ${places(view)}${label === undefined ? "" : ` (${label})`}. Source: ${sourceOf(view.indicator)}.`,
   }
 }

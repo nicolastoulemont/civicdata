@@ -3,7 +3,7 @@
 // oxlint-disable-next-line typescript/triple-slash-reference
 /// <reference path="./cloudflare.d.ts" />
 
-import { Context, Effect, Layer, Option } from "effect"
+import { Context, DateTime, Effect, Layer, Option, Schema } from "effect"
 
 // What the cache needs from an R2 bucket binding.
 export interface Bucket {
@@ -14,6 +14,13 @@ export interface Bucket {
 interface Interface {
   readonly get: (key: string) => Effect.Effect<Option.Option<string>>
   readonly put: (key: string, value: string) => Effect.Effect<void>
+}
+
+interface Remembered<A, E> {
+  readonly json: Schema.Codec<A, string>
+  // Whether a result retrieved at `retrievedAt` may still be served at `now`.
+  readonly fresh: (retrievedAt: DateTime.Utc, now: DateTime.Utc) => boolean
+  readonly fetch: Effect.Effect<A, E>
 }
 
 // A best-effort key-value store. Failures are logged and read as misses, so a
@@ -44,6 +51,34 @@ export class Cache extends Context.Service<Cache, Interface>()("@civicdata/serve
     Cache,
     Cache.of({ get: () => Effect.succeedNone, put: () => Effect.void }),
   )
+
+  // Serves the result stored under `key` while it is fresh, otherwise fetches
+  // and stores the answer. An entry that no longer decodes is a miss. Results
+  // keep their retrieval time, so a stored one still reports when its source
+  // was asked.
+  static readonly remember = Effect.gen(function* () {
+    const cache = yield* Cache
+
+    return Effect.fnUntraced(function* <A extends { readonly retrievedAt: DateTime.Utc }, E>(
+      key: string,
+      { json, fresh, fetch }: Remembered<A, E>,
+    ) {
+      const stored = Option.flatMap(yield* cache.get(key), Schema.decodeOption(json))
+      const now = yield* DateTime.now
+
+      if (Option.isSome(stored) && fresh(stored.value.retrievedAt, now)) return stored.value
+
+      const answer = yield* fetch
+
+      yield* Schema.encodeEffect(json)(answer).pipe(
+        Effect.flatMap((text) => cache.put(key, text)),
+        Effect.tapError((error) => Effect.logWarning("Could not cache", key, error)),
+        Effect.ignore,
+      )
+
+      return answer
+    })
+  })
 
   // R2 inside Workers (deployed, or under `alchemy dev`). Plain `pnpm dev` runs
   // in Node, where `cloudflare:workers` does not exist, so it runs uncached.
