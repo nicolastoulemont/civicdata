@@ -1,6 +1,7 @@
 import { Schema } from "effect"
 
 import { IndicatorId } from "./Indicator.ts"
+import { Source } from "./Source.ts"
 import { Transform } from "./Transform.ts"
 
 export class IndicatorNotFound extends Schema.TaggedError<
@@ -12,7 +13,7 @@ export class IndicatorNotFound extends Schema.TaggedError<
 export class SourceUnavailable extends Schema.TaggedError<
   SourceUnavailable,
   { readonly brand: unique symbol }
->()("SourceUnavailable", { source: Schema.Literal("World Bank") }, { httpApiStatus: 502 }) {}
+>()("SourceUnavailable", { source: Source }, { httpApiStatus: 502 }) {}
 
 // The catalog cannot be searched in this runtime, e.g. plain `pnpm dev` outside Workers.
 export class CatalogUnavailable extends Schema.TaggedError<
@@ -28,6 +29,17 @@ export class TransformNotApplicable extends Schema.TaggedError<
 >()(
   "TransformNotApplicable",
   { indicator: IndicatorId, transform: Transform },
+  { httpApiStatus: 422 },
+) {}
+
+// The View leaves these dimensions of an SDMX dataflow open, such as sex or
+// age, so more than one series matches it and the chart would mix them.
+export class DimensionsMissing extends Schema.TaggedError<
+  DimensionsMissing,
+  { readonly brand: unique symbol }
+>()(
+  "DimensionsMissing",
+  { indicator: IndicatorId, dimensions: Schema.NonEmptyArray(Schema.NonEmptyString) },
   { httpApiStatus: 422 },
 ) {}
 

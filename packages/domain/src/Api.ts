@@ -7,6 +7,7 @@ import {
   AgentUnavailable,
   CatalogUnavailable,
   ConversationBusy,
+  DimensionsMissing,
   IndicatorNotFound,
   SourceUnavailable,
   TooManyQuestions,
@@ -24,7 +25,7 @@ class Views extends HttpApiGroup.make("views")
     HttpApiEndpoint.post("resolve", "/resolve", {
       payload: View,
       success: ResolvedView,
-      error: [IndicatorNotFound, SourceUnavailable, TransformNotApplicable],
+      error: [IndicatorNotFound, SourceUnavailable, TransformNotApplicable, DimensionsMissing],
     }),
   )
   .prefix("/views") {}

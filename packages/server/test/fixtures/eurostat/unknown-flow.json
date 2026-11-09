@@ -1,0 +1,9 @@
+{
+  "error": [
+    {
+      "status": 404,
+      "id": 100,
+      "label": "ERR_NOT_FOUND_4: NOPE (DATA_FLOW:ESTAT,*) is not available for dissemination."
+    }
+  ]
+}

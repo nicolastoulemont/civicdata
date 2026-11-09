@@ -23,6 +23,7 @@ export {
   AgentUnavailable,
   CatalogUnavailable,
   ConversationBusy,
+  DimensionsMissing,
   IndicatorNotFound,
   SourceUnavailable,
   TooManyQuestions,
@@ -32,6 +33,8 @@ export {
 export { Indicator, IndicatorId } from "./Indicator.ts"
 
 export { Observation, ResolvedView } from "./ResolvedView.ts"
+
+export { Source, sourceOf } from "./Source.ts"
 
 export { applies, kindOf, Ratio, Transform } from "./Transform.ts"
 

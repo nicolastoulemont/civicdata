@@ -3,6 +3,7 @@ import {
   countries,
   type IndicatorId,
   type ResolvedView,
+  type Source,
   transformOf,
   type View,
 } from "@civicdata/domain"
@@ -90,6 +91,38 @@ export const retrieved = (resolved: ResolvedView) =>
     timeZone: "UTC",
   })
 
-// The credit every chart carries, on the page and on its link-preview card.
-export const attribution = (resolved: ResolvedView) =>
-  `Source: World Bank, ${[...new Set(resolved.sources.map((source) => source.dataset))].join(", ")}. Retrieved ${retrieved(resolved)}.`
+// A source as the start of a sentence: "The World Bank", "Eurostat", "The OECD".
+export const named = (source: Source) => (source === "Eurostat" ? source : `The ${source}`)
+
+// The credit every chart carries, on the page and on its link-preview card:
+// each source with the datasets taken from it, e.g. "Source: Eurostat,
+// Population on 1 January; World Bank, World Development Indicators."
+export const attribution = (resolved: ResolvedView) => {
+  const datasets = new Map<Source, Set<string>>()
+
+  for (const { source, dataset } of resolved.sources)
+    datasets.set(source, (datasets.get(source) ?? new Set()).add(dataset))
+
+  const credits = [...datasets].map(([source, each]) => `${source}, ${[...each].join(", ")}`)
+
+  return `Source: ${credits.join("; ")}. Retrieved ${retrieved(resolved)}.`
+}
+
+// The source's own page for a series fetched to draw the chart.
+export const page = ({ source, indicator }: ResolvedView["sources"][number]) => {
+  const [agency = "", id = ""] = indicator.split(",")
+
+  return Match.value(source).pipe(
+    Match.when("World Bank", () => `https://data.worldbank.org/indicator/${indicator}`),
+    Match.when(
+      "Eurostat",
+      () => `https://ec.europa.eu/eurostat/databrowser/view/${id.toLowerCase()}/default/table`,
+    ),
+    Match.when(
+      "OECD",
+      () =>
+        `https://data-explorer.oecd.org/vis?df[ds]=dsDisseminateFinalDMZ&df[id]=${encodeURIComponent(id)}&df[ag]=${agency}`,
+    ),
+    Match.exhaustive,
+  )
+}

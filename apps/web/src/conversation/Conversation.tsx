@@ -15,6 +15,7 @@ import { useEffect, useRef } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button, buttonVariants } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
+import { named } from "@/explore/format"
 
 import { Answer } from "./Answer.tsx"
 import { QuestionForm } from "./QuestionForm.tsx"
@@ -27,7 +28,7 @@ const explain = (error: Error) =>
         description: "Try again in a moment, or open one of the examples.",
       }
     : error instanceof SourceUnavailable
-      ? { title: "The World Bank is not responding", description: "Try again in a moment." }
+      ? { title: `${named(error.source)} is not responding`, description: "Try again in a moment." }
       : error instanceof TooManyQuestions
         ? { title: "Too many questions in a minute", description: "Wait a minute, then ask again." }
         : error instanceof ConversationBusy

@@ -9,6 +9,7 @@ import { AskLimit } from "./AskLimit.ts"
 import { Catalog } from "./Catalog.ts"
 import { Conversation } from "./Conversation.ts"
 import { Resolver } from "./Resolver.ts"
+import { Sdmx } from "./Sdmx.ts"
 import { Transcript } from "./Transcript.ts"
 import { WorldBank } from "./WorldBank.ts"
 
@@ -67,6 +68,7 @@ export class ConversationObject implements DurableObject {
         Layer.provide(AskLimit.live),
         Layer.provide(Catalog.live),
         Layer.provide(WorldBank.live),
+        Layer.provide(Sdmx.live),
       ),
     ).handler
 

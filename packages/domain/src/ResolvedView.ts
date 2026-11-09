@@ -2,6 +2,7 @@ import { Schema } from "effect"
 
 import { Country } from "./Country.ts"
 import { Indicator, IndicatorId } from "./Indicator.ts"
+import { Source } from "./Source.ts"
 import { Change, Ranking, Relation, Trend, Year } from "./View.ts"
 
 // One value of an indicator, as the source published it or after a transform.
@@ -18,7 +19,7 @@ export interface Observation extends Schema.Schema.Type<typeof Observation> {}
 const Provenance = Schema.Struct({
   indicator: IndicatorId,
   name: Schema.NonEmptyString,
-  source: Schema.Literal("World Bank"),
+  source: Source,
   dataset: Schema.NonEmptyString,
   url: Schema.String,
   retrievedAt: Schema.DateTimeUtc,

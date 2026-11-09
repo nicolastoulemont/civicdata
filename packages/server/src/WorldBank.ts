@@ -1,44 +1,18 @@
 import {
   type CatalogEntry,
   Country,
-  Indicator,
   IndicatorId,
   IndicatorNotFound,
-  Observation,
   SourceUnavailable,
   Year,
 } from "@civicdata/domain"
-import { Context, DateTime, Effect, Layer, Option, Schedule, Schema } from "effect"
+import { Context, DateTime, Duration, Effect, Layer, Schedule, Schema } from "effect"
 import { FetchHttpClient, HttpClient, HttpClientResponse } from "effect/http"
 
 import { Cache } from "./Cache.ts"
+import { Described, type Query, Series } from "./Series.ts"
 
 const base = "https://api.worldbank.org/v2"
-
-interface Query {
-  readonly indicator: IndicatorId
-  readonly countries: ReadonlyArray<Country>
-  readonly from: Year
-  readonly to: Year
-}
-
-// Every result records when the World Bank was asked, so a cached result
-// still reports its original retrieval time as provenance.
-const Described = Schema.Struct({
-  indicator: Indicator,
-  dataset: Schema.String,
-  retrievedAt: Schema.DateTimeUtc,
-})
-
-type Described = typeof Described.Type
-
-const Series = Schema.Struct({
-  observations: Schema.Array(Observation),
-  url: Schema.String,
-  retrievedAt: Schema.DateTimeUtc,
-})
-
-type Series = typeof Series.Type
 
 interface Interface {
   readonly describe: (
@@ -159,7 +133,10 @@ const make = Effect.gen(function* () {
 })
 
 // World Bank indicators change a few times a year at most.
-const lifetime = 24 * 60 * 60 * 1000
+const lifetime = Duration.days(1)
+
+const fresh = (retrievedAt: DateTime.Utc, now: DateTime.Utc) =>
+  Duration.isLessThan(DateTime.distance(retrievedAt, now), lifetime)
 
 const DescribedJson = Schema.fromJsonString(Schema.toCodecJson(Described))
 const SeriesJson = Schema.fromJsonString(Schema.toCodecJson(Series))
@@ -177,42 +154,26 @@ export class WorldBank extends Context.Service<WorldBank, Interface>()(
   static readonly layer = Layer.effect(WorldBank, make)
 
   // Serves a stored result younger than `lifetime`, otherwise asks the World
-  // Bank and stores the answer. An entry that no longer decodes is a miss.
+  // Bank and stores the answer.
   static readonly cached = Layer.effect(
     WorldBank,
     Effect.gen(function* () {
       const live = yield* make
-      const cache = yield* Cache
-
-      const remember = Effect.fnUntraced(function* <
-        A extends { readonly retrievedAt: DateTime.Utc },
-        E,
-      >(key: string, json: Schema.Codec<A, string>, fetch: Effect.Effect<A, E>) {
-        const stored = Option.flatMap(yield* cache.get(key), Schema.decodeOption(json))
-        const now = yield* DateTime.now
-
-        if (
-          Option.isSome(stored) &&
-          DateTime.toEpochMillis(now) - DateTime.toEpochMillis(stored.value.retrievedAt) < lifetime
-        ) {
-          return stored.value
-        }
-
-        const fresh = yield* fetch
-
-        yield* Schema.encodeEffect(json)(fresh).pipe(
-          Effect.flatMap((text) => cache.put(key, text)),
-          Effect.tapError((error) => Effect.logWarning("Could not cache", key, error)),
-          Effect.ignore,
-        )
-
-        return fresh
-      })
+      const remember = yield* Cache.remember
 
       return WorldBank.of({
         describe: (indicator) =>
-          remember(keys.described(indicator), DescribedJson, live.describe(indicator)),
-        observations: (query) => remember(keys.series(query), SeriesJson, live.observations(query)),
+          remember(keys.described(indicator), {
+            json: DescribedJson,
+            fresh,
+            fetch: live.describe(indicator),
+          }),
+        observations: (query) =>
+          remember(keys.series(query), {
+            json: SeriesJson,
+            fresh,
+            fetch: live.observations(query),
+          }),
         // The catalog keeps its own copy in D1.
         indicators: live.indicators,
       })

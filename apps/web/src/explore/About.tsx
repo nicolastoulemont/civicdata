@@ -5,7 +5,7 @@ import { Fragment } from "react"
 import { buttonVariants } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
-import { indicators, retrieved } from "./format.ts"
+import { indicators, page, retrieved } from "./format.ts"
 
 // Level 1: what the indicators measure and where they come from.
 export const About = ({ resolved }: { resolved: ResolvedView }) => (
@@ -33,10 +33,7 @@ export const About = ({ resolved }: { resolved: ResolvedView }) => (
             <dt className="text-muted-foreground">Source</dt>
             <dd>
               {source.source}, {source.dataset},{" "}
-              <a
-                className="underline underline-offset-4"
-                href={`https://data.worldbank.org/indicator/${source.indicator}`}
-              >
+              <a className="underline underline-offset-4" href={page(source)}>
                 {source.indicator}
               </a>
             </dd>

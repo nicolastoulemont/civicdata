@@ -59,7 +59,7 @@ const ConversationRoutes = HttpApiBuilder.group(
   }),
 )
 
-// Every API route, needing a WorldBank, a Catalog and Conversations.
+// Every API route, needing a WorldBank, an Sdmx, a Catalog and Conversations.
 export const Handlers = Layer.mergeAll(System, Views, CatalogSearch, ConversationRoutes).pipe(
   Layer.provide(Resolver.layer),
 )
