@@ -4,10 +4,11 @@ import { Effect, Option, Schema, Stream } from "effect"
 import { useEffect, useRef, useState } from "react"
 
 import { call, page } from "@/api"
+import { record } from "@/history/store"
 
 // The questions answered so far, and the one being answered, if any. Rejects
 // with AgentUnavailable where conversations cannot be reached.
-const turnsQuery = (id: ConversationId) =>
+export const turnsQuery = (id: ConversationId) =>
   queryOptions({
     queryKey: ["conversation", id],
     queryFn: () => call(page, (api) => api.conversation.turns({ params: { id } })),
@@ -43,6 +44,10 @@ const follow = (id: ConversationId, onStep: (step: Step) => void) =>
       .pipe(Effect.flatMap((steps) => read(steps, onStep))),
   )
 
+// Pending while this page asks a question or follows an answer, and on after
+// the page leaves until the answer ends.
+export const answerKey = (id: ConversationId) => ["conversation", id, "answer"]
+
 // A question being answered here: one asked on this page, or one the server
 // was already answering when the page opened. `before` counts the turns
 // answered when it started.
@@ -63,6 +68,11 @@ export const useConversation = (id: ConversationId) => {
   const [steps, setSteps] = useState<ReadonlyArray<Step>>([])
 
   const asking = useMutation({
+    mutationKey: answerKey(id),
+    // Lists the conversation in this browser's sidebar.
+    onMutate: ({ question, via }) => {
+      if (via === "ask") record(id, question)
+    },
     mutationFn: ({ question, via }: Pending) => {
       const onStep = (step: Step) => setSteps((previous) => [...previous, step])
 

@@ -29,6 +29,8 @@ import { Cause, DateTime, Schema } from "effect"
 import { http, HttpResponse } from "msw/http"
 import { describe, expect, it } from "vitest"
 
+import { SidebarProvider } from "@/components/ui/sidebar"
+
 import { network } from "../../test/network.ts"
 import { Conversation } from "./Conversation.tsx"
 
@@ -132,7 +134,14 @@ const answer = (via: "ask" | "follow" = "ask") => {
 }
 
 const show = (first?: string) => {
-  const root = createRootRoute({ component: () => <Conversation id={id} first={first} /> })
+  // The header's sidebar toggle needs the sidebar's provider.
+  const root = createRootRoute({
+    component: () => (
+      <SidebarProvider>
+        <Conversation id={id} first={first} />
+      </SidebarProvider>
+    ),
+  })
 
   render(
     <QueryClientProvider client={new QueryClient()}>

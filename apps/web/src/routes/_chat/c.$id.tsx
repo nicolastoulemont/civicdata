@@ -15,7 +15,7 @@ const ConversationPage = () => {
   return <Conversation id={id} first={first} />
 }
 
-export const Route = createFileRoute("/c/$id")({
+export const Route = createFileRoute("/_chat/c/$id")({
   // An id that is not a conversation id is a missing page.
   beforeLoad: ({ params }) =>
     Option.match(decodeId(params.id), {
