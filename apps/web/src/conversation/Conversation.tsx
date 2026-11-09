@@ -52,11 +52,15 @@ export const Conversation = ({ id, first }: ConversationProps) => {
               failures={failures}
               retry={retry}
               answering={answering}
-              ask={ask}
             />
           </div>
         </Lane>
-        <FollowUp last={all.at(-1)?.answer} answering={answering} ask={ask} />
+        <FollowUp
+          pending={pending !== undefined}
+          last={all.at(-1)?.answer}
+          answering={answering}
+          ask={ask}
+        />
       </main>
     </div>
   )
