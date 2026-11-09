@@ -1,6 +1,7 @@
 import {
   AgentUnavailable,
   Answered,
+  Asked,
   CatalogUnavailable,
   ConversationId,
   IndicatorId,
@@ -160,7 +161,7 @@ describe("Conversation", () => {
     const reply = answer()
 
     network.use(
-      turns([{ question: "Life expectancy in Brazil", view: brazil }]),
+      turns([{ question: "Life expectancy in Brazil", answer: Answered.make({ view: brazil }) }]),
       reply.handler,
       resolve,
     )
@@ -174,6 +175,42 @@ describe("Conversation", () => {
 
     expect(await screen.findByText("What about happiness?")).toBeDefined()
     expect(await screen.findByText("No World Bank indicator answers this question")).toBeDefined()
+  })
+
+  it("offers the choices the agent asked about, and sends the one picked", async () => {
+    const reply = answer()
+
+    network.use(
+      turns([
+        {
+          question: "How long do people live in Brazil?",
+          answer: Asked.make({
+            question: "Which measure?",
+            choices: ["Life expectancy", "Healthy life expectancy"],
+          }),
+        },
+      ]),
+      reply.handler,
+      resolve,
+    )
+    show()
+
+    expect(await screen.findByText("Which measure?")).toBeDefined()
+
+    await userEvent.setup().click(screen.getByRole("button", { name: "Life expectancy" }))
+
+    // The choice is the next question, and the earlier choices can no longer be picked.
+    expect(await screen.findByText("Life expectancy", { selector: "p" })).toBeDefined()
+    expect(
+      screen.getByRole("button", { name: "Healthy life expectancy" }).hasAttribute("disabled"),
+    ).toBe(true)
+
+    reply.send(message(Answered.make({ view: brazil })))
+    reply.end()
+
+    expect(
+      await screen.findByRole("heading", { name: "Life expectancy at birth, total (years)" }),
+    ).toBeDefined()
   })
 
   it("explains a failure during the answer", async () => {

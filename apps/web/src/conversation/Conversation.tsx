@@ -3,17 +3,17 @@ import {
   CatalogUnavailable,
   ConversationBusy,
   type ConversationId,
+  type Ending,
   SourceUnavailable,
   type Step,
   TooManyQuestions,
-  type Turn,
 } from "@civicdata/domain"
 import { Link } from "@tanstack/react-router"
 import { Match } from "effect"
 import { useEffect, useRef } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { buttonVariants } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 
 import { Answer } from "./Answer.tsx"
@@ -56,8 +56,11 @@ const Problem = ({ error }: { error: Error }) => {
 const describe = (step: Step) =>
   Match.valueTags(step, {
     Searched: ({ text }) => `Searched indicators for “${text}”`,
+    Described: ({ indicator }) => `Read the definition of ${indicator}`,
+    Located: ({ names }) => `Looked up ${names.join(", ")}`,
     Rejected: ({ problem }) => `Tried a chart the data cannot show: ${problem}`,
     Answered: () => "Found a chart",
+    Asked: () => "Asked which you mean",
     Unanswered: () => "Found no indicator",
   })
 
@@ -65,26 +68,51 @@ const Question = ({ text }: { text: string }) => (
   <p className="self-end rounded-lg bg-muted px-3 py-2">{text}</p>
 )
 
-const TurnItem = ({ turn }: { turn: Turn }) => (
-  <li className="flex flex-col gap-3">
-    <Question text={turn.question} />
-    {turn.view === null ? (
+// How the agent answered. A question it asked offers its choices, which send
+// the chosen one as the next question; they are disabled once answered.
+const Reply = ({
+  answer,
+  disabled,
+  choose,
+}: {
+  answer: Ending
+  disabled: boolean
+  choose: (choice: string) => void
+}) =>
+  Match.valueTags(answer, {
+    Answered: ({ view }) => <Answer view={view} />,
+    Asked: ({ question, choices }) => (
+      <div className="flex flex-col gap-2">
+        <p>{question}</p>
+        <div className="flex flex-wrap gap-2">
+          {choices.map((choice) => (
+            <Button
+              key={choice}
+              variant="outline"
+              size="sm"
+              disabled={disabled}
+              onClick={() => choose(choice)}
+            >
+              {choice}
+            </Button>
+          ))}
+        </div>
+      </div>
+    ),
+    Unanswered: () => (
       <Alert>
         <AlertTitle>No World Bank indicator answers this question</AlertTitle>
         <AlertDescription>
           Name what to measure and where, like “GDP per person in France and Germany since 2000”.
         </AlertDescription>
       </Alert>
-    ) : (
-      <Answer view={turn.view} />
-    )}
-  </li>
-)
+    ),
+  })
 
 // A conversation with the agent, newest question last. `first` is a question
 // to ask as soon as the conversation opens: the one typed on the home page.
 export const Conversation = ({ id, first }: { id: ConversationId; first: string | undefined }) => {
-  const { turns, asked, answering, ask } = useConversation(id)
+  const { turns, pending, answering, ask } = useConversation(id)
   const sent = useRef(false)
 
   useEffect(() => {
@@ -94,7 +122,8 @@ export const Conversation = ({ id, first }: { id: ConversationId; first: string 
     ask(first)
   }, [first, ask])
 
-  const empty = turns.data?.length === 0 && asked === undefined && first === undefined
+  const all = turns.data ?? []
+  const empty = all.length === 0 && pending === undefined && first === undefined
 
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 p-6">
@@ -111,15 +140,22 @@ export const Conversation = ({ id, first }: { id: ConversationId; first: string 
         </p>
       ) : null}
       <ol className="flex flex-col gap-6">
-        {(turns.data ?? []).map((turn, index) => (
+        {all.map((turn, index) => (
           // oxlint-disable-next-line react/no-array-index-key -- turns are only appended, so a position never changes meaning
-          <TurnItem key={index} turn={turn} />
+          <li key={index} className="flex flex-col gap-3">
+            <Question text={turn.question} />
+            <Reply
+              answer={turn.answer}
+              disabled={index < all.length - 1 || pending !== undefined}
+              choose={ask}
+            />
+          </li>
         ))}
-        {asked === undefined ? null : (
+        {pending === undefined ? null : (
           <li className="flex flex-col gap-3">
-            <Question text={asked.question} />
+            <Question text={pending.question} />
             <ol aria-live="polite" className="flex flex-col gap-1 text-sm text-muted-foreground">
-              {asked.steps.map((step, index) => (
+              {pending.steps.map((step, index) => (
                 // oxlint-disable-next-line react/no-array-index-key -- steps are only appended
                 <li key={index}>{describe(step)}</li>
               ))}
@@ -130,7 +166,7 @@ export const Conversation = ({ id, first }: { id: ConversationId; first: string 
                 </li>
               ) : null}
             </ol>
-            {asked.error === undefined ? null : <Problem error={asked.error} />}
+            {pending.error === undefined ? null : <Problem error={pending.error} />}
           </li>
         )}
       </ol>
