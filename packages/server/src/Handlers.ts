@@ -7,6 +7,7 @@ import { Agent } from "./Agent.ts"
 import { AskLimit } from "./AskLimit.ts"
 import { Catalog } from "./Catalog.ts"
 import { Conversations } from "./Conversations.ts"
+import { Notes } from "./Notes.ts"
 import { Resolver } from "./Resolver.ts"
 
 const System = HttpApiBuilder.group(Api, "system", (handlers) =>
@@ -28,6 +29,16 @@ const Views = HttpApiBuilder.group(
           .count(request.headers["cf-connecting-ip"] ?? "unknown")
           .pipe(Effect.andThen(agent.explain(payload))),
       )
+  }),
+)
+
+const Indicators = HttpApiBuilder.group(
+  Api,
+  "indicators",
+  Effect.fn(function* (handlers) {
+    const notes = yield* Notes
+
+    return handlers.handle("notes", ({ params }) => notes.get(params.indicator))
   }),
 )
 
@@ -69,8 +80,12 @@ const ConversationRoutes = HttpApiBuilder.group(
   }),
 )
 
-// Every API route, needing a WorldBank, an Sdmx, a Catalog, Conversations, an
-// Agent and an AskLimit.
-export const Handlers = Layer.mergeAll(System, Views, CatalogSearch, ConversationRoutes).pipe(
-  Layer.provide(Resolver.layer),
-)
+// Every API route, needing a WorldBank, an Sdmx, Notes, a Catalog,
+// Conversations, an Agent and an AskLimit.
+export const Handlers = Layer.mergeAll(
+  System,
+  Views,
+  Indicators,
+  CatalogSearch,
+  ConversationRoutes,
+).pipe(Layer.provide(Resolver.layer))

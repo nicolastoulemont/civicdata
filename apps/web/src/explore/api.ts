@@ -1,4 +1,4 @@
-import type { View } from "@civicdata/domain"
+import type { IndicatorId, View } from "@civicdata/domain"
 import { keepPreviousData, queryOptions } from "@tanstack/react-query"
 
 import { call, page } from "@/api"
@@ -36,3 +36,13 @@ export const searchQuery = (text: string) =>
 // The agent's takeaway for a chart. Rejects with AgentUnavailable,
 // TooManyQuestions or one of resolve's errors.
 export const explain = (view: View) => call(page, (api) => api.views.explain({ payload: view }))
+
+// What the World Bank says about an indicator beyond its definition. Rejects
+// with IndicatorNotFound or SourceUnavailable.
+export const notesQuery = (indicator: IndicatorId) =>
+  queryOptions({
+    queryKey: ["notes", indicator],
+    queryFn: () => call(page, (api) => api.indicators.notes({ params: { indicator } })),
+    retry: false,
+    staleTime: 24 * 60 * 60 * 1000,
+  })

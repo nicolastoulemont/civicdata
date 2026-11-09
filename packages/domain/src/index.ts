@@ -32,7 +32,7 @@ export {
   TransformNotApplicable,
 } from "./Errors.ts"
 
-export { Indicator, IndicatorId } from "./Indicator.ts"
+export { Indicator, IndicatorId, IndicatorNotes } from "./Indicator.ts"
 
 export { type Flag, Observation, ResolvedView } from "./ResolvedView.ts"
 

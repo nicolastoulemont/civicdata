@@ -4,6 +4,7 @@ import {
   Dimension,
   DimensionsMissing,
   IndicatorId,
+  IndicatorNotes,
   type ResolvedView,
   ResolvedView as ResolvedViewSchema,
   SourceUnavailable,
@@ -176,6 +177,19 @@ const explain = http.post("/api/views/explain", async ({ request }) => {
   )
 })
 
+// The World Bank's notes on any indicator.
+const notes = http.get("/api/indicators/:indicator/notes", ({ params }) =>
+  HttpResponse.json(
+    Schema.encodeSync(IndicatorNotes)({
+      indicator: IndicatorId.make(String(params["indicator"])),
+      relevance: "Population counts are the denominator of most indicators.",
+      limitations: "Censuses happen about every ten years; years between are estimates.",
+      url: `https://api.worldbank.org/v2/sources/2/series/${String(params["indicator"])}/metadata?format=json`,
+      retrievedAt: DateTime.makeUnsafe("2026-11-08T00:00:00Z"),
+    }),
+  ),
+)
+
 interface PageProps {
   initial: View
 }
@@ -203,7 +217,7 @@ const trend = Trend.make({
 
 describe("Explore", () => {
   it("titles the chart in plain words and keeps the official name", async () => {
-    network.use(worldBank)
+    network.use(worldBank, notes, search)
     const user = userEvent.setup()
 
     show(trend)
@@ -692,5 +706,45 @@ describe("Explore", () => {
     await user.click(screen.getByRole("button", { name: "Explain this chart" }))
 
     expect(await screen.findByText("Too many questions in a minute")).toBeDefined()
+  })
+
+  it("says why the indicator matters, its limitations, and switches to a related one", async () => {
+    const female = IndicatorId.make("SP.POP.TOTL.FE.IN")
+
+    network.use(
+      worldBank,
+      notes,
+      // Codes starting with the current one's stem, as the catalog ranks them.
+      http.get("/api/catalog/search", () =>
+        HttpResponse.json([
+          catalog[0],
+          { indicator: female, name: "Population, female", definition: "" },
+        ]),
+      ),
+    )
+    const user = userEvent.setup()
+
+    show(trend)
+
+    await screen.findByRole("heading", { name: "Total population" })
+    await user.click(screen.getByRole("button", { name: "About this data" }))
+
+    expect(
+      within(await screen.findByRole("region", { name: "Why it matters" })).getByText(
+        "Population counts are the denominator of most indicators.",
+      ),
+    ).toBeDefined()
+    expect(
+      within(screen.getByRole("region", { name: "Limitations" })).getByText(
+        "Censuses happen about every ten years; years between are estimates.",
+      ),
+    ).toBeDefined()
+
+    const related = within(await screen.findByRole("region", { name: "Related indicators" }))
+
+    expect(related.queryByRole("button", { name: "Population, total" })).toBeNull()
+    await user.click(related.getByRole("button", { name: "Population, female" }))
+
+    expect(await screen.findByRole("heading", { name: female })).toBeDefined()
   })
 })

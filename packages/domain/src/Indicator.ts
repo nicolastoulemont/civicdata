@@ -16,3 +16,16 @@ export const Indicator = Schema.Struct({
   name: Schema.NonEmptyString,
   definition: Schema.String,
 })
+
+// What the World Bank says about an indicator beyond its definition: why it
+// matters ("Development relevance") and its limitations ("Limitations and
+// exceptions"). Each is null when the World Bank has written none.
+export const IndicatorNotes = Schema.Struct({
+  indicator: IndicatorId,
+  relevance: Schema.NullOr(Schema.NonEmptyString),
+  limitations: Schema.NullOr(Schema.NonEmptyString),
+  url: Schema.String,
+  retrievedAt: Schema.DateTimeUtc,
+})
+
+export interface IndicatorNotes extends Schema.Schema.Type<typeof IndicatorNotes> {}
