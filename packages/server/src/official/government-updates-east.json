@@ -1,0 +1,305 @@
+{
+  "checkedAt": "2026-10-18",
+  "countries": [
+    {
+      "geo": "BG",
+      "verifiedThrough": null,
+      "notes": "Two formations verified. Gyurov is a caretaker appointment; an empty parties array means party composition was not established, not that every minister was independent. Radev source identifies his Progressive Bulgaria coalition, but complete minister-level party affiliations and all intermediate changes remain unaudited. Do not extend these records beyond their start dates as a continuous cabinet history.",
+      "formations": [
+        {
+          "start": "2026-02-19",
+          "primeMinister": "Andrey Gyurov",
+          "parties": [],
+          "sources": [
+            {
+              "title": "Bulgarian Presidency: caretaker cabinet appointed, 19 February 2026",
+              "url": "https://m.president.bg/bg/news8791/prezidentat-yotova-podpisa-ukazi-za-naznachavane-na-sluzhebno-pravitelstvo-i-nasrochvane-na-izbori-za-narodno-sabranie-na-19-april.html"
+            }
+          ]
+        },
+        {
+          "start": "2026-05-08",
+          "primeMinister": "Rumen Radev",
+          "parties": [],
+          "sources": [
+            {
+              "title": "Bulgarian Council of Ministers: transfer of power, 8 May 2026",
+              "url": "https://www.government.bg/en/Press-center/News/Transfer-of-power-ceremony-in-the-Council-of-Ministers-today-08-05-2026"
+            },
+            {
+              "title": "Bulgarian Council of Ministers: Rumen Radev",
+              "url": "https://government.bg/en/Cabinet/Prime-Minister/Rumen-Radev"
+            }
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "title": "Bulgarian Presidency: caretaker cabinet appointed, 19 February 2026",
+          "url": "https://m.president.bg/bg/news8791/prezidentat-yotova-podpisa-ukazi-za-naznachavane-na-sluzhebno-pravitelstvo-i-nasrochvane-na-izbori-za-narodno-sabranie-na-19-april.html"
+        },
+        {
+          "title": "Bulgarian Council of Ministers: transfer of power, 8 May 2026",
+          "url": "https://www.government.bg/en/Press-center/News/Transfer-of-power-ceremony-in-the-Council-of-Ministers-today-08-05-2026"
+        },
+        {
+          "title": "Bulgarian Council of Ministers: Rumen Radev",
+          "url": "https://government.bg/en/Cabinet/Prime-Minister/Rumen-Radev"
+        }
+      ]
+    },
+    {
+      "geo": "CY",
+      "verifiedThrough": null,
+      "notes": "The presidency confirms a ministerial reshuffle took office on 8 December 2025 and still identifies Nikos Christodoulides as president. A personnel reshuffle alone does not prove a new PPEG cabinet under its PM/party-composition rules. Party affiliations and later changes, including the 2026 reshuffle, have not been fully audited; no formation is inferred.",
+      "formations": [],
+      "sources": [
+        {
+          "title": "Cypriot Presidency: announcement of ministerial changes taking office 8 December 2025",
+          "url": "https://www.gov.cy/proedros-proedria/anakoinosi-tis-proedrias-tis-dimokratias-17/"
+        },
+        {
+          "title": "Cypriot Presidency: government composition",
+          "url": "https://www.gov.cy/presidency/about/government-gr/"
+        }
+      ]
+    },
+    {
+      "geo": "CZ",
+      "verifiedThrough": null,
+      "notes": "Whole cabinet appointed and constituent meeting held on 15 December 2025. This differs from the earlier appointment of the prime minister alone. Party affiliations and any later party-composition changes remain unaudited; no continuous coverage claim.",
+      "formations": [
+        {
+          "start": "2025-12-15",
+          "primeMinister": "Andrej Babiš",
+          "parties": [],
+          "sources": [
+            {
+              "title": "Czech Government: constituent meeting after appointment, 15 December 2025",
+              "url": "https://vlada.gov.cz/cz/media-centrum/aktualne/vlada-andreje-babise-na-ustavujici-schuzi-jmenovala-prvniho-vicepremiera--vedouci-uradu-vlady-a-novou-tiskovou-mluvci-224164/tmplid-47/"
+            }
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "title": "Czech Government: constituent meeting after appointment, 15 December 2025",
+          "url": "https://vlada.gov.cz/cz/media-centrum/aktualne/vlada-andreje-babise-na-ustavujici-schuzi-jmenovala-prvniho-vicepremiera--vedouci-uradu-vlady-a-novou-tiskovou-mluvci-224164/tmplid-47/"
+        }
+      ]
+    },
+    {
+      "geo": "EE",
+      "verifiedThrough": null,
+      "notes": "Official homepage identifies Kristen Michal and links a 2025-2027 coalition agreement. This is a point-in-time observation, not proof of all intervening party-composition changes since the archive cutoff; no new formation date was established.",
+      "formations": [],
+      "sources": [
+        {
+          "title": "Estonian Government: official homepage and 2025-2027 coalition agreement",
+          "url": "https://www.valitsus.ee/?gsid=a3946043-77af-4c3d-998c-ac88e3b1a362"
+        }
+      ]
+    },
+    {
+      "geo": "EL",
+      "verifiedThrough": null,
+      "notes": "October 2026 official news identifies Kyriakos Mitsotakis. Presidency records ministerial oaths on 4 April 2026; personnel replacements are not automatically a new cabinet under PPEG rules. Party composition and all intervening changes remain unaudited.",
+      "formations": [],
+      "sources": [
+        {
+          "title": "Greek Prime Minister: official news, October 2026",
+          "url": "https://www.primeminister.gr/en/home"
+        },
+        {
+          "title": "Greek Presidency: swearing-in of new ministers, 4 April 2026",
+          "url": "https://www.presidency.gr/orkomosia-neon-ypoyrgon-kai-yfypoyrgoy-tis-kyvernisis/"
+        }
+      ]
+    },
+    {
+      "geo": "HR",
+      "verifiedThrough": null,
+      "notes": "October 2026 government statement identifies Andrej Plenković. This verifies the head of government at that observation, not uninterrupted party composition since October 2025. No new cabinet formation is inferred.",
+      "formations": [],
+      "sources": [
+        {
+          "title": "Croatian Government: prime minister and programme, 13 October 2026",
+          "url": "https://www.vlada.gov.hr/deset-godina-napretka-za-snazniju-hrvatsku-i-sigurniju-buducnost/47425"
+        }
+      ]
+    },
+    {
+      "geo": "HU",
+      "verifiedThrough": null,
+      "notes": "Prime minister elected on 9 May; ministers appointed and sworn on 12 May. The government explicitly dates formal formation to 13 May at 00:00, which is retained here. TISZA is the government source party label. Later changes and continuous coverage back to the archive cutoff remain unaudited.",
+      "formations": [
+        {
+          "start": "2026-05-13",
+          "primeMinister": "Péter Magyar",
+          "parties": ["TISZA"],
+          "sources": [
+            {
+              "title": "Hungarian Government: formal formation at midnight on 13 May 2026",
+              "url": "https://kormany.hu/hirek/opusztaszeren-tartja-elso-uleset-magyarorszag-uj-kormanya"
+            },
+            {
+              "title": "Hungarian Presidency: appointment of the new government ministers, 12 May 2026",
+              "url": "https://www.sandorpalota.hu/hu/az-allamfo-kinevezte-az-uj-kormany-minisztereit"
+            }
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "title": "Hungarian Government: formal formation at midnight on 13 May 2026",
+          "url": "https://kormany.hu/hirek/opusztaszeren-tartja-elso-uleset-magyarorszag-uj-kormanya"
+        },
+        {
+          "title": "Hungarian Presidency: appointment of the new government ministers, 12 May 2026",
+          "url": "https://www.sandorpalota.hu/hu/az-allamfo-kinevezte-az-uj-kormany-minisztereit"
+        }
+      ]
+    },
+    {
+      "geo": "LT",
+      "verifiedThrough": null,
+      "notes": "Seimas confirms full cabinet powers and oath on 14 July 2026. Coalition agreement supplies parliamentary groups, not a complete minister-by-minister affiliation table. Ruginiene cabinet resignation 23 June and preceding coalition changes require separate caretaker/party-transition coding; this isolated formation must not bridge those gaps.",
+      "formations": [
+        {
+          "start": "2026-07-14",
+          "primeMinister": "Mindaugas Sinkevičius",
+          "parties": [
+            "Lietuvos socialdemokratų partija",
+            "Demokratų sąjunga „Vardan Lietuvos“",
+            "Lietuvos valstiečių, žaliųjų ir Krikščioniškų šeimų sąjungos frakcija"
+          ],
+          "sources": [
+            {
+              "title": "Lithuanian Seimas: members of the twenty-first government sworn in, 14 July 2026",
+              "url": "https://www.lrs.lt/sip/portal.show?p6=25&p_k=1&p_r=35403&p_t=295567"
+            },
+            {
+              "title": "LSDP: signed coalition government agreement, 18 June 2026",
+              "url": "https://www.lsdp.lt/straipsniai/valstybe/sutartis-del-koalicines-vyriausybes/"
+            }
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "title": "Lithuanian Seimas: members of the twenty-first government sworn in, 14 July 2026",
+          "url": "https://www.lrs.lt/sip/portal.show?p6=25&p_k=1&p_r=35403&p_t=295567"
+        },
+        {
+          "title": "LSDP: signed coalition government agreement, 18 June 2026",
+          "url": "https://www.lsdp.lt/straipsniai/valstybe/sutartis-del-koalicines-vyriausybes/"
+        },
+        {
+          "title": "Lithuanian Government: previous governments and resignation dates",
+          "url": "https://lrv.lt/lt/apie-vyriausybe/ankstesnes-vyriausybes/"
+        }
+      ]
+    },
+    {
+      "geo": "LV",
+      "verifiedThrough": null,
+      "notes": "Cabinet approval and start of work verified on 28 May 2026; Saeima identifies the four parties signing the coalition agreement and records Silina resignation on 14 May. Cabinet party composition between resignation and succession, plus any post-election changes in October, requires further chronology checks. No continuous coverage claim.",
+      "formations": [
+        {
+          "start": "2026-05-28",
+          "primeMinister": "Andris Kulbergs",
+          "parties": [
+            "Apvienotais saraksts",
+            "Jaunā Vienotība",
+            "Nacionālā apvienība",
+            "Zaļo un Zemnieku savienība"
+          ],
+          "sources": [
+            {
+              "title": "Latvian Cabinet: Andris Kulbergs government starts work, 28 May 2026",
+              "url": "https://www.mk.gov.lv/lv/jaunums/darbu-sak-andra-kulberga-valdiba"
+            },
+            {
+              "title": "Latvian Saeima: four incoming coalition parties and outgoing government resignation, 27 May 2026",
+              "url": "https://www.saeima.lv/lv/aktualitates/saeimas-zinas/19742-inga-bite-akcente-trimdas-latvijas-diplomatu-/35879-ceturtdien-planota-saeimas-sede-par-uzticibas-izteiksanu-andra-kulberga-valdibai"
+            }
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "title": "Latvian Cabinet: Andris Kulbergs government starts work, 28 May 2026",
+          "url": "https://www.mk.gov.lv/lv/jaunums/darbu-sak-andra-kulberga-valdiba"
+        },
+        {
+          "title": "Latvian Saeima: four incoming coalition parties and outgoing government resignation, 27 May 2026",
+          "url": "https://www.saeima.lv/lv/aktualitates/saeimas-zinas/19742-inga-bite-akcente-trimdas-latvijas-diplomatu-/35879-ceturtdien-planota-saeimas-sede-par-uzticibas-izteiksanu-andra-kulberga-valdibai"
+        }
+      ]
+    },
+    {
+      "geo": "PL",
+      "verifiedThrough": null,
+      "notes": "Current official council lists Donald Tusk. Party identities can change without a new prime minister, including splits and renamed groupings. No complete post-cutoff minister-party chronology was established, so no continuous history or new formation is inferred.",
+      "formations": [],
+      "sources": [
+        {
+          "title": "Polish Chancellery: current council of ministers",
+          "url": "https://www.gov.pl/web/primeminister"
+        }
+      ]
+    },
+    {
+      "geo": "RO",
+      "verifiedThrough": null,
+      "notes": "Post-cutoff changes are unresolved. Parliamentary records were located, but no complete primary-source timeline for coalition withdrawal, minister replacements, caretaker status and a successor inauguration was established. Retain the archive cutoff; do not extrapolate the 2025 coalition or encode a failed prime-minister nomination as a cabinet formation.",
+      "formations": [],
+      "sources": [
+        {
+          "title": "Romanian Senate: plenary transcript, 6 May 2026",
+          "url": "https://www.senat.ro/PAGINI/Stenograme/Stenograme_2026/Plen/26.05.06.pdf"
+        }
+      ]
+    },
+    {
+      "geo": "SI",
+      "verifiedThrough": null,
+      "notes": "Government source explicitly distinguishes prime-minister election on 22 May from cabinet taking office on 4 June 2026, and identifies three coalition parties. Support outside the cabinet is not included. Earlier caretaker interval and later changes remain unaudited.",
+      "formations": [
+        {
+          "start": "2026-06-04",
+          "primeMinister": "Janez Janša",
+          "parties": [
+            "Slovenian Democratic Party",
+            "New Slovenia – Christian Democrats",
+            "Anže Logar’s Democrats"
+          ],
+          "sources": [
+            {
+              "title": "Slovenian Government: Janez Jansa, cabinet start and coalition",
+              "url": "https://www.gov.si/en/state-authorities/prime-minister/janez-jansa/"
+            }
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "title": "Slovenian Government: Janez Jansa, cabinet start and coalition",
+          "url": "https://www.gov.si/en/state-authorities/prime-minister/janez-jansa/"
+        }
+      ]
+    },
+    {
+      "geo": "SK",
+      "verifiedThrough": null,
+      "notes": "October 2026 official statement identifies Robert Fico. Minister replacements and party affiliation changes after the archive cutoff are not fully audited; no new cabinet formation or continuous party-composition claim is inferred.",
+      "formations": [],
+      "sources": [
+        {
+          "title": "Slovak Government: prime minister statement, 12 October 2026",
+          "url": "https://www.vlada.gov.sk/tlacove-spravy/robert-fico-aj-v-novom-svetovom-poriadku-bude-slovensko-pokracovat-v-suverennej-zahranicnej-politike-na-zabezpecenie-stability/?highlight=2026"
+        }
+      ]
+    }
+  ]
+}

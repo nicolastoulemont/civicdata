@@ -69,6 +69,7 @@ import { serve } from "../src/ConversationObject.ts"
 import { Conversations } from "../src/Conversations.ts"
 import { Handlers } from "../src/Handlers.ts"
 import { Notes } from "../src/Notes.ts"
+import { Politics } from "../src/Politics.ts"
 import { Resolver } from "../src/Resolver.ts"
 import { Sdmx } from "../src/Sdmx.ts"
 import { type Storage, Transcript } from "../src/Transcript.ts"
@@ -305,6 +306,7 @@ const serveApi = (
             Layer.provide(limit),
             Layer.provide(notes),
             Layer.provide(catalog),
+            Layer.provide(Politics.unavailable),
             Layer.provide(worldBank),
             Layer.provide(sdmx),
           ),

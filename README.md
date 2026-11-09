@@ -40,6 +40,18 @@ Indicator search reads a catalog of World Bank indicators, Eurostat datasets and
 
 A build lists each source in one request, writes its entries into a new generation, embeds them 100 at a time, then publishes the generation, which drops the source's older ones. Each of those is a Workflow step: a failed step retries alone, for about half an hour, and a resumed build skips the steps that completed. Sources build side by side, so one that stays down keeps its previous generation while the others publish. A stage answers "unavailable" to every search until its first build publishes a source. Eurostat's list carries names only: its full list with descriptions is 20 MB.
 
+### Political records
+
+Trend charts can shade who governed each country, for the EU and OECD members. The same `CatalogWorkflow` run stores the governments in D1 (`packages/server/src/PoliticsBuild.ts`), one generation per publisher like the catalog, and `GET /api/politics?countries=ESP,PRT&from=2000&to=2020` reads them (`packages/server/src/Politics.ts`):
+
+| Publisher                                              | What it records                                           | Licence                  |
+| ------------------------------------------------------ | --------------------------------------------------------- | ------------------------ |
+| [PPEG 2025v1](https://ppeg.wzb.eu/) (WZB Berlin)       | Cabinets of 43 members, to 31 October 2025                | CC0 1.0                  |
+| [ParlGov](https://parlgov.fly.dev/) (Döring and Manow) | Cabinets of 37 members, to June 2023                      | CC0 1.0                  |
+| Government pages, checked by hand                      | Cabinets formed since, in `packages/server/src/official/` | Facts, linked per record |
+
+PPEG counts within its coverage, ParlGov fills the years before it, and records checked by hand follow both. The sources record when a government starts, never when it ends: it ends when the next starts. The chart credits PPEG and ParlGov with the citations they ask for.
+
 To rebuild a deployed stage by hand, start an instance from the Cloudflare dashboard (Workers & Pages, Workflows, `civicdata-<stage>-catalog`) or with `POST /accounts/<account>/workflows/civicdata-<stage>-catalog/instances`.
 
 ### Agent eval

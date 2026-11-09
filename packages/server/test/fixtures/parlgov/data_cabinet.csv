@@ -1,0 +1,22 @@
+id,created_at,updated_at,name,start_date,termination_date,caretaker,wikipedia,data_source,description,comment,data_json,country_id,election_id
+497,2026-01-18 10:43:21.788000,2026-01-18 10:43:21.793000,Zapatero II,2008-04-12,2011-11-20,False,,afp,"PM Zapatero failed to win an absolute majority in an investiture vote on 9 April 2008 (yes: 168, no: 158, abstain: 23) and was elected by simple majority in a second vote (yes: 169, no: 158, abstain: 23) two days later. The prime minister was appointed on 12 April and the cabinet was presented two days after.
+Zapatero called early elections on 29 July 2011 and the cabinet ends with election on 20 November 2011.",,"{""pm_appointment"": ""2008-04-12""}",27,500
+806,2026-01-18 10:43:23.569000,2026-01-18 10:43:23.572000,Zapatero I,2004-04-17,,False,,nyt,"Minority cabinet with support of small left-wing and nationalist parties, especially United Left (IU) and Left of Catalonia (ERC) (Hopkin 2005, 389).
+It was appointed on 17 April  2004 (NYT).",,{},27,164
+988,2026-01-18 10:43:24.191000,2026-01-18 10:43:24.194000,Rajoy I,2011-12-21,,False,,afp,"PM Rajoy won an investiture vote on 20 December 2011 (yes: 187, no: 149, abstain: 14). He was appointed and presented his cabinet a day after.
+Cabinet ended with election on 20 December 2015. ",,{},27,777
+1176,2026-01-18 10:43:24.868000,2026-01-18 10:43:24.871000,Trudeau J I,2015-11-04,2019-10-21,False,https://en.wikipedia.org/wiki/29th_Canadian_Ministry,reuters,"Cabinet was appointed on 4 November 2015.
+Cabinet ended with election on 21 October 2019.",,{},29,994
+1421,2026-01-18 10:43:25.880000,2026-01-18 10:43:25.884000,Rajoy II,2015-12-20,,True,https://en.wikipedia.org/wiki/Government_of_the_10th_Legislature_of_Spain,,Caretaker cabinet continued after general election on 20 December 2015. ,,{},27,998
+1493,2026-01-18 10:43:26.168000,2026-01-18 10:43:26.171000,Rajoy III,2016-06-26,,True,https://en.wikipedia.org/wiki/2015%E2%80%9316_Spanish_government_formation#First_attempt_.28December_2015_.E2.80.93_April_2016.29,,"Caretaker cabinet continued after election on 26 June 2016.
+Cabinet ended on 29 October 2016 when the new cabinet was invested.",,{},27,1005
+1494,2026-01-18 10:43:26.171000,2026-01-18 10:43:26.174000,Rajoy IV,2016-10-29,2018-06-01,False,https://en.wikipedia.org/wiki/Second_Rajoy_Government,reuters,"Cabinet won an investiture vote (yes: 170, no: 111, abstain: 68) after four months of deadlock in the formation process and was sworn in two days later.
+Cabinet lost a confidence vote on 1 June 2018 (yes: 169, no: 180, constructive no-vote) and PM Sanchez was elected.",,{},27,1005
+1533,2026-01-18 10:43:26.313000,2026-01-18 10:43:26.316000,Sanchez I,2018-06-02,2019-04-28,False,https://en.wikipedia.org/wiki/S%C3%A1nchez_government,reuters,"Cabinet won a constructive vote of no confidence on 1 Juni 2018 against Rajoy IV cabinet. The vote was supported by Podemos and other national parties. PM Sánchez was appointed on 2 June 2018.
+Cabinet called an early election on 15 February 2019 after loosing a budget vote. It took place on 28 April.",see confidence vote coded for Rajoy IV.,{},27,1005
+1601,2026-01-18 10:43:26.563000,2026-01-18 10:43:26.566000,Sanchez II,2019-04-28,2019-11-10,True,https://en.wikipedia.org/wiki/S%C3%A1nchez_government,reuters,"Continuation caretaker cabinet remained in office on 28 April 2019.
+Cabinet formation failed and an election was called on 17 September 2019 that took place on 10 November.",,"{""three_month_rule"": true}",27,1046
+1605,2026-01-18 10:43:26.577000,2026-01-18 10:43:26.580000,Sanchez III,2020-01-07,,False,https://en.wikipedia.org/wiki/S%C3%A1nchez_II_Government,reuters,"Cabinet lost an investiture vote on 5 January 2020 (yes: 166, no: 165, abstain: 18, absolute majority required) and won a vote with a simple majority two days later (yes: 167, no: 165, abstain: 18). PM Sánchez was appointed on 8 January 2020.",,{},27,1085
+1620,2026-01-18 10:43:26.629000,2026-01-18 10:43:26.632000,Trudeau J II,2019-10-21,2021-09-20,False,https://en.wikipedia.org/wiki/29th_Canadian_Ministry,reuters,"Cabinet continued after election on 21 October 2019.
+Cabinet ended with an early election on 20 September 2021.",,{},29,1084
+1656,2026-01-18 10:43:26.755000,2026-01-18 10:43:26.758000,Trudeau J III,2021-10-26,,False,https://en.wikipedia.org/wiki/29th_Canadian_Ministry,reuters,Cabinet continued after election on 20 September 2021.,,{},29,1103

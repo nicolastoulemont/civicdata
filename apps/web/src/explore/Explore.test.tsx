@@ -24,6 +24,7 @@ import { describe, expect, it, vi } from "vitest"
 
 import { network } from "../../test/network.ts"
 import { Explore } from "./Explore.tsx"
+import type { Overlay } from "./governments.ts"
 
 const population = IndicatorId.make("SP.POP.TOTL")
 
@@ -197,8 +198,18 @@ interface PageProps {
 // Stands in for the route, which keeps the View in the URL.
 const Page = ({ initial }: PageProps) => {
   const [view, setView] = useState(initial)
+  const [overlays, setOverlays] = useState<ReadonlyArray<Overlay>>([])
 
-  return <Explore view={view} onChange={setView} heading="h1" changing />
+  return (
+    <Explore
+      view={view}
+      onChange={setView}
+      overlays={overlays}
+      onOverlays={setOverlays}
+      heading="h1"
+      changing
+    />
+  )
 }
 
 const show = (view: View) =>

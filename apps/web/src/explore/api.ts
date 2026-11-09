@@ -1,5 +1,5 @@
-import type { IndicatorId, View } from "@civicdata/domain"
-import { keepPreviousData, queryOptions } from "@tanstack/react-query"
+import type { IndicatorId, Trend, View } from "@civicdata/domain"
+import { keepPreviousData, queryOptions, skipToken } from "@tanstack/react-query"
 
 import { call, page } from "@/api"
 
@@ -47,4 +47,25 @@ export const notesQuery = (indicator: IndicatorId) =>
     queryFn: () => call(page, (api) => api.indicators.notes({ params: { indicator } })),
     retry: false,
     staleTime: 24 * 60 * 60 * 1000,
+  })
+
+// Who governed a trend's countries during its years; nothing is asked
+// without a trend. Rejects with PoliticsUnavailable before the records are
+// first stored, or outside Workers, or a transport error. The records change
+// weekly at most.
+export const governmentsQuery = (trend: Trend | undefined) =>
+  queryOptions({
+    queryKey: ["governments", trend?.countries.join(","), trend?.from, trend?.to],
+    queryFn:
+      trend === undefined
+        ? skipToken
+        : () =>
+            call(page, (api) =>
+              api.politics.records({
+                query: { countries: trend.countries, from: trend.from, to: trend.to },
+              }),
+            ),
+    retry: false,
+    placeholderData: keepPreviousData,
+    staleTime: 60 * 60 * 1000,
   })

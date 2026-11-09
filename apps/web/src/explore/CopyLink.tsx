@@ -4,18 +4,21 @@ import { Check, Link } from "lucide-react"
 import { useCopy } from "@/clipboard"
 import { Button } from "@/components/ui/button"
 
+import type { Overlay } from "./governments.ts"
 import { toQuery } from "./search.ts"
 
 const labels = { copied: "Link copied", failed: "Could not copy" } as const
 
 interface CopyLinkProps {
   view: View
+  overlays: ReadonlyArray<Overlay>
 }
 
-// Copies the explorer's address for the View. The outcome shows until the
-// View changes.
-export const CopyLink = ({ view }: CopyLinkProps) => {
-  const query = toQuery(view)
+// Copies the explorer's address for the View with what is drawn over it, so
+// the link opens the chart as it is shown. The outcome shows until either
+// changes.
+export const CopyLink = ({ view, overlays }: CopyLinkProps) => {
+  const query = toQuery(view, overlays)
   const { outcome, copy } = useCopy(query)
 
   return (

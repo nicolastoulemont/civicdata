@@ -1,0 +1,269 @@
+{
+  "checkedAt": "2026-10-18",
+  "countries": [
+    {
+      "geo": "FR",
+      "verifiedThrough": null,
+      "notes": "Official February 2026 composition decree and September 2026 adjustment found. These are ministerial reshuffles, not independently established changes of prime minister or governing-party composition. Do not infer a new PPEG cabinet or continuous coverage from these point observations. Full post-cutoff cabinet-party chronology remains unverified.",
+      "formations": [],
+      "sources": [
+        {
+          "title": "Nomination du gouvernement, 26 février 2026",
+          "url": "https://www.elysee.fr/emmanuel-macron/2026/02/26/nomination-du-gouvernement-7"
+        },
+        {
+          "title": "Décret du 22 septembre 2026 relatif à la composition du Gouvernement",
+          "url": "https://www.legifrance.gouv.fr/loda/id/JORFTEXT000054883000/2026-09-24"
+        }
+      ]
+    },
+    {
+      "geo": "DE",
+      "verifiedThrough": null,
+      "notes": "Current official cabinet page identifies Friedrich Merz. A July 2026 personnel change is documented separately; a minister replacement does not establish a new PPEG cabinet. Full post-cutoff party-composition chronology remains unverified.",
+      "formations": [],
+      "sources": [
+        {
+          "title": "Das Bundeskabinett im Überblick",
+          "url": "https://www.bundesregierung.de/breg-de/bundesregierung/bundeskabinett"
+        },
+        {
+          "title": "Pressestatement von Bundeskanzler Merz zu personellen Veränderungen im Kabinett",
+          "url": "https://www.bundesregierung.de/breg-de/suche/merz-veraenderungen-im-kabinett--2448244"
+        }
+      ]
+    },
+    {
+      "geo": "DK",
+      "verifiedThrough": null,
+      "notes": "Official cabinet history gives 3 June 2026 as the start of Frederiksen III and explicitly names its four governing parties. No interval beyond the verified inauguration is certified here; caretaker status and intervening party changes before that date have not been exhaustively audited.",
+      "formations": [
+        {
+          "start": "2026-06-03",
+          "primeMinister": "Mette Frederiksen",
+          "parties": [
+            "Socialdemokratiet",
+            "Socialistisk Folkeparti",
+            "Moderaterne",
+            "Radikale Venstre"
+          ],
+          "sources": [
+            {
+              "title": "Regeringen Mette Frederiksen III",
+              "url": "https://stm.dk/regeringen/regeringer-siden-1848/regeringen-mette-frederiksen-iii/"
+            }
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "title": "Regeringen Mette Frederiksen III",
+          "url": "https://stm.dk/regeringen/regeringer-siden-1848/regeringen-mette-frederiksen-iii/"
+        }
+      ]
+    },
+    {
+      "geo": "NL",
+      "verifiedThrough": null,
+      "notes": "Jetten cabinet officially entered office on 23 February 2026. A pre-cutoff correction is also retained: NSC ministers resigned with effect from 22 August 2025, although the PPEG archive still includes NSC under its final June 2025 record. The correction has an empty party list because the complete remaining membership is not established here. Replacements were sworn on 5 September 2025. Do not extend the archive final party composition to its publication cutoff or infer continuous post-cutoff coverage.",
+      "formations": [
+        {
+          "start": "2025-08-22",
+          "primeMinister": "Dick Schoof",
+          "parties": [],
+          "sources": [
+            {
+              "title": "Resignation of New Social Contract ministers and state secretaries",
+              "url": "https://www.government.nl/latest/news/2025/08/23/resignation-of-nsc-ministers-and-state-secretaries"
+            }
+          ]
+        },
+        {
+          "start": "2026-02-23",
+          "primeMinister": "Rob Jetten",
+          "parties": [
+            "Democrats 66 (D66)",
+            "People’s Party for Freedom and Democracy (VVD)",
+            "Christian Democratic Alliance (CDA)"
+          ],
+          "sources": [
+            {
+              "title": "Government of the Netherlands: Jetten government",
+              "url": "https://www.government.nl/government"
+            },
+            {
+              "title": "Rob Jetten: appointment and career",
+              "url": "https://www.government.nl/government/members-of-cabinet/rob-jetten"
+            }
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "title": "Government of the Netherlands: Jetten government",
+          "url": "https://www.government.nl/government"
+        },
+        {
+          "title": "Rob Jetten: appointment and career",
+          "url": "https://www.government.nl/government/members-of-cabinet/rob-jetten"
+        },
+        {
+          "title": "Resignation of New Social Contract ministers and state secretaries",
+          "url": "https://www.government.nl/latest/news/2025/08/23/resignation-of-nsc-ministers-and-state-secretaries"
+        },
+        {
+          "title": "Appointments of ministers and state secretaries, 5 September 2025",
+          "url": "https://www.government.nl/latest/news/2025/09/05/appointments-of-ministers-and-state-secretaries"
+        }
+      ]
+    },
+    {
+      "geo": "BE",
+      "verifiedThrough": null,
+      "notes": "Official federal cabinet publication updated 8 May 2026 identifies Bart De Wever. This is a point observation, not an exhaustive check of cabinet-party changes since October 2025.",
+      "formations": [],
+      "sources": [
+        {
+          "title": "Composition du gouvernement fédéral, actualisée le 8 mai 2026",
+          "url": "https://www.belgium.be/sites/default/files/resources/publication/files/Composition_gouvernement_federal_20260508.pdf"
+        }
+      ]
+    },
+    {
+      "geo": "LU",
+      "verifiedThrough": null,
+      "notes": "Official prime-minister profile identifies Luc Frieden and includes October 2026 activity. This does not certify all intervening governing-party changes or an uninterrupted cabinet interval.",
+      "formations": [],
+      "sources": [
+        {
+          "title": "Luc Frieden: fonction actuelle et actualités",
+          "url": "https://gouvernement.lu/fr/gouvernement/luc-frieden.html"
+        }
+      ]
+    },
+    {
+      "geo": "IE",
+      "verifiedThrough": null,
+      "notes": "Official members of the 35th Government list, updated 2 June 2026, identifies Micheál Martin as Taoiseach. This is not an exhaustive post-cutoff cabinet-party chronology.",
+      "formations": [],
+      "sources": [
+        {
+          "title": "Government Ministers: members of the 35th Government of Ireland",
+          "url": "https://www.gov.ie/en/department-of-the-taoiseach/organisation-information/government-ministers/"
+        }
+      ]
+    },
+    {
+      "geo": "AT",
+      "verifiedThrough": null,
+      "notes": "Official government history lists Stocker since 3 March 2025 with ÖVP, SPÖ and NEOS; an official 17 October 2026 statement still identifies the same three leadership figures. No new cabinet formation was established from these sources. Full party-composition continuity has not been independently audited.",
+      "formations": [],
+      "sources": [
+        {
+          "title": "Regierungen seit 1945",
+          "url": "https://www.bundeskanzleramt.gv.at/bundeskanzleramt/geschichte/regierungen-seit-1945.html?lang=en"
+        },
+        {
+          "title": "Bundeskanzler Stocker: Regierung liefert - Herbst der Ergebnisse, 17 October 2026",
+          "url": "https://www.bundeskanzleramt.gv.at/bundeskanzleramt/nachrichten-der-bundesregierung/2026/10/bundeskanzler-stocker-regierung-liefert-herbst-der-ergebnisse-.html"
+        }
+      ]
+    },
+    {
+      "geo": "ES",
+      "verifiedThrough": null,
+      "notes": "Official 26 March 2026 statement documents changes of ministers under Pedro Sánchez. It does not establish a prime-minister or governing-party change, so no new cabinet formation is inferred. Full post-cutoff cabinet-party history remains unverified.",
+      "formations": [],
+      "sources": [
+        {
+          "title": "Pedro Sánchez nombra vicepresidente primero a Carlos Cuerpo y ministro de Hacienda a Arcadi España",
+          "url": "https://www.lamoncloa.gob.es/presidente/actividades/Paginas/2026/260326-sanchez-anuncia-cambios-gobierno.aspx"
+        }
+      ]
+    },
+    {
+      "geo": "PT",
+      "verifiedThrough": null,
+      "notes": "Official XXV Government composition lists Luís Montenegro since 5 June 2025 and a new interior minister since 23 February 2026. A minister replacement alone does not establish a new PPEG cabinet. Full post-cutoff party chronology remains unverified.",
+      "formations": [],
+      "sources": [
+        {
+          "title": "Composição do XXV Governo Constitucional",
+          "url": "https://portugal.gov.pt/gc25/governo/composicao?gc_timeline=2026-04-14"
+        }
+      ]
+    },
+    {
+      "geo": "IT",
+      "verifiedThrough": null,
+      "notes": "Official 27 September 2026 statement identifies Giorgia Meloni as prime minister. This point observation does not establish an uninterrupted cabinet-party interval or exhaustively exclude earlier changes.",
+      "formations": [],
+      "sources": [
+        {
+          "title": "Limitazione prezzi dei carburanti IP, la dichiarazione del Presidente Meloni",
+          "url": "https://governo.it/it/articolo/limitazione-prezzi-dei-carburanti-ip-la-dichiarazione-del-presidente-meloni/32676"
+        }
+      ]
+    },
+    {
+      "geo": "MT",
+      "verifiedThrough": null,
+      "notes": "Prime minister Robert Abela took office on 1 June 2026 after the 30 May election. The cabinet ministers were appointed on 4 June; that cabinet appointment date is used as start here, matching the distinction between PM appointment and cabinet inauguration. Labour affiliation follows the official PM biography and is not inferred from a vote plurality. No later interval is certified.",
+      "formations": [
+        {
+          "start": "2026-06-04",
+          "primeMinister": "Robert Abela",
+          "parties": ["Labour Party (Partit Laburista)"],
+          "sources": [
+            {
+              "title": "About Prime Minister Robert Abela",
+              "url": "https://primeminister.gov.mt/about/"
+            },
+            {
+              "title": "Malta Government Gazette 21,661: Appointment of Ministers, 4 June 2026",
+              "url": "https://www.gov.mt/en/Government/DOI/Government%20Gazette/Government%20Notices/Pages/2026/06/GovNotices0506extra1.aspx"
+            }
+          ]
+        }
+      ],
+      "sources": [
+        {
+          "title": "About Prime Minister Robert Abela",
+          "url": "https://primeminister.gov.mt/about/"
+        },
+        {
+          "title": "Malta Government Gazette 21,661: Appointment of Ministers, 4 June 2026",
+          "url": "https://www.gov.mt/en/Government/DOI/Government%20Gazette/Government%20Notices/Pages/2026/06/GovNotices0506extra1.aspx"
+        }
+      ]
+    },
+    {
+      "geo": "SE",
+      "verifiedThrough": null,
+      "notes": "Official Riksdag account on 15 October 2026 says Kristersson and the Moderate/Christian Democrat/Liberal cabinet remain as caretaker until a new government takes office. Kristersson was discharged on 17 September; Andersson was rejected on 15 October. These are not a new inauguration, so no new cabinet is invented. Interim status and coverage after 15 October remain unverified.",
+      "formations": [],
+      "sources": [
+        {
+          "title": "Prime Minister to lead caretaker government, 17 September 2026",
+          "url": "https://www.government.se/articles/2026/09/prime-minister-to-lead-caretaker-government/"
+        },
+        {
+          "title": "Nej till Magdalena Andersson som statsminister, 15 October 2026",
+          "url": "https://www.riksdagen.se/sv/aktuellt/aktuelltnotiser/2026/okt/15/nej-till-magdalena-andersson-s-som-statsminister_cmsd2ab1134-a03c-4be2-b345-af0aacff33d3sv/"
+        }
+      ]
+    },
+    {
+      "geo": "FI",
+      "verifiedThrough": null,
+      "notes": "Official government current-issues page identifies the Orpo government in the September 2026 budget session. It does not independently certify a continuous post-cutoff cabinet-party interval.",
+      "formations": [],
+      "sources": [
+        {
+          "title": "Finnish Government: current issues and 2026 budget session",
+          "url": "https://valtioneuvosto.fi/current-issues"
+        }
+      ]
+    }
+  ]
+}

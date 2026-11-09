@@ -1,0 +1,4 @@
+id,created_at,updated_at,name,name_short,flag,code_iso2,eu_accession_date,oecd_accession_date,description,comment,data_json
+8,2026-01-18 10:42:27.533000,2026-01-18 10:42:27.533000,Netherlands,NLD,🇳🇱,NL,1958-01-01,1961-11-13,,,{}
+27,2026-01-18 10:42:27.543000,2026-01-18 10:42:27.544000,Spain,ESP,🇪🇸,ES,1986-01-01,1961-08-03,,,{}
+29,2026-01-18 10:42:27.545000,2026-01-18 10:42:27.545000,Canada,CAN,🇨🇦,CA,,1961-04-10,,,{}

@@ -15,6 +15,7 @@ import { defaultParseSearch, defaultStringifySearch } from "@tanstack/react-rout
 import { Match, Schema } from "effect"
 
 import { withPicks, withTransform } from "./edits.ts"
+import { Overlay } from "./governments.ts"
 
 // The View as readable URL parameters:
 // ?chart=trend&indicator=SP.POP.TOTL&countries=FRA,DEU&from=2000&to=2022&transform=index
@@ -22,6 +23,8 @@ import { withPicks, withTransform } from "./edits.ts"
 // A ratio names the indicator it divides by: &transform=ratio&per=NY.GDP.MKTP.CD
 // A ranking drawn as a world map adds &as=map. An SDMX indicator adds the
 // value of each dimension: &dimensions=sex:T,age:Y15-74
+// A trend lists what it draws over its lines besides the View, outside it:
+// &overlays=governments
 const Search = Schema.Union([
   Schema.Struct({
     chart: Schema.Literal("trend"),
@@ -32,6 +35,7 @@ const Search = Schema.Union([
     transform: Schema.optionalKey(Schema.Literals(["per-person", "growth", "index", "ratio"])),
     per: Schema.optionalKey(IndicatorId),
     dimensions: Schema.optionalKey(Schema.String),
+    overlays: Schema.optionalKey(Schema.String),
   }),
   Schema.Struct({
     chart: Schema.Literal("ranking"),
@@ -181,7 +185,21 @@ export const toView = (search: Search): View =>
     Match.exhaustive,
   )
 
-export const toSearch = (view: View): Search =>
+const overlayList = Schema.decodeUnknownSync(Schema.Array(Overlay))
+
+// What a trend draws over its lines as a link parameter, none without any.
+const overlayParams = (overlays: ReadonlyArray<Overlay>): { readonly overlays?: string } =>
+  overlays.length === 0 ? {} : { overlays: overlays.join(",") }
+
+// What a link turns on over its trend. Throws on an overlay it does not know,
+// like toView on a View it does not describe.
+export const toOverlays = (search: Search): ReadonlyArray<Overlay> =>
+  search.chart === "trend" && search.overlays !== undefined
+    ? overlayList(search.overlays.split(","))
+    : []
+
+// The View and, for a trend, what is drawn over it, as link parameters.
+export const toSearch = (view: View, overlays: ReadonlyArray<Overlay> = []): Search =>
   Match.valueTags(view, {
     Trend: ({ indicator, countries, from, to, transform, dimensions }) => ({
       chart: "trend" as const,
@@ -191,6 +209,7 @@ export const toSearch = (view: View): Search =>
       to,
       ...transformParams(transform),
       ...dimensionParams(dimensions),
+      ...overlayParams(overlays),
     }),
     Ranking: ({ indicator, countries, year, transform, as, dimensions }) => ({
       chart: "ranking" as const,
@@ -225,5 +244,7 @@ export const toSearch = (view: View): Search =>
 export const fromUrl = (url: URL) =>
   toView(Schema.decodeUnknownSync(Schema.toEncoded(Search))(defaultParseSearch(url.search)))
 
-// The query string for a View, "?chart=...", written the way the router writes it.
-export const toQuery = (view: View) => defaultStringifySearch(toSearch(view))
+// The query string for a View and its overlays, "?chart=...", written the
+// way the router writes it.
+export const toQuery = (view: View, overlays: ReadonlyArray<Overlay> = []) =>
+  defaultStringifySearch(toSearch(view, overlays))

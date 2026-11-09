@@ -383,6 +383,9 @@ importers:
       effect:
         specifier: 'catalog:'
         version: 4.1.2
+      fflate:
+        specifier: 0.8.3
+        version: 0.8.3
     devDependencies:
       '@cloudflare/vitest-plugin':
         specifier: ^1.6.0

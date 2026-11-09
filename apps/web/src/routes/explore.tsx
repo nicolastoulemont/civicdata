@@ -10,7 +10,7 @@ import { Explore } from "@/explore/Explore"
 import { indicatorNames } from "@/explore/format"
 import { inProcess } from "@/explore/inProcess"
 import { preview } from "@/explore/preview"
-import { type Search, toQuery, toSearch, toView } from "@/explore/search"
+import { type Search, toOverlays, toQuery, toSearch, toView } from "@/explore/search"
 import { origin } from "@/origin"
 
 const BrokenLink = () => (
@@ -53,14 +53,18 @@ const namesFor = createIsomorphicFn()
   )
 
 const ExplorePage = () => {
-  const view = toView(Route.useSearch())
+  const search = Route.useSearch()
+  const view = toView(search)
+  const overlays = toOverlays(search)
   const navigate = Route.useNavigate()
 
   return (
     <main className="mx-auto flex max-w-5xl flex-col gap-4 p-6">
       <Explore
         view={view}
-        onChange={(next) => void navigate({ search: toSearch(next) })}
+        onChange={(next) => void navigate({ search: toSearch(next, overlays) })}
+        overlays={overlays}
+        onOverlays={(next) => void navigate({ search: toSearch(view, next) })}
         heading="h1"
         changing
       />
@@ -76,6 +80,7 @@ export const Route = createFileRoute("/explore")({
   beforeLoad: ({ search }) => {
     try {
       toView(search)
+      toOverlays(search)
     } catch {
       throw notFound()
     }
