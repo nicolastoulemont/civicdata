@@ -55,7 +55,7 @@ interface Interface {
 }
 
 // Used when the deployment does not name a model in OPENAI_MODEL.
-const defaultModel = "gpt-6.1-terra"
+export const defaultModel = "gpt-6.1-terra"
 
 // Model turns before the agent gives up on a question. Each turn is one model
 // request, so this also caps what one question can cost.

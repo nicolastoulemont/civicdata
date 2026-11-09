@@ -32,14 +32,14 @@ const BrokenLink = () => (
   </main>
 )
 
-// The indicator's name for the page title, or undefined when it is not known.
+// The chart's title for the page title, or undefined when it is not known.
 // The server resolves the View, so link previews name the indicator. The
 // browser only reads Views it already resolved, so editing a chart never
 // waits on its title.
-const indicatorName = createIsomorphicFn()
+const chartTitle = createIsomorphicFn()
   .server(({ view }: { view: View; queryClient: QueryClient }) =>
     resolve(view, inProcess).then(
-      (resolved) => resolved.indicator.name,
+      (resolved) => resolved.title,
       () => undefined,
     ),
   )
@@ -47,7 +47,7 @@ const indicatorName = createIsomorphicFn()
     ({ view, queryClient }) =>
       queryClient
         .getQueriesData<ResolvedView>({ queryKey: ["resolve"] })
-        .find(([, resolved]) => resolved?.indicator.id === view.indicator)?.[1]?.indicator.name,
+        .find(([, resolved]) => resolved?.indicator.id === view.indicator)?.[1]?.title,
   )
 
 const ExplorePage = () => {
@@ -74,7 +74,7 @@ export const Route = createFileRoute("/explore")({
     const view = toView(deps)
 
     return {
-      ...preview(view, await indicatorName({ view, queryClient })),
+      ...preview(view, await chartTitle({ view, queryClient })),
       image: `${origin()}/explore.png${toQuery(view)}`,
     }
   },

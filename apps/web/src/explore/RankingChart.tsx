@@ -19,7 +19,7 @@ export const RankingChart = ({ resolved }: { resolved: ResolvedView }) => {
 
   return (
     <figure>
-      <figcaption className="sr-only">{`Bar chart ranking countries by ${resolved.indicator.name}`}</figcaption>
+      <figcaption className="sr-only">{`Bar chart ranking countries by ${resolved.title}`}</figcaption>
       <ChartContainer
         config={config}
         className="aspect-auto w-full"

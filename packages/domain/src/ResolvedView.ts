@@ -20,11 +20,14 @@ const Provenance = Schema.Struct({
   retrievedAt: Schema.DateTimeUtc,
 })
 
-// A View with the data behind it, after its transform. `missing` lists the
+// A View with the data behind it, after its transform. `title` heads the
+// chart: the indicator's plain-language title, or its official name when it
+// has none; `indicator` keeps the official name. `missing` lists the
 // requested countries with no value, so the chart can say so instead of
 // dropping them.
 export const ResolvedView = Schema.Struct({
   view: View,
+  title: Schema.NonEmptyString,
   indicator: Indicator,
   observations: Schema.Array(Observation),
   missing: Schema.Array(Country),

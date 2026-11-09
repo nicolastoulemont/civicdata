@@ -30,7 +30,7 @@ export const Answer = ({ view }: { view: View }) => {
     <Card>
       <CardHeader>
         <CardTitle>
-          <h2>{query.data?.indicator.name ?? view.indicator}</h2>
+          <h2>{query.data?.title ?? view.indicator}</h2>
         </CardTitle>
         <CardDescription>
           {[places(view), period(view), ...(shows === undefined ? [] : [shows])].join(" · ")}

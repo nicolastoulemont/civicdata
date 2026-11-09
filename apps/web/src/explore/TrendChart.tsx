@@ -42,7 +42,7 @@ export const TrendChart = ({
 
   return (
     <figure>
-      <figcaption className="sr-only">{`Line chart of ${resolved.indicator.name} for ${countries.map(countryName).join(", ")}`}</figcaption>
+      <figcaption className="sr-only">{`Line chart of ${resolved.title} for ${countries.map(countryName).join(", ")}`}</figcaption>
       <ChartContainer config={config} className="aspect-auto h-80 w-full">
         <LineChart data={byYear(resolved.observations)} accessibilityLayer>
           <CartesianGrid vertical={false} />

@@ -50,6 +50,7 @@ const resolve = http.post("/api/views/resolve", async ({ request }) => {
   return HttpResponse.json(
     Schema.encodeSync(ResolvedView)({
       view,
+      title: "Life expectancy at birth (years)",
       indicator: {
         id: lifeExpectancy,
         name: "Life expectancy at birth, total (years)",
@@ -160,7 +161,7 @@ describe("Conversation", () => {
     reply.end()
 
     expect(
-      await screen.findByRole("heading", { name: "Life expectancy at birth, total (years)" }),
+      await screen.findByRole("heading", { name: "Life expectancy at birth (years)" }),
     ).toBeDefined()
     expect(screen.getByRole("link", { name: "Open in the explorer" })).toBeDefined()
     expect(screen.queryByText("Searched indicators for “life expectancy”")).toBeNull()
@@ -218,7 +219,7 @@ describe("Conversation", () => {
     reply.end()
 
     expect(
-      await screen.findByRole("heading", { name: "Life expectancy at birth, total (years)" }),
+      await screen.findByRole("heading", { name: "Life expectancy at birth (years)" }),
     ).toBeDefined()
   })
 
@@ -238,7 +239,7 @@ describe("Conversation", () => {
     reply.end()
 
     expect(
-      await screen.findByRole("heading", { name: "Life expectancy at birth, total (years)" }),
+      await screen.findByRole("heading", { name: "Life expectancy at birth (years)" }),
     ).toBeDefined()
   })
 
@@ -271,7 +272,7 @@ describe("Conversation", () => {
     resumed.end()
 
     expect(
-      await screen.findByRole("heading", { name: "Life expectancy at birth, total (years)" }),
+      await screen.findByRole("heading", { name: "Life expectancy at birth (years)" }),
     ).toBeDefined()
     expect(screen.queryByText("The question could not be sent")).toBeNull()
   })
