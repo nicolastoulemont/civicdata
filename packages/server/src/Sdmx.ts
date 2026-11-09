@@ -30,6 +30,7 @@ import { geo } from "./geo.ts"
 import { Pace } from "./Pace.ts"
 import type { Described, Query } from "./Series.ts"
 import { Series } from "./Series.ts"
+import { plain } from "./text.ts"
 
 // A query for an SDMX dataflow also says which value of each dimension to
 // show, such as { sex: "T" }.
@@ -142,13 +143,6 @@ const OecdFlows = Schema.Struct({
 })
 
 const toEntry = Schema.decodeUnknownOption(CatalogEntry)
-
-// OECD descriptions are HTML paragraphs; the page shows plain text.
-const plain = (html: string) =>
-  html
-    .replace(/<[^>]*>/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
 
 interface Answer {
   readonly status: number
@@ -297,7 +291,12 @@ const make = (remember: Remember) =>
           schema: EurostatFlow,
         })
 
-        return { name: label, definition: extension.description ?? "", dimensions: [], retrievedAt }
+        return {
+          name: label,
+          definition: plain(extension.description ?? ""),
+          dimensions: [],
+          retrievedAt,
+        }
       }
 
       const { data } = yield* decode(source, { url, body: answer.body, schema: OecdFlow })
@@ -361,7 +360,7 @@ const make = (remember: Remember) =>
     })
 
     const cachedFlow = (indicator: IndicatorId) =>
-      remember(`sdmx/v1/flow/${indicator}`, {
+      remember(`sdmx/v2/flow/${indicator}`, {
         json: FlowJson,
         fresh: freshness(indicator),
         fetch: flow(indicator),
@@ -565,7 +564,8 @@ const SeriesJson = Schema.fromJsonString(Schema.toCodecJson(SdmxSeries))
 
 const countriesKey = (countries: ReadonlyArray<Country>) => countries.toSorted().join(",")
 
-// Bump `v1` when a cached shape changes, so old entries are ignored.
+// Bump a key's version when what it caches changes, so old entries are
+// ignored.
 const keys = {
   options: (query: Query) => `sdmx/v1/options/${query.indicator}/${countriesKey(query.countries)}`,
   series: (query: SdmxQuery) =>

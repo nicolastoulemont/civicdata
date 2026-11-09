@@ -18,8 +18,13 @@ interface PickProps {
   onChange: (code: Code) => void
 }
 
+// A source's labels can be long and differ only at the end, such as
+// Eurostat's "Chain linked volumes, percentage change on previous period" and
+// the same "per capita". The closed select shows what fits and the whole label
+// on hover; the open list wraps each label in full.
 const Pick = ({ dimension, value, onChange }: PickProps) => {
   const id = useId()
+  const picked = dimension.options.find((option) => option.code === value)
 
   return (
     <Field className="w-56">
@@ -31,10 +36,10 @@ const Pick = ({ dimension, value, onChange }: PickProps) => {
           if (code !== null) onChange(code)
         }}
       >
-        <SelectTrigger id={id} className="w-full">
+        <SelectTrigger id={id} className="w-full" title={picked?.label}>
           <SelectValue placeholder="Choose…" />
         </SelectTrigger>
-        <SelectContent>
+        <SelectContent className="w-auto max-w-[min(28rem,var(--available-width))] min-w-(--anchor-width)">
           {dimension.options.map((option) => (
             <SelectItem key={option.code} value={option.code}>
               {option.label}

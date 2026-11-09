@@ -2,6 +2,7 @@ import {
   Chart,
   CatalogUnavailable,
   Dimension,
+  Dimensions,
   DimensionsMissing,
   IndicatorId,
   IndicatorNotes,
@@ -311,6 +312,16 @@ describe("Explore", () => {
     expect(table.getByRole("cell", { name: "59,438,851" })).toBeDefined()
   })
 
+  it("hints at adding a country only while none is chosen", async () => {
+    network.use(worldBank)
+
+    show(trend)
+
+    const countries = await screen.findByRole("combobox", { name: "Countries" })
+
+    expect(countries.getAttribute("placeholder")).toBeNull()
+  })
+
   it("copies a link to the chart on screen", async () => {
     const link =
       "http://localhost:3000/explore?chart=trend&indicator=SP.POP.TOTL&countries=FRA,DEU&from=2019&to=2020"
@@ -453,6 +464,71 @@ describe("Explore", () => {
     ).toBeDefined()
     expect(screen.getByRole("combobox", { name: "Sex" }).textContent).toContain("Total")
     expect(screen.queryByText("Choose which series to show")).toBeNull()
+  })
+
+  it("shows each unit's full label when units share a long prefix", async () => {
+    const growth = IndicatorId.make("ESTAT,TEC00115,1.0")
+
+    const unit = Schema.decodeSync(Dimension)({
+      id: "unit",
+      label: "Unit of measure",
+      options: [
+        {
+          code: "CLV_PCH_PRE",
+          label: "Chain linked volumes, percentage change on previous period",
+        },
+        {
+          code: "CLV_PCH_PRE_HAB",
+          label: "Chain linked volumes, percentage change on previous period, per capita",
+        },
+      ],
+    })
+
+    network.use(
+      http.post("/api/views/resolve", async ({ request }) => {
+        const view = Schema.decodeUnknownSync(Trend)(await request.json())
+        const resolved = resolvedFor(view)
+
+        return HttpResponse.json(
+          Schema.encodeSync(ResolvedViewSchema)({
+            ...resolved,
+            view,
+            title: "Real GDP growth rate - volume",
+            dimensions: [unit],
+            indicator: { id: growth, name: "Real GDP growth rate - volume", definition: "" },
+          }),
+        )
+      }),
+    )
+    const user = userEvent.setup()
+
+    show(
+      Trend.make({
+        ...trend,
+        indicator: growth,
+        dimensions: Schema.decodeSync(Dimensions)({ unit: "CLV_PCH_PRE_HAB" }),
+      }),
+    )
+
+    const select = await screen.findByRole("combobox", { name: "Unit of measure" })
+
+    // The closed select shows what fits, and the whole label on hover.
+    expect(select.getAttribute("title")).toBe(
+      "Chain linked volumes, percentage change on previous period, per capita",
+    )
+
+    await user.click(select)
+
+    expect(
+      await screen.findByRole("option", {
+        name: "Chain linked volumes, percentage change on previous period",
+      }),
+    ).toBeDefined()
+    expect(
+      screen.getByRole("option", {
+        name: "Chain linked volumes, percentage change on previous period, per capita",
+      }),
+    ).toBeDefined()
   })
 
   it("lists the values a source flags under the chart and in the data table", async () => {
@@ -771,6 +847,47 @@ describe("Explore", () => {
     await user.click(screen.getByRole("button", { name: "Explain this chart" }))
 
     expect(await screen.findByText("Too many questions in a minute")).toBeDefined()
+  })
+
+  it("shows each paragraph of a source's definition as text", async () => {
+    network.use(
+      http.post("/api/views/resolve", async ({ request }) => {
+        const view = Schema.decodeUnknownSync(Trend)(await request.json())
+
+        return HttpResponse.json(
+          Schema.encodeSync(ResolvedViewSchema)({
+            ...resolvedFor(view),
+            // As the server sends Eurostat's HTML description: as text, a
+            // blank line between paragraphs.
+            indicator: {
+              id: population,
+              name: "Population, total",
+              definition:
+                "The number of persons having their usual residence in a country.\n\nWhen usually resident population is not available, countries may report legal residents.",
+            },
+          }),
+        )
+      }),
+      notes,
+      search,
+    )
+    const user = userEvent.setup()
+
+    show(trend)
+
+    await screen.findByRole("heading", { name: "Total population" })
+    await user.click(screen.getByRole("tab", { name: "About" }))
+
+    const first = await screen.findByText(
+      "The number of persons having their usual residence in a country.",
+    )
+
+    expect(first.tagName).toBe("P")
+    expect(
+      screen.getByText(
+        "When usually resident population is not available, countries may report legal residents.",
+      ).tagName,
+    ).toBe("P")
   })
 
   it("says why the indicator matters, its limitations, and switches to a related one", async () => {

@@ -107,7 +107,11 @@ export const About = ({ resolved, heading: Heading, onSwitch }: AboutProps) => (
     {indicators(resolved).map((indicator, _, all) => (
       <div key={indicator.id} className="space-y-1">
         {all.length > 1 ? <Heading className="font-medium">{indicator.name}</Heading> : null}
-        <p>{indicator.definition}</p>
+        {/* The server sends each definition as plain text, its paragraphs
+            separated by a blank line. */}
+        {indicator.definition.split("\n\n").map((paragraph) => (
+          <p key={paragraph}>{paragraph}</p>
+        ))}
       </div>
     ))}
     {sourceOf(resolved.indicator.id) === "World Bank" ? (

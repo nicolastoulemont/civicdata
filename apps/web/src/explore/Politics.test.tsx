@@ -474,14 +474,22 @@ describe("Events and reforms on a trend", () => {
 
     const figure = await screen.findByRole("figure")
 
-    // 1974, inside the oil shock's band.
-    await hover(user, { figure, country: "France", after: 4 })
+    // 1973, the year the oil shock's band starts.
+    await hover(user, { figure, country: "France", after: 3 })
 
     expect(
       await within(figure).findByText(
         "First oil shock and recession · about 1973 to about 1975 · Today's 27 EU members · Supply restrictions and higher oil prices disrupted growth and raised inflation. · Source 1 below",
       ),
     ).toBeDefined()
+
+    // 1974, inside the band: its name and dates, without its summary.
+    await user.keyboard("{ArrowRight}")
+
+    expect(
+      await within(figure).findByText("First oil shock and recession · about 1973 to about 1975"),
+    ).toBeDefined()
+    expect(within(figure).queryByText(/Supply restrictions/)).toBeNull()
 
     // 1992 and 1993: the treaty's signature, then its entry into force.
     await user.keyboard("{ArrowRight}".repeat(18))

@@ -20,6 +20,7 @@
     "@effect/ai-openai": "4.1.2",
     "@effect/sql-d1": "4.1.2",
     "effect": "catalog:",
+    "entities": "7.0.1",
     "fflate": "0.8.3"
   },
   "devDependencies": {

@@ -15,6 +15,7 @@ import { TestClock } from "effect/testing"
 import { Sdmx } from "../src/Sdmx.ts"
 import { http, memory } from "./fakes.ts"
 import eurostatFlows from "./fixtures/eurostat/dataflows.json"
+import gdpGrowth from "./fixtures/eurostat/gdp-growth-flow.json"
 import population from "./fixtures/eurostat/population-flow.json"
 import franceOptions from "./fixtures/eurostat/population-france-options.csv?raw"
 import france from "./fixtures/eurostat/population-france.csv?raw"
@@ -73,6 +74,7 @@ const recorded = new Map<string, () => Response>([
   ],
   [`${oecd}/dataflow/all`, () => Response.json(oecdFlows)],
   [`${eurostat}/sdmx/2.1/dataflow/ESTAT/TPS00001/1.0?format=JSON`, () => Response.json(population)],
+  [`${eurostat}/sdmx/2.1/dataflow/ESTAT/TEC00115/1.0?format=JSON`, () => Response.json(gdpGrowth)],
   [
     `${eurostat}/sdmx/2.1/dataflow/ESTAT/NOPE/1.0?format=JSON`,
     () => Response.json(unknownFlow, { status: 404 }),
@@ -197,6 +199,15 @@ describe("Sdmx with Eurostat", () => {
         definition: expect.stringMatching(/^The number of persons having their usual residence/),
       })
       expect(described.dataset).toBe("Population on 1 January")
+    }).pipe(Effect.provide(recording().layer)),
+  )
+
+  it.effect("describes a dataflow in plain text when Eurostat writes HTML", () =>
+    Effect.gen(function* () {
+      const described = yield* (yield* Sdmx).describe(IndicatorId.make("ESTAT,TEC00115,1.0"))
+
+      expect(described.indicator.definition).toMatch(/^Gross domestic product \(GDP\) is defined/)
+      expect(described.indicator.definition).toMatch(/per capita\.$/)
     }).pipe(Effect.provide(recording().layer)),
   )
 
