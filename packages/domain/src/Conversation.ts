@@ -27,7 +27,13 @@ export const Located = Schema.TaggedStruct("Located", { names: Schema.Array(Sche
 // The data could not show the chart the agent proposed; it tries again.
 export const Rejected = Schema.TaggedStruct("Rejected", { problem: Schema.String })
 
-export const Answered = Schema.TaggedStruct("Answered", { view: View })
+// The chart that answers the question, with what the agent says it shows.
+// An answer has no takeaway when the agent's text failed the check, and
+// answers saved before takeaways existed have none.
+export const Answered = Schema.TaggedStruct("Answered", {
+  view: View,
+  takeaway: Schema.optionalKey(Schema.NonEmptyString),
+})
 
 // The question can be read several ways that give different charts; the
 // agent asks which, offering choices. The reply is the next question.

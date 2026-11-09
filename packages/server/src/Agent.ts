@@ -44,6 +44,7 @@ import { FetchHttpClient } from "effect/http"
 
 import { Catalog } from "./Catalog.ts"
 import { Resolver } from "./Resolver.ts"
+import { check, Summary, summarize } from "./Takeaway.ts"
 import { WorldBank } from "./WorldBank.ts"
 
 // Why an answer could not be given at all.
@@ -102,9 +103,10 @@ const SearchIndicators = Tool.make("search_indicators", {
   failure: Schema.Union([SourceUnavailable, CatalogUnavailable]),
 })
 
-// What show_chart tells the model: the chart was shown, or why it was not.
-// describe_indicator also answers Rejected for a code that does not exist.
-const Shown = Schema.TaggedStruct("Shown", { view: View })
+// What show_chart tells the model: the chart was shown with a summary of its
+// values, or why it was not. describe_indicator also answers Rejected for a
+// code that does not exist.
+const Shown = Schema.TaggedStruct("Shown", { view: View, data: Summary })
 const Rejected = Schema.TaggedStruct("Rejected", { problem: Schema.String })
 
 const Definition = Schema.TaggedStruct("Definition", {
@@ -208,6 +210,7 @@ const isSearch = Schema.is(SearchIndicators.parametersSchema)
 const isDescribe = Schema.is(DescribeIndicator.parametersSchema)
 const isFind = Schema.is(FindCountries.parametersSchema)
 const isAsk = Schema.is(AskUser.parametersSchema)
+const isAnswered = Schema.is(Answered)
 
 type Draft = typeof ShowChart.parametersSchema.Type
 
@@ -353,7 +356,7 @@ const ToolsLayer = Tools.toLayer(
                     ? rejected(
                         "The World Bank has no values for these countries and years. Try other years.",
                       )
-                    : Shown.make({ view: trim(resolved) }),
+                    : Shown.make({ view: trim(resolved), data: summarize(resolved) }),
                 ),
               ),
           ),
@@ -455,6 +458,7 @@ const instructions = (
    - Without years in the question, a trend covers the last 20 years and a ranking the latest year with data. It is ${year} now; most indicators have values up to ${year - 2}.
    - Use a transform only when the question asks for one.
 3. If show_chart rejects the chart, fix what it names and call it again.
+4. Once show_chart shows the chart, write its takeaway: two short sentences on what the chart shows, read from the data show_chart returns. Write no numbers or years. Say which way each country moves, which is highest or lowest, or how the two indicators go together.
 
 If no World Bank indicator measures what the question asks, stop without calling show_chart.
 
@@ -478,6 +482,27 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
         ])
       })
 
+      // The chart's takeaway, written by the model from the data show_chart
+      // returned. A model that fails or writes one that fails the check leaves
+      // the chart without one.
+      const explain = Effect.fn("Agent.explain")(
+        function* (chat: Chat.Chat, answered: typeof Answered.Type) {
+          const response = yield* chat.generateText({ prompt: [], toolkit, toolChoice: "none" })
+
+          return Option.match(check(response.text), {
+            onNone: () => answered,
+            onSome: (takeaway) => Answered.make({ ...answered, takeaway }),
+          })
+        },
+        Effect.provideService(LanguageModel.LanguageModel, model),
+        (effect, _chat, answered) =>
+          Effect.catchTag(effect, "AiError", (error) =>
+            Effect.logWarning("Language model failed on a takeaway", error.reason).pipe(
+              Effect.as(answered),
+            ),
+          ),
+      )
+
       // Each round is one model request and the tools it calls. Steps are
       // reported once their round is done.
       const answer = Effect.fn("Agent.answer")(
@@ -498,7 +523,10 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
             Queue.offerAllUnsafe(queue, steps)
 
             if (Option.isSome(ending)) {
-              Queue.offerUnsafe(queue, ending.value)
+              Queue.offerUnsafe(
+                queue,
+                isAnswered(ending.value) ? yield* explain(chat, ending.value) : ending.value,
+              )
 
               return
             }

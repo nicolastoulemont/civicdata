@@ -15,7 +15,7 @@ interface ReplyProps {
 // How the agent answered: a chart, a question back, or no indicator.
 export const Reply = ({ answer, disabled, choose }: ReplyProps) =>
   Match.valueTags(answer, {
-    Answered: ({ view }) => <Answer view={view} />,
+    Answered: ({ view, takeaway }) => <Answer view={view} takeaway={takeaway} />,
     Asked: ({ question, choices }) => (
       <Choices question={question} choices={choices} disabled={disabled} choose={choose} />
     ),

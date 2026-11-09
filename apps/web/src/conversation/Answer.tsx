@@ -31,11 +31,12 @@ import { Actions } from "./Row.tsx"
 
 interface AnswerProps {
   view: View
+  takeaway: string | undefined
 }
 
-// The chart that answered a question, with its source, then links to change
-// it in the explorer and to share it.
-export const Answer = ({ view }: AnswerProps) => {
+// The chart that answered a question, with what the agent says it shows and
+// its source, then links to change it in the explorer and to share it.
+export const Answer = ({ view, takeaway }: AnswerProps) => {
   const query = useQuery(resolveQuery(view))
   const known = indicatorNames(query.data === undefined ? [] : [query.data])
   const shows = transformLabel(view, known)
@@ -56,7 +57,8 @@ export const Answer = ({ view }: AnswerProps) => {
             ].join(" · ")}
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-4">
+          {takeaway === undefined ? null : <p>{takeaway}</p>}
           {query.isPending ? <Skeleton className="h-64 w-full" /> : null}
           {query.isError ? (
             <Alert variant="destructive">
