@@ -72,8 +72,8 @@ class Catalog extends HttpApiGroup.make("catalog")
   )
   .prefix("/catalog") {}
 
-// The governments of some countries over some years, for a trend chart to
-// draw beside its lines.
+// The elections and governments of some countries over some years, for a
+// trend chart to draw beside its lines.
 class Politics extends HttpApiGroup.make("politics")
   .add(
     HttpApiEndpoint.get("records", "/", {

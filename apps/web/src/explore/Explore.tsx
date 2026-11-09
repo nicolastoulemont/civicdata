@@ -3,7 +3,7 @@ import {
   Change,
   type Dimension,
   DimensionsMissing,
-  type Government,
+  type Politics,
   type IndicatorId,
   IndicatorNotFound,
   Ranking,
@@ -38,7 +38,7 @@ import { Toggle } from "@/components/ui/toggle"
 import { Hold } from "@/hold"
 
 import { About } from "./About.tsx"
-import { governmentsQuery, resolveQuery } from "./api.ts"
+import { politicsQuery, resolveQuery } from "./api.ts"
 import { ChangeChart } from "./ChangeChart.tsx"
 import { ChartType } from "./ChartType.tsx"
 import { CopyLink } from "./CopyLink.tsx"
@@ -58,9 +58,9 @@ import {
   subject,
   transformLabel,
 } from "./format.ts"
-import { archives, officialPages, type Overlay } from "./governments.ts"
 import { Indicator } from "./Indicator.tsx"
 import type { Paired } from "./points.ts"
+import { archives, officialPages, Overlay } from "./politics.ts"
 import { places } from "./preview.ts"
 import { RankingChart } from "./RankingChart.tsx"
 import { RelationChart } from "./RelationChart.tsx"
@@ -292,18 +292,19 @@ interface Picking {
 interface SingleProps {
   resolved: Exclude<ResolvedView, Paired>
   picking: Picking | undefined
-  governments: ReadonlyArray<Government> | undefined
+  politics: Politics | undefined
 }
 
 // A chart of one indicator's values.
-const Single = ({ resolved, picking, governments }: SingleProps) =>
+const Single = ({ resolved, picking, politics }: SingleProps) =>
   Match.valueTags(resolved.view, {
     Trend: (shown) => (
       <TrendChart
         resolved={resolved}
         trend={picking?.trend ?? shown}
         history={picking?.history}
-        governments={governments}
+        governments={politics?.governments}
+        elections={politics?.elections}
       />
     ),
     Ranking: (ranking) =>
@@ -320,17 +321,17 @@ const Single = ({ resolved, picking, governments }: SingleProps) =>
 interface ChartProps {
   resolved: ResolvedView
   picking?: Picking | undefined
-  governments: ReadonlyArray<Government> | undefined
+  politics: Politics | undefined
 }
 
 // The chart, and under it the values its source flags and where other
 // sources disagree.
-const Chart = ({ resolved, picking, governments }: ChartProps) => (
+const Chart = ({ resolved, picking, politics }: ChartProps) => (
   <div className="space-y-3">
     {"against" in resolved ? (
       <RelationChart resolved={resolved} />
     ) : (
-      <Single resolved={resolved} picking={picking} governments={governments} />
+      <Single resolved={resolved} picking={picking} politics={politics} />
     )}
     <Flags resolved={resolved} />
     <Disagreements resolved={resolved} />
@@ -410,7 +411,7 @@ interface SectionsProps {
   picking: Picking | undefined
   // What the chart tab shows above the chart: its overlays' controls and notes.
   above: ReactNode
-  governments: ReadonlyArray<Government> | undefined
+  politics: Politics | undefined
   heading: "h1" | "h3"
   onChange: (view: View) => void
 }
@@ -423,7 +424,7 @@ const Sections = ({
   stale,
   picking,
   above,
-  governments,
+  politics,
   heading,
   onChange,
 }: SectionsProps) => {
@@ -450,7 +451,7 @@ const Sections = ({
           aria-busy={stale}
           className={stale ? "opacity-50 transition-opacity" : "transition-opacity"}
         >
-          <Chart resolved={resolved} picking={picking} governments={governments} />
+          <Chart resolved={resolved} picking={picking} politics={politics} />
         </div>
       </TabsContent>
       <TabsContent value="data">
@@ -469,57 +470,77 @@ const Sections = ({
   )
 }
 
-interface GovernmentsProps {
-  // None for a chart other than a trend, which shows no governments.
-  trend: Trend | undefined
-  shown: boolean
-  // The trend's governments once loaded, or why they could not be.
-  records: ReadonlyArray<Government> | undefined
-  failed: boolean
-  onShow: (shown: boolean) => void
+// What each overlay's toggle and notes call its records.
+const overlayNames: Record<Overlay, { toggle: string; records: string }> = {
+  elections: { toggle: "Elections", records: "election" },
+  governments: { toggle: "Governments", records: "government" },
 }
 
-// The toggle that draws who governed over a trend, and what the chart cannot
-// show: a country without records says so, since no band would read as
-// nobody governing.
-const Governments = ({ trend, shown, records, failed, onShow }: GovernmentsProps) => {
+// The records the chart shows, as a reader would name them: "election or
+// government records".
+const recordsNamed = (overlays: ReadonlyArray<Overlay>) =>
+  `${overlays.map((overlay) => overlayNames[overlay].records).join(" or ")} records`
+
+interface OverlaysProps {
+  // None for a chart other than a trend, which shows no political context.
+  trend: Trend | undefined
+  overlays: ReadonlyArray<Overlay>
+  // The records of the overlays on, once loaded.
+  records: Politics | undefined
+  failed: boolean
+  onOverlays: (overlays: ReadonlyArray<Overlay>) => void
+}
+
+// The toggles that draw elections and governments over a trend, and what the
+// chart cannot show: a country without records says so, since no band or
+// marker would read as nothing happening.
+const Overlays = ({ trend, overlays, records, failed, onOverlays }: OverlaysProps) => {
   const hold = use(Hold)
 
   if (trend === undefined) return null
 
   const unrecorded = trend.countries.filter(
-    (country) => records !== undefined && !records.some((record) => record.country === country),
+    (country) =>
+      records !== undefined &&
+      ![...records.governments, ...records.elections].some((record) => record.country === country),
   )
 
   return (
     <>
       <div className="flex flex-wrap gap-2">
-        <Toggle
-          variant="outline"
-          size="sm"
-          pressed={shown}
-          onPressedChange={(pressed) => {
-            hold()
-            onShow(pressed)
-          }}
-        >
-          Governments
-        </Toggle>
+        {Overlay.literals.map((overlay) => (
+          <Toggle
+            key={overlay}
+            variant="outline"
+            size="sm"
+            pressed={overlays.includes(overlay)}
+            onPressedChange={(pressed) => {
+              hold()
+              onOverlays(
+                Overlay.literals.filter((each) =>
+                  each === overlay ? pressed : overlays.includes(each),
+                ),
+              )
+            }}
+          >
+            {overlayNames[overlay].toggle}
+          </Toggle>
+        ))}
       </div>
-      {shown && failed ? (
+      {failed ? (
         <Alert>
-          <AlertTitle>Government records are unavailable</AlertTitle>
+          <AlertTitle>Election and government records are unavailable</AlertTitle>
           <AlertDescription>Try again later.</AlertDescription>
         </Alert>
       ) : null}
-      {shown && unrecorded.length > 0 ? (
+      {unrecorded.length > 0 ? (
         <Alert>
           <AlertTitle>
-            No government records for {unrecorded.map(countryName).join(", ")}
+            No {recordsNamed(overlays)} for {unrecorded.map(countryName).join(", ")}
           </AlertTitle>
           <AlertDescription>
-            PPEG and ParlGov record the governments of EU and OECD members, each from a different
-            year. Neither covers {period(trend)} for{" "}
+            PPEG and ParlGov record the elections and governments of EU and OECD members, each from
+            a different year. Neither covers {period(trend)} for{" "}
             {unrecorded.length > 1 ? "these countries" : "it"}.
           </AlertDescription>
         </Alert>
@@ -529,20 +550,21 @@ const Governments = ({ trend, shown, records, failed, onShow }: GovernmentsProps
 }
 
 interface CreditsProps {
-  // Whether the chart shows governments; it credits their sources only then.
-  shown: boolean
-  governments: ReadonlyArray<Government> | undefined
+  overlays: ReadonlyArray<Overlay>
+  records: Politics | undefined
 }
 
-// The sources of the governments on a chart, as each asks to be cited.
-const Credits = ({ shown, governments }: CreditsProps) => {
-  if (!shown) return null
+// The sources of the elections and governments on a chart, as each asks to
+// be cited. Nothing while the chart shows neither.
+const Credits = ({ overlays, records }: CreditsProps) => {
+  if (overlays.length === 0) return null
 
-  const pages = officialPages(governments ?? [])
+  const pages = officialPages([...(records?.governments ?? []), ...(records?.elections ?? [])])
+  const kinds = overlays.map((overlay) => overlayNames[overlay].toggle.toLowerCase())
 
   return (
     <>
-      {" Governments: "}
+      {` ${kinds.join(" and ").replace(/^./, (first) => first.toUpperCase())}: `}
       <a className="underline underline-offset-4" href={archives.PPEG.url}>
         {archives.PPEG.name}
       </a>
@@ -568,22 +590,31 @@ const Credits = ({ shown, governments }: CreditsProps) => {
   )
 }
 
-// The governments a card draws over its chart: only a trend's, and only
-// while its governments overlay is on.
-const useGovernments = (view: View, overlays: ReadonlyArray<Overlay>) => {
+const nothing: Politics = { governments: [], elections: [] }
+
+// The elections and governments a card draws over its chart: only a trend's,
+// and only those whose overlay is on.
+const usePolitics = (view: View, overlays: ReadonlyArray<Overlay>) => {
   const trend = Match.value(view).pipe(
     Match.tag("Trend", (shown) => shown),
     Match.orElse(() => undefined),
   )
 
-  const shown = trend !== undefined && overlays.includes("governments")
-  const query = useQuery(governmentsQuery(shown ? trend : undefined))
+  const on = trend === undefined ? [] : overlays
+  const query = useQuery(politicsQuery(on.length === 0 ? undefined : trend))
+  const loaded = on.length === 0 ? undefined : query.data
 
   return {
     trend,
-    shown,
-    records: shown ? query.data?.governments : undefined,
-    failed: shown && query.isError,
+    overlays: on,
+    records:
+      loaded === undefined
+        ? undefined
+        : {
+            governments: on.includes("governments") ? loaded.governments : nothing.governments,
+            elections: on.includes("elections") ? loaded.elections : nothing.elections,
+          },
+    failed: on.length > 0 && query.isError,
   }
 }
 
@@ -627,7 +658,7 @@ export const Explore = ({
   const known = indicatorNames(query.data === undefined ? [] : [query.data])
   const picking = usePicking(view, { enabled: changing, onChange: change })
 
-  const governed = useGovernments(view, overlays)
+  const political = usePolitics(view, overlays)
 
   const dimensions =
     query.data?.dimensions ??
@@ -669,13 +700,8 @@ export const Explore = ({
               resolved={query.data}
               stale={query.isPlaceholderData}
               picking={picking}
-              above={
-                <Governments
-                  {...governed}
-                  onShow={(shown) => onOverlays(shown ? ["governments"] : [])}
-                />
-              }
-              governments={governed.records}
+              above={<Overlays {...political} onOverlays={onOverlays} />}
+              politics={political.records}
               heading={Heading}
               onChange={change}
             />
@@ -687,7 +713,7 @@ export const Explore = ({
           {query.data === undefined
             ? `Source: ${sourceOf(view.indicator)}`
             : attribution(query.data)}
-          <Credits shown={governed.shown} governments={governed.records} />
+          <Credits overlays={political.overlays} records={political.records} />
         </p>
       </CardFooter>
     </Card>

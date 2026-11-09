@@ -1,9 +1,10 @@
-import { countries, Country, Day, members, Party, Publisher } from "@civicdata/domain"
+import { Ballot, countries, Country, Day, members, Party, Publisher } from "@civicdata/domain"
 import { Context, DateTime, Effect, Layer, Match, Schedule, Schema } from "effect"
 import { HttpClient } from "effect/http"
 import { unzipSync } from "fflate"
 
 import { geo } from "./geo.ts"
+import ballots from "./official/elections.json"
 import east from "./official/government-updates-east.json"
 import west from "./official/government-updates-west.json"
 import { table } from "./Table.ts"
@@ -12,7 +13,7 @@ import { table } from "./Table.ts"
 // it, and its governing parties, the head's party first. `until` is the day
 // the publisher's records end, for a government still in office then; the
 // sources record no other ends.
-export const Recorded = Schema.Struct({
+export const GovernmentRecord = Schema.Struct({
   country: Country,
   head: Schema.NonEmptyString,
   parties: Schema.Array(Party),
@@ -22,7 +23,20 @@ export const Recorded = Schema.Struct({
   retrievedAt: Schema.DateTimeUtc,
 })
 
-interface Recorded extends Schema.Schema.Type<typeof Recorded> {}
+interface GovernmentRecord extends Schema.Schema.Type<typeof GovernmentRecord> {}
+
+// One national election as its publisher records it, once however many
+// parties or rounds its rows hold.
+export const ElectionRecord = Schema.Struct({
+  country: Country,
+  ballot: Ballot,
+  date: Day,
+  lastRound: Schema.NullOr(Day),
+  url: Schema.NonEmptyString,
+  retrievedAt: Schema.DateTimeUtc,
+})
+
+interface ElectionRecord extends Schema.Schema.Type<typeof ElectionRecord> {}
 
 // A publisher's records could not be fetched, or did not decode.
 export class ArchiveUnavailable extends Schema.TaggedError<
@@ -34,20 +48,34 @@ interface Interface {
   // Every government a publisher records for the EU and OECD members.
   readonly governments: (
     publisher: Publisher,
-  ) => Effect.Effect<ReadonlyArray<Recorded>, ArchiveUnavailable>
+  ) => Effect.Effect<ReadonlyArray<GovernmentRecord>, ArchiveUnavailable>
+  // Every national election a publisher records for the EU and OECD members.
+  readonly elections: (
+    publisher: Publisher,
+  ) => Effect.Effect<ReadonlyArray<ElectionRecord>, ArchiveUnavailable>
 }
+
+// Each record once, by its key: the first of several rows that describe it.
+const distinct = <A>(records: ReadonlyArray<A>, key: (record: A) => string): Array<A> => [
+  ...new Map(records.map((record): [string, A] => [key(record), record]).toReversed()).values(),
+]
 
 const isCountry = Schema.is(Country)
 
 const member = (code: string | undefined) => isCountry(code) && members.has(code)
 
-// PPEG 2025v1 (WZB Berlin), CC0 1.0: one row per party and cabinet, the
-// cabinet named by its inauguration day and prime minister. Its codebook
+// PPEG 2025v1 (WZB Berlin), CC0 1.0: three ZIP archives, each a CSV with a
+// row per party and cabinet, party and election, or candidate and election.
+// Its government codebook
 // (https://ppeg.wzb.eu/www/codebook_ppeg_gov_2025v1.pdf) defines a new cabinet
 // by a change of prime minister, of party composition, or an election.
 const ppeg = {
-  url: "https://ppeg.wzb.eu/www/ppeg_gov_2025v1.zip",
-  file: "ppeg_gov_2025v1.csv",
+  governments: { url: "https://ppeg.wzb.eu/www/ppeg_gov_2025v1.zip", file: "ppeg_gov_2025v1.csv" },
+  parliaments: {
+    url: "https://ppeg.wzb.eu/www/ppeg_parl_2025v1.zip",
+    file: "ppeg_parl_2025v1.csv",
+  },
+  presidents: { url: "https://ppeg.wzb.eu/www/ppeg_pres_2025v1.zip", file: "ppeg_pres_2025v1.csv" },
   // The release's last day: cabinets inaugurated by 31 October 2025.
   cutoff: Day.make("2025-10-31"),
 }
@@ -95,7 +123,7 @@ const ppegGovernments = Effect.fn("Archives.ppeg")(function* (
   // Each cabinet's parties, the head's first, under its country and day.
   const cabinets = new Map<
     string,
-    { recorded: Omit<Recorded, "parties">; lead: Array<Party>; rest: Array<Party> }
+    { recorded: Omit<GovernmentRecord, "parties">; lead: Array<Party>; rest: Array<Party> }
   >()
 
   for (const row of decoded) {
@@ -107,7 +135,7 @@ const ppegGovernments = Effect.fn("Archives.ppeg")(function* (
         head: personal(row.pm),
         start: row.idate,
         until: row.rft === "Notappl" ? ppeg.cutoff : null,
-        url: ppeg.url,
+        url: ppeg.governments.url,
         retrievedAt,
       },
       lead: [],
@@ -129,8 +157,65 @@ const ppegGovernments = Effect.fn("Archives.ppeg")(function* (
     cabinets.set(key, cabinet)
   }
 
-  return [...cabinets.values()].map(({ recorded, lead, rest }): Recorded =>
+  return [...cabinets.values()].map(({ recorded, lead, rest }): GovernmentRecord =>
     Object.assign({ parties: [...lead, ...rest] }, recorded),
+  )
+})
+
+const PpegElection = Schema.Struct({ iso3c: Country, edate: Day })
+
+const PpegPresidential = Schema.Struct({
+  iso3c: Country,
+  // The first round, and the last when there were several ("NA" otherwise).
+  edate: Day,
+  edate_lastround: Schema.Union([Day, Schema.Literal("NA")]),
+  // "yes" for a president who took office without an election.
+  pres_not_by_elec: Schema.Literals(["yes", "no"]),
+})
+
+const memberRows = <A, I>(row: Schema.Codec<A, I>, csv: string) =>
+  table(csv).pipe(
+    Effect.map((rows) => rows.filter((each) => member(each["iso3c"]))),
+    Effect.flatMap(Schema.decodeUnknownEffect(Schema.Array(row))),
+  )
+
+const ppegElections = Effect.fn("Archives.ppegElections")(function* (
+  files: { parliaments: string; presidents: string },
+  retrievedAt: DateTime.Utc,
+) {
+  const parliaments = (yield* memberRows(PpegElection, files.parliaments)).map(
+    (row): ElectionRecord => ({
+      country: row.iso3c,
+      ballot: "parliament",
+      date: row.edate,
+      lastRound: null,
+      url: ppeg.parliaments.url,
+      retrievedAt,
+    }),
+  )
+
+  const presidents = (yield* memberRows(PpegPresidential, files.presidents)).flatMap(
+    (row): Array<ElectionRecord> =>
+      row.pres_not_by_elec === "yes"
+        ? []
+        : [
+            {
+              country: row.iso3c,
+              ballot: "president",
+              date: row.edate,
+              lastRound:
+                row.edate_lastround === "NA" || row.edate_lastround === row.edate
+                  ? null
+                  : row.edate_lastround,
+              url: ppeg.presidents.url,
+              retrievedAt,
+            },
+          ],
+  )
+
+  return distinct(
+    [...parliaments, ...presidents],
+    (record) => `${record.country} ${record.ballot} ${record.date}`,
   )
 })
 
@@ -141,7 +226,16 @@ const parlgov = {
   cabinets: "https://parlgov.fly.dev/data-csv/data_cabinet/",
   members: "https://parlgov.fly.dev/data-csv/view_cabinet/",
   parties: "https://parlgov.fly.dev/data-csv/view_party/",
+  // One row per party and election, the country by its ISO 3166 alpha-3 code.
+  elections: "https://parlgov.fly.dev/data-csv/view_election/",
 }
+
+const ParlGovElection = Schema.Struct({
+  country: Schema.String,
+  date: Day,
+  // European Parliament elections are not national records here.
+  type: Schema.Literals(["parliament", "ep"]),
+})
 
 const ParlGovCountry = Schema.Struct({ id: Schema.NonEmptyString, name_short: Schema.String })
 
@@ -223,6 +317,33 @@ const parlgovGovernments = Effect.fn("Archives.parlgov")(function* (
   })
 })
 
+const parlgovElections = Effect.fn("Archives.parlgovElections")(function* (
+  csv: string,
+  retrievedAt: DateTime.Utc,
+) {
+  const rows = yield* decodeAll(ParlGovElection, csv)
+
+  return distinct(
+    rows.flatMap((row): Array<ElectionRecord> => {
+      const country = row.country
+
+      return row.type === "parliament" && isCountry(country) && members.has(country)
+        ? [
+            {
+              country,
+              ballot: "parliament",
+              date: row.date,
+              lastRound: null,
+              url: parlgov.elections,
+              retrievedAt,
+            },
+          ]
+        : []
+    }),
+    (record) => `${record.country} ${record.date}`,
+  )
+})
+
 // Formations checked by hand against government, presidency and parliament
 // records after the archives end, copied from countries-comparison (see
 // official/README.md). Each is a point observation: it starts a government
@@ -272,6 +393,63 @@ const officialGovernments = Effect.fn("Archives.official")(function* () {
   )
 })
 
+// Elections held after the archives end, checked by hand against the
+// electoral authorities' result tables, copied from countries-comparison
+// (see official/README.md). One entry per ballot: a presidential election
+// with a runoff has an entry per round.
+const Ballots = Schema.Array(
+  Schema.Struct({
+    geo: Schema.String,
+    kind: Ballot,
+    election_date: Day,
+    date: Day,
+    url: Schema.NonEmptyString,
+    retrieved: Day,
+  }),
+)
+
+const officialElections = Effect.fn("Archives.officialElections")(function* () {
+  const entries = yield* Schema.decodeUnknownEffect(Ballots)(ballots)
+
+  const elections = Map.groupBy(
+    entries,
+    (entry) => `${entry.geo} ${entry.kind} ${entry.election_date}`,
+  )
+
+  return [...elections.values()].flatMap((rounds): Array<ElectionRecord> => {
+    const [first] = rounds
+
+    const country = fromGeo.get(first?.geo ?? "")
+
+    const last = rounds
+      .map((round) => round.date)
+      .toSorted()
+      .at(-1)
+
+    return first === undefined || country === undefined || !members.has(country)
+      ? []
+      : [
+          {
+            country,
+            ballot: first.kind,
+            date: first.election_date,
+            lastRound: last === undefined || last === first.election_date ? null : last,
+            url: first.url,
+            retrievedAt: DateTime.makeUnsafe(first.retrieved),
+          },
+        ]
+  })
+})
+
+// Every failure, of the transport, the file or a row, is the publisher's.
+const unavailable =
+  (publisher: Publisher) =>
+  <A, E>(records: Effect.Effect<A, E>) =>
+    records.pipe(
+      Effect.tapError((cause) => Effect.logWarning("Archive failed", publisher, cause)),
+      Effect.mapError((cause) => new ArchiveUnavailable({ publisher, cause })),
+    )
+
 export class Archives extends Context.Service<Archives, Interface>()("@civicdata/server/Archives") {
   static readonly layer = Layer.effect(
     Archives,
@@ -303,12 +481,12 @@ export class Archives extends Context.Service<Archives, Interface>()("@civicdata
           }),
         )
 
-      const fetched = (publisher: Publisher) =>
+      const fetchedGovernments = (publisher: Publisher) =>
         DateTime.now.pipe(
           Effect.flatMap((retrievedAt) =>
             Match.value(publisher).pipe(
               Match.when("PPEG", () =>
-                unzipped(ppeg.url, ppeg.file).pipe(
+                unzipped(ppeg.governments.url, ppeg.governments.file).pipe(
                   Effect.flatMap((csv) => ppegGovernments(csv, retrievedAt)),
                 ),
               ),
@@ -329,14 +507,39 @@ export class Archives extends Context.Service<Archives, Interface>()("@civicdata
           ),
         )
 
-      const governments = Effect.fn("Archives.governments")(function* (publisher: Publisher) {
-        return yield* fetched(publisher).pipe(
-          Effect.tapError((cause) => Effect.logWarning("Archive failed", publisher, cause)),
-          Effect.mapError((cause) => new ArchiveUnavailable({ publisher, cause })),
+      const fetchedElections = (publisher: Publisher) =>
+        DateTime.now.pipe(
+          Effect.flatMap((retrievedAt) =>
+            Match.value(publisher).pipe(
+              Match.when("PPEG", () =>
+                Effect.all(
+                  {
+                    parliaments: unzipped(ppeg.parliaments.url, ppeg.parliaments.file),
+                    presidents: unzipped(ppeg.presidents.url, ppeg.presidents.file),
+                  },
+                  { concurrency: "unbounded" },
+                ).pipe(Effect.flatMap((files) => ppegElections(files, retrievedAt))),
+              ),
+              Match.when("ParlGov", () =>
+                text(parlgov.elections).pipe(
+                  Effect.flatMap((csv) => parlgovElections(csv, retrievedAt)),
+                ),
+              ),
+              Match.when("Official", () => officialElections()),
+              Match.exhaustive,
+            ),
+          ),
         )
+
+      const governments = Effect.fn("Archives.governments")(function* (publisher: Publisher) {
+        return yield* fetchedGovernments(publisher).pipe(unavailable(publisher))
       })
 
-      return Archives.of({ governments })
+      const elections = Effect.fn("Archives.elections")(function* (publisher: Publisher) {
+        return yield* fetchedElections(publisher).pipe(unavailable(publisher))
+      })
+
+      return Archives.of({ governments, elections })
     }),
   )
 }

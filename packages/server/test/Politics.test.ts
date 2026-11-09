@@ -75,7 +75,7 @@ describe("politics", () => {
     Effect.gen(function* () {
       yield* build(1)
 
-      expect(yield* records(["BRA"], 2000, 2020)).toEqual({ governments: [] })
+      expect(yield* records(["BRA"], 2000, 2020)).toEqual({ governments: [], elections: [] })
     }).pipe(Effect.provide(serve(recorded()))),
   )
 
@@ -128,6 +128,71 @@ describe("politics", () => {
     }).pipe(Effect.provide(serve(recorded()))),
   )
 
+  it.effect("answers a country's elections held in the years, with sources", () =>
+    Effect.gen(function* () {
+      yield* build(1)
+
+      const { elections } = yield* records(["ESP"], 2015, 2016)
+
+      expect(elections).toMatchObject([
+        { ballot: "parliament", date: "2015-12-20", lastRound: null },
+        { ballot: "parliament", date: "2016-06-26", lastRound: null },
+      ])
+      expect(elections[0]?.citation).toMatchObject({
+        publisher: "PPEG",
+        url: "https://ppeg.wzb.eu/www/ppeg_parl_2025v1.zip",
+      })
+    }).pipe(Effect.provide(serve(recorded()))),
+  )
+
+  it.effect("prefers PPEG to ParlGov where both record an election, even on other days", () =>
+    Effect.gen(function* () {
+      yield* build(1)
+
+      const { elections } = yield* records(["FRA"], 2017, 2017)
+
+      // ParlGov dates the same parliamentary election by its second round,
+      // 18 June; PPEG by its first.
+      expect(elections.map(({ ballot, date, lastRound }) => ({ ballot, date, lastRound }))).toEqual(
+        [
+          { ballot: "president", date: "2017-04-23", lastRound: "2017-05-07" },
+          { ballot: "parliament", date: "2017-06-11", lastRound: null },
+        ],
+      )
+    }).pipe(Effect.provide(serve(recorded()))),
+  )
+
+  it.effect("reads elections PPEG does not cover from ParlGov, without European ones", () =>
+    Effect.gen(function* () {
+      yield* build(1)
+
+      expect((yield* records(["CAN"], 2015, 2015)).elections).toMatchObject([
+        { ballot: "parliament", date: "2015-10-19", citation: { publisher: "ParlGov" } },
+      ])
+      // ParlGov's 2014 European Parliament election in Spain is not national.
+      expect((yield* records(["ESP"], 2014, 2014)).elections).toEqual([])
+    }).pipe(Effect.provide(serve(recorded()))),
+  )
+
+  it.effect("follows the archives with elections checked by hand, by their rounds", () =>
+    Effect.gen(function* () {
+      yield* build(1)
+
+      const { elections } = yield* records(["PRT", "EST"], 2026, 2026)
+
+      expect(elections).toMatchObject([
+        {
+          country: "PRT",
+          ballot: "president",
+          date: "2026-01-18",
+          lastRound: "2026-02-08",
+          citation: { publisher: "Official" },
+        },
+        { country: "EST", ballot: "president-indirect", date: "2026-09-02", lastRound: null },
+      ])
+    }).pipe(Effect.provide(serve(recorded()))),
+  )
+
   it.effect("is unavailable before a build stores any records", () =>
     Effect.gen(function* () {
       const error = yield* records(["ESP"], 2015, 2016).pipe(Effect.flip)
@@ -145,7 +210,9 @@ describe("politics", () => {
 
       const error = yield* build(2).pipe(Effect.flip)
 
-      expect(error).toEqual(new PoliticsBuildFailed({ publishers: ["ParlGov"] }))
+      expect(error).toEqual(
+        new PoliticsBuildFailed({ datasets: [{ records: "governments", publisher: "ParlGov" }] }),
+      )
       expect(heads((yield* records(["CAN"], 2016, 2016)).governments)).toEqual(["Trudeau J"])
       expect(heads((yield* records(["ESP"], 2012, 2012)).governments)).toEqual(["Mariano Rajoy"])
     }).pipe(Effect.provide(serve(files)))
@@ -153,7 +220,9 @@ describe("politics", () => {
 
   it.effect("rejects an archive whose rows do not decode, storing nothing", () =>
     Effect.gen(function* () {
-      const error = yield* (yield* PoliticsBuild).write("ParlGov", 1).pipe(Effect.flip)
+      const error = yield* (yield* PoliticsBuild)
+        .write({ records: "governments", publisher: "ParlGov" }, 1)
+        .pipe(Effect.flip)
 
       expect(error).toBeInstanceOf(ArchiveUnavailable)
       expect(

@@ -4,7 +4,7 @@ import { Check, Link } from "lucide-react"
 import { useCopy } from "@/clipboard"
 import { Button } from "@/components/ui/button"
 
-import type { Overlay } from "./governments.ts"
+import type { Overlay } from "./politics.ts"
 import { toQuery } from "./search.ts"
 
 const labels = { copied: "Link copied", failed: "Could not copy" } as const

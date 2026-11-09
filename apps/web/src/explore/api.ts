@@ -49,13 +49,13 @@ export const notesQuery = (indicator: IndicatorId) =>
     staleTime: 24 * 60 * 60 * 1000,
   })
 
-// Who governed a trend's countries during its years; nothing is asked
-// without a trend. Rejects with PoliticsUnavailable before the records are
+// The elections and governments of a trend's countries during its years;
+// nothing is asked without a trend. Rejects with PoliticsUnavailable before the records are
 // first stored, or outside Workers, or a transport error. The records change
 // weekly at most.
-export const governmentsQuery = (trend: Trend | undefined) =>
+export const politicsQuery = (trend: Trend | undefined) =>
   queryOptions({
-    queryKey: ["governments", trend?.countries.join(","), trend?.from, trend?.to],
+    queryKey: ["politics", trend?.countries.join(","), trend?.from, trend?.to],
     queryFn:
       trend === undefined
         ? skipToken
