@@ -3,7 +3,11 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./workflow": {
+      "workerd": "./src/CatalogWorkflow.ts",
+      "default": "./src/workflow.node.ts"
+    }
   },
   "scripts": {
     "typecheck": "effect-tsgo tsc --noEmit && effect-tsgo tsc --noEmit -p scripts",

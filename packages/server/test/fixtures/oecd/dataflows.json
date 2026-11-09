@@ -1,0 +1,96 @@
+{
+  "data": {
+    "dataflows": [
+      {
+        "id": "SEEA_AEA_A",
+        "version": "1.4",
+        "agencyID": "ESTAT",
+        "isFinal": true,
+        "name": "Air Emissions Accounts",
+        "names": {
+          "en": "Air Emissions Accounts"
+        },
+        "description": "Air Emissions Accounts",
+        "descriptions": {
+          "en": "Air Emissions Accounts"
+        },
+        "structure": "urn:sdmx:org.sdmx.infomodel.datastructure.DataStructure=ESTAT:SEEAAIR(1.4)"
+      },
+      {
+        "id": "DF_SDG_GLC",
+        "version": "1.20",
+        "agencyID": "IAEG-SDGs",
+        "isFinal": true,
+        "name": "SDG Country Global Dataflow",
+        "names": {
+          "en": "SDG Country Global Dataflow"
+        },
+        "description": "Reporting and dissemination dataflow for non-harmonized global SDG indicators reported by countries.",
+        "descriptions": {
+          "en": "Reporting and dissemination dataflow for non-harmonized global SDG indicators reported by countries."
+        },
+        "structure": "urn:sdmx:org.sdmx.infomodel.datastructure.DataStructure=IAEG-SDGs:SDG(1.20)"
+      },
+      {
+        "id": "DF_SDG_GLH",
+        "version": "1.20",
+        "agencyID": "IAEG-SDGs",
+        "isFinal": true,
+        "name": "SDG Harmonized Global Dataflow",
+        "names": {
+          "en": "SDG Harmonized Global Dataflow"
+        },
+        "description": "Reporting and dissemination dataflow for harmonized global SDG indicators.",
+        "descriptions": {
+          "en": "Reporting and dissemination dataflow for harmonized global SDG indicators."
+        },
+        "structure": "urn:sdmx:org.sdmx.infomodel.datastructure.DataStructure=IAEG-SDGs:SDG(1.20)"
+      },
+      {
+        "id": "DSD_NAMAIN10@DF_TABLE1_EXPENDITURE_HCPC",
+        "version": "2.0",
+        "agencyID": "OECD.SDD.NAD",
+        "isFinal": true,
+        "name": "Annual GDP and consumption per capita, US $, current prices, current PPPs",
+        "names": {
+          "en": "Annual GDP and consumption per capita, US $, current prices, current PPPs"
+        },
+        "description": "This table shows Gross Domestic Product (GDP) per capita (or per person), household final consumption expenditure per capita and actual individual consumption per capita. Final consumption expenditure is the expenditure of resident households on consumption goods or services, while individual consumption is the sum of household consumption plus the individual (not collective) consumption of the non-profit institutions serving households (NPISH) and General Government sectors. The indicators are in current prices and are converted to US dollars using current Purchasing Power Parities (PPPs).\n<br><br> The table shows OECD countries and selected economies, as well as the OECD total, OECD Europe, European Union and euro area . These can be selected using the ‘Reference area’ filter.\n<br> These indicators were presented in the previous dissemination system in the SNA_TABLE1 dataset.<br>See ANA Changes for information on changes in methodology:  <a href=\"https://webfs-sdd.oecd.org/files/.Stat/NAMAIN10/ANA_Changes.xls\">ANA Changes</a> <br>\nExplore also the GDP and non-financial accounts webpage: <a href=\"https://www.oecd.org/en/data/datasets/gdp-and-non-financial-accounts.html\">GDP and non-financial accounts webpage</a><br>OECD statistics contact: <a href=\"mailto:STAT.Contact@oecd.org\">STAT.Contact@oecd.org</a>",
+        "descriptions": {
+          "en": "This table shows Gross Domestic Product (GDP) per capita (or per person), household final consumption expenditure per capita and actual individual consumption per capita. Final consumption expenditure is the expenditure of resident households on consumption goods or services, while individual consumption is the sum of household consumption plus the individual (not collective) consumption of the non-profit institutions serving households (NPISH) and General Government sectors. The indicators are in current prices and are converted to US dollars using current Purchasing Power Parities (PPPs).\n<br><br> The table shows OECD countries and selected economies, as well as the OECD total, OECD Europe, European Union and euro area . These can be selected using the ‘Reference area’ filter.\n<br> These indicators were presented in the previous dissemination system in the SNA_TABLE1 dataset.<br>See ANA Changes for information on changes in methodology:  <a href=\"https://webfs-sdd.oecd.org/files/.Stat/NAMAIN10/ANA_Changes.xls\">ANA Changes</a> <br>\nExplore also the GDP and non-financial accounts webpage: <a href=\"https://www.oecd.org/en/data/datasets/gdp-and-non-financial-accounts.html\">GDP and non-financial accounts webpage</a><br>OECD statistics contact: <a href=\"mailto:STAT.Contact@oecd.org\">STAT.Contact@oecd.org</a>"
+        },
+        "structure": "urn:sdmx:org.sdmx.infomodel.datastructure.DataStructure=OECD.SDD.NAD:DSD_NAMAIN10(2.0)"
+      },
+      {
+        "id": "DSD_LFS@DF_IALFS_UNE_M",
+        "version": "1.0",
+        "agencyID": "OECD.SDD.TPS",
+        "isFinal": true,
+        "name": "Monthly unemployment rates",
+        "names": {
+          "en": "Monthly unemployment rates"
+        },
+        "description": "<p>The infra-annual dataflow on the monthly unemployment rate is a subset of the infra-annual labour statistics database, which contains predominantly monthly and quarterly statistics on the unemployed population by age groups (15+, 15-24, 25-54, 55-64, 15-64 and 15-74 where available) and sex and associated statistical methodological information and associated statistical methodological information, for the OECD member countries and for selected other economies. </p><p>The unemployment rate is calculated as the number of unemployed persons as a percentage of the labour force (i.e., the unemployed plus those in employment). The unemployed are persons in their working age who, in the reference period, do not have a job; are available for work; and, have taken specific steps to find a job. </p><p>Chile, Costa Rica, and the United Kingdom publish Labour Force Survey (LFS) data using a rolling quarter methodology. The OECD treats the middle month of the rolling quarter as the reference month. As a result, the publication of monthly LFS data for these countries may be delayed by one month or more relative to the OECD reference month.</p><p>The infra-annual labour statistics compiled for all OECD member countries, are drawn from Labour Force Surveys based on definition provided by the 19th Conference of Labour Statisticians in 2013. The uniform application of these definitions across all OECD member countries results in estimates that are internationally comparable.</p>",
+        "descriptions": {
+          "en": "<p>The infra-annual dataflow on the monthly unemployment rate is a subset of the infra-annual labour statistics database, which contains predominantly monthly and quarterly statistics on the unemployed population by age groups (15+, 15-24, 25-54, 55-64, 15-64 and 15-74 where available) and sex and associated statistical methodological information and associated statistical methodological information, for the OECD member countries and for selected other economies. </p><p>The unemployment rate is calculated as the number of unemployed persons as a percentage of the labour force (i.e., the unemployed plus those in employment). The unemployed are persons in their working age who, in the reference period, do not have a job; are available for work; and, have taken specific steps to find a job. </p><p>Chile, Costa Rica, and the United Kingdom publish Labour Force Survey (LFS) data using a rolling quarter methodology. The OECD treats the middle month of the rolling quarter as the reference month. As a result, the publication of monthly LFS data for these countries may be delayed by one month or more relative to the OECD reference month.</p><p>The infra-annual labour statistics compiled for all OECD member countries, are drawn from Labour Force Surveys based on definition provided by the 19th Conference of Labour Statisticians in 2013. The uniform application of these definitions across all OECD member countries results in estimates that are internationally comparable.</p>"
+        },
+        "structure": "urn:sdmx:org.sdmx.infomodel.datastructure.DataStructure=OECD.SDD.TPS:DSD_LFS(1.0)"
+      }
+    ]
+  },
+  "meta": {
+    "schema": "https://raw.githubusercontent.com/sdmx-twg/sdmx-json/develop/structure-message/tools/schemas/1.0/sdmx-json-structure-schema.json",
+    "contentLanguages": ["en", "fr"],
+    "id": "IDREF11914",
+    "prepared": "2026-11-09T14:43:32Z",
+    "test": false,
+    "sender": {
+      "id": "Unknown"
+    },
+    "receiver": [
+      {
+        "id": "Unknown"
+      }
+    ]
+  }
+}

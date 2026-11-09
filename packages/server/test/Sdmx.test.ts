@@ -14,6 +14,7 @@ import { TestClock } from "effect/testing"
 
 import { Sdmx } from "../src/Sdmx.ts"
 import { http, memory } from "./fakes.ts"
+import eurostatFlows from "./fixtures/eurostat/dataflows.json"
 import population from "./fixtures/eurostat/population-flow.json"
 import franceOptions from "./fixtures/eurostat/population-france-options.csv?raw"
 import france from "./fixtures/eurostat/population-france.csv?raw"
@@ -26,6 +27,7 @@ import unemploymentFlow from "./fixtures/eurostat/unemployment-flow.json"
 import unemploymentOptions from "./fixtures/eurostat/unemployment-options.csv?raw"
 import unemployment from "./fixtures/eurostat/unemployment-total.csv?raw"
 import unknownFlow from "./fixtures/eurostat/unknown-flow.json"
+import oecdFlows from "./fixtures/oecd/dataflows.json"
 import oecdNoRecords from "./fixtures/oecd/no-records.txt?raw"
 import oecdFlow from "./fixtures/oecd/unemployment-flow.json"
 import oecdOptions from "./fixtures/oecd/unemployment-options.csv?raw"
@@ -65,6 +67,11 @@ const oecdLatest = (key: string) =>
 
 // Answers recorded from Eurostat and the OECD on 2026-11-09, served by URL.
 const recorded = new Map<string, () => Response>([
+  [
+    `${eurostat}/sdmx/2.1/dataflow/ESTAT/all/latest?format=JSON&lang=en&detail=allstubs`,
+    () => Response.json(eurostatFlows),
+  ],
+  [`${oecd}/dataflow/all`, () => Response.json(oecdFlows)],
   [`${eurostat}/sdmx/2.1/dataflow/ESTAT/TPS00001/1.0?format=JSON`, () => Response.json(population)],
   [
     `${eurostat}/sdmx/2.1/dataflow/ESTAT/NOPE/1.0?format=JSON`,
@@ -160,6 +167,26 @@ const unemploymentIn2022 = query({
 })
 
 describe("Sdmx with Eurostat", () => {
+  it.effect("lists Eurostat's datasets, without the saved views of them", () =>
+    Effect.gen(function* () {
+      const listed = yield* (yield* Sdmx).indicators("Eurostat")
+
+      expect(listed).toEqual([
+        {
+          indicator: "ESTAT,LFSQ_EGAN21,1.0",
+          name: "Employed persons by economic activity (NACE Rev. 2.1) - quarterly data",
+          definition: "",
+        },
+        { indicator: "ESTAT,TPS00001,1.0", name: "Population on 1 January", definition: "" },
+        {
+          indicator: "ESTAT,UNE_RT_A,1.0",
+          name: "Unemployment by sex and age - annual data",
+          definition: "",
+        },
+      ])
+    }).pipe(Effect.provide(recording().layer)),
+  )
+
   it.effect("describes a dataflow by its label and description", () =>
     Effect.gen(function* () {
       const described = yield* (yield* Sdmx).describe(tps00001)
@@ -332,6 +359,21 @@ describe("Sdmx with Eurostat", () => {
 })
 
 describe("Sdmx with the OECD", () => {
+  it.effect("lists the OECD's own dataflows, with plain-text descriptions", () =>
+    Effect.gen(function* () {
+      const listed = yield* (yield* Sdmx).indicators("OECD")
+
+      // ESTAT and IAEG-SDGs dataflows that the OECD also lists are dropped.
+      expect(listed.map((entry) => entry.indicator)).toEqual([
+        "OECD.SDD.NAD,DSD_NAMAIN10@DF_TABLE1_EXPENDITURE_HCPC,2.0",
+        "OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M,1.0",
+      ])
+      expect(listed[1]?.name).toBe("Monthly unemployment rates")
+      expect(listed[1]?.definition).toMatch(/^The infra-annual dataflow on the monthly/)
+      expect(listed[1]?.definition).not.toContain("<p>")
+    }).pipe(Effect.provide(recording().layer)),
+  )
+
   it.effect("describes a dataflow by its name and plain-text description", () =>
     Effect.gen(function* () {
       const described = yield* (yield* Sdmx).describe(lfs)
@@ -462,6 +504,18 @@ describe("Sdmx with the OECD", () => {
 
       expect(error).toEqual(new SourceUnavailable({ source: "OECD" }))
       expect(asked).toHaveLength(1)
+    }).pipe(Effect.provide(limited))
+  })
+
+  it.effect("fails a listing the OECD refuses", () => {
+    const limited = Sdmx.layer.pipe(
+      Layer.provide(http(() => new Response("Too many requests", { status: 429 }))),
+    )
+
+    return Effect.gen(function* () {
+      const error = yield* (yield* Sdmx).indicators("OECD").pipe(Effect.flip)
+
+      expect(error).toEqual(new SourceUnavailable({ source: "OECD" }))
     }).pipe(Effect.provide(limited))
   })
 })

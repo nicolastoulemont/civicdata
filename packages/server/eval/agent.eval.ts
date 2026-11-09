@@ -1,28 +1,28 @@
 import { Ending } from "@civicdata/domain"
 import { expect, layer } from "@effect/vitest"
 import { env } from "cloudflare:workers"
-import { Array as Arr, Effect, Layer, Option, Schema, Stream } from "effect"
+import { Array as Arr, Clock, Effect, Layer, Option, Schema, Stream } from "effect"
 
 import { Agent } from "../src/Agent.ts"
 import { Catalog } from "../src/Catalog.ts"
+import { CatalogBuild, Step } from "../src/CatalogBuild.ts"
 import { Resolver } from "../src/Resolver.ts"
 import { Sdmx } from "../src/Sdmx.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 import { cases } from "./cases.ts"
 import { score } from "./score.ts"
 
-// The first search loads the World Bank catalog into D1. Loading it before the
-// questions run side by side keeps them from each loading it at once.
-const Loaded = Layer.effectDiscard(
-  Effect.gen(function* () {
-    const catalog = yield* Catalog
-
-    yield* catalog.search("population")
-  }),
-)
+// Builds the catalog from the live sources before the questions run. A
+// source that fails keeps the others in the catalog.
+const Built = Layer.effectDiscard(
+  Clock.currentTimeMillis.pipe(
+    Effect.flatMap(CatalogBuild.run),
+    Effect.catchTag("BuildFailed", (error) => Effect.logWarning("Catalog build failed", error)),
+  ),
+).pipe(Layer.provide(Layer.merge(CatalogBuild.live, Step.immediate)))
 
 // The agent as a conversation runs it, against the live sources and model.
-const Live = Layer.merge(Agent.live.pipe(Layer.provide(Resolver.layer)), Loaded).pipe(
+const Live = Layer.merge(Agent.live.pipe(Layer.provide(Resolver.layer)), Built).pipe(
   Layer.provide(Catalog.live),
   Layer.provide(WorldBank.live),
   Layer.provide(Sdmx.live),

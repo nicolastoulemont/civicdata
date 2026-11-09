@@ -3,6 +3,7 @@
 type DurableObjectId = import("@cloudflare/workers-types").DurableObjectId
 
 declare module "cloudflare:workers" {
+  export const WorkflowEntrypoint: typeof import("@cloudflare/workers-types").CloudflareWorkersModule.WorkflowEntrypoint
   export const env: {
     readonly CACHE?: import("./Cache.ts").Bucket
     readonly DB?: import("@cloudflare/workers-types").D1Database

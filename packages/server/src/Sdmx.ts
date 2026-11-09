@@ -1,10 +1,12 @@
 import {
+  CatalogEntry,
   type Country,
   Dimension,
   type Dimensions,
   DimensionsMissing,
   type IndicatorId,
   IndicatorNotFound,
+  type Source,
   SourceUnavailable,
   sourceOf,
 } from "@civicdata/domain"
@@ -16,6 +18,7 @@ import {
   Effect,
   Layer,
   Match,
+  Option,
   Schedule,
   Schema,
 } from "effect"
@@ -55,6 +58,9 @@ const Options = Schema.Struct({
   retrievedAt: Schema.DateTimeUtc,
 })
 
+// The sources that publish through SDMX.
+type SdmxSource = Exclude<Source, "World Bank">
+
 interface Interface {
   readonly describe: (
     indicator: IndicatorId,
@@ -62,6 +68,10 @@ interface Interface {
   readonly observations: (
     query: SdmxQuery,
   ) => Effect.Effect<SdmxSeries, IndicatorNotFound | SourceUnavailable | DimensionsMissing>
+  // Every dataflow the source publishes, in one request.
+  readonly indicators: (
+    source: SdmxSource,
+  ) => Effect.Effect<ReadonlyArray<CatalogEntry>, SourceUnavailable>
 }
 
 const eurostat = "https://ec.europa.eu/eurostat/api/dissemination"
@@ -103,6 +113,36 @@ const OecdFlow = Schema.Struct({
   }),
 })
 
+// Eurostat's dataflow list without annotations (`detail=allstubs`): about
+// 1.5 MB for 8,000 dataflows, where the full list is 20 MB.
+const EurostatFlows = Schema.Struct({
+  link: Schema.Struct({
+    item: Schema.Array(
+      Schema.Struct({
+        label: Schema.String,
+        extension: Schema.Struct({ id: Schema.String, version: Schema.String }),
+      }),
+    ),
+  }),
+})
+
+// The OECD's dataflow list, with descriptions: about 6 MB for 1,500 dataflows.
+const OecdFlows = Schema.Struct({
+  data: Schema.Struct({
+    dataflows: Schema.Array(
+      Schema.Struct({
+        agencyID: Schema.String,
+        id: Schema.String,
+        version: Schema.String,
+        name: Schema.String,
+        description: Schema.optionalKey(Schema.String),
+      }),
+    ),
+  }),
+})
+
+const toEntry = Schema.decodeUnknownOption(CatalogEntry)
+
 // OECD descriptions are HTML paragraphs; the page shows plain text.
 const plain = (html: string) =>
   html
@@ -117,25 +157,25 @@ interface Answer {
 
 // An answer the adapter does not expect, such as OECD's 429 once the Worker's
 // shared IP is over its limit, is the source being unavailable.
-const refuse = (indicator: IndicatorId, { url, answer }: { url: string; answer: Answer }) =>
+const refuse = (source: Source, { url, answer }: { url: string; answer: Answer }) =>
   Effect.logWarning("SDMX source refused", url, answer.status, answer.body.slice(0, 300)).pipe(
-    Effect.andThen(Effect.fail(new SourceUnavailable({ source: sourceOf(indicator) }))),
+    Effect.andThen(Effect.fail(new SourceUnavailable({ source }))),
   )
 
 const decode = <A>(
-  indicator: IndicatorId,
+  source: Source,
   { url, body, schema }: { url: string; body: string; schema: Schema.Codec<A, unknown> },
 ) =>
   Schema.decodeEffect(Schema.fromJsonString(schema))(body).pipe(
     Effect.tapError((error) => Effect.logWarning("SDMX answer not recognized", url, error)),
-    Effect.mapError(() => new SourceUnavailable({ source: sourceOf(indicator) })),
+    Effect.mapError(() => new SourceUnavailable({ source })),
   )
 
 // A data answer's CSV body, when its status is 200.
 const accepted = (indicator: IndicatorId, asked: { url: string; answer: Answer }) =>
   asked.answer.status === 200
     ? Effect.succeed({ url: asked.url, csv: asked.answer.body })
-    : refuse(indicator, asked)
+    : refuse(sourceOf(indicator), asked)
 
 // What a data request asks besides its countries: the value of some
 // dimensions, and either the View's years or each series' latest value.
@@ -205,7 +245,7 @@ const make = (remember: Remember) =>
     // `Accept-Language: *`, which Node's fetch sends unless told otherwise.
     // Transport failures and timeouts become SourceUnavailable; the cause is
     // logged.
-    const ask = (indicator: IndicatorId, url: string, accept: string) => {
+    const ask = (source: Source, url: string, accept: string) => {
       const once = client
         .execute(
           HttpClientRequest.get(url).pipe(
@@ -226,7 +266,7 @@ const make = (remember: Remember) =>
         }),
         Effect.timeout("15 seconds"),
         Effect.tapError((error) => Effect.logWarning("SDMX request failed", url, error)),
-        Effect.mapError(() => new SourceUnavailable({ source: sourceOf(indicator) })),
+        Effect.mapError(() => new SourceUnavailable({ source })),
       )
     }
 
@@ -242,16 +282,16 @@ const make = (remember: Remember) =>
               "application/vnd.sdmx.structure+json;version=1.0",
             ]
 
-      const answer = yield* ask(indicator, url, accept)
+      const answer = yield* ask(source, url, accept)
 
       if (answer.status === 404) return yield* new IndicatorNotFound({ indicator })
 
-      if (answer.status !== 200) return yield* refuse(indicator, { url, answer })
+      if (answer.status !== 200) return yield* refuse(source, { url, answer })
 
       const retrievedAt = yield* DateTime.now
 
       if (source === "Eurostat") {
-        const { label, extension } = yield* decode(indicator, {
+        const { label, extension } = yield* decode(source, {
           url,
           body: answer.body,
           schema: EurostatFlow,
@@ -260,7 +300,7 @@ const make = (remember: Remember) =>
         return { name: label, definition: extension.description ?? "", dimensions: [], retrievedAt }
       }
 
-      const { data } = yield* decode(indicator, { url, body: answer.body, schema: OecdFlow })
+      const { data } = yield* decode(source, { url, body: answer.body, schema: OecdFlow })
       const [dataflow] = data.dataflows
       const [structure] = data.dataStructures
 
@@ -272,6 +312,52 @@ const make = (remember: Remember) =>
           .map((dimension) => dimension.id),
         retrievedAt,
       }
+    })
+
+    // Lists a source's dataflows. It keeps those whose id is one of the
+    // source's own: Eurostat also lists saved views of its datasets, such as
+    // "LFSQ_EGAN21$DV_3701", and the OECD lists dataflows that ESTAT and
+    // IAEG-SDGs maintain.
+    const indicators = Effect.fn("Sdmx.indicators")(function* (source: SdmxSource) {
+      const [url, accept] =
+        source === "Eurostat"
+          ? [
+              `${eurostat}/sdmx/2.1/dataflow/ESTAT/all/latest?format=JSON&lang=en&detail=allstubs`,
+              "application/json",
+            ]
+          : [`${oecd}/dataflow/all`, "application/vnd.sdmx.structure+json;version=1.0"]
+
+      const answer = yield* ask(source, url, accept)
+
+      if (answer.status !== 200) return yield* refuse(source, { url, answer })
+
+      const listed =
+        source === "Eurostat"
+          ? (yield* decode(source, {
+              url,
+              body: answer.body,
+              schema: EurostatFlows,
+            })).link.item.map(({ label, extension }) => ({
+              indicator: `ESTAT,${extension.id},${extension.version}`,
+              name: label,
+              definition: "",
+            }))
+          : (yield* decode(source, {
+              url,
+              body: answer.body,
+              schema: OecdFlows,
+            })).data.dataflows.map(({ agencyID, id, version, name, description }) => ({
+              indicator: `${agencyID},${id},${version}`,
+              name,
+              definition: plain(description ?? ""),
+            }))
+
+      return listed.flatMap((each) =>
+        Option.match(toEntry(each), {
+          onNone: () => [],
+          onSome: (entry) => (sourceOf(entry.indicator) === source ? [entry] : []),
+        }),
+      )
     })
 
     const cachedFlow = (indicator: IndicatorId) =>
@@ -309,7 +395,7 @@ const make = (remember: Remember) =>
         Effect.gen(function* () {
           const url = `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/${id}/${version}/*?c[geo]=${codes.join(",")}&c[freq]=A${picks}&${period(query, { latest, eurostat: true })}&compress=false`
 
-          return { url, answer: yield* ask(query.indicator, url, accept) }
+          return { url, answer: yield* ask("Eurostat", url, accept) }
         })
 
       const codes = query.countries.map((country) => geo[country])
@@ -351,7 +437,7 @@ const make = (remember: Remember) =>
       const { dimensions } = yield* cachedFlow(query.indicator)
       const key = dimensions.map((dimension) => keyPart(dimension, { query, filters })).join(".")
       const url = `${oecd}/data/${agency},${id},${version}/${key}?${period(query, { latest, eurostat: false })}`
-      const answer = yield* ask(query.indicator, url, accept)
+      const answer = yield* ask("OECD", url, accept)
 
       // The OECD answers 404 for a query that matches no observation.
       if (answer.status === 404) return { url, csv: undefined }
@@ -376,7 +462,10 @@ const make = (remember: Remember) =>
       const dimensions = csv === undefined ? [] : Csv.dimensions(csv, area(query.indicator))
 
       if (dimensions === undefined)
-        return yield* refuse(query.indicator, { url, answer: { status: 200, body: csv ?? "" } })
+        return yield* refuse(sourceOf(query.indicator), {
+          url,
+          answer: { status: 200, body: csv ?? "" },
+        })
 
       return { dimensions, retrievedAt: yield* DateTime.now }
     })
@@ -411,7 +500,7 @@ const make = (remember: Remember) =>
       const parsed = Csv.observations(csv, area(query.indicator))
 
       if (parsed === undefined)
-        return yield* refuse(query.indicator, { url, answer: { status: 200, body: csv } })
+        return yield* refuse(sourceOf(query.indicator), { url, answer: { status: 200, body: csv } })
 
       // A series the options did not list, e.g. one with no recent value.
       const mixed = listed.filter((dimension) => parsed.mixed.includes(dimension.id))
@@ -428,6 +517,8 @@ const make = (remember: Remember) =>
 
     return Sdmx.of({
       describe,
+      // The catalog keeps its own copy in D1.
+      indicators,
       observations: (query) =>
         remember(keys.series(query), {
           json: SeriesJson,

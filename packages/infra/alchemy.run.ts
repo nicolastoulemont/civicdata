@@ -21,7 +21,7 @@ export default Alchemy.Stack(
     const cache = yield* Cloudflare.R2.Bucket("Cache")
 
     // Indicator meaning for catalog search, embedded with the model in
-    // packages/server/src/Vectors.ts. Searches fill it again from the catalog.
+    // packages/server/src/Vectors.ts. Each catalog build fills it again.
     const vectors = yield* Cloudflare.Vectorize.Index("Vectors", {
       preset: "@cf/baai/bge-small-en-v1.5",
     })
@@ -40,6 +40,10 @@ export default Alchemy.Stack(
       (model) => model !== "",
     )
 
+    // The catalog Workflow's account-wide name, one per stage. CI reads it
+    // from the stack output to start a build after each deploy.
+    const catalog = `civicdata-${stage.toLowerCase().replaceAll(/[^a-z0-9-]/g, "-")}-catalog`
+
     const web = yield* Cloudflare.Website.Vite("Web", {
       rootDir: "../../apps/web",
       // Pinned so an Alchemy upgrade can't change the runtime. Keep in sync
@@ -56,6 +60,14 @@ export default Alchemy.Stack(
         }),
         // One Durable Object per source, pacing requests to it.
         PACE: Cloudflare.DurableObject("Pace", { className: "PaceObject" }),
+        // Builds the indicator catalog every Monday at 04:00 UTC: a native
+        // Workflow schedule, no Cron Trigger. CI starts one more build after
+        // each deploy, since a new stage has no catalog until then.
+        CATALOG: Cloudflare.Workflow("Catalog", {
+          workflowName: catalog,
+          className: "CatalogWorkflow",
+          schedules: ["0 4 * * 1"],
+        }),
         // Every question costs model calls: five per visitor per minute.
         ASK_LIMIT: Cloudflare.RateLimit("AskLimit", {
           namespaceId: 1001,
@@ -72,6 +84,6 @@ export default Alchemy.Stack(
       },
     })
 
-    return { url: web.url }
+    return { url: web.url, catalog }
   }),
 )

@@ -1,41 +1,15 @@
-import {
-  CatalogEntry,
-  CatalogUnavailable,
-  type IndicatorId,
-  type SourceUnavailable,
-} from "@civicdata/domain"
+import { CatalogEntry, CatalogUnavailable, type IndicatorId } from "@civicdata/domain"
 import { D1Client } from "@effect/sql-d1"
-import { Array as Arr, Clock, Context, Effect, Layer, Option, Schema } from "effect"
+import { Array as Arr, Context, Effect, Layer, Schema } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
 import { Vectors } from "./Vectors.ts"
-import { WorldBank } from "./WorldBank.ts"
 
 interface Interface {
-  readonly search: (
-    text: string,
-  ) => Effect.Effect<ReadonlyArray<CatalogEntry>, SourceUnavailable | CatalogUnavailable>
+  readonly search: (text: string) => Effect.Effect<ReadonlyArray<CatalogEntry>, CatalogUnavailable>
 }
 
-const source = "World Bank"
-
-// The World Bank revises its indicator list a few times a year.
-const maxAge = 7 * 24 * 60 * 60 * 1000
-
-// Each insert binds one JSON array of entries, unpacked by SQLite's json_each,
-// so a load is a handful of round trips instead of one per 20 rows (D1 binds
-// at most 100 parameters per statement). 250 entries is about 250 KB, well
-// under D1's 2 MB limit for one bound value.
-const rowsPerInsert = 250
-
-// Entries embedded per search until a generation is all in Vectorize.
-// Embedding the whole catalog at once would take far more than the 10 ms of
-// CPU a Workers Free request gets: decoding 384 numbers per entry dominates.
-const embedPerSearch = 50
-
 const limit = 20
-
-const EntriesJson = Schema.fromJsonString(Schema.Array(CatalogEntry))
 
 const IdsJson = Schema.fromJsonString(Schema.Array(Schema.String))
 
@@ -73,72 +47,62 @@ const fuse = (rankings: ReadonlyArray<ReadonlyArray<CatalogEntry>>) => {
   return [...scores.values()].toSorted((a, b) => b.score - a.score).map(({ entry }) => entry)
 }
 
-const Refresh = Schema.Struct({ generation: Schema.Int, refreshed_at: Schema.Int })
+// The catalog's tables. `catalog` holds every generation of every source's
+// entries in SQLite full-text search (FTS5); `catalog_current` names the
+// generation of each source that searches read. A build writes a new
+// generation and publishes it once complete (see CatalogBuild.ts).
+export const tables = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient
 
-const Embedded = Schema.Struct({ generation: Schema.Int, through: Schema.Int })
+  yield* sql`
+    CREATE VIRTUAL TABLE IF NOT EXISTS catalog USING fts5(
+      source UNINDEXED, generation UNINDEXED, indicator, name, definition,
+      tokenize = 'unicode61 remove_diacritics 2'
+    )
+  `
+  yield* sql`
+    CREATE TABLE IF NOT EXISTS catalog_current (
+      source TEXT PRIMARY KEY,
+      generation INTEGER NOT NULL
+    )
+  `
+  // Left by the catalog that loaded and embedded itself during searches.
+  yield* sql`DROP TABLE IF EXISTS catalog_refresh`
+  yield* sql`DROP TABLE IF EXISTS catalog_embedded`
+})
 
-const Pending = Schema.Struct({ rowid: Schema.Int, ...CatalogEntry.fields })
-
-// Indicator search over the source's catalog, stored in SQLite full-text
-// search (FTS5), merged with the indicators closest in meaning from Vectors.
-// The catalog loads itself when empty or older than `maxAge`. A load writes a
-// new generation and drops the previous one only after the new one is
-// complete, so a search never sees a half-loaded catalog. Each search then
-// embeds the next `embedPerSearch` entries of the generation, until all are
-// in Vectors. Every result comes from the current generation: a neighbor no
-// longer in the catalog is dropped.
+// Indicator search over the published catalog of every source, merged with
+// the indicators closest in meaning from Vectors. Every result comes from a
+// published generation: a neighbor no longer in the catalog is dropped.
 export class Catalog extends Context.Service<Catalog, Interface>()("@civicdata/server/Catalog") {
   static readonly layer = Layer.effect(
     Catalog,
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient
-      const worldBank = yield* WorldBank
       const vectors = yield* Vectors
 
-      yield* sql`
-        CREATE TABLE IF NOT EXISTS catalog_refresh (
-          source TEXT PRIMARY KEY,
-          generation INTEGER NOT NULL,
-          refreshed_at INTEGER NOT NULL
-        )
-      `
-      yield* sql`
-        CREATE VIRTUAL TABLE IF NOT EXISTS catalog USING fts5(
-          source UNINDEXED, generation UNINDEXED, indicator, name, definition,
-          tokenize = 'unicode61 remove_diacritics 2'
-        )
-      `
-      // `through` is the rowid of the last entry of `generation` in Vectors.
-      yield* sql`
-        CREATE TABLE IF NOT EXISTS catalog_embedded (
-          source TEXT PRIMARY KEY,
-          generation INTEGER NOT NULL,
-          through INTEGER NOT NULL
-        )
-      `
+      yield* tables
 
-      const lastRefresh = SqlSchema.findOneOption({
-        Request: Schema.String,
-        Result: Refresh,
-        execute: (name) =>
-          sql`SELECT generation, refreshed_at FROM catalog_refresh WHERE source = ${name}`,
+      // The sources with a published generation.
+      const published = SqlSchema.findAll({
+        Request: Schema.Void,
+        Result: Schema.Struct({ source: Schema.String }),
+        execute: () => sql`SELECT source FROM catalog_current`,
       })
 
       const matches = SqlSchema.findAll({
-        Request: Schema.Struct({
-          match: Schema.String,
-          code: Schema.String,
-          generation: Schema.Int,
-        }),
+        Request: Schema.Struct({ match: Schema.String, code: Schema.String }),
         Result: CatalogEntry,
         // Codes the user typed the start of come first: "SP.POP" also matches
         // "Specialist ... population" by word prefixes. Then bm25, whose
         // weights follow the column order: a hit in the name counts ten times
         // one in the definition, a hit in the indicator code five times.
-        execute: ({ match, code, generation }) => sql`
-          SELECT indicator, name, definition FROM catalog
-          WHERE catalog MATCH ${match} AND source = ${source} AND generation = ${generation}
-          ORDER BY substr(lower(indicator), 1, length(${code})) = ${code} DESC,
+        execute: ({ match, code }) => sql`
+          SELECT catalog.indicator, catalog.name, catalog.definition FROM catalog
+          JOIN catalog_current AS current
+            ON current.source = catalog.source AND current.generation = catalog.generation
+          WHERE catalog MATCH ${match}
+          ORDER BY substr(lower(catalog.indicator), 1, length(${code})) = ${code} DESC,
             bm25(catalog, 0.0, 0.0, 5.0, 10.0, 1.0)
           LIMIT ${limit}
         `,
@@ -148,127 +112,34 @@ export class Catalog extends Context.Service<Catalog, Interface>()("@civicdata/s
         Request: Schema.Struct({
           indicators: Schema.Array(Schema.String),
           match: Schema.String,
-          generation: Schema.Int,
         }),
         Result: CatalogEntry,
-        execute: ({ indicators, match, generation }) =>
+        execute: ({ indicators, match }) =>
           Schema.encodeEffect(IdsJson)(indicators).pipe(
             Effect.flatMap(
               (ids) => sql`
-                SELECT indicator, name, definition FROM catalog
-                WHERE catalog MATCH ${match} AND source = ${source} AND generation = ${generation}
-                  AND indicator IN (SELECT value FROM json_each(${ids}))
+                SELECT catalog.indicator, catalog.name, catalog.definition FROM catalog
+                JOIN catalog_current AS current
+                  ON current.source = catalog.source AND current.generation = catalog.generation
+                WHERE catalog MATCH ${match}
+                  AND catalog.indicator IN (SELECT value FROM json_each(${ids}))
               `,
             ),
           ),
       })
 
-      const lastEmbedded = SqlSchema.findOneOption({
-        Request: Schema.String,
-        Result: Embedded,
-        execute: (name) =>
-          sql`SELECT generation, through FROM catalog_embedded WHERE source = ${name}`,
-      })
-
-      const pending = SqlSchema.findAll({
-        Request: Schema.Struct({ generation: Schema.Int, after: Schema.Int }),
-        Result: Pending,
-        execute: ({ generation, after }) => sql`
-          SELECT rowid, indicator, name, definition FROM catalog
-          WHERE rowid > ${after} AND source = ${source} AND generation = ${generation}
-          ORDER BY rowid
-          LIMIT ${embedPerSearch}
-        `,
-      })
-
-      const load = Effect.fn("Catalog.load")(function* (generation: number, now: number) {
-        const entries = yield* worldBank.indicators
-
-        for (const chunk of Arr.chunksOf(entries, rowsPerInsert)) {
-          const rows = yield* Schema.encodeEffect(EntriesJson)(chunk)
-
-          yield* sql`
-            INSERT INTO catalog (source, generation, indicator, name, definition)
-            SELECT ${source}, ${generation}, json_extract(value, '$.indicator'),
-              json_extract(value, '$.name'), json_extract(value, '$.definition')
-            FROM json_each(${rows})
-          `
-        }
-
-        yield* sql`
-          INSERT INTO catalog_refresh (source, generation, refreshed_at)
-          VALUES (${source}, ${generation}, ${now})
-          ON CONFLICT (source) DO UPDATE
-          SET generation = excluded.generation, refreshed_at = excluded.refreshed_at
-        `
-        yield* sql`DELETE FROM catalog WHERE source = ${source} AND generation != ${generation}`
-
-        return generation
-      })
-
-      // The generation to search, loading or refreshing the catalog first if
-      // needed. A failed refresh keeps the stale catalog; an empty catalog
-      // with the source down fails with SourceUnavailable.
-      const generation = Effect.gen(function* () {
-        const last = yield* lastRefresh(source)
-        const now = yield* Clock.currentTimeMillis
-
-        if (Option.isNone(last)) return yield* load(1, now)
-
-        if (now - last.value.refreshed_at < maxAge) return last.value.generation
-
-        return yield* load(last.value.generation + 1, now).pipe(
-          Effect.catchTag("SourceUnavailable", (error) =>
-            Effect.logWarning("Serving a stale catalog", error).pipe(
-              Effect.as(last.value.generation),
-            ),
-          ),
-        )
-      })
-
-      // Stores the generation's next entries in Vectors, if any are left. A
-      // failure leaves them for the next search.
-      const embedNext = Effect.fn("Catalog.embedNext")(
-        function* (current: number) {
-          const after = Option.match(yield* lastEmbedded(source), {
-            onNone: () => 0,
-            onSome: (last) => (last.generation === current ? last.through : 0),
-          })
-
-          const batch = yield* pending({ generation: current, after })
-
-          if (!Arr.isReadonlyArrayNonEmpty(batch)) return
-
-          yield* vectors.put(batch)
-          yield* sql`
-            INSERT INTO catalog_embedded (source, generation, through)
-            VALUES (${source}, ${current}, ${Arr.lastNonEmpty(batch).rowid})
-            ON CONFLICT (source) DO UPDATE
-            SET generation = excluded.generation, through = excluded.through
-          `
-        },
-        Effect.catchTag("VectorsUnavailable", (error) =>
-          Effect.logWarning("Embedding the catalog failed", error.cause),
-        ),
-      )
-
-      // The generation's entries closest in meaning to the text, closest
-      // first. Without Vectors, keyword search still answers.
+      // The published entries closest in meaning to the text, closest first.
+      // Without Vectors, keyword search still answers.
       const byMeaning = Effect.fn("Catalog.byMeaning")(
-        function* (text: string, current: number) {
+        function* (text: string) {
           const indicators = yield* vectors.nearest(text)
 
           if (!Arr.isReadonlyArrayNonEmpty(indicators)) return []
 
-          const found = yield* listed({
-            indicators,
-            match: toCodes(indicators),
-            generation: current,
-          })
-
+          const found = yield* listed({ indicators, match: toCodes(indicators) })
           const entries = new Map(found.map((entry) => [entry.indicator, entry]))
 
-          // A neighbor missing from the generation left the catalog.
+          // A neighbor missing from the catalog left it.
           return indicators.flatMap((indicator) => entries.get(indicator) ?? [])
         },
         Effect.catchTag("VectorsUnavailable", (error) =>
@@ -282,15 +153,15 @@ export class Catalog extends Context.Service<Catalog, Interface>()("@civicdata/s
 
           if (match === undefined) return []
 
+          // Before the first build publishes a source, there is nothing to search.
+          if (!Arr.isReadonlyArrayNonEmpty(yield* published())) {
+            return yield* new CatalogUnavailable()
+          }
+
           const code = text.trim().toLowerCase()
-          const current = yield* generation
 
           const [byWords, nearest] = yield* Effect.all(
-            [
-              matches({ match, code, generation: current }),
-              byMeaning(text, current),
-              embedNext(current),
-            ],
+            [matches({ match, code }), byMeaning(text)],
             { concurrency: "unbounded" },
           )
 

@@ -22,7 +22,11 @@
     { "file": "apps/web/src/components/ui/**", "exports": ["*"] },
     // The Worker's entry: Cloudflare reads its default export and its Durable
     // Object classes.
-    { "file": "apps/web/src/server.ts", "exports": ["*"] }
+    { "file": "apps/web/src/server.ts", "exports": ["*"] },
+    // The Workflow class the Worker entry exports. It reaches the entry
+    // through the `workerd` condition of @civicdata/server/workflow, which
+    // Fallow does not resolve.
+    { "file": "packages/server/src/CatalogWorkflow.ts", "exports": ["CatalogWorkflow"] }
   ],
   // Cloudflare calls a Durable Object's handlers.
   "usedClassMembers": [{ "implements": "DurableObject", "members": ["fetch", "alarm"] }],
