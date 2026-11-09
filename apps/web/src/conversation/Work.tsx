@@ -1,16 +1,21 @@
-import { Ending, type Step } from "@civicdata/domain"
+import { Drawn, Ending, type Step, type View } from "@civicdata/domain"
+import { useQuery } from "@tanstack/react-query"
 import { cn } from "cn"
 import { Duration, Schema } from "effect"
 import { Brain, ChevronRight, CircleAlert } from "lucide-react"
 import { type ReactNode, use, useEffect, useState } from "react"
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { resolveQuery } from "@/explore/api"
+import { indicatorNames, subject } from "@/explore/format"
 import { Hold } from "@/hold"
 
 import { elapsed } from "./elapsed.ts"
 import { type Line, lineOf, type Saved, tally } from "./lines.ts"
 
 const isEnding = Schema.is(Ending)
+
+const isDrawn = Schema.is(Drawn)
 
 const trigger =
   "flex w-fit items-center gap-1 rounded-md text-left transition-colors outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 motion-reduce:transition-none"
@@ -114,6 +119,23 @@ const Since = ({ started }: SinceProps) => {
   return elapsed(Duration.millis(now - started))
 }
 
+interface HeardProps {
+  view: View
+  place: number
+}
+
+// "Chart 1 of the answer: Life expectancy at birth", once the chart's data
+// has loaded and named its indicator, so screen readers hear it once.
+const Heard = ({ view, place }: HeardProps) => {
+  const query = useQuery(resolveQuery(view))
+
+  if (query.isPending) return null
+
+  const known = indicatorNames(query.data === undefined ? [] : [query.data])
+
+  return <p>{`Chart ${place + 1} of the answer: ${subject(view, known)}`}</p>
+}
+
 interface WorkingProps {
   steps: ReadonlyArray<Step>
   started: number
@@ -122,7 +144,8 @@ interface WorkingProps {
 // The agent at work on the question being answered: how long it has worked,
 // what it has done, and what it is doing now. While no step runs, the model
 // is deciding what to do next, so the log never sits still. Screen readers
-// hear each step once, when it ends, and not each change on the way.
+// hear each step once, when it ends, and not each change on the way, and
+// each chart once, when it is drawn.
 export const Working = ({ steps, started }: WorkingProps) => {
   const lines = steps.map(lineOf)
   const last = steps.at(-1)
@@ -147,6 +170,9 @@ export const Working = ({ steps, started }: WorkingProps) => {
             <p key={index}>{line.text}</p>
           ),
         )}
+        {steps.filter(isDrawn).map((step, place) => (
+          <Heard key={step.id} view={step.view} place={place} />
+        ))}
       </div>
     </div>
   )

@@ -258,6 +258,8 @@ export const lineOf = (step: Step | Saved): Line | undefined =>
     Lookup: lookup,
     Fetch: fetch,
     Takeaway: takeaway,
+    // A chart shows in the answer, not in the log.
+    Drawn: () => undefined,
     Searched: ({ text, source, found: sources }) =>
       line("Done", { icon: SearchIcon, text: searchedBefore(text, { source, found: sources }) }),
     Described: ({ indicator }) =>

@@ -1,9 +1,16 @@
-import { ChartIndex, type ConversationId, type Turn, type TurnIndex } from "@civicdata/domain"
+import {
+  type Chart,
+  ChartIndex,
+  type ConversationId,
+  type Turn,
+  type TurnIndex,
+} from "@civicdata/domain"
 import { Match } from "effect"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 import { Answer } from "./Answer.tsx"
+import { Charts } from "./Charts.tsx"
 
 interface ReplyProps {
   id: ConversationId
@@ -12,25 +19,26 @@ interface ReplyProps {
 }
 
 // How the agent answered: its charts in the order it drew them, a question
-// back, no indicator, or nothing because the person stopped it.
-export const Reply = ({ id, index, turn }: ReplyProps) =>
-  Match.valueTags(turn.answer, {
-    Answered: ({ charts }) => (
-      <div className="flex flex-col gap-4">
-        {charts.map((chart, place) => (
+// back, no indicator, or the charts drawn before the person stopped it.
+export const Reply = ({ id, index, turn }: ReplyProps) => {
+  const answers = (charts: ReadonlyArray<Chart>) => (
+    <Charts
+      charts={charts.map((chart, place) => (
+        <Answer
           // oxlint-disable-next-line react/no-array-index-key -- a chart keeps its place in its answer
-          <section key={place} aria-label={`Chart ${place + 1} of the answer`}>
-            <Answer
-              id={id}
-              turn={index}
-              chart={ChartIndex.make(place)}
-              agent={chart}
-              shown={turn.shown?.[place] ?? undefined}
-            />
-          </section>
-        ))}
-      </div>
-    ),
+          key={place}
+          id={id}
+          turn={index}
+          chart={ChartIndex.make(place)}
+          agent={chart}
+          shown={turn.shown?.[place] ?? undefined}
+        />
+      ))}
+    />
+  )
+
+  return Match.valueTags(turn.answer, {
+    Answered: ({ charts }) => answers(charts),
     Asked: ({ question }) => <p>{question}</p>,
     Unanswered: () => (
       <Alert>
@@ -40,5 +48,11 @@ export const Reply = ({ id, index, turn }: ReplyProps) =>
         </AlertDescription>
       </Alert>
     ),
-    Stopped: () => <p className="text-sm text-muted-foreground">You stopped</p>,
+    Stopped: ({ charts = [] }) => (
+      <>
+        {charts.length === 0 ? null : answers(charts)}
+        <p className="text-sm text-muted-foreground">You stopped</p>
+      </>
+    ),
   })
+}

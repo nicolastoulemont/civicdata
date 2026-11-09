@@ -1,6 +1,6 @@
 import {
-  Answered,
   type ChartIndex,
+  chartsOf,
   type ConversationId,
   Ended,
   Ending,
@@ -34,8 +34,6 @@ export const turnsQuery = (id: ConversationId) =>
 const isEnding = Schema.is(Ending)
 
 const isEnded = Schema.is(Ended)
-
-const isAnswered = Schema.is(Answered)
 
 // Passes each step of an answer to `onStep`, then resolves with how it ended:
 // its last step. An answer the server was not giving has no steps.
@@ -226,7 +224,7 @@ export const useConversation = (id: ConversationId) => {
 // back when it is the agent's chart there. A turn changed back at every place
 // keeps no changes.
 const showing = (turn: Turn, { chart, view }: { chart: ChartIndex; view: View }): Turn => {
-  const charts = isAnswered(turn.answer) ? turn.answer.charts : []
+  const charts = chartsOf(turn.answer)
 
   const shown = charts.map((agent, place) =>
     place === chart

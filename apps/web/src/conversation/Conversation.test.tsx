@@ -6,7 +6,9 @@ import {
   ConversationBusy,
   ConversationId,
   Definition,
+  Drawn,
   Ended,
+  Explained,
   Failed,
   Fetch,
   Fetched,
@@ -283,6 +285,10 @@ const findStep = async (text: string) =>
 // A chart fetched with two values, as a turn keeps it.
 const fetchedChart = (step: string, view: View) =>
   Ended.cases.Fetch.make({ id: StepId.make(step), view, state: Fetched.make({ values: 2 }) })
+
+// Brazil's chart as the agent draws it, first in its answer.
+const drawing = (state: typeof Drawn.Type.state) =>
+  Drawn.make({ id: StepId.make("drawn-0"), view: brazil, state })
 
 // A search for life expectancy, running until a test gives it another state.
 const searching = (state: typeof Search.Type.state = Running.make({})) =>
@@ -1108,6 +1114,53 @@ describe("Conversation", () => {
     expect(screen.getByRole("button", { name: "Send" }).getAttribute("aria-disabled")).not.toBe(
       "true",
     )
+  })
+
+  it("shows a chart as soon as the agent draws it, and keeps it when the answer stops", async () => {
+    const reply = answer()
+    const user = userEvent.setup()
+    const rose = "Life expectancy in Brazil rose."
+
+    network.use(
+      turns([]),
+      reply.handler,
+      resolve,
+      // The server stops the answer, which keeps the chart drawn so far.
+      http.delete(`/api/conversations/${id}/answer`, () => {
+        reply.send(message(Stopped.make({ charts: [{ view: brazil, takeaway: rose }] })))
+        reply.end()
+
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    show("Life expectancy in Brazil, and its change")
+
+    reply.send(message(drawing(Running.make({}))))
+
+    const chart = await screen.findByRole("region", { name: "Chart 1 of the answer" })
+
+    expect(await within(chart).findByText("Brazil · 2000–2001")).toBeDefined()
+    expect(within(chart).getByText("Writing the takeaway…")).toBeDefined()
+    expect(within(chart).queryByRole("button", { name: "Explain this chart" })).toBeNull()
+    expect(screen.getByText(/^Working for/)).toBeDefined()
+
+    reply.send(message(drawing(Explained.make({ takeaway: rose }))))
+
+    expect(await within(chart).findByText(rose)).toBeDefined()
+    expect(within(chart).queryByText("Writing the takeaway…")).toBeNull()
+    // Screen readers hear the chart once, not each time it changes.
+    expect(
+      within(screen.getByRole("log", { name: "Finished steps" })).getAllByText(
+        "Chart 1 of the answer: Life expectancy at birth (years)",
+      ),
+    ).toHaveLength(1)
+
+    await user.click(screen.getByRole("button", { name: "Stop" }))
+
+    expect(await screen.findByText("You stopped")).toBeDefined()
+    expect(
+      within(screen.getByRole("region", { name: "Chart 1 of the answer" })).getByText(rose),
+    ).toBeDefined()
   })
 
   it.each([
