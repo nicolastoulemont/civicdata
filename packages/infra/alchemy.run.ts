@@ -20,6 +20,12 @@ export default Alchemy.Stack(
     // Series cache. Every object can be fetched again from its source.
     const cache = yield* Cloudflare.R2.Bucket("Cache")
 
+    // Indicator meaning for catalog search, embedded with the model in
+    // packages/server/src/Vectors.ts. Searches fill it again from the catalog.
+    const vectors = yield* Cloudflare.Vectorize.Index("Vectors", {
+      preset: "@cf/baai/bge-small-en-v1.5",
+    })
+
     // The agent's OpenAI key and model, from the shell, CI, or `.env` next to
     // this file (see `.env.example`). A stage deployed without a key still
     // works; asking a question answers "unavailable". GitHub passes a missing
@@ -42,6 +48,8 @@ export default Alchemy.Stack(
       env: {
         DB: database,
         CACHE: cache,
+        VECTORS: vectors,
+        AI: Cloudflare.Workers.AI(),
         // One Durable Object per conversation, exported by apps/web/src/server.ts.
         CONVERSATION: Cloudflare.DurableObject("Conversation", {
           className: "ConversationObject",
