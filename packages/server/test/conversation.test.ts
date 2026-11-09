@@ -232,6 +232,30 @@ describe("conversations", () => {
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
+  it.effect("sends the model only the last few questions, and keeps every turn", () => {
+    const questions = [
+      "First question",
+      "Second question",
+      "Third question",
+      "Fourth question",
+      "Fifth question",
+    ]
+
+    const model = scripted(questions.map(() => Effect.succeed(call("show_chart", brazil))))
+
+    return Effect.gen(function* () {
+      yield* Effect.forEach(questions, answer, { discard: true })
+
+      const last = model.prompts.at(-1)
+
+      expect(last).toContain("You turn a question about countries")
+      expect(last).not.toContain("First question")
+      expect(last).toContain("Second question")
+      expect(last).toContain("Fifth question")
+      expect((yield* turns).map((turn) => turn.question)).toEqual(questions)
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
   it.effect("reports a rejected chart and the one that replaced it", () => {
     const model = scripted([
       // An aggregate instead of a country, then years with no data.
