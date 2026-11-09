@@ -1,9 +1,20 @@
 import { ArrowDown } from "lucide-react"
-import { type ReactNode, useCallback, useLayoutEffect, useRef, useState } from "react"
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react"
 
 import { Button } from "@/components/ui/button"
 
 import { type Follow, followScroll } from "./scroll.ts"
+
+// Holds the view where it is, as scrolling up does: a row the reader opens
+// stays under their pointer instead of following the end.
+export const Hold = createContext<() => void>(() => {})
 
 interface ScrollProps {
   children: ReactNode
@@ -24,6 +35,8 @@ export const Scroll = ({ children, anchor }: ScrollProps) => {
     setMode(next)
   }, [])
 
+  const hold = useCallback(() => change("stopped"), [change])
+
   const end = (behavior: ScrollBehavior) => {
     const node = viewport.current
 
@@ -39,7 +52,13 @@ export const Scroll = ({ children, anchor }: ScrollProps) => {
     if (node === null || rows === null) return undefined
 
     const followEnd = () => {
-      if (follow.current !== "following") return
+      // With nothing to scroll, there is no end to return to.
+      if (follow.current !== "following") {
+        if (node.scrollHeight <= node.clientHeight) change("following")
+
+        return
+      }
+
       node.scrollTo({ top: node.scrollHeight, behavior: "instant" })
       previous.current = node.scrollTop
     }
@@ -50,7 +69,7 @@ export const Scroll = ({ children, anchor }: ScrollProps) => {
     followEnd()
 
     return () => observer.disconnect()
-  }, [])
+  }, [change])
 
   useLayoutEffect(() => {
     if (anchor === undefined) return undefined
@@ -107,7 +126,7 @@ export const Scroll = ({ children, anchor }: ScrollProps) => {
         }}
       >
         <div ref={content} className="py-6">
-          {children}
+          <Hold value={hold}>{children}</Hold>
         </div>
       </section>
       {mode === "stopped" ? (

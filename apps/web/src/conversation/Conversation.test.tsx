@@ -6,6 +6,7 @@ import {
   ConversationBusy,
   ConversationId,
   IndicatorId,
+  Rejected,
   ResolvedView,
   Searched,
   SourceUnavailable,
@@ -25,9 +26,16 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router"
-import { fireEvent, getDefaultNormalizer, render, screen, within } from "@testing-library/react"
+import {
+  act,
+  fireEvent,
+  getDefaultNormalizer,
+  render,
+  screen,
+  within,
+} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { Cause, DateTime, Schema } from "effect"
+import { Cause, DateTime, Duration, Schema } from "effect"
 import { http, HttpResponse } from "msw/http"
 import { describe, expect, it, vi } from "vitest"
 
@@ -204,6 +212,167 @@ describe("Conversation", () => {
     expect(screen.getByText("Life expectancy in Brazil rose.")).toBeDefined()
     expect(screen.getByRole("link", { name: "Open in the explorer" })).toBeDefined()
     expect(screen.queryByText("Searched indicators for “life expectancy”")).toBeNull()
+  })
+
+  it("times the agent's work while it answers, then folds its steps under the answer", async () => {
+    const reply = answer()
+    const question = "How has life expectancy changed in Brazil?"
+    const searched = Searched.make({ text: "life expectancy" })
+    let answered: ReadonlyArray<Turn> = []
+
+    network.use(
+      http.get(`/api/conversations/${id}`, () => HttpResponse.json(encodeTurns({ answered }))),
+      reply.handler,
+      resolve,
+    )
+    vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] })
+    vi.setSystemTime(DateTime.toEpochMillis(started))
+
+    try {
+      show(question)
+
+      expect(await screen.findByText("Working for 0s")).toBeDefined()
+
+      reply.send(message(searched))
+      const steps = await screen.findByRole("list", { name: "Steps" })
+      expect(within(steps).getByText("Searched indicators for “life expectancy”")).toBeDefined()
+      expect(within(steps).getByText("Finding a chart…")).toBeDefined()
+
+      await act(async () => {
+        vi.advanceTimersByTime(4_000)
+      })
+      expect(screen.getByText("Working for 4s")).toBeDefined()
+
+      // The server saved the turn with the time it measured.
+      answered = [
+        {
+          question,
+          answer: Answered.make({ view: brazil }),
+          steps: [searched],
+          took: Duration.seconds(8),
+        },
+      ]
+      reply.send(message(Answered.make({ view: brazil })))
+      reply.end()
+
+      const fold = await screen.findByRole("button", { name: "Worked for 8s" })
+      expect(fold.getAttribute("aria-expanded")).toBe("false")
+      expect(screen.queryByText(/^Working for/)).toBeNull()
+      expect(screen.queryByRole("list", { name: "Steps" })).toBeNull()
+      expect(
+        await screen.findByRole("heading", { name: "Life expectancy at birth (years)" }),
+      ).toBeDefined()
+    } finally {
+      vi.useRealTimers()
+    }
+
+    await userEvent.setup().click(screen.getByRole("button", { name: "Worked for 8s" }))
+
+    expect(
+      within(await screen.findByRole("list", { name: "Steps" })).getByText(
+        "Searched indicators for “life expectancy”",
+      ),
+    ).toBeDefined()
+  })
+
+  it("folds the saved steps of a reopened conversation, and none for older turns", async () => {
+    network.use(
+      turns([
+        { question: "What about happiness?", answer: Unanswered.make({}) },
+        {
+          question: "Life expectancy in Brazil",
+          answer: Answered.make({ view: brazil }),
+          steps: [
+            Searched.make({ text: "life expectancy" }),
+            Rejected.make({ problem: "The World Bank has no values for these years." }),
+          ],
+          took: Duration.seconds(65),
+        },
+      ]),
+      resolve,
+    )
+    show()
+
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Worked for 1m 05s" }))
+
+    expect(
+      within(await screen.findByRole("list", { name: "Steps" }))
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual([
+      "Searched indicators for “life expectancy”",
+      "Tried a chart the data cannot show: The World Bank has no values for these years.",
+    ])
+    expect(screen.getAllByRole("button", { name: /^Worked/ })).toHaveLength(1)
+  })
+
+  it("holds the view where the reader opens the steps, instead of following the end", async () => {
+    network.use(
+      turns([
+        {
+          question: "What about happiness?",
+          answer: Unanswered.make({}),
+          steps: [Searched.make({ text: "happiness" })],
+          took: Duration.seconds(3),
+        },
+      ]),
+    )
+    show()
+
+    const fold = await screen.findByRole("button", { name: "Worked for 3s" })
+    const viewport = screen.getByRole("region", { name: "Conversation" })
+    // happy-dom has no layout: the conversation is taller than its viewport.
+    Object.defineProperties(viewport, {
+      clientHeight: { configurable: true, value: 600 },
+      scrollHeight: { configurable: true, value: 1600 },
+    })
+    fireEvent.scroll(viewport, { target: { scrollTop: 1000 } })
+    expect(screen.queryByRole("button", { name: "Scroll to end" })).toBeNull()
+
+    await userEvent.setup().click(fold)
+
+    expect(await screen.findByRole("button", { name: "Scroll to end" })).toBeDefined()
+    expect(viewport.scrollTop).toBe(1000)
+  })
+
+  it("times an answer followed after a reload from when the server started it", async () => {
+    const reply = answer("follow")
+
+    network.use(
+      turns([], { question: "Life expectancy in Brazil", started }),
+      reply.handler,
+      resolve,
+    )
+    vi.useFakeTimers({ toFake: ["Date", "setInterval", "clearInterval"] })
+    vi.setSystemTime(DateTime.toEpochMillis(started) + 6_000)
+
+    try {
+      show()
+
+      expect(await screen.findByText("Working for 6s")).toBeDefined()
+    } finally {
+      vi.useRealTimers()
+      reply.end()
+    }
+  })
+
+  it("keeps the steps of a failed answer open above the problem", async () => {
+    const reply = answer()
+
+    network.use(turns([]), reply.handler)
+    show("Life expectancy in Brazil")
+    reply.send(message(Searched.make({ text: "life expectancy" })))
+    reply.send(failure(new AgentUnavailable()))
+    reply.end()
+
+    expect(await screen.findByRole("alert")).toBeDefined()
+    expect(
+      within(screen.getByRole("list", { name: "Steps" })).getByText(
+        "Searched indicators for “life expectancy”",
+      ),
+    ).toBeDefined()
+    expect(screen.queryByRole("button", { name: /^Worked/ })).toBeNull()
+    expect(screen.queryByText(/^Working for/)).toBeNull()
   })
 
   it("heads each question and answer with who wrote it, for screen readers", async () => {

@@ -12,11 +12,12 @@ import {
   SearchX,
   TriangleAlert,
 } from "lucide-react"
-import { type ReactNode, useEffect, useState } from "react"
+import { type ReactNode, use, useEffect, useState } from "react"
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
 import { elapsed } from "./elapsed.ts"
+import { Hold } from "./Scroll.tsx"
 
 const isEnding = Schema.is(Ending)
 
@@ -73,8 +74,12 @@ export const Steps = ({ steps, children }: StepsProps) => (
   </ol>
 )
 
-// The time now, in epoch milliseconds, moving on every second.
-const useNow = () => {
+interface SinceProps {
+  started: number
+}
+
+// How long ago `started` was, in epoch milliseconds, moving on every second.
+const Since = ({ started }: SinceProps) => {
   const [now, setNow] = useState(Date.now)
 
   useEffect(() => {
@@ -83,7 +88,7 @@ const useNow = () => {
     return () => window.clearInterval(timer)
   }, [])
 
-  return now
+  return elapsed(Duration.millis(now - started))
 }
 
 interface WorkingProps {
@@ -94,13 +99,12 @@ interface WorkingProps {
 // The agent at work on the question being answered: how long it has worked,
 // what it has done, and, until the answer ends, what it is doing now.
 export const Working = ({ steps, started }: WorkingProps) => {
-  const now = useNow()
   const last = steps.at(-1)
 
   return (
     <div className="flex flex-col gap-2">
       <p className="text-sm text-muted-foreground tabular-nums">
-        Working for {elapsed(Duration.millis(now - started))}
+        Working for <Since started={started} />
       </p>
       <div aria-live="polite">
         <Steps steps={steps}>
@@ -123,6 +127,7 @@ interface WorkedProps {
 // The steps of an answered question, folded under one line that says how long
 // the agent worked. The line opens them.
 export const Worked = ({ steps, took }: WorkedProps) => {
+  const hold = use(Hold)
   const label = took === undefined ? "Worked" : `Worked for ${elapsed(took)}`
 
   if (steps.length === 0) {
@@ -130,7 +135,7 @@ export const Worked = ({ steps, took }: WorkedProps) => {
   }
 
   return (
-    <Collapsible className="flex flex-col gap-2">
+    <Collapsible className="flex flex-col gap-2" onOpenChange={hold}>
       <CollapsibleTrigger className="group/fold flex w-fit items-center gap-1 rounded-md text-sm text-muted-foreground tabular-nums transition-colors outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 motion-reduce:transition-none">
         {label}
         <ChevronRight
