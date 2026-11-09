@@ -9,6 +9,18 @@ import { Sdmx } from "./Sdmx.ts"
 import { Vectors, type VectorsUnavailable } from "./Vectors.ts"
 import { WorldBank } from "./WorldBank.ts"
 
+// D1 inside Workers, where the Workflow that builds the catalog and stores
+// the political records runs. It has no use without the DB binding.
+export const database = Layer.unwrap(
+  Effect.promise(() => import("cloudflare:workers")).pipe(
+    Effect.flatMap(({ env }) =>
+      env.DB === undefined
+        ? Effect.die("The Workflow needs the DB binding")
+        : Effect.succeed(D1Client.layer({ db: env.DB }).pipe(Layer.orDie)),
+    ),
+  ),
+)
+
 // Each insert binds one JSON array of entries, unpacked by SQLite's json_each,
 // so a write is a handful of round trips instead of one per 20 rows (D1 binds
 // at most 100 parameters per statement). 250 entries is about 250 KB, well
@@ -195,22 +207,11 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
   )
 
   // Inside Workers, where the Workflow runs, with D1 and paced sources.
-  static readonly live = Layer.unwrap(
-    Effect.promise(() => import("cloudflare:workers")).pipe(
-      Effect.flatMap(({ env }) =>
-        env.DB === undefined
-          ? Effect.die("The catalog needs the DB binding")
-          : Effect.succeed(D1Client.layer({ db: env.DB }).pipe(Layer.orDie)),
-      ),
-      Effect.map((d1) =>
-        CatalogBuild.layer.pipe(
-          Layer.provide(d1),
-          Layer.provide(Vectors.live),
-          Layer.provide(WorldBank.live),
-          Layer.provide(Sdmx.live),
-        ),
-      ),
-    ),
+  static readonly live = CatalogBuild.layer.pipe(
+    Layer.provide(database),
+    Layer.provide(Vectors.live),
+    Layer.provide(WorldBank.live),
+    Layer.provide(Sdmx.live),
   )
 
   // One generation of every source, numbered by the build's start time, so

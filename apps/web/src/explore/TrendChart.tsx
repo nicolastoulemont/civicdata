@@ -1,7 +1,7 @@
-import type { Country, ResolvedView, Trend } from "@civicdata/domain"
+import type { Country, Government, ResolvedView, Trend } from "@civicdata/domain"
 import { Match } from "effect"
-import { useState } from "react"
-import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"
+import { type ComponentProps, useState } from "react"
+import { CartesianGrid, Line, LineChart, ReferenceArea, XAxis, YAxis } from "recharts"
 
 import {
   type ChartConfig,
@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/chart"
 
 import { countryName, formatCompact } from "./format.ts"
+import { governing, span, type Term, terms } from "./governments.ts"
 import { fill, slot } from "./palette.ts"
 import { type Years, YearWindow } from "./YearWindow.tsx"
 
@@ -62,17 +63,73 @@ export interface History {
   readonly onChange: (years: Years) => void
 }
 
+// The years a term spans that the chart shows, as the first and last year
+// on its axis; none when the chart shows none of them.
+const bandOf = (term: Term, shown: ReadonlyArray<number>) => {
+  const { from, to } = span(term)
+  const x1 = shown.find((year) => year >= from)
+  const x2 = shown.findLast((year) => year <= to)
+
+  return x1 === undefined || x2 === undefined || x1 > x2 ? [] : [{ term, x1, x2 }]
+}
+
+interface GoverningProps {
+  terms: ReadonlyArray<Term>
+  countries: ReadonlyArray<Country>
+  year: number
+}
+
+// Who governed each country in the hovered year, under its values.
+const Governing = ({ terms: all, countries, year }: GoverningProps) => {
+  const lines = countries.flatMap((country) =>
+    governing(all, country, year).map((line) =>
+      countries.length === 1 ? line : `${countryName(country)}: ${line}`,
+    ),
+  )
+
+  return lines.length === 0 ? null : (
+    <ul className="grid max-w-72 gap-1 border-t pt-1.5 text-muted-foreground">
+      {lines.map((line) => (
+        <li key={line}>{line}</li>
+      ))}
+    </ul>
+  )
+}
+
+// Recharts sets `active`, `payload` and `label` on the element it renders as
+// the tooltip.
+interface TipProps extends Pick<
+  ComponentProps<typeof ChartTooltipContent>,
+  "active" | "payload" | "label"
+> {
+  terms: ReadonlyArray<Term>
+  countries: ReadonlyArray<Country>
+  // Whether the chart shows governments.
+  governed: boolean
+}
+
+// The values of the hovered year and, with governments, who governed then.
+const Tip = ({ terms: all, countries, governed, ...tooltip }: TipProps) => (
+  <ChartTooltipContent {...tooltip}>
+    {governed ? <Governing terms={all} countries={countries} year={Number(tooltip.label)} /> : null}
+  </ChartTooltipContent>
+)
+
 interface TrendChartProps {
   resolved: ResolvedView
   // The trend on screen, which `resolved` may not have caught up with yet.
   trend: Trend
   history?: History | undefined
+  // The governments of the trend's countries, when the chart shows them.
+  governments?: ReadonlyArray<Government> | undefined
 }
 
 // One line per country. With a history, a window under the chart picks its
 // years; the value scale then fits the whole history, so it stays put while
-// the window moves.
-export const TrendChart = ({ resolved, trend, history }: TrendChartProps) => {
+// the window moves. With governments, the tooltip names who governed each
+// country in the hovered year, and a chart of one country is shaded in a
+// band per head of government. Bands of several countries would overlap.
+export const TrendChart = ({ resolved, trend, history, governments }: TrendChartProps) => {
   // The points a source flags get a dot; the note under the chart says why.
   const flagged = new Set(
     resolved.observations.flatMap(({ country, year, flags }) =>
@@ -101,6 +158,19 @@ export const TrendChart = ({ resolved, trend, history }: TrendChartProps) => {
     (observation) => observation.value,
   )
 
+  const rows = byYear(observations)
+  const heads = governments === undefined ? [] : terms(governments)
+
+  const bands =
+    trend.countries.length === 1
+      ? heads.flatMap((term) =>
+          bandOf(
+            term,
+            rows.map((row) => row.year),
+          ),
+        )
+      : []
+
   const config: ChartConfig = Object.fromEntries(
     trend.countries.map((country, index) => [
       country,
@@ -110,9 +180,31 @@ export const TrendChart = ({ resolved, trend, history }: TrendChartProps) => {
 
   return (
     <figure className="flex flex-col gap-3">
-      <figcaption className="sr-only">{`Line chart of ${resolved.title} for ${trend.countries.map(countryName).join(", ")}`}</figcaption>
+      <figcaption className="sr-only">{`Line chart of ${resolved.title} for ${trend.countries.map(countryName).join(", ")}${bands.length > 0 ? ", shaded by head of government" : ""}`}</figcaption>
       <ChartContainer config={config} className="aspect-auto h-80 w-full">
-        <LineChart data={byYear(observations)} accessibilityLayer>
+        <LineChart data={rows} accessibilityLayer>
+          {bands.map(({ term, x1, x2 }, index) => (
+            <ReferenceArea
+              key={`${term.head} ${term.governments[0].start}`}
+              x1={x1}
+              x2={x2}
+              ifOverflow="hidden"
+              fill="var(--muted-foreground)"
+              fillOpacity={index % 2 === 0 ? 0.06 : 0.12}
+              // A band under two years wide has no room for a name; the
+              // tooltip still gives it.
+              {...(x2 - x1 >= 2
+                ? {
+                    label: {
+                      value: term.head,
+                      position: "insideTopLeft",
+                      fontSize: 11,
+                      fill: "var(--muted-foreground)",
+                    },
+                  }
+                : {})}
+            />
+          ))}
           <CartesianGrid vertical={false} />
           <XAxis dataKey="year" tickLine={false} axisLine={false} />
           <YAxis
@@ -125,7 +217,11 @@ export const TrendChart = ({ resolved, trend, history }: TrendChartProps) => {
             axisLine={false}
             width={56}
           />
-          <ChartTooltip content={<ChartTooltipContent />} />
+          <ChartTooltip
+            content={
+              <Tip terms={heads} countries={trend.countries} governed={governments !== undefined} />
+            }
+          />
           <ChartLegend content={<ChartLegendContent />} />
           {trend.countries.map((country) => (
             <Line

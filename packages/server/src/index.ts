@@ -9,6 +9,7 @@ import { Catalog } from "./Catalog.ts"
 import { Conversations } from "./Conversations.ts"
 import { Handlers } from "./Handlers.ts"
 import { Notes } from "./Notes.ts"
+import { Politics } from "./Politics.ts"
 import { Resolver } from "./Resolver.ts"
 import { Sdmx } from "./Sdmx.ts"
 import { WorldBank } from "./WorldBank.ts"
@@ -23,6 +24,7 @@ const Live = HttpApiBuilder.layer(Api).pipe(
   Layer.provide(Agent.live.pipe(Layer.provide(Resolver.layer))),
   Layer.provide(AskLimit.live),
   Layer.provide(Catalog.live),
+  Layer.provide(Politics.live),
   Layer.provide(Notes.live),
   Layer.provide(WorldBank.live),
   Layer.provide(Sdmx.live),

@@ -47,6 +47,7 @@ export {
   DimensionsMissing,
   IndicatorNotFound,
   NoChart,
+  PoliticsUnavailable,
   SourceUnavailable,
   TooManyQuestions,
   TransformNotApplicable,
@@ -54,6 +55,8 @@ export {
 } from "./Errors.ts"
 
 export { Indicator, IndicatorId, IndicatorNotes } from "./Indicator.ts"
+
+export { Day, End, type Government, members, Party, Politics, Publisher } from "./Politics.ts"
 
 export { type Flag, Observation, ResolvedView } from "./ResolvedView.ts"
 

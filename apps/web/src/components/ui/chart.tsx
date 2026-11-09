@@ -121,6 +121,7 @@ function ChartTooltipContent({
   color,
   nameKey,
   labelKey,
+  children,
 }: React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
   React.ComponentProps<"div"> & {
     hideLabel?: boolean
@@ -243,6 +244,8 @@ function ChartTooltipContent({
             )
           })}
       </div>
+      {/* civicdata: notes about the hovered point, under its values. */}
+      {children}
     </div>
   )
 }

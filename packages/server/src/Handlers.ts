@@ -8,6 +8,7 @@ import { AskLimit } from "./AskLimit.ts"
 import { Catalog } from "./Catalog.ts"
 import { Conversations } from "./Conversations.ts"
 import { Notes } from "./Notes.ts"
+import { PoliticsRoutes } from "./Politics.ts"
 import { Resolver } from "./Resolver.ts"
 
 const System = HttpApiBuilder.group(Api, "system", (handlers) =>
@@ -82,12 +83,13 @@ const ConversationRoutes = HttpApiBuilder.group(
   }),
 )
 
-// Every API route, needing a WorldBank, an Sdmx, Notes, a Catalog,
+// Every API route, needing a WorldBank, an Sdmx, Notes, a Catalog, Politics,
 // Conversations, an Agent and an AskLimit.
 export const Handlers = Layer.mergeAll(
   System,
   Views,
   Indicators,
   CatalogSearch,
+  PoliticsRoutes,
   ConversationRoutes,
 ).pipe(Layer.provide(Resolver.layer))
