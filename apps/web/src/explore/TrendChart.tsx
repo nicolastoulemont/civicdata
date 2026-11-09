@@ -1,4 +1,6 @@
-import type { Country, ResolvedView } from "@civicdata/domain"
+import type { Country, ResolvedView, Trend } from "@civicdata/domain"
+import { Match } from "effect"
+import { useState } from "react"
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"
 
 import {
@@ -11,6 +13,7 @@ import {
 } from "@/components/ui/chart"
 
 import { countryName, formatCompact } from "./format.ts"
+import { type Years, YearWindow } from "./YearWindow.tsx"
 
 type Point = { readonly year: number } & Partial<Record<Country, number>>
 
@@ -26,31 +29,77 @@ const byYear = (observations: ResolvedView["observations"]) => {
   return [...rows.values()].toSorted((left, right) => left.year - right.year)
 }
 
+// The trend's whole history, for picking its years over it.
+export interface History {
+  readonly observations: ResolvedView["observations"]
+  // Whether the history holds the chart's own values, so the chart can follow
+  // a drag before the new years load. An index starts at the first year shown,
+  // so its history holds the values as published instead.
+  readonly same: boolean
+  readonly onChange: (years: Years) => void
+}
+
+// One line per country. With a history, a window under the chart picks its
+// years; the value scale then fits the whole history, so it stays put while
+// the window moves.
 export const TrendChart = ({
   resolved,
-  countries,
+  trend,
+  history,
 }: {
   resolved: ResolvedView
-  countries: ReadonlyArray<Country>
+  // The trend on screen, which `resolved` may not have caught up with yet.
+  trend: Trend
+  history?: History | undefined
 }) => {
+  const [dragged, setDragged] = useState<Years | null>(null)
+  const years = dragged ?? { from: trend.from, to: trend.to }
+
+  // Whether `resolved` holds the years on screen: not while dragging, nor
+  // while the years just picked load.
+  const loaded =
+    dragged === null &&
+    Match.value(resolved.view).pipe(
+      Match.tag("Trend", ({ from, to }) => from === years.from && to === years.to),
+      Match.orElse(() => false),
+    )
+
+  const observations =
+    history !== undefined && history.same && !loaded
+      ? history.observations.filter(({ year }) => year >= years.from && year <= years.to)
+      : resolved.observations
+
+  const values = (history?.same === true ? history.observations : observations).map(
+    (observation) => observation.value,
+  )
+
   const config: ChartConfig = Object.fromEntries(
-    countries.map((country, index) => [
+    trend.countries.map((country, index) => [
       country,
       { label: countryName(country), color: `var(--chart-${(index % 5) + 1})` },
     ]),
   )
 
   return (
-    <figure>
-      <figcaption className="sr-only">{`Line chart of ${resolved.title} for ${countries.map(countryName).join(", ")}`}</figcaption>
+    <figure className="flex flex-col gap-3">
+      <figcaption className="sr-only">{`Line chart of ${resolved.title} for ${trend.countries.map(countryName).join(", ")}`}</figcaption>
       <ChartContainer config={config} className="aspect-auto h-80 w-full">
-        <LineChart data={byYear(resolved.observations)} accessibilityLayer>
+        <LineChart data={byYear(observations)} accessibilityLayer>
           <CartesianGrid vertical={false} />
           <XAxis dataKey="year" tickLine={false} axisLine={false} />
-          <YAxis tickFormatter={formatCompact} tickLine={false} axisLine={false} width={56} />
+          <YAxis
+            // Without a history, Recharts' own default: from zero to the highest value.
+            domain={
+              history === undefined ? [0, "auto"] : [Math.min(0, ...values), Math.max(...values)]
+            }
+            tickFormatter={formatCompact}
+            tickLine={false}
+            axisLine={false}
+            width={56}
+          />
           <ChartTooltip content={<ChartTooltipContent />} />
           <ChartLegend content={<ChartLegendContent />} />
-          {countries.map((country) => (
+          {trend.countries.map((country) => (
             <Line
               key={country}
               dataKey={country}
@@ -59,10 +108,25 @@ export const TrendChart = ({
               strokeWidth={2}
               dot={false}
               connectNulls={false}
+              isAnimationActive={dragged === null}
             />
           ))}
         </LineChart>
       </ChartContainer>
+      {history === undefined ? null : (
+        <div className="pr-1 pl-14">
+          <YearWindow
+            history={history.observations}
+            countries={trend.countries}
+            years={years}
+            onChange={setDragged}
+            onCommit={(picked) => {
+              setDragged(null)
+              history.onChange(picked)
+            }}
+          />
+        </div>
+      )}
     </figure>
   )
 }

@@ -10,7 +10,7 @@ import {
   transformOf,
   Trend,
   type View,
-  type Year,
+  Year,
 } from "@civicdata/domain"
 import { useQuery } from "@tanstack/react-query"
 import { Match } from "effect"
@@ -36,7 +36,7 @@ import { ChartType } from "./ChartType.tsx"
 import { CopyLink } from "./CopyLink.tsx"
 import { Countries } from "./Countries.tsx"
 import { Data } from "./Data.tsx"
-import { withAgainst, withCountries, withIndicator, withPer } from "./edits.ts"
+import { withAgainst, withCountries, withIndicator, withPer, withTransform } from "./edits.ts"
 import {
   attribution,
   countryName,
@@ -50,8 +50,9 @@ import type { Paired } from "./points.ts"
 import { RankingChart } from "./RankingChart.tsx"
 import { RelationChart } from "./RelationChart.tsx"
 import { ShowAs } from "./ShowAs.tsx"
-import { TrendChart } from "./TrendChart.tsx"
+import { type History, TrendChart } from "./TrendChart.tsx"
 import { range, YearSelect, years } from "./Years.tsx"
+import type { Years } from "./YearWindow.tsx"
 
 // A first and a last year, the last never before the first.
 const Span = ({
@@ -239,10 +240,25 @@ const RankingMap = lazy(() =>
   import("./RankingMap.tsx").then((module) => ({ default: module.RankingMap })),
 )
 
+// The trend on screen with its whole history, to pick its years over. The
+// explorer has one; an answer does not.
+interface Picking {
+  readonly trend: Trend
+  readonly history: History
+}
+
 // A chart of one indicator's values.
-const Single = ({ resolved }: { resolved: Exclude<ResolvedView, Paired> }) =>
+const Single = ({
+  resolved,
+  picking,
+}: {
+  resolved: Exclude<ResolvedView, Paired>
+  picking: Picking | undefined
+}) =>
   Match.valueTags(resolved.view, {
-    Trend: (trend) => <TrendChart resolved={resolved} countries={trend.countries} />,
+    Trend: (shown) => (
+      <TrendChart resolved={resolved} trend={picking?.trend ?? shown} history={picking?.history} />
+    ),
     Ranking: (ranking) =>
       ranking.as === "Map" ? (
         <Suspense fallback={<Skeleton className="aspect-2/1 w-full" />}>
@@ -254,14 +270,68 @@ const Single = ({ resolved }: { resolved: Exclude<ResolvedView, Paired> }) =>
     Change: (change) => <ChangeChart resolved={resolved} change={change} />,
   })
 
-export const Chart = ({ resolved }: { resolved: ResolvedView }) =>
-  "against" in resolved ? <RelationChart resolved={resolved} /> : <Single resolved={resolved} />
+export const Chart = ({
+  resolved,
+  picking,
+}: {
+  resolved: ResolvedView
+  picking?: Picking | undefined
+}) =>
+  "against" in resolved ? (
+    <RelationChart resolved={resolved} />
+  ) : (
+    <Single resolved={resolved} picking={picking} />
+  )
+
+// A trend's whole history: every year the World Bank could have, with the
+// trend's transform. An index starts at the first year shown, so the history
+// of an indexed trend holds the values as published.
+const historyOf = (view: View) => {
+  const transform = transformOf(view)
+
+  return withTransform(
+    Trend.make({
+      indicator: view.indicator,
+      countries: view.countries,
+      from: Year.make(1960),
+      to: Year.make(new Date().getUTCFullYear()),
+    }),
+    transform === "Index" ? undefined : transform,
+  )
+}
+
+// What the trend chart needs to pick a trend's years over its whole history,
+// once that history has loaded. Only a trend picks its years; the history
+// query is the same for every year picked, so it loads once.
+const usePicking = (view: View, onChange: (view: View) => void): Picking | undefined => {
+  const trend = Match.value(view).pipe(
+    Match.tag("Trend", (shown) => shown),
+    Match.orElse(() => undefined),
+  )
+
+  const history = useQuery({
+    ...resolveQuery(historyOf(view)),
+    enabled: trend !== undefined,
+  })
+
+  return trend === undefined || history.data === undefined
+    ? undefined
+    : {
+        trend,
+        history: {
+          observations: history.data.observations,
+          same: trend.transform !== "Index",
+          onChange: (picked: Years) => onChange(Trend.make({ ...trend, ...picked })),
+        },
+      }
+}
 
 // The explorer for one View. The route keeps the View in the URL; this
 // component reports edits through `onChange`.
 export const Explore = ({ view, onChange }: { view: View; onChange: (view: View) => void }) => {
   const query = useQuery(resolveQuery(view))
   const known = indicatorNames(query.data === undefined ? [] : [query.data])
+  const picking = usePicking(view, onChange)
 
   return (
     <main className="mx-auto flex max-w-5xl flex-col gap-4 p-6">
@@ -303,7 +373,7 @@ export const Explore = ({ view, onChange }: { view: View; onChange: (view: View)
                   query.isPlaceholderData ? "opacity-50 transition-opacity" : "transition-opacity"
                 }
               >
-                <Chart resolved={query.data} />
+                <Chart resolved={query.data} picking={picking} />
               </div>
             </>
           )}
