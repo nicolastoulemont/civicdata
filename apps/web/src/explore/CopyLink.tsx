@@ -1,27 +1,24 @@
 import type { View } from "@civicdata/domain"
 import { Check, Link } from "lucide-react"
-import { useState } from "react"
 
+import { useCopy } from "@/clipboard"
 import { Button } from "@/components/ui/button"
+
+import { toQuery } from "./search.ts"
 
 const labels = { copied: "Link copied", failed: "Could not copy" } as const
 
-// Copies the page's address, which holds the View. The outcome shows until
-// the View changes.
+// Copies the explorer's address for the View. The outcome shows until the
+// View changes.
 export const CopyLink = ({ view }: { view: View }) => {
-  const [copy, setCopy] = useState<{ view: View; outcome: keyof typeof labels }>()
-  const outcome = copy?.view === view ? copy.outcome : undefined
+  const query = toQuery(view)
+  const { outcome, copy } = useCopy(query)
 
   return (
     <Button
       variant="outline"
       size="sm"
-      onClick={() =>
-        void navigator.clipboard.writeText(window.location.href).then(
-          () => setCopy({ view, outcome: "copied" }),
-          () => setCopy({ view, outcome: "failed" }),
-        )
-      }
+      onClick={() => copy(new URL(`/explore${query}`, window.location.origin).href)}
     >
       {outcome === "copied" ? <Check aria-hidden /> : <Link aria-hidden />}
       {outcome === undefined ? "Copy link" : labels[outcome]}

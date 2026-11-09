@@ -219,7 +219,8 @@ describe("Explore", () => {
     await user.click(await screen.findByRole("button", { name: "Copy link" }))
 
     expect(await screen.findByRole("button", { name: "Link copied" })).toBeDefined()
-    expect(await navigator.clipboard.readText()).toBe(link)
+    // The router writes commas in the address escaped.
+    expect(await navigator.clipboard.readText()).toBe(link.replaceAll(",", "%2C"))
   })
 
   it("explains when the World Bank is unavailable and offers a retry", async () => {
