@@ -3,6 +3,8 @@ import { type PointerEvent, useRef } from "react"
 
 import { Slider } from "@/components/ui/slider"
 
+import { lineColor } from "./lines.ts"
+
 export interface Years {
   readonly from: Year
   readonly to: Year
@@ -103,7 +105,7 @@ export const YearWindow = ({
               { first, last, low, high },
             )}
             fill="none"
-            stroke={`var(--chart-${(index % 5) + 1})`}
+            stroke={lineColor(index)}
             strokeWidth={1.5}
             vectorEffect="non-scaling-stroke"
           />

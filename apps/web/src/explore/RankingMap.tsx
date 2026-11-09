@@ -3,7 +3,7 @@ import { countries, type ResolvedView } from "@civicdata/domain"
 import { countryName, formatCompact, formatValue } from "./format.ts"
 import { height, offMap, path, shades, width } from "./world.ts"
 
-// The theme's chart colours, lightest for the lowest values.
+// The theme's chart colours, faintest for the lowest values.
 const fills = ["fill-chart-1", "fill-chart-2", "fill-chart-3", "fill-chart-4", "fill-chart-5"]
 const swatches = ["bg-chart-1", "bg-chart-2", "bg-chart-3", "bg-chart-4", "bg-chart-5"]
 
