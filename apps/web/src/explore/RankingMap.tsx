@@ -1,11 +1,8 @@
 import { countries, type ResolvedView } from "@civicdata/domain"
 
 import { countryName, formatCompact, formatValue } from "./format.ts"
+import { blend } from "./palette.ts"
 import { height, offMap, path, shades, width } from "./world.ts"
-
-// The theme's chart colours, faintest for the lowest values.
-const fills = ["fill-chart-1", "fill-chart-2", "fill-chart-3", "fill-chart-4", "fill-chart-5"]
-const swatches = ["bg-chart-1", "bg-chart-2", "bg-chart-3", "bg-chart-4", "bg-chart-5"]
 
 interface RankingMapProps {
   resolved: ResolvedView
@@ -34,7 +31,8 @@ export const RankingMap = ({ resolved }: RankingMapProps) => {
                 <path
                   key={code}
                   d={outline}
-                  className={`${shade === undefined ? "fill-border" : fills[shade]} stroke-background`}
+                  className="stroke-background"
+                  fill={shade === undefined ? "var(--border)" : blend(shade)}
                   strokeWidth={0.5}
                 >
                   <title>
@@ -49,7 +47,7 @@ export const RankingMap = ({ resolved }: RankingMapProps) => {
       <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
         {key.map(({ shade, low, high }) => (
           <li key={shade} className="flex items-center gap-1.5">
-            <span className={`size-3 rounded-sm ${swatches[shade] ?? ""}`} aria-hidden />
+            <span className="size-3 rounded-sm" style={{ background: blend(shade) }} aria-hidden />
             {low === high ? formatCompact(low) : `${formatCompact(low)}–${formatCompact(high)}`}
           </li>
         ))}
