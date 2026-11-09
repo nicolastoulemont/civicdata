@@ -162,7 +162,12 @@ describe("check", () => {
   it("shows a takeaway whose numbers are values and years from the data, rounded", () => {
     expect(
       check("  Youth unemployment in Spain peaked at 55.5% in 2013, then fell to 26.  ", trend),
-    ).toEqual(Option.some("Youth unemployment in Spain peaked at 55.5% in 2013, then fell to 26."))
+    ).toEqual(
+      Option.some({
+        text: "Youth unemployment in Spain peaked at 55.5% in 2013, then fell to 26.",
+        numbers: 3,
+      }),
+    )
     expect(shows("Italy's rate went from 27.9% to 20.3% between 2010 and 2024.")).toBe(true)
   })
 
@@ -182,7 +187,9 @@ describe("check", () => {
   })
 
   it("removes Markdown bold, which the answer would show as asterisks", () => {
-    expect(check("**Spain** peaked in 2013.", trend)).toEqual(Option.some("Spain peaked in 2013."))
+    expect(check("**Spain** peaked in 2013.", trend)).toEqual(
+      Option.some({ text: "Spain peaked in 2013.", numbers: 1 }),
+    )
   })
 
   it("hides an empty takeaway", () => {

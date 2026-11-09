@@ -2,7 +2,9 @@ import {
   type AgentUnavailable,
   type CatalogUnavailable,
   ConversationBusy,
+  Ended,
   Ending,
+  put,
   type SourceUnavailable,
   type Step,
   Stopped,
@@ -10,12 +12,14 @@ import {
   type Work,
 } from "@civicdata/domain"
 import {
+  Array as Arr,
   Context,
   DateTime,
   Deferred,
   Effect,
   Layer,
   Option,
+  Predicate,
   PubSub,
   Ref,
   Schema,
@@ -45,6 +49,13 @@ interface Interface {
 
 // The step that ends an answer, and is kept in its turn.
 const isEnding = Schema.is(Ending)
+
+// The steps of work a turn keeps: those that ended.
+const isEnded = Schema.is(Ended)
+
+// A step still running when the answer stopped, as stopped.
+const halted = (step: Work): ReadonlyArray<Work> =>
+  Predicate.isTagged(step.state, "Running") ? [{ ...step, state: Stopped.make({}) }] : []
 
 // Steps kept for whoever follows an answer late: more than an answer has.
 const replay = 256
@@ -103,7 +114,7 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
       // stop cuts the agent off, so it makes no more model requests, and
       // keeps the turn as Stopped with the chat as it was before the
       // question: the agent never finished its answer, so the next question
-      // does not build on it.
+      // does not build on it. The steps still running then end as stopped.
       const answer = Effect.fn("Conversation.answer")(
         function* ({ question, started, steps, stop }: Answer) {
           const saved = yield* transcript.load
@@ -117,14 +128,15 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
 
           const asked = yield* chat.exportJson.pipe(Effect.orDie)
 
-          // A turn keeps what the agent did and how long it took, stopped
-          // or not.
+          // A turn keeps the steps the agent ended and how long it took,
+          // stopped or not.
           const save = Effect.fnUntraced(function* (ending: Ending, json: string) {
             const took = DateTime.distance(started, yield* DateTime.now)
+            const kept = (yield* Ref.get(work)).filter(isEnded)
 
             yield* transcript.save({
               chat: json,
-              turns: [...before, { question, answer: ending, steps: yield* Ref.get(work), took }],
+              turns: [...before, { question, answer: ending, steps: kept, took }],
             })
             yield* done(steps)
           })
@@ -140,7 +152,7 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
 
           yield* agent.ask(chat, question).pipe(
             Stream.tap((step) =>
-              isEnding(step) ? end(step) : Ref.update(work, (previous) => [...previous, step]),
+              isEnding(step) ? end(step) : Ref.update(work, (previous) => put(previous, step)),
             ),
             Stream.interruptWhen(Deferred.await(stop)),
             Stream.runForEachArray((chunk) =>
@@ -151,10 +163,11 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
           )
 
           if (yield* Deferred.isDone(stop)) {
-            const stopped = Stopped.make({})
+            const cut = (yield* Ref.get(work)).flatMap(halted)
 
-            yield* save(stopped, asked).pipe(Semaphore.withPermit(lock))
-            yield* PubSub.publish(steps, [stopped])
+            yield* Ref.update(work, (previous) => cut.reduce(put, previous))
+            yield* save(Stopped.make({}), asked).pipe(Semaphore.withPermit(lock))
+            yield* PubSub.publish(steps, Arr.append(cut, Stopped.make({})))
           }
         },
         (effect, { steps }) =>

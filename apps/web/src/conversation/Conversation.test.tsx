@@ -5,12 +5,15 @@ import {
   CatalogUnavailable,
   ConversationBusy,
   ConversationId,
+  Ended,
   IndicatorId,
-  Rejected,
   ResolvedView,
+  Running,
+  Search,
   Searched,
   SourceUnavailable,
   Step,
+  StepId,
   Stopped,
   TooManyQuestions,
   Trend,
@@ -90,6 +93,8 @@ const resolve = http.post("/api/views/resolve", async ({ request }) => {
 })
 
 const encodeTurns = Schema.encodeSync(Schema.toCodecJson(Turns))
+
+const encodeAnswered = Schema.encodeSync(Schema.toCodecJson(Answered))
 
 const turns = (answered: ReadonlyArray<Turn>, answering?: Turns["answering"]) =>
   http.get(`/api/conversations/${id}`, () =>
@@ -183,6 +188,20 @@ const findQuestion = async (text: string, options?: Parameters<typeof screen.fin
 
 const findComposer = () => screen.findByRole("textbox", { name: "Ask a follow-up" })
 
+// A search for life expectancy, running until a test gives it another state.
+const searching = (state: typeof Search.Type.state = Running.make({})) =>
+  Search.make({ id: StepId.make("search-1"), text: "life expectancy", state })
+
+// The search once it ended, with what it found, as a turn keeps it.
+const searched = Ended.cases.Search.make({
+  id: StepId.make("search-1"),
+  text: "life expectancy",
+  state: Searched.make({
+    count: 1,
+    top: [{ indicator: lifeExpectancy, name: "Life expectancy at birth, total (years)" }],
+  }),
+})
+
 describe("Conversation", () => {
   it("asks the question from the home page, shows each step, then the chart", async () => {
     const reply = answer()
@@ -198,8 +217,13 @@ describe("Conversation", () => {
     ).toBeDefined()
     expect(await findQuestion("How has life expectancy changed in Brazil?")).toBeDefined()
 
-    reply.send(message(Searched.make({ text: "life expectancy" })))
+    reply.send(message(searching()))
     expect(await screen.findByText("Searched indicators for “life expectancy”")).toBeDefined()
+
+    reply.send(message(searched))
+    expect(
+      await screen.findByText("Searched indicators for “life expectancy”: 1 found"),
+    ).toBeDefined()
 
     reply.send(
       message(Answered.make({ view: brazil, takeaway: "Life expectancy in Brazil rose." })),
@@ -211,36 +235,45 @@ describe("Conversation", () => {
     ).toBeDefined()
     expect(screen.getByText("Life expectancy in Brazil rose.")).toBeDefined()
     expect(screen.getByRole("link", { name: "Open in the explorer" })).toBeDefined()
-    expect(screen.queryByText("Searched indicators for “life expectancy”")).toBeNull()
+    expect(screen.queryByText("Searched indicators for “life expectancy”: 1 found")).toBeNull()
   })
 
-  it("shows which sources each search found", async () => {
+  it("replaces a running step with what it found once it ends", async () => {
     const reply = answer()
+    const step = StepId.make("search-2")
 
     network.use(turns([]), reply.handler, resolve)
     show("Housing costs in Greece and Germany")
 
-    reply.send(message(Searched.make({ text: "housing", found: ["World Bank", "Eurostat"] })))
     reply.send(
-      message(Searched.make({ text: "housing cost", source: "Eurostat", found: ["Eurostat"] })),
+      message(
+        Search.make({ id: step, text: "housing", source: "Eurostat", state: Running.make({}) }),
+      ),
     )
-    reply.send(message(Searched.make({ text: "rent burden", found: [] })))
+    expect(await screen.findByText("Searched Eurostat indicators for “housing”")).toBeDefined()
+
+    reply.send(
+      message(
+        Search.make({
+          id: step,
+          text: "housing",
+          source: "Eurostat",
+          state: Searched.make({ count: 12, top: [] }),
+        }),
+      ),
+    )
 
     expect(
-      await screen.findByText("Searched indicators for “housing”: World Bank, Eurostat"),
+      await screen.findByText("Searched Eurostat indicators for “housing”: 12 found"),
     ).toBeDefined()
     expect(
-      await screen.findByText("Searched Eurostat indicators for “housing cost”: Eurostat"),
-    ).toBeDefined()
-    expect(
-      await screen.findByText("Searched indicators for “rent burden”: none found"),
-    ).toBeDefined()
+      within(screen.getByRole("list", { name: "Steps" })).getAllByRole("listitem"),
+    ).toHaveLength(2)
   })
 
   it("times the agent's work while it answers, then folds its steps under the answer", async () => {
     const reply = answer()
     const question = "How has life expectancy changed in Brazil?"
-    const searched = Searched.make({ text: "life expectancy" })
     let answered: ReadonlyArray<Turn> = []
 
     network.use(
@@ -258,7 +291,9 @@ describe("Conversation", () => {
 
       reply.send(message(searched))
       const steps = await screen.findByRole("list", { name: "Steps" })
-      expect(within(steps).getByText("Searched indicators for “life expectancy”")).toBeDefined()
+      expect(
+        within(steps).getByText("Searched indicators for “life expectancy”: 1 found"),
+      ).toBeDefined()
       expect(within(steps).getByText("Finding a chart…")).toBeDefined()
 
       await act(async () => {
@@ -293,25 +328,35 @@ describe("Conversation", () => {
 
     expect(
       within(await screen.findByRole("list", { name: "Steps" })).getByText(
-        "Searched indicators for “life expectancy”",
+        "Searched indicators for “life expectancy”: 1 found",
       ),
     ).toBeDefined()
   })
 
   it("folds the saved steps of a reopened conversation, and none for older turns", async () => {
-    network.use(
-      turns([
-        { question: "What about happiness?", answer: Unanswered.make({}) },
+    const answered = JSON.stringify(encodeAnswered(Answered.make({ view: brazil })))
+
+    // Turns as the server sends them when saved before steps had states.
+    const saved = `{
+      "answered": [
+        { "question": "What about happiness?", "answer": { "_tag": "Unanswered" } },
         {
-          question: "Life expectancy in Brazil",
-          answer: Answered.make({ view: brazil }),
-          steps: [
-            Searched.make({ text: "life expectancy" }),
-            Rejected.make({ problem: "The World Bank has no values for these years." }),
+          "question": "Life expectancy in Brazil",
+          "answer": ${answered},
+          "steps": [
+            { "_tag": "Searched", "text": "life expectancy" },
+            { "_tag": "Rejected", "problem": "The World Bank has no values for these years." }
           ],
-          took: Duration.seconds(65),
-        },
-      ]),
+          "took": 65000
+        }
+      ]
+    }`
+
+    network.use(
+      http.get(
+        `/api/conversations/${id}`,
+        () => new HttpResponse(saved, { headers: { "content-type": "application/json" } }),
+      ),
       resolve,
     )
     show()
@@ -335,7 +380,7 @@ describe("Conversation", () => {
         {
           question: "What about happiness?",
           answer: Unanswered.make({}),
-          steps: [Searched.make({ text: "happiness" })],
+          steps: [searched],
           took: Duration.seconds(3),
         },
       ]),
@@ -384,7 +429,7 @@ describe("Conversation", () => {
 
     network.use(turns([]), reply.handler)
     show("Life expectancy in Brazil")
-    reply.send(message(Searched.make({ text: "life expectancy" })))
+    reply.send(message(searching()))
     reply.send(failure(new AgentUnavailable()))
     reply.end()
 
@@ -559,7 +604,7 @@ describe("Conversation", () => {
     )
     show("Life expectancy in Brazil")
 
-    reply.send(message(Searched.make({ text: "life expectancy" })))
+    reply.send(message(searching()))
     expect(await screen.findByText("Searched indicators for “life expectancy”")).toBeDefined()
 
     // A draft takes the stop button's place until the box is empty again.
@@ -685,7 +730,7 @@ describe("Conversation", () => {
         .getAttribute("aria-disabled"),
     ).toBe("true")
 
-    reply.send(message(Searched.make({ text: "life expectancy" })))
+    reply.send(message(searching()))
     expect(await screen.findByText("Searched indicators for “life expectancy”")).toBeDefined()
 
     reply.send(message(Answered.make({ view: brazil })))
@@ -713,14 +758,14 @@ describe("Conversation", () => {
     )
     show("Life expectancy in Brazil")
 
-    asked.send(message(Searched.make({ text: "life expectancy" })))
+    asked.send(message(searching()))
     expect(await screen.findByText("Searched indicators for “life expectancy”")).toBeDefined()
 
     // The server keeps answering after the page loses the stream.
     answering = { question: "Life expectancy in Brazil", started }
     asked.cut()
 
-    resumed.send(message(Searched.make({ text: "life expectancy" })))
+    resumed.send(message(searching()))
     resumed.send(message(Answered.make({ view: brazil })))
     resumed.end()
 

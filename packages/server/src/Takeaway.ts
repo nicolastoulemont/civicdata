@@ -193,14 +193,21 @@ const fromData = (summary: Summary) => {
     points.some((point) => Math.abs(Math.abs(point.value) - value) <= tolerance * (1 + 1e-9))
 }
 
+// A takeaway that passed the check, and how many numbers it has, each checked.
+interface Checked {
+  readonly text: string
+  readonly numbers: number
+}
+
 // The takeaway to show from what the model wrote, if any. Every number in it
 // must come from the data the model was given; a takeaway with any other
 // number, such as a difference the model worked out, is not shown. The answer
 // shows plain text, so Markdown bold, which models write anyway, is removed.
-export const check = (text: string, summary: Summary): Option.Option<string> => {
+export const check = (text: string, summary: Summary): Option.Option<Checked> => {
   const takeaway = text.replaceAll("**", "").trim()
+  const written = writtenIn(takeaway)
 
-  return takeaway !== "" && writtenIn(takeaway).every(fromData(summary))
-    ? Option.some(takeaway)
+  return takeaway !== "" && written.every(fromData(summary))
+    ? Option.some({ text: takeaway, numbers: written.length })
     : Option.none()
 }
