@@ -227,3 +227,80 @@ export const countries = [
 export const Country = Schema.Literals(countries.map((country) => country.code))
 
 export type Country = typeof Country.Type
+
+// Names people use that the World Bank spells differently, e.g. "Viet Nam"
+// for Vietnam, or that its names do not contain, e.g. "UK".
+const aliases = new Map<string, Country>([
+  ["us", "USA"],
+  ["usa", "USA"],
+  ["america", "USA"],
+  ["united states of america", "USA"],
+  ["uk", "GBR"],
+  ["britain", "GBR"],
+  ["great britain", "GBR"],
+  ["south korea", "KOR"],
+  ["north korea", "PRK"],
+  ["dprk", "PRK"],
+  ["russia", "RUS"],
+  ["turkey", "TUR"],
+  ["vietnam", "VNM"],
+  ["laos", "LAO"],
+  ["ivory coast", "CIV"],
+  ["czech republic", "CZE"],
+  ["slovakia", "SVK"],
+  ["kyrgyzstan", "KGZ"],
+  ["syria", "SYR"],
+  ["drc", "COD"],
+  ["dr congo", "COD"],
+  ["democratic republic of the congo", "COD"],
+  ["republic of the congo", "COG"],
+  ["cape verde", "CPV"],
+  ["swaziland", "SWZ"],
+  ["burma", "MMR"],
+  ["macedonia", "MKD"],
+  ["east timor", "TLS"],
+  ["palestine", "PSE"],
+  ["macau", "MAC"],
+])
+
+// Lowercase words without accents or punctuation, "saint" as "st", and no
+// leading "the": "the Côte d'Ivoire" → "cote d ivoire".
+const normalize = (name: string) =>
+  name
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]+/gu, " ")
+    .trim()
+    .replace(/^the /, "")
+    .replace(/\bsaint\b/g, "st")
+
+const named = countries.map((country) => ({
+  country,
+  words: normalize(country.name).split(" "),
+}))
+
+// The countries a place name may mean, best first: one for an exact code,
+// alias or name, else those whose names hold every word of it as a prefix,
+// e.g. both Koreas for "korea". Empty when nothing matches.
+export const locate = (name: string): ReadonlyArray<(typeof countries)[number]> => {
+  const text = normalize(name)
+
+  const exact = named.find(
+    ({ country, words }) =>
+      country.code === name.trim().toUpperCase() ||
+      country.code === aliases.get(text) ||
+      words.join(" ") === text,
+  )
+
+  if (exact !== undefined) return [exact.country]
+
+  const asked = text.split(" ").filter((word) => word !== "")
+
+  return asked.length === 0
+    ? []
+    : named
+        .filter(({ words }) => asked.every((word) => words.some((each) => each.startsWith(word))))
+        .slice(0, 5)
+        .map(({ country }) => country)
+}

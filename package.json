@@ -16,7 +16,7 @@
     "prepare": "effect-tsgo patch --typescript"
   },
   "devDependencies": {
-    "@effect/tsgo": "0.67.4",
+    "@effect/tsgo": "0.67.5",
     "@oxlint/plugins": "1.92.0",
     "fallow": "^3.41.0",
     "oxfmt": "^0.77.0",
