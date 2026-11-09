@@ -76,6 +76,7 @@ export const QuestionForm = ({
 
   return (
     <form
+      className="[view-transition-name:composer]"
       onSubmit={(event) => {
         event.preventDefault()
 

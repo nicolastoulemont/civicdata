@@ -4,21 +4,16 @@ import { Match } from "effect"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 import { Answer } from "./Answer.tsx"
-import { Choices } from "./Choices.tsx"
 
 interface ReplyProps {
   answer: Ending
-  disabled: boolean
-  choose: (choice: string) => void
 }
 
 // How the agent answered: a chart, a question back, or no indicator.
-export const Reply = ({ answer, disabled, choose }: ReplyProps) =>
+export const Reply = ({ answer }: ReplyProps) =>
   Match.valueTags(answer, {
     Answered: ({ view, takeaway }) => <Answer view={view} takeaway={takeaway} />,
-    Asked: ({ question, choices }) => (
-      <Choices question={question} choices={choices} disabled={disabled} choose={choose} />
-    ),
+    Asked: ({ question }) => <p>{question}</p>,
     Unanswered: () => (
       <Alert>
         <AlertTitle>No World Bank indicator answers this question</AlertTitle>

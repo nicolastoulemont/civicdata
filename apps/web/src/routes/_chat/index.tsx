@@ -61,6 +61,7 @@ const Home = () => {
               to: "/c/$id",
               params: { id: crypto.randomUUID() },
               state: { question },
+              viewTransition: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
             })
           }
         />

@@ -1,6 +1,7 @@
 import type { Turn } from "@civicdata/domain"
+import { Fragment } from "react"
 
-import { Problem } from "./Problem.tsx"
+import { FailedQuestion } from "./Problem.tsx"
 import { Question } from "./Question.tsx"
 import { Reply } from "./Reply.tsx"
 import { Agent } from "./Row.tsx"
@@ -10,34 +11,42 @@ import { Work } from "./Work.tsx"
 interface TimelineProps {
   turns: ReadonlyArray<Turn>
   pending: ReturnType<typeof useConversation>["pending"]
+  failures: ReturnType<typeof useConversation>["failures"]
+  retry: ReturnType<typeof useConversation>["retry"]
   answering: boolean
-  ask: (question: string) => void
 }
 
 // The turns of a conversation, oldest first, then the one being answered.
-// Only the last answer's choices can still be picked, and none while the
-// agent answers.
-export const Timeline = ({ turns, pending, answering, ask }: TimelineProps) => (
+export const Timeline = ({ turns, pending, failures, retry, answering }: TimelineProps) => (
   <ol aria-label="Questions and answers" className="flex flex-col gap-8">
-    {turns.map((turn, index) => (
-      // oxlint-disable-next-line react/no-array-index-key -- turns are only appended, so a position never changes meaning
-      <li key={index} className="flex flex-col gap-4">
-        <Question text={turn.question} />
-        <Agent>
-          <Reply
-            answer={turn.answer}
-            disabled={index < turns.length - 1 || pending !== undefined}
-            choose={ask}
-          />
-        </Agent>
-      </li>
+    {Array.from({ length: turns.length + 1 }, (_, index) => (
+      // oxlint-disable-next-line react/no-array-index-key -- positions track append-only answered turns
+      <Fragment key={index}>
+        {failures
+          .filter((failure) => Math.min(failure.before, turns.length) === index)
+          .map((failure) => (
+            <li key={failure.retryAt} className="flex flex-col gap-4">
+              <Question text={failure.question} />
+              <Agent>
+                <FailedQuestion failure={failure} answering={answering} retry={retry} />
+              </Agent>
+            </li>
+          ))}
+        {turns[index] === undefined ? null : (
+          <li className="flex flex-col gap-4">
+            <Question text={turns[index].question} />
+            <Agent>
+              <Reply answer={turns[index].answer} />
+            </Agent>
+          </li>
+        )}
+      </Fragment>
     ))}
     {pending === undefined ? null : (
       <li data-scroll-anchor className="flex flex-col gap-4">
         {pending.question === undefined ? null : <Question text={pending.question} />}
         <Agent>
           <Work steps={pending.steps} answering={answering} />
-          {pending.error === undefined ? null : <Problem error={pending.error} />}
         </Agent>
       </li>
     )}
