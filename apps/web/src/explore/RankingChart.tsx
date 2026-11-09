@@ -10,7 +10,7 @@ import {
 
 import { countryName, formatCompact } from "./format.ts"
 
-const config = { value: { label: "Value", color: "var(--chart-1)" } } satisfies ChartConfig
+const config = { value: { label: "Value", color: "var(--chart-4)" } } satisfies ChartConfig
 
 export const RankingChart = ({ resolved }: { resolved: ResolvedView }) => {
   const ranked = resolved.observations
