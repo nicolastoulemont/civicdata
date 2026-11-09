@@ -2,6 +2,7 @@ import { Effect, Layer, Option } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
 
 import { Cache } from "../src/Cache.ts"
+import { Step, StepFailed } from "../src/CatalogBuild.ts"
 import type { Storage } from "../src/Transcript.ts"
 
 // An HttpClient that answers every request with `respond`, never the network.
@@ -45,4 +46,27 @@ export const memoryStorage = (values = new Map<string, string>()) => {
   }
 
   return { fake, alarms }
+}
+
+// Runs each step at once, as Workflows does when a step succeeds, after
+// `before` (a test's look at the catalog mid-build). A failing step fails
+// for good: the test stands for a step whose retries all failed.
+export const steps = (
+  before: (name: string) => Effect.Effect<void, unknown> = () => Effect.void,
+) => {
+  const ran: Array<string> = []
+
+  const layer = Layer.succeed(
+    Step,
+    Step.of({
+      run: (name, effect) =>
+        before(name).pipe(
+          Effect.andThen(Effect.sync(() => ran.push(name))),
+          Effect.andThen(effect),
+          Effect.mapError((cause) => new StepFailed({ step: name, cause })),
+        ),
+    }),
+  )
+
+  return { layer, ran: () => ran }
 }

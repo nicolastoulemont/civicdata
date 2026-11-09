@@ -55,8 +55,21 @@ if (db === undefined) throw new Error("vitest.config.ts must bind a D1 database 
 // The test Worker's D1 database is shared by every test that uses it.
 export const emptyPolitics = () =>
   db.exec(
-    "DROP TABLE IF EXISTS governments; DROP TABLE IF EXISTS elections; DROP TABLE IF EXISTS politics_current;",
+    "DROP TABLE IF EXISTS governments; DROP TABLE IF EXISTS elections; DROP TABLE IF EXISTS politics_current; DROP TABLE IF EXISTS politics_fingerprint;",
   )
+
+// The records as the version before fingerprints left them.
+export const dropFingerprints = Effect.promise(() => db.exec("DROP TABLE politics_fingerprint"))
+
+// The published generation of each dataset.
+export const published = () =>
+  Effect.promise(() =>
+    db
+      .prepare(
+        "SELECT records, publisher, generation FROM politics_current ORDER BY records, publisher",
+      )
+      .all(),
+  ).pipe(Effect.map(({ results }) => results))
 
 // The real records, their build and the archives over the test Worker's
 // local D1 database, with the publishers faked at the wire.

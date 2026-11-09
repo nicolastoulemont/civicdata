@@ -41,9 +41,11 @@ export const Records = Schema.Literals(["governments", "elections"])
 
 // The political records' tables. `governments` and `elections` hold every
 // generation of each publisher's records; `politics_current` names the
-// generation of each publisher's records of each kind that reads use. A build
-// writes a new generation and publishes it once complete (see
-// PoliticsBuild.ts).
+// generation of each publisher's records of each kind that reads use;
+// `politics_fingerprint` holds a fingerprint of what each generation stores,
+// which tells a build whether the records changed since the published
+// generation. A build writes a new generation and publishes it once complete
+// (see PoliticsBuild.ts).
 export const politicsTables = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient
 
@@ -86,6 +88,17 @@ export const politicsTables = Effect.gen(function* () {
       publisher TEXT NOT NULL,
       generation INTEGER NOT NULL,
       PRIMARY KEY (records, publisher)
+    )
+  `
+  // A table of its own, rather than a column of politics_current, so a stage
+  // whose tables an earlier version made gets it too.
+  yield* sql`
+    CREATE TABLE IF NOT EXISTS politics_fingerprint (
+      records TEXT NOT NULL,
+      publisher TEXT NOT NULL,
+      generation INTEGER NOT NULL,
+      fingerprint TEXT NOT NULL,
+      PRIMARY KEY (records, publisher, generation)
     )
   `
 })

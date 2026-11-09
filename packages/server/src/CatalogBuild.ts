@@ -1,7 +1,7 @@
 import { CatalogEntry, Source, SourceUnavailable } from "@civicdata/domain"
 import type { CloudflareWorkersModule } from "@cloudflare/workers-types"
 import { D1Client } from "@effect/sql-d1"
-import { Array as Arr, Context, Effect, Layer, Schema } from "effect"
+import { Array as Arr, Context, Effect, Layer, Option, Order, Schema } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
 import { tables } from "./Catalog.ts"
@@ -34,15 +34,30 @@ const EntriesJson = Schema.fromJsonString(Schema.Array(CatalogEntry))
 
 const Pending = Schema.Struct({ rowid: Schema.Int, ...CatalogEntry.fields })
 
+// The SHA-256 of the text, in hex. A build stores one beside each generation
+// it writes and skips a source or dataset whose fingerprint matches the
+// published generation's.
+export const fingerprint = (text: string) =>
+  Effect.promise(() => crypto.subtle.digest("SHA-256", new TextEncoder().encode(text))).pipe(
+    Effect.map((digest) =>
+      Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join(""),
+    ),
+  )
+
 // What a step hands back, which Workflows saves: a count, a cursor or
 // nothing, never rows, so a saved result stays far below its 1 MiB limit.
 type Saved = number | null | void
 
 interface Interface {
   // Lists the source's indicators into the generation, replacing what an
-  // earlier attempt wrote there, and answers how many it wrote. An empty list
-  // is the source failing, so it never replaces a published one.
-  readonly write: (source: Source, generation: number) => Effect.Effect<number, SourceUnavailable>
+  // earlier attempt wrote there, and answers how many it wrote. It writes
+  // nothing and answers null when the published generation holds the same
+  // entries, embedded by the same model. An empty list is the source failing,
+  // so it never replaces a published one.
+  readonly write: (
+    source: Source,
+    generation: number,
+  ) => Effect.Effect<number | null, SourceUnavailable>
   // Embeds the generation's next entries after the row `after` into Vectors,
   // and answers the last row embedded, or null once every entry is in.
   readonly embed: (
@@ -145,6 +160,18 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
         `,
       })
 
+      // The fingerprint of the source's published generation, if a build
+      // stored one.
+      const published = SqlSchema.findOneOption({
+        Request: Source,
+        Result: Schema.Struct({ fingerprint: Schema.String }),
+        execute: (source) => sql`
+          SELECT fingerprint FROM catalog_fingerprint
+          JOIN catalog_current USING (source, generation)
+          WHERE source = ${source}
+        `,
+      })
+
       const list = (source: Source) =>
         source === "World Bank" ? worldBank.indicators : sdmx.indicators(source)
 
@@ -154,6 +181,17 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
 
           if (!Arr.isReadonlyArrayNonEmpty(entries)) {
             return yield* new SourceUnavailable({ source })
+          }
+
+          // Sorted, since a source may list the same entries in another order.
+          const listed = yield* Schema.encodeEffect(EntriesJson)(
+            Arr.sortWith(entries, (entry) => entry.indicator, Order.String),
+          )
+
+          const print = yield* fingerprint(`${vectors.model}\n${listed}`)
+
+          if (Option.exists(yield* published(source), (found) => found.fingerprint === print)) {
+            return null
           }
 
           yield* sql`DELETE FROM catalog WHERE source = ${source} AND generation = ${generation}`
@@ -168,6 +206,13 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
               FROM json_each(${rows})
             `
           }
+
+          // Last, so a generation with a fingerprint holds every entry.
+          yield* sql`
+            INSERT INTO catalog_fingerprint (source, generation, fingerprint)
+            VALUES (${source}, ${generation}, ${print})
+            ON CONFLICT (source, generation) DO UPDATE SET fingerprint = excluded.fingerprint
+          `
 
           return entries.length
         },
@@ -198,6 +243,10 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
             DELETE FROM catalog WHERE source = ${source}
               AND generation < (SELECT generation FROM catalog_current WHERE source = ${source})
           `
+          yield* sql`
+            DELETE FROM catalog_fingerprint WHERE source = ${source}
+              AND generation < (SELECT generation FROM catalog_current WHERE source = ${source})
+          `
         },
         Effect.catchTag("SqlError", Effect.die),
       )
@@ -216,12 +265,17 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
 
   // One generation of every source, numbered by the build's start time, so
   // a resumed build writes the same generation and a later build a newer one.
+  // A source whose published generation already holds its listing stops
+  // after its write step. The step saves that decision, so a resumed build
+  // makes the same one.
   static readonly run = Effect.fn("CatalogBuild.run")(function* (generation: number) {
     const step = yield* Step
     const build = yield* CatalogBuild
 
     const one = Effect.fn("CatalogBuild.source")(function* (source: Source) {
-      yield* step.run(`write ${source}`, build.write(source, generation))
+      const written = yield* step.run(`write ${source}`, build.write(source, generation))
+
+      if (written === null) return source
 
       let after: number | null = 0
 

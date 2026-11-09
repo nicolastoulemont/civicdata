@@ -16,7 +16,7 @@ const Matches = Schema.Struct({
 // before use: the types say what Workers AI documents, not what it sent.
 export interface Ai {
   readonly run: (
-    name: typeof model,
+    name: string,
     input: {
       readonly text: ReadonlyArray<string>
       readonly pooling: "cls"
@@ -45,6 +45,9 @@ export class VectorsUnavailable extends Schema.TaggedError<
 >()("VectorsUnavailable", { cause: Schema.Unknown }) {}
 
 interface Interface {
+  // The model that embeds entries. Vectors it stored under another model do
+  // not fit, so a catalog build compares it (CatalogBuild.ts).
+  readonly model: string
   // Stores the meaning of each entry, replacing what an earlier put stored.
   readonly put: (entries: ReadonlyArray<CatalogEntry>) => Effect.Effect<void, VectorsUnavailable>
   // The indicators closest in meaning to the text, closest first.
@@ -55,7 +58,7 @@ interface Interface {
 // ranked no better and costs twice the Vectorize quota. The index in
 // packages/infra is made for this model: changing it replaces the index,
 // which fills again from the next catalog build.
-const model = "@cf/baai/bge-small-en-v1.5"
+const bge = "@cf/baai/bge-small-en-v1.5"
 
 // BGE's instruction for a short query matched against longer passages.
 const instruction = "Represent this sentence for searching relevant passages: "
@@ -90,7 +93,15 @@ const decode =
 // Search treats a failure as "no neighbors" rather than failing: words still
 // find indicators.
 export class Vectors extends Context.Service<Vectors, Interface>()("@civicdata/server/Vectors") {
-  static readonly cloudflare = ({ ai, index }: { ai: Ai; index: Index }) => {
+  static readonly cloudflare = ({
+    ai,
+    index,
+    model = bge,
+  }: {
+    ai: Ai
+    index: Index
+    model?: string | undefined
+  }) => {
     const embed = Effect.fnUntraced(function* (text: Arr.NonEmptyReadonlyArray<string>) {
       const { data } = yield* call(() =>
         ai.run(model, { text, pooling: "cls", truncate_inputs: true }),
@@ -128,12 +139,13 @@ export class Vectors extends Context.Service<Vectors, Interface>()("@civicdata/s
       return matches.filter(({ score }) => score >= minimumScore).map(({ id }) => id)
     })
 
-    return Layer.succeed(Vectors, Vectors.of({ put, nearest }))
+    return Layer.succeed(Vectors, Vectors.of({ model, put, nearest }))
   }
 
   static readonly none = Layer.succeed(
     Vectors,
-    Vectors.of({ put: () => Effect.void, nearest: () => Effect.succeed([]) }),
+    // Stores nothing, so a build with real Vectors embeds everything again.
+    Vectors.of({ model: "none", put: () => Effect.void, nearest: () => Effect.succeed([]) }),
   )
 
   // Workers AI and Vectorize inside Workers (deployed, or under `alchemy
