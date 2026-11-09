@@ -3,7 +3,20 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 
-@custom-variant dark (@media (prefers-color-scheme: dark));
+/* Dark is the choice stored in this browser (data-theme on <html>, set before
+   first paint), or the system's setting when the choice is System or the
+   page runs without JavaScript. */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+}
 
 @theme inline {
   --font-heading: var(--font-sans);
@@ -52,7 +65,11 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-:root {
+/* [data-theme] also scopes an element's tokens to one theme, as the settings
+   drawings do. dark: utilities inside a light scope still follow the page, so
+   scoped elements use tokens only. */
+:root,
+[data-theme] {
   color-scheme: light;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -90,7 +107,10 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+}
 
+:root,
+[data-theme="dark"] {
   /* Near-black canvas, cards lifted one step, white-alpha hairlines. */
   @variant dark {
     color-scheme: dark;
