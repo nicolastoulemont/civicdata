@@ -1,4 +1,16 @@
-import { ConversationId, Step, Turn, Turns, Unanswered } from "@civicdata/domain"
+import {
+  Answered,
+  Asked,
+  ConversationId,
+  IndicatorId,
+  Step,
+  Stopped,
+  Trend,
+  Turn,
+  Turns,
+  Unanswered,
+  Year,
+} from "@civicdata/domain"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import {
   createMemoryHistory,
@@ -25,6 +37,8 @@ const key = "civicdata:conversations"
 
 const brazil = ConversationId.make("0b5d7c1e-8f4a-4c2b-9d3e-1a2b3c4d5e6f")
 const happiness = ConversationId.make("6a1e2f3d-4c5b-4a69-8f7e-0d1c2b3a4f5e")
+const spending = ConversationId.make("3c2d1e0f-9a8b-4c7d-8e6f-5a4b3c2d1e0f")
+const pensions = ConversationId.make("9f8e7d6c-5b4a-4392-a1b0-c9d8e7f6a5b4")
 
 const minutes = (count: number) => new Date(Date.now() - count * 60_000).toISOString()
 
@@ -47,6 +61,18 @@ const store = (...entries: ReadonlyArray<Stored>) =>
 const encodeTurns = Schema.encodeSync(Schema.toCodecJson(Turns))
 
 const unanswered = (question: string): Turn => ({ question, answer: Unanswered.make({}) })
+
+const answered = (question: string): Turn => ({
+  question,
+  answer: Answered.make({
+    view: Trend.make({
+      indicator: IndicatorId.make("SP.DYN.LE00.IN"),
+      countries: ["BRA"],
+      from: Year.make(2000),
+      to: Year.make(2001),
+    }),
+  }),
+})
 
 const turns = (id: ConversationId, value: Turns) =>
   http.get(`/api/conversations/${id}`, () => HttpResponse.json(encodeTurns(value)))
@@ -134,7 +160,10 @@ const sidebar = async () => within(await screen.findByRole("navigation", { name:
 
 beforeEach(() => localStorage.clear())
 
-afterEach(() => vi.restoreAllMocks())
+afterEach(() => {
+  vi.useRealTimers()
+  vi.restoreAllMocks()
+})
 
 describe("History", () => {
   it("says where conversations will be listed before there are any", async () => {
@@ -169,10 +198,12 @@ describe("History", () => {
 
     const links = (await sidebar()).getAllByRole("link")
 
-    expect(links.map((link) => link.textContent)).toEqual([
-      "How has life expectancy changed in Brazil?5m",
-      "Which countries are happiest?3h",
-    ])
+    await waitFor(() =>
+      expect(links.map((link) => link.textContent)).toEqual([
+        "How has life expectancy changed in Brazil?No data5m",
+        "Which countries are happiest?No data3h",
+      ]),
+    )
     expect(links[0]?.getAttribute("href")).toBe(`/c/${brazil}`)
   })
 
@@ -190,7 +221,7 @@ describe("History", () => {
     await waitFor(() => expect(link.getAttribute("aria-current")).toBe("page"))
   })
 
-  it("lists a conversation as its first question is asked, with a dot until it is answered", async () => {
+  it("lists a conversation as its first question is asked, working until it is answered", async () => {
     const user = userEvent.setup()
     const reply = answer(brazil)
 
@@ -205,12 +236,13 @@ describe("History", () => {
 
     const link = await (await sidebar()).findByRole("link", { name: /Life expectancy in Brazil/ })
 
-    expect(within(link).getByText("Answering")).toBeDefined()
+    expect(within(link).getByText("Working")).toBeDefined()
     expect(within(link).getByText("now")).toBeDefined()
 
     reply.unanswered()
 
-    await waitFor(() => expect(within(link).queryByText("Answering")).toBeNull())
+    expect(await within(link).findByText("No data")).toBeDefined()
+    expect(within(link).queryByText("Working")).toBeNull()
     expect((await sidebar()).getByRole("link", { name: /Life expectancy in Brazil/ })).toBe(link)
   })
 
@@ -236,12 +268,12 @@ describe("History", () => {
 
     await waitFor(() =>
       expect(list.getAllByRole("link").map((link) => link.textContent)).toEqual([
-        "Life expectancy in Brazilnow",
+        "Life expectancy in BrazilNo datanow",
       ]),
     )
   })
 
-  it("shows a dot while the server is still answering a conversation", async () => {
+  it("shows a conversation the server is still answering as working", async () => {
     store(entry())
     network.use(
       turns(brazil, {
@@ -256,7 +288,107 @@ describe("History", () => {
 
     const link = (await sidebar()).getByRole("link", { name: /life expectancy changed/ })
 
-    expect(await within(link).findByText("Answering")).toBeDefined()
+    expect(await within(link).findByText("Working")).toBeDefined()
+  })
+
+  it("turns a working conversation to answered once the server reports the answer", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    store(entry())
+
+    let done = false
+
+    network.use(
+      http.get(`/api/conversations/${brazil}`, () =>
+        HttpResponse.json(
+          encodeTurns(
+            done
+              ? { answered: [answered("How has life expectancy changed in Brazil?")] }
+              : {
+                  answered: [],
+                  answering: {
+                    question: "How has life expectancy changed in Brazil?",
+                    started: DateTime.makeUnsafe("2026-11-09T12:00:00Z"),
+                  },
+                },
+          ),
+        ),
+      ),
+    )
+    show()
+
+    const link = (await sidebar()).getByRole("link", { name: /life expectancy changed/ })
+
+    expect(await within(link).findByText("Working")).toBeDefined()
+
+    done = true
+    await vi.advanceTimersByTimeAsync(5000)
+
+    expect(await within(link).findByText("Answered")).toBeDefined()
+    expect(within(link).queryByText("Working")).toBeNull()
+  })
+
+  it("shows how each conversation's last answer ended", async () => {
+    store(
+      entry(),
+      entry({ id: happiness, title: "Which countries are happiest?" }),
+      entry({ id: spending, title: "How much do governments spend?" }),
+      entry({ id: pensions, title: "Pension spending in France" }),
+    )
+    network.use(
+      turns(brazil, { answered: [answered("How has life expectancy changed in Brazil?")] }),
+      turns(happiness, {
+        answered: [
+          {
+            question: "Which countries are happiest?",
+            answer: Asked.make({
+              question: "Happiest by which measure?",
+              choices: ["Life satisfaction", "Positive emotions"],
+            }),
+          },
+        ],
+      }),
+      turns(spending, { answered: [unanswered("How much do governments spend?")] }),
+      turns(pensions, {
+        answered: [{ question: "Pension spending in France", answer: Stopped.make({}) }],
+      }),
+    )
+    show()
+
+    const list = await sidebar()
+
+    const status = async (name: RegExp, word: string) =>
+      within(list.getByRole("link", { name })).findByText(word)
+
+    expect(await status(/life expectancy changed/, "Answered")).toBeDefined()
+    expect(await status(/happiest/, "Your reply")).toBeDefined()
+    expect(await status(/governments spend/, "No data")).toBeDefined()
+    expect(await status(/Pension spending/, "Stopped")).toBeDefined()
+  })
+
+  it("shows the full title in a tooltip on hover and on keyboard focus", async () => {
+    const user = userEvent.setup()
+
+    const title =
+      "What share of public spending goes to pensions in France, Germany and Italy since 1995?"
+
+    store(entry({ title }))
+    network.use(turns(brazil, { answered: [unanswered(title)] }))
+    show()
+
+    const link = (await sidebar()).getByRole("link", { name: /share of public spending/ })
+
+    await user.hover(link)
+
+    expect((await screen.findByRole("tooltip")).textContent).toBe(title)
+
+    await user.unhover(link)
+    await waitFor(() => expect(screen.queryByRole("tooltip")).toBeNull())
+
+    await user.tab()
+    await user.tab()
+
+    expect(document.activeElement).toBe(link)
+    expect((await screen.findByRole("tooltip")).textContent).toBe(title)
   })
 
   it("drops a conversation the server has deleted", async () => {
