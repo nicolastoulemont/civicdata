@@ -4,6 +4,7 @@ import {
   type ResolvedView,
   ResolvedView as ResolvedViewSchema,
   SourceUnavailable,
+  transformOf,
   Trend,
   View,
   Year,
@@ -23,6 +24,11 @@ const population = IndicatorId.make("SP.POP.TOTL")
 
 const catalog = [
   { indicator: population, name: "Population, total", definition: "Midyear estimates." },
+  {
+    indicator: IndicatorId.make("NY.GDP.PCAP.CD"),
+    name: "GDP per capita (current US$)",
+    definition: "Gross domestic product divided by midyear population.",
+  },
   {
     indicator: IndicatorId.make("SP.DYN.LE00.IN"),
     name: "Life expectancy at birth, total (years)",
@@ -48,43 +54,74 @@ const reported: ResolvedView["observations"] = [
   { country: "ITA", year: Year.make(2020), value: 59_438_851 },
 ]
 
+const named = (indicator: IndicatorId) => ({
+  id: indicator,
+  name: catalog.find((entry) => entry.indicator === indicator)?.name ?? indicator,
+  definition: "",
+})
+
+const titled = (indicator: IndicatorId) => titles.get(indicator) ?? named(indicator).name
+
+const source = (indicator: IndicatorId) => ({
+  indicator,
+  source: "World Bank" as const,
+  dataset: "World Development Indicators",
+  url: `https://api.worldbank.org/v2/indicator/${indicator}`,
+  retrievedAt: DateTime.makeUnsafe("2026-11-08T00:00:00Z"),
+})
+
 // Answers like the API: the requested countries and years only, listing a
-// requested country with no values as missing.
+// requested country with no values as missing. The fake publishes the same
+// values for every indicator.
 const resolvedFor = (view: View): ResolvedView => {
-  const { from, to } = Match.valueTags(view, {
-    Trend: (trend) => ({ from: trend.from, to: trend.to }),
-    Ranking: (ranking) => ({ from: ranking.year, to: ranking.year }),
+  const shown = Match.valueTags(view, {
+    Trend:
+      ({ from, to }) =>
+      (year: number) =>
+        year >= from && year <= to,
+    Ranking: (ranking) => (year: number) => year === ranking.year,
+    Change:
+      ({ from, to }) =>
+      (year: number) =>
+        year === from || year === to,
+    Relation: (relation) => (year: number) => year === relation.year,
   })
 
   // Per person, the fake divides by a round million so the change is visible.
   const observations = reported
-    .filter(({ country, year }) => view.countries.includes(country) && year >= from && year <= to)
+    .filter(({ country, year }) => view.countries.includes(country) && shown(year))
     .map(({ country, year, value }) => ({
       country,
       year,
-      value: view.transform === "PerPerson" ? value / 1_000_000 : value,
+      value: transformOf(view) === "PerPerson" ? value / 1_000_000 : value,
     }))
 
-  const name = catalog.find((entry) => entry.indicator === view.indicator)?.name ?? view.indicator
-
-  return {
-    view,
-    title: titles.get(view.indicator) ?? name,
-    indicator: { id: view.indicator, name, definition: "" },
+  const fields = {
+    title: titled(view.indicator),
+    indicator: named(view.indicator),
     observations,
     missing: view.countries.filter(
       (country) => !observations.some((observation) => observation.country === country),
     ),
-    sources: [
-      {
-        indicator: view.indicator,
-        source: "World Bank",
-        dataset: "World Development Indicators",
-        url: `https://api.worldbank.org/v2/indicator/${view.indicator}`,
-        retrievedAt: DateTime.makeUnsafe("2026-11-08T00:00:00Z"),
-      },
-    ],
   }
+
+  return Match.value(view).pipe(
+    Match.tag("Relation", (relation) => ({
+      view: relation,
+      ...fields,
+      against: {
+        title: titled(relation.against),
+        indicator: named(relation.against),
+        observations,
+      },
+      sources: [source(relation.indicator), source(relation.against)] as const,
+    })),
+    Match.orElse((single) => ({
+      view: single,
+      ...fields,
+      sources: [source(single.indicator)] as const,
+    })),
+  )
 }
 
 const worldBank = http.post("/api/views/resolve", async ({ request }) => {
@@ -245,6 +282,51 @@ describe("Explore", () => {
     expect(await screen.findByText("Bar chart ranking countries by Total population")).toBeDefined()
     expect(screen.getByRole("combobox", { name: "Year" }).textContent).toContain("2020")
     expect(screen.queryByRole("combobox", { name: "From" })).toBeNull()
+  })
+
+  it("switches a trend to the change between its first and last years", async () => {
+    network.use(worldBank)
+    const user = userEvent.setup()
+
+    show(trend)
+
+    await screen.findByRole("heading", { name: "Total population" })
+    await user.click(screen.getByRole("button", { name: "Change between two years" }))
+
+    expect(
+      await screen.findByText("Change in Total population between 2019 and 2020, by country"),
+    ).toBeDefined()
+    expect(screen.getByText("2019 and 2020")).toBeDefined()
+    expect(screen.getByRole("button", { name: "Per person" })).toBeDefined()
+    expect(screen.queryByRole("button", { name: "Growth" })).toBeNull()
+  })
+
+  it("plots the indicator against another, with the data of both", async () => {
+    network.use(worldBank)
+    const user = userEvent.setup()
+
+    show(trend)
+
+    await screen.findByRole("heading", { name: "Total population" })
+    await user.click(
+      screen.getByRole("button", { name: "Scatter plot of one indicator against another" }),
+    )
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "Total population against GDP per capita (current US$)",
+      }),
+    ).toBeDefined()
+    expect(screen.getByRole("combobox", { name: "Against" })).toBeDefined()
+    expect(screen.queryByRole("group", { name: "Show as" })).toBeNull()
+
+    await user.click(screen.getByRole("button", { name: "Data" }))
+
+    const table = within(await screen.findByRole("table"))
+
+    expect(table.getByRole("columnheader", { name: "Total population" })).toBeDefined()
+    expect(table.getByRole("columnheader", { name: "GDP per capita (current US$)" })).toBeDefined()
+    expect(table.getAllByRole("row")).toHaveLength(3)
   })
 
   it("shows a total per person", async () => {

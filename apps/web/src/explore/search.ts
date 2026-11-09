@@ -1,7 +1,9 @@
 import {
+  Change,
   Country,
   IndicatorId,
   Ranking,
+  Relation,
   type Transform,
   Trend,
   type View,
@@ -14,6 +16,7 @@ import { withTransform } from "./edits.ts"
 
 // The View as readable URL parameters:
 // ?chart=trend&indicator=SP.POP.TOTL&countries=FRA,DEU&from=2000&to=2022&transform=index
+// ?chart=relation&indicator=SP.DYN.LE00.IN&against=NY.GDP.PCAP.CD&countries=FRA,DEU&year=2022
 const Search = Schema.Union([
   Schema.Struct({
     chart: Schema.Literal("trend"),
@@ -30,6 +33,21 @@ const Search = Schema.Union([
     year: Year,
     transform: Schema.optionalKey(Schema.Literals(["per-person", "growth"])),
   }),
+  Schema.Struct({
+    chart: Schema.Literal("change"),
+    indicator: IndicatorId,
+    countries: Schema.String,
+    from: Year,
+    to: Year,
+    transform: Schema.optionalKey(Schema.Literal("per-person")),
+  }),
+  Schema.Struct({
+    chart: Schema.Literal("relation"),
+    indicator: IndicatorId,
+    against: IndicatorId,
+    countries: Schema.String,
+    year: Year,
+  }),
 ])
 
 const fromParam = { "per-person": "PerPerson", growth: "Growth", index: "Index" } as const
@@ -44,8 +62,8 @@ export type Search = typeof Search.Encoded
 const countryList = Schema.decodeUnknownSync(Schema.NonEmptyArray(Country))
 
 // Throws on a link that does not describe a valid View, which the route turns
-// into its error page. `Trend.make` and `Ranking.make` reject duplicate
-// countries, and `Trend.make` rejects years that run backwards.
+// into its error page. The `make` constructors reject duplicate countries,
+// years that run backwards and a relation of an indicator to itself.
 export const toView = (search: Search): View =>
   Match.value(Schema.decodeSync(Search)(search)).pipe(
     Match.when({ chart: "trend" }, ({ indicator, countries, from, to, transform }) =>
@@ -59,6 +77,15 @@ export const toView = (search: Search): View =>
         Ranking.make({ indicator, countries: countryList(countries.split(",")), year }),
         transform === undefined ? undefined : fromParam[transform],
       ),
+    ),
+    Match.when({ chart: "change" }, ({ indicator, countries, from, to, transform }) =>
+      withTransform(
+        Change.make({ indicator, countries: countryList(countries.split(",")), from, to }),
+        transform === undefined ? undefined : fromParam[transform],
+      ),
+    ),
+    Match.when({ chart: "relation" }, ({ indicator, against, countries, year }) =>
+      Relation.make({ indicator, against, countries: countryList(countries.split(",")), year }),
     ),
     Match.exhaustive,
   )
@@ -75,6 +102,18 @@ export const toSearch = (view: View): Search =>
         { chart: "ranking" as const, indicator, countries: countries.join(","), year },
         transform,
       ),
+    Change: ({ indicator, countries, from, to, transform }) =>
+      withParam(
+        { chart: "change" as const, indicator, countries: countries.join(","), from, to },
+        transform,
+      ),
+    Relation: ({ indicator, against, countries, year }) => ({
+      chart: "relation" as const,
+      indicator,
+      against,
+      countries: countries.join(","),
+      year,
+    }),
   })
 
 // The View in a URL's query string, read the way the router reads /explore's.

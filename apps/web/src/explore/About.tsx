@@ -5,9 +5,9 @@ import { Fragment } from "react"
 import { buttonVariants } from "@/components/ui/button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
-import { retrieved } from "./format.ts"
+import { indicators, retrieved } from "./format.ts"
 
-// Level 1: what the indicator measures and where it comes from.
+// Level 1: what the indicators measure and where they come from.
 export const About = ({ resolved }: { resolved: ResolvedView }) => (
   <Collapsible className="rounded-lg border">
     <CollapsibleTrigger
@@ -17,7 +17,12 @@ export const About = ({ resolved }: { resolved: ResolvedView }) => (
       <ChevronDown aria-hidden />
     </CollapsibleTrigger>
     <CollapsibleContent className="space-y-3 px-4 pb-4 text-sm">
-      <p>{resolved.indicator.definition}</p>
+      {indicators(resolved).map((indicator, _, all) => (
+        <div key={indicator.id} className="space-y-1">
+          {all.length > 1 ? <h3 className="font-medium">{indicator.name}</h3> : null}
+          <p>{indicator.definition}</p>
+        </div>
+      ))}
       <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
         <dt className="text-muted-foreground">Official name</dt>
         <dd>{resolved.indicator.name}</dd>

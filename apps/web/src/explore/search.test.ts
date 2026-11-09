@@ -1,3 +1,4 @@
+import { transformOf } from "@civicdata/domain"
 import { describe, expect, it } from "vitest"
 
 import { fromUrl, type Search, toQuery, toSearch, toView } from "./search.ts"
@@ -23,11 +24,26 @@ describe("explore URL", () => {
     expect(toSearch(toView(ranking))).toEqual(ranking)
   })
 
+  it("round-trips a change and a relation", () => {
+    const change: Search = { ...trend, chart: "change", transform: "per-person" }
+
+    const relation: Search = {
+      chart: "relation",
+      indicator: "SP.DYN.LE00.IN",
+      against: "NY.GDP.PCAP.CD",
+      countries: "USA,JPN",
+      year: 2023,
+    }
+
+    expect(toSearch(toView(change))).toEqual(change)
+    expect(toSearch(toView(relation))).toEqual(relation)
+  })
+
   it("round-trips a transform", () => {
     const indexed: Search = { ...trend, transform: "index" }
 
     expect(toSearch(toView(indexed))).toEqual(indexed)
-    expect(toView(indexed).transform).toBe("Index")
+    expect(transformOf(toView(indexed))).toBe("Index")
   })
 
   it("reads a View back from the query string it writes", () => {
@@ -46,6 +62,16 @@ describe("explore URL", () => {
     ["a repeated country", { ...trend, countries: "FRA,FRA" }],
     ["no country", { ...trend, countries: "" }],
     ["a year before 1960", { ...trend, from: 1950 }],
+    [
+      "a relation of an indicator to itself",
+      {
+        chart: "relation" as const,
+        indicator: "SP.POP.TOTL",
+        against: "SP.POP.TOTL",
+        countries: "FRA",
+        year: 2020,
+      },
+    ],
   ])("rejects %s", (_, search) => {
     expect(() => toView(search)).toThrow(Error)
   })

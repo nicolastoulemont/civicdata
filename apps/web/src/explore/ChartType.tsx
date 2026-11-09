@@ -1,33 +1,49 @@
 import type { View } from "@civicdata/domain"
 import { Match } from "effect"
-import { ChartColumn, ChartLine } from "lucide-react"
+import { ChartColumn, ChartGantt, ChartLine, ChartScatter } from "lucide-react"
 
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 
-import { asRanking, asTrend } from "./edits.ts"
+import { withChart } from "./edits.ts"
+
+const choices = [
+  { value: "Trend", label: "Line", description: "Line chart over years", Icon: ChartLine },
+  { value: "Ranking", label: "Bar", description: "Bar chart ranking one year", Icon: ChartColumn },
+  { value: "Change", label: "Change", description: "Change between two years", Icon: ChartGantt },
+  {
+    value: "Relation",
+    label: "Scatter",
+    description: "Scatter plot of one indicator against another",
+    Icon: ChartScatter,
+  },
+] as const
 
 const kind = (view: View) =>
-  Match.valueTags(view, { Trend: () => "trend", Ranking: () => "ranking" })
+  Match.valueTags(view, {
+    Trend: () => "Trend" as const,
+    Ranking: () => "Ranking" as const,
+    Change: () => "Change" as const,
+    Relation: () => "Relation" as const,
+  })
 
-// Lines over years, or bars ranking one year.
+// How the View is drawn: lines over years, bars ranking one year, a change
+// between two years, or one indicator against another.
 export const ChartType = ({ view, onChange }: { view: View; onChange: (view: View) => void }) => (
   <ToggleGroup
     aria-label="Chart type"
     variant="outline"
     value={[kind(view)]}
     onValueChange={(next: Array<string>) => {
-      if (next.includes("trend")) onChange(asTrend(view))
+      const picked = choices.find((choice) => next.includes(choice.value))
 
-      if (next.includes("ranking")) onChange(asRanking(view))
+      if (picked !== undefined) onChange(withChart(view, picked.value))
     }}
   >
-    <ToggleGroupItem value="trend" aria-label="Line chart over years">
-      <ChartLine aria-hidden />
-      Line
-    </ToggleGroupItem>
-    <ToggleGroupItem value="ranking" aria-label="Bar chart ranking one year">
-      <ChartColumn aria-hidden />
-      Bar
-    </ToggleGroupItem>
+    {choices.map(({ value, label, description, Icon }) => (
+      <ToggleGroupItem key={value} value={value} aria-label={description}>
+        <Icon aria-hidden />
+        {label}
+      </ToggleGroupItem>
+    ))}
   </ToggleGroup>
 )

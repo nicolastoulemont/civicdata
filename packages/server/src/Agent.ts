@@ -3,12 +3,14 @@ import {
   Answered,
   Asked,
   CatalogUnavailable,
+  Change,
   Described,
   IndicatorId,
   Located,
   locate,
   Ranking,
   Rejected as RejectedStep,
+  Relation,
   type ResolvedView,
   Searched,
   SourceUnavailable,
@@ -154,29 +156,33 @@ const ShowChart = Tool.make("show_chart", {
   description:
     "Show one chart of a World Bank indicator. The chart is checked against the data; when it is rejected, fix what the problem names and call again.",
   parameters: Schema.Struct({
-    chart: Schema.Literals(["trend", "ranking"]).annotate({
+    chart: Schema.Literals(["trend", "ranking", "change", "relation"]).annotate({
       description:
-        "trend: one line per country over a range of years. ranking: countries compared in one year.",
+        "trend: one line per country over a range of years. ranking: countries compared in one year. change: each country's value in two years, from and to. relation: one dot per country in one year, the indicator against another.",
     }),
     indicator: Schema.String.annotate({
       description: "An indicator code returned by search_indicators, e.g. SP.DYN.LE00.IN",
+    }),
+    against: Schema.NullOr(Schema.String).annotate({
+      description:
+        "The indicator code a relation plots the indicator against, e.g. NY.GDP.PCAP.CD; null for other charts",
     }),
     countries: Schema.Array(Schema.String).annotate({
       description:
         "ISO 3166-1 alpha-3 codes of single economies, e.g. FRA, BRA. No regions or groups.",
     }),
     from: Schema.NullOr(Schema.Int).annotate({
-      description: "First year of a trend; null for a ranking",
+      description: "First year of a trend or a change; null otherwise",
     }),
     to: Schema.NullOr(Schema.Int).annotate({
-      description: "Last year of a trend; null for a ranking",
+      description: "Last year of a trend or a change; null otherwise",
     }),
     year: Schema.NullOr(Schema.Int).annotate({
-      description: "The year of a ranking; null for a trend",
+      description: "The year of a ranking or a relation; null otherwise",
     }),
     transform: Schema.NullOr(Transform).annotate({
       description:
-        "PerPerson divides a total by population. Growth is the annual % change. Index sets a trend's first year to 100. null shows values as published.",
+        "PerPerson divides a total by population. Growth is the annual % change. Index sets a trend's first year to 100. A change takes only PerPerson and a relation none. null shows values as published.",
     }),
   }),
   success: Schema.Union([Shown, Rejected]),
@@ -197,34 +203,53 @@ type Draft = typeof ShowChart.parametersSchema.Type
 // A View's fields without its tag: what the model's arguments decode to.
 const TrendFields = Trend.mapFields(Struct.omit(["_tag"]))
 const RankingFields = Ranking.mapFields(Struct.omit(["_tag"]))
+const ChangeFields = Change.mapFields(Struct.omit(["_tag"]))
+const RelationFields = Relation.mapFields(Struct.omit(["_tag"]))
 
 // makeEffect reports a failed check as a bare Issue.
 const checked = <A>(made: Effect.Effect<A, SchemaIssue.Issue>) =>
   Effect.mapError(made, (issue) => new Schema.SchemaError(issue))
 
 // The View the model described. Decodes the fields the chart type takes, then
-// builds the View, which checks that the years run forwards.
+// builds the View, which checks it, e.g. that the years run forwards. A
+// transform the chart type does not take is an error, not dropped.
 const toView = (draft: Draft): Effect.Effect<View, Schema.SchemaError> => {
-  const fields: Record<string, Draft[keyof Draft]> =
-    draft.chart === "trend"
-      ? { indicator: draft.indicator, countries: draft.countries, from: draft.from, to: draft.to }
-      : { indicator: draft.indicator, countries: draft.countries, year: draft.year }
+  const { indicator, against, countries, from, to, year } = draft
+
+  const fields: Record<string, Draft[keyof Draft]> = Match.value(draft.chart).pipe(
+    Match.whenOr("trend", "change", () => ({ indicator, countries, from, to })),
+    Match.when("ranking", () => ({ indicator, countries, year })),
+    Match.when("relation", () => ({ indicator, against, countries, year })),
+    Match.exhaustive,
+  )
 
   if (draft.transform !== null) fields["transform"] = draft.transform
 
-  return draft.chart === "trend"
-    ? Schema.decodeUnknownEffect(TrendFields)(fields).pipe(
-        Effect.flatMap((trend) => checked(Trend.makeEffect(trend))),
-      )
-    : Schema.decodeUnknownEffect(RankingFields)(fields).pipe(
-        Effect.flatMap((ranking) => checked(Ranking.makeEffect(ranking))),
-      )
+  const decode = <S extends Schema.Top>(schema: S) =>
+    Schema.decodeUnknownEffect(schema)(fields, { onExcessProperty: "error" })
+
+  return Match.value(draft.chart).pipe(
+    Match.when("trend", () =>
+      decode(TrendFields).pipe(Effect.flatMap((made) => checked(Trend.makeEffect(made)))),
+    ),
+    Match.when("ranking", () =>
+      decode(RankingFields).pipe(Effect.flatMap((made) => checked(Ranking.makeEffect(made)))),
+    ),
+    Match.when("change", () =>
+      decode(ChangeFields).pipe(Effect.flatMap((made) => checked(Change.makeEffect(made)))),
+    ),
+    Match.when("relation", () =>
+      decode(RelationFields).pipe(Effect.flatMap((made) => checked(Relation.makeEffect(made)))),
+    ),
+    Match.exhaustive,
+  )
 }
 
 const rejected = (problem: string) => Rejected.make({ problem })
 
 // A trend ends at the latest year it has values for. Told only the current
-// year, the model asks for years the World Bank has not published yet.
+// year, the model asks for years the World Bank has not published yet. A
+// change names its two years, so it is kept as asked.
 const trim = ({ view, observations }: ResolvedView): View =>
   Match.valueTags(view, {
     Trend: (trend) =>
@@ -233,6 +258,8 @@ const trim = ({ view, observations }: ResolvedView): View =>
         to: observations.reduce((latest, { year }) => (year > latest ? year : latest), trend.from),
       }),
     Ranking: (ranking) => ranking,
+    Change: (change) => change,
+    Relation: (relation) => relation,
   })
 
 const ToolsLayer = Tools.toLayer(
@@ -382,7 +409,7 @@ const instructions = (
 1. Call search_indicators to find the indicator that measures what the question asks. Use only codes it returns; never write a code from memory. When two results are close, call describe_indicator to read their definitions.
 2. Call show_chart with that indicator, the countries and the years.
    - When a place name is not plainly one country, call find_countries. List the members of a group yourself, e.g. the G7 or the Nordic countries.
-   - Use "trend" when the question is about change over time, and "ranking" when it compares countries at one point.
+   - Use "trend" when the question is about change over time, and "ranking" when it compares countries at one point. Use "change" when it compares two years, and "relation" when it asks how one indicator goes with another; search for that second indicator too.
    - Without years in the question, a trend covers the last 20 years and a ranking the latest year with data. It is ${year} now; most indicators have values up to ${year - 2}.
    - Use a transform only when the question asks for one.
 3. If show_chart rejects the chart, fix what it names and call it again.

@@ -1,7 +1,7 @@
-import { IndicatorId, Ranking, Trend, Year } from "@civicdata/domain"
+import { Change, IndicatorId, Ranking, Relation, transformOf, Trend, Year } from "@civicdata/domain"
 import { describe, expect, it } from "vitest"
 
-import { asRanking, asTrend, withIndicator } from "./edits.ts"
+import { withAgainst, withChart, withIndicator } from "./edits.ts"
 
 const population = IndicatorId.make("SP.POP.TOTL")
 
@@ -14,7 +14,7 @@ describe("chart type edits", () => {
       to: Year.make(2022),
     })
 
-    expect(asRanking(trend)).toEqual(
+    expect(withChart(trend, "Ranking")).toEqual(
       Ranking.make({ indicator: population, countries: ["FRA", "DEU"], year: Year.make(2022) }),
     )
   })
@@ -26,7 +26,7 @@ describe("chart type edits", () => {
       year: Year.make(2022),
     })
 
-    expect(asTrend(ranking)).toEqual(
+    expect(withChart(ranking, "Trend")).toEqual(
       Trend.make({
         indicator: population,
         countries: ["FRA"],
@@ -43,7 +43,7 @@ describe("chart type edits", () => {
       year: Year.make(1970),
     })
 
-    expect(asTrend(ranking)).toMatchObject({ from: 1960, to: 1970 })
+    expect(withChart(ranking, "Trend")).toMatchObject({ from: 1960, to: 1970 })
   })
 
   it("drops an index when a trend becomes a ranking, and keeps growth", () => {
@@ -54,8 +54,46 @@ describe("chart type edits", () => {
       to: Year.make(2022),
     }
 
-    expect(asRanking(Trend.make({ ...base, transform: "Index" })).transform).toBeUndefined()
-    expect(asRanking(Trend.make({ ...base, transform: "Growth" })).transform).toBe("Growth")
+    const ranked = (transform: "Index" | "Growth") =>
+      transformOf(withChart(Trend.make({ ...base, transform }), "Ranking"))
+
+    expect(ranked("Index")).toBeUndefined()
+    expect(ranked("Growth")).toBe("Growth")
+  })
+
+  it("compares a trend's first and last years, keeping only a per-person transform", () => {
+    const base = {
+      indicator: population,
+      countries: ["FRA"] as const,
+      from: Year.make(2000),
+      to: Year.make(2022),
+    }
+
+    expect(withChart(Trend.make({ ...base, transform: "PerPerson" }), "Change")).toEqual(
+      Change.make({ ...base, transform: "PerPerson" }),
+    )
+    expect(withChart(Trend.make({ ...base, transform: "Growth" }), "Change")).toEqual(
+      Change.make(base),
+    )
+  })
+
+  it("plots a chart's last year against GDP per person", () => {
+    const trend = Trend.make({
+      indicator: population,
+      countries: ["FRA"],
+      from: Year.make(2000),
+      to: Year.make(2022),
+      transform: "Index",
+    })
+
+    expect(withChart(trend, "Relation")).toEqual(
+      Relation.make({
+        indicator: population,
+        against: IndicatorId.make("NY.GDP.PCAP.CD"),
+        countries: ["FRA"],
+        year: Year.make(2022),
+      }),
+    )
   })
 })
 
@@ -75,12 +113,30 @@ describe("indicator edits", () => {
     })
 
     expect(switched.indicator).toBe("SL.UEM.TOTL.ZS")
-    expect(switched.transform).toBeUndefined()
+    expect(transformOf(switched)).toBeUndefined()
   })
 
   it("keeps a transform the new indicator takes", () => {
-    expect(withIndicator(perPerson, { id: population, name: "Population, total" }).transform).toBe(
-      "PerPerson",
+    expect(
+      transformOf(withIndicator(perPerson, { id: population, name: "Population, total" })),
+    ).toBe("PerPerson")
+  })
+
+  const relation = Relation.make({
+    indicator: IndicatorId.make("SP.DYN.LE00.IN"),
+    against: IndicatorId.make("NY.GDP.PCAP.CD"),
+    countries: ["FRA"],
+    year: Year.make(2022),
+  })
+
+  it("swaps a relation's axes when given the indicator it is plotted against", () => {
+    const swapped = { ...relation, indicator: relation.against, against: relation.indicator }
+
+    expect(withIndicator(relation, { id: relation.against, name: "GDP per capita" })).toEqual(
+      swapped,
+    )
+    expect(withAgainst(relation, { id: relation.indicator, name: "Life expectancy" })).toEqual(
+      swapped,
     )
   })
 })

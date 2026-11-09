@@ -16,7 +16,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { resolveQuery } from "@/explore/api"
 import { Chart } from "@/explore/Explore"
-import { attribution, period, transformLabel } from "@/explore/format"
+import { attribution, indicatorNames, period, subject, transformLabel } from "@/explore/format"
 import { places } from "@/explore/preview"
 import { toSearch } from "@/explore/search"
 
@@ -30,7 +30,7 @@ export const Answer = ({ view }: { view: View }) => {
     <Card>
       <CardHeader>
         <CardTitle>
-          <h2>{query.data?.title ?? view.indicator}</h2>
+          <h2>{subject(view, indicatorNames(query.data === undefined ? [] : [query.data]))}</h2>
         </CardTitle>
         <CardDescription>
           {[places(view), period(view), ...(shows === undefined ? [] : [shows])].join(" · ")}

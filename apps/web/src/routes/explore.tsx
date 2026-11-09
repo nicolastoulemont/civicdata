@@ -7,6 +7,7 @@ import { buttonVariants } from "@/components/ui/button"
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { resolve } from "@/explore/api"
 import { Explore } from "@/explore/Explore"
+import { indicatorNames } from "@/explore/format"
 import { inProcess } from "@/explore/inProcess"
 import { preview } from "@/explore/preview"
 import { type Search, toQuery, toSearch, toView } from "@/explore/search"
@@ -32,22 +33,23 @@ const BrokenLink = () => (
   </main>
 )
 
-// The chart's title for the page title, or undefined when it is not known.
-// The server resolves the View, so link previews name the indicator. The
-// browser only reads Views it already resolved, so editing a chart never
-// waits on its title.
-const chartTitle = createIsomorphicFn()
+// The names of the indicators the page title needs, by code; a name not
+// known is left out. The server resolves the View, so link previews name the
+// indicators. The browser only reads Views it already resolved, so editing a
+// chart never waits on its title.
+const namesFor = createIsomorphicFn()
   .server(({ view }: { view: View; queryClient: QueryClient }) =>
     resolve(view, inProcess).then(
-      (resolved) => resolved.title,
-      () => undefined,
+      (resolved) => indicatorNames([resolved]),
+      () => indicatorNames([]),
     ),
   )
-  .client(
-    ({ view, queryClient }) =>
+  .client(({ queryClient }) =>
+    indicatorNames(
       queryClient
         .getQueriesData<ResolvedView>({ queryKey: ["resolve"] })
-        .find(([, resolved]) => resolved?.indicator.id === view.indicator)?.[1]?.title,
+        .flatMap(([, resolved]) => (resolved === undefined ? [] : [resolved])),
+    ),
   )
 
 const ExplorePage = () => {
@@ -74,7 +76,7 @@ export const Route = createFileRoute("/explore")({
     const view = toView(deps)
 
     return {
-      ...preview(view, await chartTitle({ view, queryClient })),
+      ...preview(view, await namesFor({ view, queryClient })),
       image: `${origin()}/explore.png${toQuery(view)}`,
     }
   },
