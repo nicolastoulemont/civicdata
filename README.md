@@ -64,7 +64,7 @@ Deploys run only after the `check` job passes. Fork pull requests run `check` wi
    ```sh
    pnpm --filter @civicdata/infra exec alchemy state bootstrap
    ```
-3. In GitHub, create the `preview` and `production` environments. In each, add the secrets `CLOUDFLARE_API_TOKEN` and `OPENAI_API_KEY` and the variable `CLOUDFLARE_ACCOUNT_ID`. Limit `production` to the `main` branch. Set a monthly budget on the OpenAI project behind the key: each Worker limits one visitor to five questions a minute, but nothing caps the total.
+3. In GitHub, create the `preview` and `production` environments. In each, add the secrets `CLOUDFLARE_API_TOKEN` and `OPENAI_API_KEY` and the variable `CLOUDFLARE_ACCOUNT_ID`. Limit `production` to the `main` branch. Fund the OpenAI project behind the key with prepaid credits and cap their auto-reload: that is the only limit on total spend. Each Worker limits one visitor to five questions a minute, and once the credits run out every question answers "The assistant is not available".
 4. Protect the repository. Rulesets, dependency review, code scanning uploads and private vulnerability reporting need a public repository on GitHub's free plan. This repository has:
    - A `main` ruleset: pull request required, the `check` and `dependency-review` checks must pass (from GitHub Actions only), squash merges only, linear history, and no force pushes or deletion. It requires no approvals while there is one maintainer, because GitHub doesn't let you approve your own pull request.
    - A read-only default `GITHUB_TOKEN`, and approval required for workflow runs from all outside contributors.
