@@ -1,6 +1,7 @@
 import { Match, Schema } from "effect"
 
 import { Country } from "./Country.ts"
+import { Dimensions } from "./Dimension.ts"
 import { IndicatorId } from "./Indicator.ts"
 import { Ratio, Transform } from "./Transform.ts"
 
@@ -36,6 +37,7 @@ export const Trend = Schema.TaggedStruct("Trend", {
   from: Year,
   to: Year,
   transform: Schema.optionalKey(Transform),
+  dimensions: Schema.optionalKey(Dimensions),
 }).check(forwards, divides)
 
 export interface Trend extends Schema.Schema.Type<typeof Trend> {}
@@ -49,6 +51,7 @@ export const Ranking = Schema.TaggedStruct("Ranking", {
   year: Year,
   as: Schema.optionalKey(Schema.Literal("Map")),
   transform: Schema.optionalKey(Schema.Union([Schema.Literals(["PerPerson", "Growth"]), Ratio])),
+  dimensions: Schema.optionalKey(Dimensions),
 }).check(divides)
 
 // One indicator for some countries in two years, drawn as a dot for each year
@@ -60,17 +63,20 @@ export const Change = Schema.TaggedStruct("Change", {
   from: Year,
   to: Year,
   transform: Schema.optionalKey(Schema.Union([Schema.Literal("PerPerson"), Ratio])),
+  dimensions: Schema.optionalKey(Dimensions),
 }).check(forwards, divides)
 
 export interface Change extends Schema.Schema.Type<typeof Change> {}
 
 // One indicator against another for some countries in a single year, drawn
 // as a dot per country: `indicator` up the side, `against` along the bottom.
+// `dimensions` picks the series of `indicator`.
 export const Relation = Schema.TaggedStruct("Relation", {
   indicator: IndicatorId,
   against: IndicatorId,
   countries: Countries,
   year: Year,
+  dimensions: Schema.optionalKey(Dimensions),
 }).check(
   Schema.makeFilter(
     (relation) => relation.indicator !== relation.against || "against must be another indicator",

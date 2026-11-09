@@ -7,6 +7,7 @@ import {
   ConversationBusy,
   ConversationId,
   Described,
+  Dimensions,
   IndicatorId,
   IndicatorNotFound,
   Located,
@@ -34,7 +35,10 @@ import { Resolver } from "../src/Resolver.ts"
 import { Sdmx } from "../src/Sdmx.ts"
 import { Transcript } from "../src/Transcript.ts"
 import { WorldBank } from "../src/WorldBank.ts"
-import { offline } from "./fakes.ts"
+import { http } from "./fakes.ts"
+import unemploymentFlow from "./fixtures/eurostat/unemployment-flow.json"
+import unemploymentOptions from "./fixtures/eurostat/unemployment-options.csv?raw"
+import unemploymentRates from "./fixtures/eurostat/unemployment-total.csv?raw"
 
 const lifeExpectancy = IndicatorId.make("SP.DYN.LE00.IN")
 
@@ -93,7 +97,12 @@ const finish: Response.PartEncoded = {
 }
 
 // A tool's arguments as the model sends them: JSON values.
-type Arguments = Readonly<Record<string, string | number | null | ReadonlyArray<string>>>
+type Arguments = Readonly<
+  Record<
+    string,
+    string | number | null | ReadonlyArray<string> | ReadonlyArray<Readonly<Record<string, string>>>
+  >
+>
 
 const call = (
   name: "search_indicators" | "describe_indicator" | "find_countries" | "show_chart" | "ask_user",
@@ -113,6 +122,7 @@ const brazil = {
   year: null,
   transform: null,
   per: null,
+  dimensions: null,
 }
 
 const words = (text: string): ReadonlyArray<Response.PartEncoded> => [
@@ -146,8 +156,33 @@ const scripted = (turns: ReadonlyArray<Turn>) => {
   return { layer, prompts }
 }
 
-// The agent searches the World Bank catalog only, so it never reaches an SDMX source.
-const sdmx = Sdmx.layer.pipe(Layer.provide(offline))
+const eurostat = "https://ec.europa.eu/eurostat/api/dissemination"
+
+const totalAged15To74 = Schema.decodeSync(Dimensions)({ age: "Y15-74", unit: "PC_ACT", sex: "T" })
+
+// Eurostat as recorded on 2026-11-09: unemployment rates for France, which
+// come in several series, and the total for 15 to 74 year-olds.
+const sdmx = Sdmx.layer.pipe(
+  Layer.provide(
+    http(
+      (url) =>
+        new Map([
+          [
+            `${eurostat}/sdmx/2.1/dataflow/ESTAT/UNE_RT_A/1.0?format=JSON`,
+            globalThis.Response.json(unemploymentFlow),
+          ],
+          [
+            `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/UNE_RT_A/1.0/*?c[geo]=FR&c[freq]=A&lastNObservations=1&compress=false`,
+            new globalThis.Response(unemploymentOptions),
+          ],
+          [
+            `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/UNE_RT_A/1.0/*?c[geo]=FR&c[freq]=A&c[age]=Y15-74&c[unit]=PC_ACT&c[sex]=T&c[TIME_PERIOD]=ge:2022+le:2024&compress=false`,
+            new globalThis.Response(unemploymentRates),
+          ],
+        ]).get(url) ?? new globalThis.Response("no recording", { status: 500 }),
+    ),
+  ),
+)
 
 // The API as the Worker serves it, with each conversation answered in this
 // process the way its Durable Object would, from memory.
@@ -398,6 +433,53 @@ describe("conversations", () => {
       })
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
+
+  it.effect(
+    "tells the model which values a Eurostat dataflow's dimensions take, then shows its pick",
+    () => {
+      const unemployment = {
+        ...brazil,
+        indicator: "ESTAT,UNE_RT_A,1.0",
+        countries: ["FRA"],
+        from: 2022,
+        to: 2024,
+      }
+
+      const model = scripted([
+        Effect.succeed(call("show_chart", unemployment)),
+        Effect.succeed(
+          call("show_chart", {
+            ...unemployment,
+            dimensions: [
+              { dimension: "age", code: "Y15-74" },
+              { dimension: "unit", code: "PC_ACT" },
+              { dimension: "sex", code: "T" },
+            ],
+          }),
+        ),
+      ])
+
+      return Effect.gen(function* () {
+        const steps = yield* answer("Unemployment in France")
+        const [first] = steps
+
+        expect(Schema.is(Rejected)(first) ? first.problem : "").toContain(
+          "sex (F Females, M Males, T Total)",
+        )
+        expect(steps.at(-1)).toEqual(
+          Answered.make({
+            view: Trend.make({
+              indicator: IndicatorId.make("ESTAT,UNE_RT_A,1.0"),
+              countries: ["FRA"],
+              from: Year.make(2022),
+              to: Year.make(2024),
+              dimensions: totalAged15To74,
+            }),
+          }),
+        )
+      }).pipe(Effect.provide(serveApi(model.layer)))
+    },
+  )
 
   it.effect("keeps a question no indicator answers, without a chart", () => {
     const model = scripted([Effect.succeed(words("No World Bank indicator measures that."))])

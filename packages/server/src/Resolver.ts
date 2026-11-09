@@ -1,5 +1,6 @@
 import {
   applies,
+  type Dimensions,
   type DimensionsMissing,
   IndicatorId,
   IndicatorNotFound,
@@ -46,18 +47,31 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
       const worldBank = yield* WorldBank
       const sdmx = yield* Sdmx
 
-      const series = Effect.fn("Resolver.series")(function* (query: Query) {
+      const series = Effect.fn("Resolver.series")(function* (
+        query: Query & { readonly dimensions?: Dimensions | undefined },
+      ) {
         const source = sourceOf(query.indicator)
-        // Eurostat and OECD both publish SDMX.
-        const adapter = source === "World Bank" ? worldBank : sdmx
 
+        // Eurostat and OECD both publish SDMX; their series pick a value of
+        // each dimension. World Bank indicators have none.
         const [described, fetched] = yield* Effect.all(
-          [adapter.describe(query.indicator), adapter.observations(query)],
+          source === "World Bank"
+            ? [
+                worldBank.describe(query.indicator),
+                worldBank
+                  .observations(query)
+                  .pipe(Effect.map((found) => ({ ...found, dimensions: [] }))),
+              ]
+            : [
+                sdmx.describe(query.indicator),
+                sdmx.observations({ ...query, dimensions: query.dimensions ?? {} }),
+              ],
           { concurrency: 2 },
         )
 
         return {
           described,
+          dimensions: fetched.dimensions,
           observations: fetched.observations,
           source: {
             indicator: query.indicator,
@@ -73,7 +87,10 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
       // One indicator's values from `from` to `to`, after the transform, with
       // every series they were computed from.
       const values = Effect.fn("Resolver.values")(function* (
-        query: Query & { readonly transform?: Transform },
+        query: Query & {
+          readonly transform?: Transform
+          readonly dimensions?: Dimensions | undefined
+        },
       ) {
         const { from, transform } = query
 
@@ -95,7 +112,9 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
         )
 
         const by =
-          divisor === undefined ? undefined : yield* series({ ...query, indicator: divisor })
+          divisor === undefined
+            ? undefined
+            : yield* series({ ...query, indicator: divisor, dimensions: {} })
 
         const transformed = Match.value(transform).pipe(
           Match.when("Growth", () => growth(main.observations)),
@@ -112,6 +131,7 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
           title: titleOf(main.described.indicator),
           indicator: main.described.indicator,
           observations: transformed.filter((observation) => observation.year >= from),
+          dimensions: main.dimensions,
           sources,
         }
       })
@@ -157,9 +177,11 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
             Effect.all(
               [
                 values({ ...relation, from: relation.year, to: relation.year }),
+                // The View's dimensions pick the series of `indicator` only.
                 values({
                   ...relation,
                   indicator: relation.against,
+                  dimensions: {},
                   from: relation.year,
                   to: relation.year,
                 }),
@@ -177,6 +199,7 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
                   observations: against.observations,
                 },
                 missing: missing(countries, [main.observations, against.observations]),
+                dimensions: main.dimensions,
                 sources: Arr.appendAll(main.sources, against.sources),
               })),
             ),

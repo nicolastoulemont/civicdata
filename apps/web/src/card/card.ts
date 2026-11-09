@@ -7,6 +7,7 @@ import {
   formatCompact,
   indicatorNames,
   period,
+  picks,
   subject,
   transformLabel,
 } from "@/explore/format"
@@ -406,7 +407,12 @@ export const card = (resolved: ResolvedView) => {
     y += title.size * 1.25
   }
 
-  const subtitle = [places(view), period(view), ...(shows === undefined ? [] : [shows])].join(" · ")
+  const subtitle = [
+    places(view),
+    period(view),
+    ...(shows === undefined ? [] : [shows]),
+    ...picks(resolved),
+  ].join(" · ")
 
   text(image, body, fit(body, subtitle, width - 2 * margin), {
     x: margin,

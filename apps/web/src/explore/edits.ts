@@ -1,6 +1,9 @@
 import {
   applies,
   Change,
+  type Code,
+  type DimensionId,
+  type Dimensions,
   IndicatorId,
   Ranking,
   Ratio,
@@ -31,24 +34,38 @@ export const withTransform = (view: View, transform: Transform | undefined) => {
   )
 
   return Match.valueTags(view, {
-    Trend: ({ indicator, countries, from, to }) =>
+    Trend: (trend) =>
       kept === undefined
-        ? Trend.make({ indicator, countries, from, to })
-        : Trend.make({ indicator, countries, from, to, transform: kept }),
+        ? Trend.make(Struct.omit(trend, ["transform"]))
+        : Trend.make({ ...trend, transform: kept }),
     Ranking: (ranking) =>
       kept === undefined || kept === "Index"
         ? Ranking.make(Struct.omit(ranking, ["transform"]))
         : Ranking.make({ ...ranking, transform: kept }),
-    Change: ({ indicator, countries, from, to }) =>
+    Change: (change) =>
       kept === undefined || kept === "Growth" || kept === "Index"
-        ? Change.make({ indicator, countries, from, to })
-        : Change.make({ indicator, countries, from, to, transform: kept }),
+        ? Change.make(Struct.omit(change, ["transform"]))
+        : Change.make({ ...change, transform: kept }),
     Relation: (relation) => relation,
   })
 }
 
+// Sets the value of every dimension the View picks, for an SDMX indicator.
+export const withPicks = (view: View, dimensions: Dimensions) =>
+  Match.valueTags(view, {
+    Trend: (trend) => Trend.make({ ...trend, dimensions }),
+    Ranking: (ranking) => Ranking.make({ ...ranking, dimensions }),
+    Change: (change) => Change.make({ ...change, dimensions }),
+    Relation: (relation) => Relation.make({ ...relation, dimensions }),
+  })
+
+// Picks one dimension's value, keeping the others.
+export const withPick = (view: View, { id, code }: { id: DimensionId; code: Code }) =>
+  withPicks(view, { ...view.dimensions, [id]: code })
+
 // Switches indicator, keeping the transform only if the new one takes it. A
-// relation given the indicator it is plotted against swaps its two axes.
+// relation given the indicator it is plotted against swaps its two axes. The
+// old indicator's dimensions are its own, so none are kept.
 export const withIndicator = (view: View, indicator: Picked) => {
   const transform = transformOf(view)
 
@@ -56,12 +73,15 @@ export const withIndicator = (view: View, indicator: Picked) => {
     Trend: ({ countries, from, to }) =>
       Trend.make({ indicator: indicator.id, countries, from, to }),
     Ranking: (ranking) =>
-      Ranking.make({ ...Struct.omit(ranking, ["transform"]), indicator: indicator.id }),
+      Ranking.make({
+        ...Struct.omit(ranking, ["transform", "dimensions"]),
+        indicator: indicator.id,
+      }),
     Change: ({ countries, from, to }) =>
       Change.make({ indicator: indicator.id, countries, from, to }),
     Relation: (relation) =>
       Relation.make({
-        ...relation,
+        ...Struct.omit(relation, ["dimensions"]),
         indicator: indicator.id,
         against: indicator.id === relation.against ? relation.indicator : relation.against,
       }),
@@ -84,14 +104,18 @@ export const ratioFor = (indicator: IndicatorId) =>
 export const withPer = (view: View, per: Picked) => withTransform(view, Ratio.make({ per: per.id }))
 
 // Switches the indicator a relation is plotted against. Picking its own
-// indicator swaps the two axes.
-export const withAgainst = (relation: Relation, against: Picked) =>
-  Relation.make({
-    indicator: against.id === relation.indicator ? relation.against : relation.indicator,
-    against: against.id,
-    countries: relation.countries,
-    year: relation.year,
-  })
+// indicator swaps the two axes, which drops the dimensions it picked.
+export const withAgainst = (relation: Relation, against: Picked) => {
+  const kept = { against: against.id, countries: relation.countries, year: relation.year }
+
+  return against.id === relation.indicator
+    ? Relation.make({ ...kept, indicator: relation.against })
+    : Relation.make({
+        ...Struct.pick(relation, ["dimensions"]),
+        ...kept,
+        indicator: relation.indicator,
+      })
+}
 
 export const withCountries = (view: View, countries: View["countries"]) =>
   Match.valueTags(view, {
@@ -125,6 +149,10 @@ const against = (view: View) =>
     Match.orElse(({ indicator }) => (indicator === gdpPerPerson ? lifeExpectancy : gdpPerPerson)),
   )
 
+// The `dimensions` field when the View picks some, else no field.
+const picked = (dimensions: Dimensions | undefined) =>
+  dimensions === undefined ? {} : { dimensions }
+
 // The chart types a user picks from: a ranking drawn as bars or as a map.
 export type Chart = View["_tag"] | "Map"
 
@@ -136,29 +164,47 @@ export const chartOf = (view: View): Chart =>
     Relation: () => "Relation" as const,
   })
 
-// Draws the View as another chart type, keeping its indicator, countries and
-// transform where the new type takes them. A single-year chart shows the last
-// of the years.
+// Draws the View as another chart type, keeping its indicator, the series it
+// picks, its countries and its transform where the new type takes them. A
+// single-year chart shows the last of the years.
 export const withChart = (view: View, chart: Chart): View => {
-  const { indicator, countries } = view
+  const { indicator, countries, dimensions } = view
   const { from, to } = span(view)
   const transform = transformOf(view)
 
   return Match.value(chart).pipe(
     Match.when("Trend", () =>
-      withTransform(Trend.make({ indicator, countries, from, to }), transform),
+      withTransform(
+        Trend.make({ ...picked(dimensions), indicator, countries, from, to }),
+        transform,
+      ),
     ),
     Match.when("Ranking", () =>
-      withTransform(Ranking.make({ indicator, countries, year: to }), transform),
+      withTransform(
+        Ranking.make({ ...picked(dimensions), indicator, countries, year: to }),
+        transform,
+      ),
     ),
     Match.when("Map", () =>
-      withTransform(Ranking.make({ indicator, countries, year: to, as: "Map" }), transform),
+      withTransform(
+        Ranking.make({ ...picked(dimensions), indicator, countries, year: to, as: "Map" }),
+        transform,
+      ),
     ),
     Match.when("Change", () =>
-      withTransform(Change.make({ indicator, countries, from, to }), transform),
+      withTransform(
+        Change.make({ ...picked(dimensions), indicator, countries, from, to }),
+        transform,
+      ),
     ),
     Match.when("Relation", () =>
-      Relation.make({ indicator, against: against(view), countries, year: to }),
+      Relation.make({
+        ...picked(dimensions),
+        indicator,
+        against: against(view),
+        countries,
+        year: to,
+      }),
     ),
     Match.exhaustive,
   )

@@ -19,6 +19,8 @@ export {
 
 export { Country, countries, locate } from "./Country.ts"
 
+export { type Code, Dimension, DimensionId, Dimensions } from "./Dimension.ts"
+
 export {
   AgentUnavailable,
   CatalogUnavailable,

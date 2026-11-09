@@ -1,6 +1,7 @@
 import {
   Api,
   Change,
+  Dimensions,
   DimensionsMissing,
   IndicatorId,
   IndicatorNotFound,
@@ -14,7 +15,7 @@ import {
   Year,
 } from "@civicdata/domain"
 import { describe, expect, it } from "@effect/vitest"
-import { DateTime, Effect, Layer } from "effect"
+import { DateTime, Effect, Layer, Schema } from "effect"
 import { HttpServer } from "effect/http"
 import { HttpApiTest } from "effect/http-api"
 
@@ -26,10 +27,12 @@ import { titles } from "../src/titles.gen.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 import { http, offline } from "./fakes.ts"
 import populationFlow from "./fixtures/eurostat/population-flow.json"
+import populationOptions from "./fixtures/eurostat/population-options.csv?raw"
 import uncovered from "./fixtures/eurostat/population-uncovered.xml?raw"
 import populations from "./fixtures/eurostat/population.csv?raw"
 import unemploymentFlow from "./fixtures/eurostat/unemployment-flow.json"
-import unemploymentRates from "./fixtures/eurostat/unemployment.csv?raw"
+import unemploymentOptions from "./fixtures/eurostat/unemployment-options.csv?raw"
+import unemploymentRates from "./fixtures/eurostat/unemployment-total.csv?raw"
 
 const population = IndicatorId.make("SP.POP.TOTL")
 const gdp = IndicatorId.make("NY.GDP.MKTP.CD")
@@ -115,9 +118,17 @@ const down = Layer.succeed(
 
 const eurostat = "https://ec.europa.eu/eurostat/api/dissemination"
 
+// Unemployment as a share of the labour force, for everyone aged 15 to 74.
+const totalAged15To74 = Schema.decodeSync(Dimensions)({
+  age: "Y15-74",
+  unit: "PC_ACT",
+  sex: "T",
+})
+
 // Eurostat as recorded on 2026-11-09: population on 1 January for France and
 // Greece, refused with the United States, which it does not cover; and
-// unemployment rates for France, which come in several series.
+// unemployment rates for France, which come in several series, and the total
+// for 15 to 74 year-olds.
 const recordedEurostat = Sdmx.layer.pipe(
   Layer.provide(
     http(
@@ -140,7 +151,19 @@ const recordedEurostat = Sdmx.layer.pipe(
             new Response(populations),
           ],
           [
-            `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/UNE_RT_A/1.0/*?c[geo]=FR&c[freq]=A&c[TIME_PERIOD]=ge:2024+le:2024&compress=false`,
+            `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/TPS00001/1.0/*?c[geo]=FR,EL,US&c[freq]=A&lastNObservations=1&compress=false`,
+            new Response(uncovered, { status: 400 }),
+          ],
+          [
+            `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/TPS00001/1.0/*?c[geo]=FR,EL&c[freq]=A&lastNObservations=1&compress=false`,
+            new Response(populationOptions),
+          ],
+          [
+            `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/UNE_RT_A/1.0/*?c[geo]=FR&c[freq]=A&lastNObservations=1&compress=false`,
+            new Response(unemploymentOptions),
+          ],
+          [
+            `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/UNE_RT_A/1.0/*?c[geo]=FR&c[freq]=A&c[age]=Y15-74&c[unit]=PC_ACT&c[sex]=T&c[TIME_PERIOD]=ge:2022+le:2024&compress=false`,
             new Response(unemploymentRates),
           ],
         ]).get(url) ?? new Response("no recording", { status: 500 }),
@@ -411,6 +434,25 @@ describe("POST /api/views/resolve", () => {
         .pipe(Effect.flip)
 
       expect(error).toBeInstanceOf(DimensionsMissing)
+    }).pipe(Effect.provide(serve(worldBank, recordedEurostat))),
+  )
+
+  it.effect("resolves the series a View picks, listing what else it can pick", () =>
+    Effect.gen(function* () {
+      const client = yield* HttpApiTest.groups(Api, ["views"])
+
+      const resolved = yield* client.views.resolve({
+        payload: trend({
+          indicator: IndicatorId.make("ESTAT,UNE_RT_A,1.0"),
+          countries: ["FRA"],
+          from: year(2022),
+          to: year(2024),
+          dimensions: totalAged15To74,
+        }),
+      })
+
+      expect(resolved.observations.map(({ value }) => value)).toEqual([7.3, 7.4, 7.4])
+      expect(resolved.dimensions.map(({ id }) => id)).toEqual(["age", "unit", "sex"])
     }).pipe(Effect.provide(serve(worldBank, recordedEurostat))),
   )
 })

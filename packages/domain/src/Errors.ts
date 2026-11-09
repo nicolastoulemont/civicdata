@@ -1,5 +1,6 @@
 import { Schema } from "effect"
 
+import { Dimension, DimensionId } from "./Dimension.ts"
 import { IndicatorId } from "./Indicator.ts"
 import { Source } from "./Source.ts"
 import { Transform } from "./Transform.ts"
@@ -32,14 +33,20 @@ export class TransformNotApplicable extends Schema.TaggedError<
   { httpApiStatus: 422 },
 ) {}
 
-// The View leaves these dimensions of an SDMX dataflow open, such as sex or
-// age, so more than one series matches it and the chart would mix them.
+// The View leaves some dimensions of an SDMX dataflow open, such as sex or
+// age, or picks a value they do not take, so it matches no single series.
+// `dimensions` lists every dimension the View picks a value of, with the
+// values each takes; `open` names the ones it still has to pick.
 export class DimensionsMissing extends Schema.TaggedError<
   DimensionsMissing,
   { readonly brand: unique symbol }
 >()(
   "DimensionsMissing",
-  { indicator: IndicatorId, dimensions: Schema.NonEmptyArray(Schema.NonEmptyString) },
+  {
+    indicator: IndicatorId,
+    dimensions: Schema.Array(Dimension),
+    open: Schema.NonEmptyArray(DimensionId),
+  },
   { httpApiStatus: 422 },
 ) {}
 

@@ -1,5 +1,6 @@
 import {
   Change,
+  Dimensions,
   IndicatorId,
   Ranking,
   Ratio,
@@ -8,6 +9,7 @@ import {
   Trend,
   Year,
 } from "@civicdata/domain"
+import { Schema } from "effect"
 import { describe, expect, it } from "vitest"
 
 import { withAgainst, withChart, withIndicator, withTransform } from "./edits.ts"
@@ -193,6 +195,37 @@ describe("indicator edits", () => {
     )
     expect(withAgainst(relation, { id: relation.indicator, name: "Life expectancy" })).toEqual(
       swapped,
+    )
+  })
+})
+
+describe("dimension edits", () => {
+  const unemployment = Trend.make({
+    indicator: IndicatorId.make("ESTAT,UNE_RT_A,1.0"),
+    countries: ["FRA"],
+    from: Year.make(2000),
+    to: Year.make(2022),
+    dimensions: Schema.decodeSync(Dimensions)({ sex: "T", age: "Y15-74", unit: "PC_ACT" }),
+  })
+
+  it("keeps the series a View picks when its chart type or transform changes", () => {
+    for (const chart of ["Ranking", "Map", "Change", "Relation"] as const)
+      expect(withChart(unemployment, chart).dimensions).toEqual(unemployment.dimensions)
+
+    expect(withChart(withChart(unemployment, "Ranking"), "Trend").dimensions).toEqual(
+      unemployment.dimensions,
+    )
+    expect(withTransform(unemployment, "Growth").dimensions).toEqual(unemployment.dimensions)
+  })
+
+  it("drops them when the indicator changes, since they were the old one's", () => {
+    expect(withIndicator(unemployment, { id: population, name: "Population, total" })).toEqual(
+      Trend.make({
+        indicator: population,
+        countries: ["FRA"],
+        from: Year.make(2000),
+        to: Year.make(2022),
+      }),
     )
   })
 })

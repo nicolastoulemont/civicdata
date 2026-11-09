@@ -61,6 +61,7 @@ const resolve = http.post("/api/views/resolve", async ({ request }) => {
         { country: "BRA", year: Year.make(2001), value: 70.4 },
       ],
       missing: [],
+      dimensions: [],
       sources: [
         {
           indicator: lifeExpectancy,

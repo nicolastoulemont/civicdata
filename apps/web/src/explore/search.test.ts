@@ -64,6 +64,17 @@ describe("explore URL", () => {
     expect(transformOf(toView(indexed))).toBe("Index")
   })
 
+  it("round-trips the series an SDMX indicator picks", () => {
+    const unemployment: Search = {
+      ...trend,
+      indicator: "ESTAT,UNE_RT_A,1.0",
+      dimensions: "sex:T,age:Y15-74",
+    }
+
+    expect(toSearch(toView(unemployment))).toEqual(unemployment)
+    expect(toView(unemployment).dimensions).toEqual({ sex: "T", age: "Y15-74" })
+  })
+
   it("reads a View back from the query string it writes", () => {
     const view = toView({ ...trend, transform: "per-person" })
 
@@ -92,6 +103,8 @@ describe("explore URL", () => {
         year: 2020,
       },
     ],
+    ["a dimension the chart sets itself", { ...trend, dimensions: "geo:FR" }],
+    ["a dimension without a value", { ...trend, dimensions: "sex" }],
   ])("rejects %s", (_, search) => {
     expect(() => toView(search)).toThrow(Error)
   })

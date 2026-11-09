@@ -5,6 +5,7 @@ import {
   CatalogUnavailable,
   Change,
   Described,
+  type Dimension,
   IndicatorId,
   kindOf,
   Located,
@@ -188,6 +189,12 @@ const ShowChart = Tool.make("show_chart", {
     per: Schema.NullOr(Schema.String).annotate({
       description: "The indicator code a Ratio divides by, e.g. NY.GDP.MKTP.CD; null otherwise",
     }),
+    dimensions: Schema.NullOr(
+      Schema.Array(Schema.Struct({ dimension: Schema.String, code: Schema.String })),
+    ).annotate({
+      description:
+        "For a Eurostat or OECD indicator, the code of each dimension its series differ by, e.g. [{ dimension: 'sex', code: 'T' }]. A rejection lists the dimensions and their codes. null for World Bank indicators.",
+    }),
   }),
   success: Schema.Union([Shown, Rejected]),
   failure: SourceUnavailable,
@@ -227,15 +234,21 @@ const toView = Effect.fnUntraced(function* (draft: Draft) {
       ? Ratio.make(yield* Schema.decodeUnknownEffect(RatioFields)({ per: draft.per }))
       : draft.transform
 
-  const fields: Record<string, Draft[keyof Draft] | Ratio> = Match.value(draft.chart).pipe(
-    Match.whenOr("trend", "change", () => ({ indicator, countries, from, to })),
-    Match.when("ranking", () => ({ indicator, countries, year })),
-    Match.when("map", () => ({ indicator, countries, year, as: "Map" })),
-    Match.when("relation", () => ({ indicator, against, countries, year })),
-    Match.exhaustive,
-  )
+  const fields: Record<string, Draft[keyof Draft] | Ratio | Readonly<Record<string, string>>> =
+    Match.value(draft.chart).pipe(
+      Match.whenOr("trend", "change", () => ({ indicator, countries, from, to })),
+      Match.when("ranking", () => ({ indicator, countries, year })),
+      Match.when("map", () => ({ indicator, countries, year, as: "Map" })),
+      Match.when("relation", () => ({ indicator, against, countries, year })),
+      Match.exhaustive,
+    )
 
   if (transform !== null) fields["transform"] = transform
+
+  if (draft.dimensions !== null && draft.dimensions.length > 0)
+    fields["dimensions"] = Object.fromEntries(
+      draft.dimensions.map(({ dimension, code }) => [dimension, code]),
+    )
 
   const decode = <S extends Schema.Top>(schema: S) =>
     Schema.decodeUnknownEffect(schema)(fields, { onExcessProperty: "error" })
@@ -273,6 +286,14 @@ const trim = ({ view, observations }: ResolvedView): View =>
     Change: (change) => change,
     Relation: (relation) => relation,
   })
+
+// A dimension and its first codes as the model reads them:
+// "sex (F Females, M Males, T Total)".
+const listed = ({ id, options }: Dimension) =>
+  `${id} (${options
+    .slice(0, 20)
+    .map(({ code, label }) => `${code} ${label}`)
+    .join(", ")}${options.length > 20 ? ", …" : ""})`
 
 const ToolsLayer = Tools.toLayer(
   Effect.gen(function* () {
@@ -346,10 +367,13 @@ const ToolsLayer = Tools.toLayer(
                   `${indicator} is a percentage or rate; ${kindOf(transform)} does not apply to it.`,
                 ),
               ),
-            DimensionsMissing: ({ indicator, dimensions }) =>
+            DimensionsMissing: ({ indicator, dimensions, open }) =>
               Effect.succeed(
                 rejected(
-                  `${indicator} holds several series that differ by ${dimensions.join(", ")}. Choose another indicator.`,
+                  `${indicator} holds several series. Pass one code for each of these dimensions: ${dimensions
+                    .filter((dimension) => open.includes(dimension.id))
+                    .map(listed)
+                    .join("; ")}.`,
                 ),
               ),
           }),

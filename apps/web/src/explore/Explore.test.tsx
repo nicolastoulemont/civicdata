@@ -1,5 +1,7 @@
 import {
   CatalogUnavailable,
+  Dimension,
+  DimensionsMissing,
   IndicatorId,
   type ResolvedView,
   ResolvedView as ResolvedViewSchema,
@@ -111,6 +113,7 @@ const resolvedFor = (view: View): ResolvedView => {
     missing: view.countries.filter(
       (country) => !observations.some((observation) => observation.country === country),
     ),
+    dimensions: [],
   }
 
   return Match.value(view).pipe(
@@ -255,6 +258,7 @@ describe("Explore", () => {
             observations: resolved.observations,
             missing: resolved.missing,
             title: "Population on 1 January",
+            dimensions: [],
             indicator: { id: eurostat, name: "Population on 1 January", definition: "" },
             sources: [
               {
@@ -283,6 +287,67 @@ describe("Explore", () => {
     expect(
       (await screen.findByRole("link", { name: "ESTAT,TPS00001,1.0" })).getAttribute("href"),
     ).toBe("https://ec.europa.eu/eurostat/databrowser/view/tps00001/default/table")
+  })
+
+  it("asks which series of a Eurostat dataset to show, then charts the pick", async () => {
+    const unemployment = IndicatorId.make("ESTAT,UNE_RT_A,1.0")
+
+    const sex = Schema.decodeSync(Dimension)({
+      id: "sex",
+      label: "Sex",
+      options: [
+        { code: "F", label: "Females" },
+        { code: "M", label: "Males" },
+        { code: "T", label: "Total" },
+      ],
+    })
+
+    // Answers like the API: a View that leaves sex open matches several series.
+    network.use(
+      http.post("/api/views/resolve", async ({ request }) => {
+        const view = Schema.decodeUnknownSync(Trend)(await request.json())
+
+        if (view.dimensions?.[sex.id] === undefined)
+          return HttpResponse.json(
+            Schema.encodeSync(DimensionsMissing)(
+              new DimensionsMissing({ indicator: unemployment, dimensions: [sex], open: [sex.id] }),
+            ),
+            { status: 422 },
+          )
+
+        const resolved = resolvedFor(view)
+
+        return HttpResponse.json(
+          Schema.encodeSync(ResolvedViewSchema)({
+            view,
+            title: "Unemployment by sex and age - annual data",
+            observations: resolved.observations,
+            missing: resolved.missing,
+            dimensions: [sex],
+            indicator: {
+              id: unemployment,
+              name: "Unemployment by sex and age - annual data",
+              definition: "",
+            },
+            sources: resolved.sources,
+          }),
+        )
+      }),
+    )
+    const user = userEvent.setup()
+
+    show(Trend.make({ ...trend, indicator: unemployment }))
+
+    expect(await screen.findByText("Choose which series to show")).toBeDefined()
+
+    await user.click(screen.getByRole("combobox", { name: "Sex" }))
+    await user.click(await screen.findByRole("option", { name: "Total" }))
+
+    expect(
+      await screen.findByRole("heading", { name: "Unemployment by sex and age - annual data" }),
+    ).toBeDefined()
+    expect(screen.getByRole("combobox", { name: "Sex" }).textContent).toContain("Total")
+    expect(screen.queryByText("Choose which series to show")).toBeNull()
   })
 
   it("switches the chart to an indicator found by name", async () => {
