@@ -83,12 +83,15 @@ const resolve = http.post("/api/views/resolve", async ({ request }) => {
 
 const encodeTurns = Schema.encodeSync(Schema.toCodecJson(Turns))
 
-const turns = (answered: ReadonlyArray<Turn>, answering?: string) =>
+const turns = (answered: ReadonlyArray<Turn>, answering?: Turns["answering"]) =>
   http.get(`/api/conversations/${id}`, () =>
     HttpResponse.json(
       encodeTurns(answering === undefined ? { answered } : { answered, answering }),
     ),
   )
+
+// When the server started the answers it is giving in these tests.
+const started = DateTime.makeUnsafe("2026-11-09T12:00:00Z")
 
 // Server-sent events as the API writes them: each step as a message, and a
 // failure as its reserved event carrying the encoded cause.
@@ -469,7 +472,11 @@ describe("Conversation", () => {
   it("follows an answer still in progress when the page opens", async () => {
     const reply = answer("follow")
 
-    network.use(turns([], "Life expectancy in Brazil"), reply.handler, resolve)
+    network.use(
+      turns([], { question: "Life expectancy in Brazil", started }),
+      reply.handler,
+      resolve,
+    )
     show()
 
     expect(await findQuestion("Life expectancy in Brazil")).toBeDefined()
@@ -500,7 +507,7 @@ describe("Conversation", () => {
   it("picks the answer up again when the connection drops mid-answer", async () => {
     const asked = answer()
     const resumed = answer("follow")
-    let answering: string | undefined
+    let answering: Turns["answering"]
 
     network.use(
       http.get(`/api/conversations/${id}`, () =>
@@ -518,7 +525,7 @@ describe("Conversation", () => {
     expect(await screen.findByText("Searched indicators for “life expectancy”")).toBeDefined()
 
     // The server keeps answering after the page loses the stream.
-    answering = "Life expectancy in Brazil"
+    answering = { question: "Life expectancy in Brazil", started }
     asked.cut()
 
     resumed.send(message(Searched.make({ text: "life expectancy" })))

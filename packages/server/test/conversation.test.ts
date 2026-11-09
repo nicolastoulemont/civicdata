@@ -22,10 +22,22 @@ import {
   Year,
 } from "@civicdata/domain"
 import { describe, expect, it } from "@effect/vitest"
-import { DateTime, Deferred, Effect, Fiber, Layer, Option, Schema, Stream } from "effect"
+import {
+  Clock,
+  DateTime,
+  Deferred,
+  Duration,
+  Effect,
+  Fiber,
+  Layer,
+  Option,
+  Schema,
+  Stream,
+} from "effect"
 import { AiError, LanguageModel, type Response } from "effect/ai"
 import { HttpRouter, HttpServer } from "effect/http"
 import { HttpApiTest } from "effect/http-api"
+import { TestClock } from "effect/testing"
 
 import { Agent } from "../src/Agent.ts"
 import { AskLimit } from "../src/AskLimit.ts"
@@ -36,9 +48,9 @@ import { Handlers } from "../src/Handlers.ts"
 import { Notes } from "../src/Notes.ts"
 import { Resolver } from "../src/Resolver.ts"
 import { Sdmx } from "../src/Sdmx.ts"
-import { Transcript } from "../src/Transcript.ts"
+import { type Storage, Transcript } from "../src/Transcript.ts"
 import { WorldBank } from "../src/WorldBank.ts"
-import { http } from "./fakes.ts"
+import { http, memoryStorage } from "./fakes.ts"
 import unemploymentFlow from "./fixtures/eurostat/unemployment-flow.json"
 import unemploymentOptions from "./fixtures/eurostat/unemployment-options.csv?raw"
 import unemploymentRates from "./fixtures/eurostat/unemployment-total.csv?raw"
@@ -193,9 +205,19 @@ const sdmx = Sdmx.layer.pipe(
 // These tests read no indicator notes.
 const notes = Layer.succeed(Notes, Notes.of({ get: () => Effect.die("no notes in these tests") }))
 
+interface ServeOptions {
+  readonly limit?: Layer.Layer<AskLimit>
+  // The conversations' Durable Object storage. Without it, each conversation
+  // keeps its transcript in memory.
+  readonly storage?: Storage
+}
+
 // The API as the Worker serves it, with each conversation answered in this
-// process the way its Durable Object would, from memory.
-const serveApi = (model: Layer.Layer<LanguageModel.LanguageModel>, limit = AskLimit.none) => {
+// process the way its Durable Object would, on the test's clock.
+const serveApi = (
+  model: Layer.Layer<LanguageModel.LanguageModel>,
+  { limit = AskLimit.none, storage }: ServeOptions = {},
+) => {
   const agent = Agent.layer.pipe(
     Layer.provide(model),
     Layer.provide(Resolver.layer),
@@ -204,28 +226,37 @@ const serveApi = (model: Layer.Layer<LanguageModel.LanguageModel>, limit = AskLi
     Layer.provide(sdmx),
   )
 
-  return Layer.mergeAll(
-    Handlers.pipe(
-      Layer.provide(
-        Conversations.local(
-          () =>
-            HttpRouter.toWebHandler(
-              serve.pipe(
-                Layer.provide(Transcript.memory),
-                Layer.provide(agent),
-                Layer.provide(limit),
+  const transcript = storage === undefined ? Transcript.memory : Transcript.durable(storage)
+
+  return Layer.unwrap(
+    Effect.clockWith((clock) =>
+      Effect.succeed(
+        Layer.mergeAll(
+          Handlers.pipe(
+            Layer.provide(
+              Conversations.local(
+                () =>
+                  HttpRouter.toWebHandler(
+                    serve.pipe(
+                      Layer.provide(transcript),
+                      Layer.provide(agent),
+                      Layer.provide(limit),
+                      Layer.provideMerge(Layer.succeed(Clock.Clock, clock)),
+                    ),
+                  ).handler,
               ),
-            ).handler,
+            ),
+            Layer.provide(agent),
+            Layer.provide(limit),
+            Layer.provide(notes),
+            Layer.provide(catalog),
+            Layer.provide(worldBank),
+            Layer.provide(sdmx),
+          ),
+          HttpServer.layerServices,
         ),
       ),
-      Layer.provide(agent),
-      Layer.provide(limit),
-      Layer.provide(notes),
-      Layer.provide(catalog),
-      Layer.provide(worldBank),
-      Layer.provide(sdmx),
     ),
-    HttpServer.layerServices,
   )
 }
 
@@ -270,6 +301,8 @@ describe("conversations", () => {
           {
             question: "How has life expectancy changed in Brazil?",
             answer: Answered.make({ view: brazilTrend, takeaway }),
+            steps: [Searched.make({ text: "life expectancy" })],
+            took: Duration.zero,
           },
         ],
       })
@@ -575,7 +608,14 @@ describe("conversations", () => {
     return Effect.gen(function* () {
       expect(yield* answer("What is the meaning of life?")).toEqual([Unanswered.make({})])
       expect(yield* turns).toEqual({
-        answered: [{ question: "What is the meaning of life?", answer: Unanswered.make({}) }],
+        answered: [
+          {
+            question: "What is the meaning of life?",
+            answer: Unanswered.make({}),
+            steps: [],
+            took: Duration.zero,
+          },
+        ],
       })
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
@@ -637,8 +677,18 @@ describe("conversations", () => {
       expect(model.prompts[1]).toContain("Which measure?")
       expect(yield* turns).toEqual({
         answered: [
-          { question: "How long do people live in Brazil?", answer: asked },
-          { question: "Life expectancy", answer: Answered.make({ view: brazilTrend, takeaway }) },
+          {
+            question: "How long do people live in Brazil?",
+            answer: asked,
+            steps: [],
+            took: Duration.zero,
+          },
+          {
+            question: "Life expectancy",
+            answer: Answered.make({ view: brazilTrend, takeaway }),
+            steps: [],
+            took: Duration.zero,
+          },
         ],
       })
     }).pipe(Effect.provide(serveApi(model.layer)))
@@ -705,7 +755,10 @@ describe("conversations", () => {
           yield* ask("Life expectancy in Brazil").pipe(Effect.flatMap(Stream.runHead)),
         ).toEqual(Option.some(searched))
 
-        expect(yield* turns).toEqual({ answered: [], answering: "Life expectancy in Brazil" })
+        expect(yield* turns).toEqual({
+          answered: [],
+          answering: { question: "Life expectancy in Brazil", started: DateTime.makeUnsafe(0) },
+        })
 
         // Coming back, they follow the answer from its first step.
         const following = yield* follow
@@ -714,7 +767,14 @@ describe("conversations", () => {
 
         expect(yield* Stream.runCollect(following)).toEqual([searched, answered])
         expect(yield* turns).toEqual({
-          answered: [{ question: "Life expectancy in Brazil", answer: answered }],
+          answered: [
+            {
+              question: "Life expectancy in Brazil",
+              answer: answered,
+              steps: [searched],
+              took: Duration.zero,
+            },
+          ],
         })
         expect(yield* follow.pipe(Effect.flatMap(Stream.runCollect))).toEqual([])
       }).pipe(Effect.provide(serveApi(model.layer)))
@@ -732,7 +792,12 @@ describe("conversations", () => {
         Deferred.succeed(waiting, undefined).pipe(Effect.andThen(Deferred.await(reply))),
       ])
 
-      const stopped = { question: "Life expectancy in Brazil", answer: Stopped.make({}) }
+      const stopped = {
+        question: "Life expectancy in Brazil",
+        answer: Stopped.make({}),
+        steps: [Searched.make({ text: "life expectancy" })],
+        took: Duration.seconds(6),
+      }
 
       return yield* Effect.gen(function* () {
         const steps = yield* ask("Life expectancy in Brazil").pipe(
@@ -748,6 +813,7 @@ describe("conversations", () => {
         // The visitor has seen the first step and the agent waits on the model.
         yield* Deferred.await(seen)
         yield* Deferred.await(waiting)
+        yield* TestClock.adjust("6 seconds")
         yield* stop
 
         expect(yield* Fiber.join(steps)).toEqual([
@@ -782,10 +848,77 @@ describe("conversations", () => {
           {
             question: "Life expectancy in Brazil",
             answer: Answered.make({ view: brazilTrend, takeaway }),
+            steps: [],
+            took: Duration.zero,
           },
         ],
       })
     }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("keeps what the agent did and how long it took for the next visit", () =>
+    Effect.gen(function* () {
+      const reply = yield* Deferred.make<ReadonlyArray<Response.PartEncoded>>()
+      const question = "Life expectancy in Brazil"
+      const { fake } = memoryStorage()
+
+      const model = scripted([
+        Effect.succeed(call("search_indicators", { text: "life expectancy" })),
+        Effect.succeed(call("describe_indicator", { indicator: lifeExpectancy })),
+        Deferred.await(reply),
+      ])
+
+      yield* Effect.gen(function* () {
+        const steps = yield* ask(question)
+        const answering = yield* Stream.runCollect(steps).pipe(Effect.forkChild)
+
+        expect(yield* turns).toEqual({
+          answered: [],
+          answering: { question, started: DateTime.makeUnsafe(0) },
+        })
+
+        yield* TestClock.adjust("8 seconds")
+        yield* Deferred.succeed(reply, call("show_chart", brazil))
+        yield* Fiber.join(answering)
+      }).pipe(Effect.provide(serveApi(model.layer, { storage: fake })))
+
+      // The conversation's object starts afresh from its storage.
+      yield* Effect.gen(function* () {
+        expect(yield* turns).toEqual({
+          answered: [
+            {
+              question,
+              answer: Answered.make({ view: brazilTrend, takeaway }),
+              steps: [
+                Searched.make({ text: "life expectancy" }),
+                Described.make({ indicator: lifeExpectancy }),
+              ],
+              took: Duration.seconds(8),
+            },
+          ],
+        })
+      }).pipe(Effect.provide(serveApi(scripted([]).layer, { storage: fake })))
+    }),
+  )
+
+  it.effect("reads turns saved before the work log without steps or time", () => {
+    const saved = {
+      chat: "[]",
+      turns: [
+        {
+          question: "What is the meaning of life?",
+          answer: Schema.encodeSync(Unanswered)(Unanswered.make({})),
+        },
+      ],
+    }
+
+    const { fake } = memoryStorage(new Map([["conversation", JSON.stringify(saved)]]))
+
+    return Effect.gen(function* () {
+      expect(yield* turns).toEqual({
+        answered: [{ question: "What is the meaning of life?", answer: Unanswered.make({}) }],
+      })
+    }).pipe(Effect.provide(serveApi(scripted([]).layer, { storage: fake })))
   })
 
   it.effect("passes a failed answer on to whoever follows it", () =>
@@ -824,13 +957,12 @@ describe("conversations", () => {
       )
     }).pipe(
       Effect.provide(
-        serveApi(
-          model.layer,
-          Layer.succeed(
+        serveApi(model.layer, {
+          limit: Layer.succeed(
             AskLimit,
             AskLimit.of({ count: () => Effect.fail(new TooManyQuestions()) }),
           ),
-        ),
+        }),
       ),
     )
   })
@@ -871,13 +1003,12 @@ describe("explaining a chart", () => {
       expect(yield* explain(brazilTrend).pipe(Effect.flip)).toBeInstanceOf(TooManyQuestions)
     }).pipe(
       Effect.provide(
-        serveApi(
-          model.layer,
-          Layer.succeed(
+        serveApi(model.layer, {
+          limit: Layer.succeed(
             AskLimit,
             AskLimit.of({ count: () => Effect.fail(new TooManyQuestions()) }),
           ),
-        ),
+        }),
       ),
     )
   })
