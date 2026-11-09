@@ -10,7 +10,7 @@ import {
   Year,
 } from "@civicdata/domain"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { render, screen, within } from "@testing-library/react"
+import { act, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { DateTime, Match, Schema } from "effect"
 import { http, HttpResponse } from "msw/http"
@@ -51,6 +51,8 @@ const catalog = [
 const titles = new Map([[population, "Total population"]])
 
 const reported: ResolvedView["observations"] = [
+  { country: "FRA", year: Year.make(2017), value: 66_918_020 },
+  { country: "FRA", year: Year.make(2018), value: 67_158_348 },
   { country: "FRA", year: Year.make(2019), value: 67_388_001 },
   { country: "FRA", year: Year.make(2020), value: 67_571_107 },
   { country: "DEU", year: Year.make(2019), value: 83_092_962 },
@@ -354,6 +356,23 @@ describe("Explore", () => {
     expect(table.getByRole("columnheader", { name: "Total population" })).toBeDefined()
     expect(table.getByRole("columnheader", { name: "GDP per capita (current US$)" })).toBeDefined()
     expect(table.getAllByRole("row")).toHaveLength(3)
+  })
+
+  it("picks a trend's years on a window over its whole history", async () => {
+    network.use(worldBank)
+    const user = userEvent.setup()
+
+    show(trend)
+
+    await screen.findByRole("heading", { name: "Total population" })
+    // The history reaches back to 2017, before the trend's first year.
+    const first = await screen.findByRole("slider", { name: "First year" })
+
+    act(() => first.focus())
+    await user.keyboard("{ArrowLeft}")
+
+    expect(await screen.findByText("2018–2020")).toBeDefined()
+    expect(screen.getByRole("combobox", { name: "From" }).textContent).toContain("2018")
   })
 
   it("shows a total per person", async () => {
