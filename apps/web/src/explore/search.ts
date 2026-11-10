@@ -26,8 +26,9 @@ import { withPicks, withTransform } from "./edits.ts"
 // A ranking drawn as a map adds &as=map. A ranking or relation over time adds
 // the span its year lies in: &from=1990&to=2022. An SDMX indicator adds the
 // value of each dimension: &dimensions=sex:T,age:Y15-74
-// A trend lists what it draws over its lines besides the View, outside it:
-// &overlays=governments
+// Any chart lists what a trend draws over its lines besides the View, outside
+// it: &overlays=governments. Only a trend draws them, but every chart keeps
+// them, so a switch to a ranking and back to a trend keeps them on.
 const Search = Schema.Union([
   Schema.Struct({
     chart: Schema.Literal("trend"),
@@ -51,6 +52,7 @@ const Search = Schema.Union([
     per: Schema.optionalKey(IndicatorId),
     as: Schema.optionalKey(Schema.Literal("map")),
     dimensions: Schema.optionalKey(Schema.String),
+    overlays: Schema.optionalKey(Schema.String),
   }),
   Schema.Struct({
     chart: Schema.Literal("change"),
@@ -61,6 +63,7 @@ const Search = Schema.Union([
     transform: Schema.optionalKey(Schema.Literals(["per-person", "ratio"])),
     per: Schema.optionalKey(IndicatorId),
     dimensions: Schema.optionalKey(Schema.String),
+    overlays: Schema.optionalKey(Schema.String),
   }),
   Schema.Struct({
     chart: Schema.Literal("relation"),
@@ -71,6 +74,7 @@ const Search = Schema.Union([
     from: Schema.optionalKey(Year),
     to: Schema.optionalKey(Year),
     dimensions: Schema.optionalKey(Schema.String),
+    overlays: Schema.optionalKey(Schema.String),
   }),
 ])
 
@@ -209,16 +213,14 @@ const overlayList = Schema.decodeUnknownSync(Schema.Array(Overlay))
 const overlayParams = (overlays: ReadonlyArray<Overlay>): { readonly overlays?: string } =>
   overlays.length === 0 ? {} : { overlays: overlays.join(",") }
 
-// What a link turns on over its trend. Throws on an overlay it does not know,
-// like toView on a View it does not describe.
+// What a link turns on over a trend, whatever its chart. Throws on an overlay
+// it does not know, like toView on a View it does not describe.
 export const toOverlays = (search: Search): ReadonlyArray<Overlay> =>
-  search.chart === "trend" && search.overlays !== undefined
-    ? overlayList(search.overlays.split(","))
-    : []
+  search.overlays === undefined ? [] : overlayList(search.overlays.split(","))
 
-// The View and, for a trend, what is drawn over it, as link parameters.
-export const toSearch = (view: View, overlays: ReadonlyArray<Overlay> = []): Search =>
-  Match.valueTags(view, {
+// The View and what a trend draws over it, as link parameters.
+export const toSearch = (view: View, overlays: ReadonlyArray<Overlay> = []): Search => ({
+  ...Match.valueTags(view, {
     Trend: ({ indicator, countries, from, to, transform, dimensions }) => ({
       chart: "trend" as const,
       indicator,
@@ -227,7 +229,6 @@ export const toSearch = (view: View, overlays: ReadonlyArray<Overlay> = []): Sea
       to,
       ...transformParams(transform),
       ...dimensionParams(dimensions),
-      ...overlayParams(overlays),
     }),
     Ranking: ({ indicator, countries, year, span, transform, as, dimensions }) => ({
       chart: "ranking" as const,
@@ -257,7 +258,9 @@ export const toSearch = (view: View, overlays: ReadonlyArray<Overlay> = []): Sea
       ...spanParams(span),
       ...dimensionParams(dimensions),
     }),
-  })
+  }),
+  ...overlayParams(overlays),
+})
 
 // The View in a URL's query string, read the way the router reads /explore's.
 // Throws like toView.
