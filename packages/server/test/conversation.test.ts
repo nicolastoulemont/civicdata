@@ -2441,3 +2441,44 @@ describe("finding years", () => {
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 })
+
+describe("breaks in series", () => {
+  it.effect("tells the model each break the source marks in the years a change spans", () => {
+    const model = scripted([
+      Effect.succeed(
+        call("show_chart", {
+          ...brazil,
+          chart: "change",
+          indicator: labourForce,
+          countries: withSweden,
+          dimensions: activityRate,
+          from: 2009,
+          to: 2025,
+        }),
+      ),
+    ])
+
+    return Effect.gen(function* () {
+      yield* recordedDay
+
+      yield* answer("How has labour force participation changed since 2009?")
+
+      // Eurostat flags Germany's 2010, 2011 and 2020 values, Italy's 2018 and
+      // Poland's 2010 and 2019 with "b". The chart shows 2009 and 2025 only.
+      expect(model.prompts[1]).toContain(
+        JSON.stringify({
+          breaks: [
+            { country: "DEU", year: 2010 },
+            { country: "DEU", year: 2011 },
+            { country: "DEU", year: 2020 },
+            { country: "ITA", year: 2018 },
+            { country: "POL", year: 2010 },
+            { country: "POL", year: 2019 },
+          ],
+          provisional: 0,
+          estimated: 0,
+        }),
+      )
+    }).pipe(Effect.provide(serveApi(model.layer, { sdmx: cachedEurostat().layer })))
+  })
+})

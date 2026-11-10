@@ -186,7 +186,8 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
                 missing: missing(countries, [single.observations]),
               })),
             ),
-          // The years between are fetched with the two, and dropped.
+          // The years between are fetched with the two, and dropped; their
+          // breaks in series are kept.
           Change: (change) =>
             values(change).pipe(
               Effect.map((single) => {
@@ -212,6 +213,9 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
                   observations: [...from, ...to],
                   missing: missing(countries, [from, to]),
                   disagreements,
+                  breaks: single.observations.flatMap(({ country, year, flags }) =>
+                    flags?.includes("Break") === true ? [{ country, year }] : [],
+                  ),
                 }
               }),
             ),

@@ -101,7 +101,7 @@ export {
   yearsOf,
 } from "./Politics.ts"
 
-export { type Flag, Observation, ResolvedView } from "./ResolvedView.ts"
+export { Break, type Flag, Observation, ResolvedView } from "./ResolvedView.ts"
 
 export { Source, sourceOf } from "./Source.ts"
 

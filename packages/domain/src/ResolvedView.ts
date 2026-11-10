@@ -23,6 +23,11 @@ export const Observation = Schema.Struct({
 
 export interface Observation extends Schema.Schema.Type<typeof Observation> {}
 
+// A country's first value after a break in series.
+export const Break = Schema.Struct({ country: Country, year: Year })
+
+export interface Break extends Schema.Schema.Type<typeof Break> {}
+
 // One series fetched to draw the chart, shown next to it. A transformed chart
 // lists every series it was computed from, e.g. GDP and population.
 const Provenance = Schema.Struct({
@@ -60,8 +65,12 @@ const fields = {
   sources: Schema.NonEmptyArray(Provenance),
 }
 
-// A Trend, Ranking or Change, with the data behind it.
-const Single = Schema.Struct({ view: Schema.Union([Trend, Ranking, Change]), ...fields })
+// A Trend or Ranking, with the data behind it.
+const Single = Schema.Struct({ view: Schema.Union([Trend, Ranking]), ...fields })
+
+// A Change shows its two years only. `breaks` keeps each break in series in
+// the years it spans, which its observations drop.
+const Stepped = Schema.Struct({ view: Change, ...fields, breaks: Schema.Array(Break) })
 
 // A Relation also holds the values of the indicator it is plotted against.
 // A country is missing unless it has a value for both.
@@ -75,6 +84,6 @@ const Paired = Schema.Struct({
   }),
 })
 
-export const ResolvedView = Schema.Union([Single, Paired])
+export const ResolvedView = Schema.Union([Single, Stepped, Paired])
 
 export type ResolvedView = typeof ResolvedView.Type

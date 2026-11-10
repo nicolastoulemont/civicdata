@@ -113,6 +113,13 @@ const resolvedFor = (view: View): ResolvedView => {
       value: transformOf(view) === "PerPerson" ? value / 1_000_000 : value,
     }))
 
+  // A ratio cites the series it divides by.
+  const sourcesOf = (single: Exclude<View, { readonly _tag: "Relation" }>) =>
+    Match.value(single.transform).pipe(
+      Match.when({ _tag: "Ratio" }, ({ per }) => [source(single.indicator), source(per)] as const),
+      Match.orElse(() => [source(single.indicator)] as const),
+    )
+
   const fields = {
     title: titled(view.indicator),
     indicator: named(view.indicator),
@@ -135,18 +142,14 @@ const resolvedFor = (view: View): ResolvedView => {
       },
       sources: [source(relation.indicator), source(relation.against)] as const,
     })),
-    Match.orElse((single) => ({
-      view: single,
+    // A change keeps the breaks in series between its years; the fake has none.
+    Match.tag("Change", (change) => ({
+      view: change,
       ...fields,
-      // A ratio cites the series it divides by.
-      sources: Match.value(single.transform).pipe(
-        Match.when(
-          { _tag: "Ratio" },
-          ({ per }) => [source(single.indicator), source(per)] as const,
-        ),
-        Match.orElse(() => [source(single.indicator)] as const),
-      ),
+      sources: sourcesOf(change),
+      breaks: [],
     })),
+    Match.orElse((single) => ({ view: single, ...fields, sources: sourcesOf(single) })),
   )
 }
 
