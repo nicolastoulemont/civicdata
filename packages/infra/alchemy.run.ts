@@ -45,11 +45,10 @@ export default Alchemy.Stack(
       (model) => model !== "",
     )
 
-    // The Workflows' account-wide names, one per stage. CI reads them from
-    // the stack output to start a run of each after each deploy.
+    // The Workflows' account-wide names, one per stage. CI reads the
+    // catalog's from the stack output to start a build after each deploy.
     const prefix = `civicdata-${stage.toLowerCase().replaceAll(/[^a-z0-9-]/g, "-")}`
     const catalog = `${prefix}-catalog`
-    const gather = `${prefix}-gather`
 
     const web = yield* Cloudflare.Website.Vite("Web", {
       rootDir: "../../apps/web",
@@ -77,10 +76,11 @@ export default Alchemy.Stack(
           schedules: ["0 4 * * 1"],
         }),
         // Gathers each source's series into SERIES every day at 05:00 UTC,
-        // after Monday's catalog build. CI starts one more run after each
-        // deploy, so a new stage fills its own store.
+        // after Monday's catalog build. Deploys start no run; the Gather
+        // series GitHub workflow (.github/workflows/gather.yml) starts one
+        // on demand, by this name.
         GATHER: Cloudflare.Workflow("Gather", {
-          workflowName: gather,
+          workflowName: `${prefix}-gather`,
           className: "GatherWorkflow",
           schedules: ["0 5 * * *"],
         }),
@@ -100,6 +100,6 @@ export default Alchemy.Stack(
       },
     })
 
-    return { url: web.url, catalog, gather }
+    return { url: web.url, catalog }
   }),
 )

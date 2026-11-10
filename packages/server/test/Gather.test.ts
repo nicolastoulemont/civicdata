@@ -9,8 +9,8 @@ import { WorldBank } from "../src/WorldBank.ts"
 import { entry } from "./catalog.ts"
 import { steps } from "./fakes.ts"
 import {
-  answer,
   bucket,
+  bulk,
   catalogOf,
   catalogue,
   charts,
@@ -120,7 +120,7 @@ describe("Gather", () => {
     return Effect.gen(function* () {
       published.answers.set(
         codes.population,
-        answer(recorded.population, { keep: (row) => row.date !== "2025" }),
+        bulk(recorded.population, ({ year, cell }) => (year === 2025 ? "" : cell)),
       )
       yield* catalogue(catalogOf(codes))
       yield* run.pipe(Effect.provide(gather))
@@ -128,10 +128,9 @@ describe("Gather", () => {
       published.version = "2026-12-15"
       published.answers.set(
         codes.population,
-        answer(recorded.population, {
-          change: (row) =>
-            row.countryiso3code === "ESP" && row.date === "2020" ? { ...row, value: 1 } : row,
-        }),
+        bulk(recorded.population, ({ country, year, cell }) =>
+          country === "ESP" && year === 2020 ? "1" : cell,
+        ),
       )
       yield* run.pipe(Effect.provide(gather))
 
@@ -163,9 +162,9 @@ describe("Gather", () => {
         published.version = "2026-12-15"
         published.answers.set(
           codes.population,
-          answer(recorded.population, {
-            keep: (row) => !(row.countryiso3code === "ESP" && row.date >= "2024"),
-          }),
+          bulk(recorded.population, ({ country, year, cell }) =>
+            country === "ESP" && year >= 2024 ? "" : cell,
+          ),
         )
         yield* run.pipe(Effect.provide(gather))
 
@@ -233,7 +232,7 @@ describe("Gather", () => {
         expect(store.puts()).toBe(1)
         expect(yield* gathered).toBeNull()
 
-        published.answers.set(codes.unemployment, answer(recorded.unemployment))
+        published.answers.set(codes.unemployment, bulk(recorded.unemployment))
 
         const asked = source.requests()
 
@@ -251,7 +250,7 @@ describe("Gather", () => {
 
     const published = {
       version: "2026-10-08",
-      answers: new Map<string, unknown>(codes.map((code) => [code, answer(recorded.population)])),
+      answers: new Map(codes.map((code) => [code, bulk(recorded.population)])),
     }
 
     const source = serving(published)

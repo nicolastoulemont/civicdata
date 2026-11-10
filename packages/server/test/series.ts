@@ -1,16 +1,17 @@
 import { type CatalogEntry, IndicatorId } from "@civicdata/domain"
 import { D1Client } from "@effect/sql-d1"
 import { env } from "cloudflare:workers"
-import { Effect, Layer, Schema } from "effect"
+import { Effect, Layer } from "effect"
+import { strToU8, zipSync } from "fflate"
 
 import { Gather } from "../src/Gather.ts"
 import { type SeriesBucket, Store } from "../src/Store.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 import { build, catalogOver, emptyCatalog, entry, listings } from "./catalog.ts"
 import { http, memory } from "./fakes.ts"
-import unknown from "./fixtures/worldbank/indicator-unknown.json"
-import population from "./fixtures/worldbank/series-population.json"
-import unemployment from "./fixtures/worldbank/series-unemployment.json"
+import population from "./fixtures/worldbank/bulk-population.csv?raw"
+import unemployment from "./fixtures/worldbank/bulk-unemployment.csv?raw"
+import unknown from "./fixtures/worldbank/bulk-unknown.xml?raw"
 import sources from "./fixtures/worldbank/sources.json"
 
 const db = env.DB
@@ -20,54 +21,59 @@ if (db === undefined || series === undefined) {
   throw new Error("vitest.config.ts must bind a D1 database as DB and an R2 bucket as SERIES")
 }
 
-// A recorded World Bank answer, typed by the fields a test changes and kept
-// whole otherwise.
-const Answer = Schema.Tuple([
-  Schema.Record(Schema.String, Schema.Unknown),
-  Schema.Array(
-    Schema.StructWithRest(
-      Schema.Struct({
-        countryiso3code: Schema.String,
-        date: Schema.String,
-        value: Schema.NullOr(Schema.Number),
-      }),
-      [Schema.Record(Schema.String, Schema.Unknown)],
-    ),
-  ),
-])
+// The World Bank's bulk downloads of population and unemployment, trimmed to
+// Germany, Spain, France and the European Union.
+export const recorded = { population, unemployment }
 
-type Answer = typeof Answer.Type
-
-type Row = Answer[1][number]
-
-// The recorded World Bank answers for every country and year of an indicator,
-// trimmed to Germany, Spain and France since 2020.
-export const recorded = {
-  population: Schema.decodeUnknownSync(Answer)(population),
-  unemployment: Schema.decodeUnknownSync(Answer)(unemployment),
+// One value cell of a bulk download's CSV, as a test may change it.
+interface Value {
+  readonly country: string
+  readonly year: number
+  readonly cell: string
 }
 
-// An answer with only the rows `keep` keeps, after `change`.
-export const answer = (
-  recording: Answer,
-  {
-    keep = () => true,
-    change = (row) => row,
-  }: { keep?: (row: Row) => boolean; change?: (row: Row) => Row } = {},
-) => {
-  const [head, rows] = recording
-  const kept = rows.filter(keep).map(change)
+// Every field of the CSV is quoted, and each line ends with a comma.
+const fieldsOf = (line: string) => line.replace(/,\r?$/, "").slice(1, -1).split('","')
 
-  return [{ ...head, total: kept.length }, kept]
+const lineOf = (fields: ReadonlyArray<string>) =>
+  `${fields.map((field) => `"${field}"`).join(",")},\r`
+
+// A bulk download of the recording, each value cell replaced by what
+// `change` answers for it ("" drops it), zipped beside a metadata file as
+// the World Bank ships it.
+export const bulk = (recording: string, change = ({ cell }: Value) => cell) => {
+  const lines = recording.split("\n")
+  const header = lines.findIndex((line) => line.startsWith('"Country Name"'))
+  const columns = fieldsOf(lines[header] ?? "")
+
+  const edited = lines.map((line, at) => {
+    if (at <= header || line.trim() === "") return line
+
+    const fields = fieldsOf(line)
+    const country = fields[1] ?? ""
+
+    return lineOf(
+      fields.map((cell, column) => {
+        const year = Number(columns[column])
+
+        return column < 4 || !Number.isInteger(year) ? cell : change({ country, year, cell })
+      }),
+    )
+  })
+
+  return zipSync({
+    "API_SP.POP.TOTL_DS2_en_csv_v2_1.csv": strToU8(edited.join("\n")),
+    "Metadata_Indicator_API_SP.POP.TOTL_DS2_en_csv_v2_1.csv": strToU8('"INDICATOR_CODE",\r\n'),
+  })
 }
 
 // What the fake World Bank publishes: the World Development Indicators'
-// release date, and the answer for each indicator code, or "broken" for an
-// answer in a shape the adapter does not recognize. An unlisted code answers
-// as the World Bank does for an indicator it does not know.
+// release date, and the bulk download of each indicator code, or "broken"
+// for an answer that is no ZIP. An unlisted code answers as the World Bank
+// does for an indicator it does not know.
 export interface Published {
   version: string
-  answers: Map<string, unknown>
+  answers: Map<string, Uint8Array<ArrayBuffer> | "broken">
 }
 
 // The World Bank over HTTP, counting the requests it answers.
@@ -93,7 +99,7 @@ export const serving = (published: Published) => {
 
     if (found === "broken") return Response.json({ unexpected: true })
 
-    return Response.json(found ?? unknown)
+    return new Response(found ?? unknown)
   })
 
   return { layer, requests: () => requests }
@@ -131,9 +137,9 @@ export const catalogOf = (codes: ReturnType<typeof indicators>): ReadonlyArray<C
 // The World Bank publishing the recorded answers for both indicators.
 export const publishing = (codes: ReturnType<typeof indicators>): Published => ({
   version: "2026-10-08",
-  answers: new Map<string, unknown>([
-    [codes.population, answer(recorded.population)],
-    [codes.unemployment, answer(recorded.unemployment)],
+  answers: new Map([
+    [codes.population, bulk(recorded.population)],
+    [codes.unemployment, bulk(recorded.unemployment)],
   ]),
 })
 

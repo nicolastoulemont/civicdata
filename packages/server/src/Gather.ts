@@ -1,11 +1,9 @@
 import {
   CatalogUnavailable,
   type CatalogEntry,
-  countries,
   IndicatorId,
   type Source,
   SourceUnavailable,
-  Year,
 } from "@civicdata/domain"
 import { Array as Arr, Context, DateTime, Effect, Layer, Option, Schema } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
@@ -25,10 +23,9 @@ import {
 } from "./Store.ts"
 import { datasetOf, WorldBank } from "./WorldBank.ts"
 
-// Indicators per step. The World Bank answers one in about a second with
-// about 3 MB for every country and year, so 50 asked two at a time take
-// about half a minute, within the 120-a-minute budget, and hold at most two
-// answers in memory.
+// Indicators per step. The World Bank's bulk download of one is a ZIP of
+// about 50 KB, served in a tenth of a second, so 50 asked two at a time
+// take the half minute the 120-a-minute budget allows.
 const perStep = 50
 
 const together = 2
@@ -53,8 +50,8 @@ type Gathered = {
 interface Interface {
   // The World Development Indicators' release to gather, or null when the
   // last complete run gathered it. It fails while the catalog has no World
-  // Bank entries, since a run gathers what the catalog lists: on a new stage,
-  // the catalog build started with it has not published yet.
+  // Bank entries, since a run gathers what the catalog lists: recording the
+  // release then would store nothing until the next one.
   readonly check: Effect.Effect<string | null, SourceUnavailable | CatalogUnavailable>
   // Gathers the series of the catalog's World Bank indicators after `after`,
   // in code order, and answers what it did.
@@ -77,12 +74,6 @@ const PlacesJson = Schema.fromJsonString(
 
 const KeysJson = Schema.fromJsonString(Schema.Array(Schema.String))
 
-// Every country we chart: asking for them by code leaves out the World
-// Bank's regions and income groups, which no chart shows.
-const everyCountry = countries.map((country) => country.code)
-
-const first = Year.make(1960)
-
 // Gathers each source's series into the store: on a schedule, it asks a
 // source for every country and year of each indicator in the catalog and
 // stores each as one series, unless the stored one already holds the same
@@ -97,8 +88,8 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
       const store = yield* Store
       const worldBank = yield* WorldBank
 
-      // The catalog's, which a new stage's first run may read before the
-      // first catalog build has made them.
+      // The catalog's, which a run may read before any catalog build has
+      // made them.
       yield* tables
 
       // The release each scope was last gathered from in full: a source with
@@ -200,15 +191,12 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
         return "Stored" satisfies Outcome
       })
 
-      const one = Effect.fn("Gather.one")(function* (
-        entry: CatalogEntry,
-        { version, to }: { version: string; to: Year },
-      ) {
+      const one = Effect.fn("Gather.one")(function* (entry: CatalogEntry, version: string) {
         const { indicator, name, definition } = entry
 
         // An indicator the World Bank no longer knows is an empty candidate.
         const answer = yield* worldBank
-          .observations({ indicator, countries: everyCountry, from: first, to })
+          .series(indicator)
           .pipe(
             Effect.catchTag("IndicatorNotFound", () =>
               Effect.map(DateTime.now, (retrievedAt) => ({ observations: [], retrievedAt })),
@@ -241,13 +229,11 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
       const gather = Effect.fn("Gather.gather")(
         function* ({ version, after }: { version: string; after: string }) {
           const entries = yield* listed(after)
-          const now = yield* DateTime.now
-          const to = Year.make(DateTime.getPartUtc(now, "year"))
 
           const outcomes = yield* Effect.forEach(
             entries,
             (entry) =>
-              one(entry, { version, to }).pipe(
+              one(entry, version).pipe(
                 Effect.tapError((error) =>
                   Effect.logWarning("Could not gather", entry.indicator, error),
                 ),

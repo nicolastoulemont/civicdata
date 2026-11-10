@@ -1,14 +1,14 @@
 # Stored series
 
-World Bank charts read from our own copy of the World Development Indicators instead of asking the World Bank for each chart. A Workflow, `GatherWorkflow` (`packages/server/src/Gather.ts`), fills that copy every day at 05:00 UTC, and CI starts one more run after each deploy, so every stage fills its own. Eurostat and OECD charts still ask their source; they will move to the same store.
+World Bank charts read from our own copy of the World Development Indicators instead of asking the World Bank for each chart. A Workflow, `GatherWorkflow` (`packages/server/src/Gather.ts`), fills each stage's copy every day at 05:00 UTC. Deploys start no run: a new stage, such as a pull request's preview, stores nothing until its first 05:00 or a run started by hand (below), and its charts ask the World Bank until then. Eurostat and OECD charts still ask their source; they will move to the same store.
 
 ## What a run does
 
 1. It asks the World Bank when the World Development Indicators last changed (`/v2/sources/2`). When that date equals the one the last complete run recorded, the run stops there: one request, no writes.
-2. Otherwise it takes the World Bank indicators of the published catalog, 50 a step in code order, and asks for each one's values in every country and year since 1960, two at a time, through `Pace`. It asks for the 217 economies by code, so the World Bank's regions and income groups never reach the store; no chart showed them before either.
+2. Otherwise it takes the World Bank indicators of the published catalog, 50 a step in code order, and downloads each one's bulk file (`/v2/en/indicator/<indicator>?downloadformat=csv`), two at a time, through `Pace`. The file is a ZIP of about 50 KB whose CSV holds every economy and year since 1960, and the World Bank serves it in about a tenth of a second. The API's own query for every country and year answers about 3 MB and, for an indicator nobody asked for lately, takes from seconds to several minutes: in the first preview run 8% of those queries timed out. The CSV holds the same values as the API. The run keeps the 217 economies the app charts, so the World Bank's regions and income groups never reach the store; no chart showed them before either.
 3. It offers each answer to the store (below), then records the date once every indicator is stored, unchanged or held back. If an indicator failed, the date stays unrecorded and the run fails, so the next run asks for every indicator again; the ones that did not change write nothing.
 
-A step saves the last indicator it gathered and its counts. A run that stops part way resumes after the last step that completed. On a new stage the catalog build and the first run start together, so the first step fails and retries until the catalog has its World Bank entries, for about half an hour.
+A step saves the last indicator it gathered and its counts. A run that stops part way resumes after the last step that completed. A run that finds no World Bank entries in the catalog fails its first step and retries for about half an hour, in case a catalog build is still publishing them.
 
 ## The store
 
@@ -35,4 +35,4 @@ D1's `series_version` holds the release each scope was last gathered from in ful
 
 ## Start a run by hand
 
-Start an instance from the Cloudflare dashboard (Workers & Pages, Workflows, `civicdata-<stage>-gather`) or with `POST /accounts/<account>/workflows/civicdata-<stage>-gather/instances`. To gather again although the date has not moved, delete the `World Bank` row of `series_version` first.
+Run the `Gather series` GitHub workflow with the stage, `prod` or `pr-<number>`, from the Actions tab or with `gh workflow run gather.yml -f stage=pr-123`. It starts one instance of `civicdata-<stage>-gather`, the same as the schedule does. The Cloudflare dashboard (Workers & Pages, Workflows) starts one too. To gather again although the date has not moved, delete the `World Bank` row of `series_version` first.

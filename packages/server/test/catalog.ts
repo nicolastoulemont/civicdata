@@ -86,6 +86,7 @@ const sources = (lists: Listings) =>
         observations: () => Effect.die("not used by the catalog"),
         indicators: list(lists, "World Bank"),
         version: Effect.die("not used by the catalog"),
+        series: () => Effect.die("not used by the catalog"),
       }),
     ),
     Layer.succeed(

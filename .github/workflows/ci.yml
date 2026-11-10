@@ -92,31 +92,28 @@ jobs:
             exit 1
           fi
           echo "url=$url" >> "$GITHUB_OUTPUT"
-      # A new stage has no catalog or stored series until a run fills them,
-      # and a deploy may change what a run stores, so each deploy starts a
-      # catalog build and a gathering run besides the Workflows' schedules.
-      # The names come from the stack output, which pull request code writes,
-      # so they are checked before use.
+      # A new stage has no catalog until a build publishes one, and a deploy
+      # may change what a build stores, so each deploy starts a build besides
+      # the Workflow's weekly schedule. The name comes from the stack output,
+      # which pull request code writes, so it is checked before use.
       - &build
-        name: Start a catalog build and a gathering run
+        name: Start a catalog build
         run: |
           output=$(pnpm --silent --filter @civicdata/infra exec alchemy state cat "civicdata/$STAGE/output" --log-level=none --no-input)
-          for workflow in catalog gather; do
-            if ! name=$(sed -n '/^{/,$p' <<< "$output" | jq -er ".$workflow"); then
-              echo "::error::Could not read the $workflow Workflow from the stack output"
-              printf '%s\n' "$output"
-              exit 1
-            fi
-            if [[ ! "$name" =~ ^[a-z0-9-]+$ ]]; then
-              echo "::error::Unexpected $workflow Workflow name"
-              exit 1
-            fi
-            curl --fail-with-body --silent --show-error -X POST \
-              -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
-              -H "Content-Type: application/json" \
-              -d '{}' \
-              "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workflows/$name/instances" > /dev/null
-          done
+          if ! name=$(sed -n '/^{/,$p' <<< "$output" | jq -er .catalog); then
+            echo "::error::Could not read the catalog Workflow from the stack output"
+            printf '%s\n' "$output"
+            exit 1
+          fi
+          if [[ ! "$name" =~ ^[a-z0-9-]+$ ]]; then
+            echo "::error::Unexpected catalog Workflow name"
+            exit 1
+          fi
+          curl --fail-with-body --silent --show-error -X POST \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{}' \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/workflows/$name/instances" > /dev/null
 
   # The preview comment jobs hold the only write token, and they never check
   # out or run pull request code.

@@ -8,8 +8,10 @@ import {
 } from "@civicdata/domain"
 import { Context, DateTime, Duration, Effect, Layer, Option, Schedule, Schema } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
+import { unzipSync } from "fflate"
 
 import { Cache } from "./Cache.ts"
+import { records } from "./Csv.ts"
 import { Pace } from "./Pace.ts"
 import { Described, type Query, Series, widen } from "./Series.ts"
 import { Store } from "./Store.ts"
@@ -29,6 +31,11 @@ interface Interface {
   // The day the World Development Indicators last changed, such as
   // "2026-10-08". The World Bank publishes one for the whole dataset.
   readonly version: Effect.Effect<string, SourceUnavailable>
+  // Every value of the indicator in every country we chart, from its bulk
+  // download.
+  readonly series: (
+    indicator: IndicatorId,
+  ) => Effect.Effect<Series, IndicatorNotFound | SourceUnavailable>
 }
 
 // The World Bank reports request errors with HTTP 200 and this body.
@@ -75,6 +82,33 @@ const unavailable = () => new SourceUnavailable({ source: "World Bank" })
 // row: at most one per country and year.
 const urlOf = (query: Query) =>
   `${base}/country/${query.countries.join(";")}/indicator/${query.indicator}?format=json&date=${query.from}:${query.to}&per_page=${query.countries.length * (query.to - query.from + 1)}`
+
+// The bulk download of one indicator: a ZIP of three CSV files, the values in
+// the one named API_<indicator>_..., one row per economy and one column per
+// year since 1960. It is a static file, served in a tenth of a second, where
+// the API takes from a second to several minutes to list every country and
+// year of an indicator it has not answered lately.
+const bulkOf = (indicator: IndicatorId) => `${base}/en/indicator/${indicator}?downloadformat=csv`
+
+const isCountry = Schema.is(Country)
+
+const isYear = Schema.is(Year)
+
+// The values of a bulk download's CSV, for the countries we chart: its
+// regions and income groups are left out. The lines before its header name
+// the dataset and its last update.
+const valuesOf = (header: string) =>
+  records(header).flatMap((row) => {
+    const country = row.get("Country Code")
+
+    if (!isCountry(country)) return []
+
+    return [...row].flatMap(([column, cell]) => {
+      const [year, value] = [Number(column), Number(cell)]
+
+      return isYear(year) && cell !== "" && Number.isFinite(value) ? [{ country, year, value }] : []
+    })
+  })
 
 // The World Development Indicators republish the estimate and score of the
 // six Worldwide Governance Indicators under GOV_WGI_ codes. Their charts
@@ -149,12 +183,46 @@ const make = Effect.gen(function* () {
     Effect.withSpan("WorldBank.indicators"),
   )
 
+  const series = Effect.fn("WorldBank.series")(function* (indicator: IndicatorId) {
+    const url = bulkOf(indicator)
+
+    const buffer = yield* client.get(url).pipe(
+      Effect.flatMap((response) => response.arrayBuffer),
+      Effect.timeout("1 minute"),
+      Effect.tapError((error) => Effect.logWarning("World Bank request failed", url, error)),
+      Effect.mapError(unavailable),
+    )
+
+    // An indicator the World Bank does not know answers an XML error, which
+    // is no ZIP.
+    const files = yield* Effect.try({
+      try: () =>
+        unzipSync(new Uint8Array(buffer), { filter: ({ name }) => name.startsWith("API_") }),
+      catch: () =>
+        new TextDecoder().decode(buffer).includes('id="120"')
+          ? new IndicatorNotFound({ indicator })
+          : unavailable(),
+    })
+
+    const [csv] = Object.values(files)
+    const text = csv === undefined ? "" : new TextDecoder().decode(csv)
+    const header = text.indexOf('"Country Name"')
+
+    if (header === -1) {
+      yield* Effect.logWarning("World Bank bulk download holds no values", url)
+
+      return yield* unavailable()
+    }
+
+    return { observations: valuesOf(text.slice(header)), url, retrievedAt: yield* DateTime.now }
+  })
+
   const version = fetch(`${base}/sources/2?format=json`, VersionBody).pipe(
     Effect.map(([, [source]]) => source.lastupdated),
     Effect.withSpan("WorldBank.version"),
   )
 
-  return WorldBank.of({ describe, observations, indicators, version })
+  return WorldBank.of({ describe, observations, indicators, version, series })
 })
 
 // World Bank indicators change a few times a year at most.
@@ -204,6 +272,7 @@ export class WorldBank extends Context.Service<WorldBank, Interface>()(
         // The catalog keeps its own copy in D1.
         indicators: live.indicators,
         version: live.version,
+        series: live.series,
       })
     }),
   )
@@ -258,6 +327,7 @@ export class WorldBank extends Context.Service<WorldBank, Interface>()(
         }),
         indicators: fallback.indicators,
         version: fallback.version,
+        series: fallback.series,
       })
     }),
   ).pipe(Layer.provide(WorldBank.cached))

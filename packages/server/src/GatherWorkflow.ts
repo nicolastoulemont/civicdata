@@ -6,7 +6,7 @@ import { Step } from "./CatalogBuild.ts"
 import { Gather } from "./Gather.ts"
 
 // The Workflow that gathers each source's series into the store, every day at
-// 05:00 UTC and once after each deploy (packages/infra). Workers only:
+// 05:00 UTC (packages/infra). Workers only:
 // package.json resolves `@civicdata/server/workflow` to `workflow.node.ts`
 // outside workerd.
 export class GatherWorkflow extends WorkflowEntrypoint {

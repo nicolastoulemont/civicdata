@@ -234,8 +234,7 @@ export class Pace extends Context.Service<Pace, Interface>()("@civicdata/server/
   )
 
   // What a gathering run sends through. Nobody waits on it, so a request
-  // waits up to ten seconds for a slot: under the World Bank adapter's
-  // 15-second timeout, which counts the wait.
+  // waits up to ten seconds for a slot.
   static readonly gathering = Pace.paced(Duration.seconds(10)).pipe(
     Layer.provide(FetchHttpClient.layer),
     Layer.provide(Pace.live),

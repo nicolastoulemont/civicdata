@@ -13,7 +13,7 @@ import population from "./fixtures/worldbank/indicator.json"
 import sources from "./fixtures/worldbank/sources.json"
 import wgiGaps from "./fixtures/worldbank/wgi-gaps.json"
 import corruption from "./fixtures/worldbank/wgi-indicator.json"
-import { bucket, charts, serving } from "./series.ts"
+import { bucket, bulk, charts, recorded as bulks, serving } from "./series.ts"
 
 const base = "https://api.worldbank.org/v2"
 
@@ -117,6 +117,37 @@ describe("WorldBank", () => {
       expect(yield* (yield* WorldBank).version).toBe("2026-10-08")
     }).pipe(Effect.provide(recording)),
   )
+
+  it.effect("reads every country's values from the bulk download, leaving out regions", () => {
+    const source = serving({
+      version: "2026-10-08",
+      answers: new Map([["SP.POP.TOTL", bulk(bulks.population)]]),
+    })
+
+    return Effect.gen(function* () {
+      const series = yield* (yield* WorldBank).series(IndicatorId.make("SP.POP.TOTL"))
+
+      expect(new Set(series.observations.map(({ country }) => country))).toEqual(
+        new Set(["DEU", "ESP", "FRA"]),
+      )
+      expect(
+        series.observations.find(({ country, year }) => country === "FRA" && year === 1960)?.value,
+      ).toBe(47412964)
+      expect(series.url).toBe(`${base}/en/indicator/SP.POP.TOTL?downloadformat=csv`)
+    }).pipe(Effect.provide(WorldBank.layer.pipe(Layer.provide(source.layer))))
+  })
+
+  it.effect("reports an indicator the bulk download does not know", () => {
+    const source = serving({ version: "2026-10-08", answers: new Map() })
+
+    return Effect.gen(function* () {
+      const error = yield* (yield* WorldBank)
+        .series(IndicatorId.make("NOT.A.REAL"))
+        .pipe(Effect.flip)
+
+      expect(error).toBeInstanceOf(IndicatorNotFound)
+    }).pipe(Effect.provide(WorldBank.layer.pipe(Layer.provide(source.layer))))
+  })
 
   it.effect("lists the World Development Indicators with their definitions", () =>
     Effect.gen(function* () {
