@@ -2,11 +2,12 @@ import type { CloudflareWorkersModule } from "@cloudflare/workers-types"
 import { env, WorkflowEntrypoint } from "cloudflare:workers"
 import { Effect, Layer } from "effect"
 
-import { CatalogBuild, Step } from "./CatalogBuild.ts"
+import { CatalogBuild } from "./CatalogBuild.ts"
 import { Classifier } from "./Classifier.ts"
 import { modelClassifier } from "./ModelClassifier.ts"
 import { openAi } from "./OpenAi.ts"
 import { PoliticsBuild } from "./PoliticsBuild.ts"
+import { Step } from "./Step.ts"
 
 // The agent's OpenAI model classifies directions, when the deployment has a
 // key; without one, the build classifies nothing.

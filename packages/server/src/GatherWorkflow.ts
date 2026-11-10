@@ -2,8 +2,8 @@ import type { CloudflareWorkersModule } from "@cloudflare/workers-types"
 import { WorkflowEntrypoint } from "cloudflare:workers"
 import { Effect, Layer } from "effect"
 
-import { Step } from "./CatalogBuild.ts"
 import { Gather } from "./Gather.ts"
+import { Step } from "./Step.ts"
 
 // The Workflow that gathers each source's series into the store, every day at
 // 05:00 UTC (packages/infra). Workers only:

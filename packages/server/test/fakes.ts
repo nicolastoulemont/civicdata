@@ -2,7 +2,7 @@ import { Effect, Layer, Option } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
 
 import { Cache } from "../src/Cache.ts"
-import { Step, StepFailed } from "../src/CatalogBuild.ts"
+import { Step, StepFailed } from "../src/Step.ts"
 import type { Storage } from "../src/Transcript.ts"
 
 // An HttpClient that answers every request with `respond`, never the network.
