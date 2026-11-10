@@ -1,0 +1,124 @@
+[
+  {
+    "page": 1,
+    "pages": 1,
+    "per_page": 7,
+    "total": 7,
+    "sourceid": "2",
+    "lastupdated": "2026-10-08"
+  },
+  [
+    {
+      "indicator": {
+        "id": "GOV_WGI_CC_EST",
+        "value": "Control of Corruption - Governance estimate (approx. -2.5 to +2.5)"
+      },
+      "country": {
+        "id": "HU",
+        "value": "Hungary"
+      },
+      "countryiso3code": "HUN",
+      "date": "2002",
+      "value": 0.5685138,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "GOV_WGI_CC_EST",
+        "value": "Control of Corruption - Governance estimate (approx. -2.5 to +2.5)"
+      },
+      "country": {
+        "id": "HU",
+        "value": "Hungary"
+      },
+      "countryiso3code": "HUN",
+      "date": "2001",
+      "value": null,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "GOV_WGI_CC_EST",
+        "value": "Control of Corruption - Governance estimate (approx. -2.5 to +2.5)"
+      },
+      "country": {
+        "id": "HU",
+        "value": "Hungary"
+      },
+      "countryiso3code": "HUN",
+      "date": "2000",
+      "value": 0.7777458,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "GOV_WGI_CC_EST",
+        "value": "Control of Corruption - Governance estimate (approx. -2.5 to +2.5)"
+      },
+      "country": {
+        "id": "HU",
+        "value": "Hungary"
+      },
+      "countryiso3code": "HUN",
+      "date": "1999",
+      "value": null,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "GOV_WGI_CC_EST",
+        "value": "Control of Corruption - Governance estimate (approx. -2.5 to +2.5)"
+      },
+      "country": {
+        "id": "HU",
+        "value": "Hungary"
+      },
+      "countryiso3code": "HUN",
+      "date": "1998",
+      "value": 0.8027038,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "GOV_WGI_CC_EST",
+        "value": "Control of Corruption - Governance estimate (approx. -2.5 to +2.5)"
+      },
+      "country": {
+        "id": "HU",
+        "value": "Hungary"
+      },
+      "countryiso3code": "HUN",
+      "date": "1997",
+      "value": null,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    },
+    {
+      "indicator": {
+        "id": "GOV_WGI_CC_EST",
+        "value": "Control of Corruption - Governance estimate (approx. -2.5 to +2.5)"
+      },
+      "country": {
+        "id": "HU",
+        "value": "Hungary"
+      },
+      "countryiso3code": "HUN",
+      "date": "1996",
+      "value": 0.9142096,
+      "unit": "",
+      "obs_status": "",
+      "decimal": 1
+    }
+  ]
+]

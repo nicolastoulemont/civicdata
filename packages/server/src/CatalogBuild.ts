@@ -1,4 +1,4 @@
-import { CatalogEntry, Source, SourceUnavailable } from "@civicdata/domain"
+import { CatalogEntry, IndicatorId, Source, SourceUnavailable } from "@civicdata/domain"
 import type { CloudflareWorkersModule } from "@cloudflare/workers-types"
 import { D1Client } from "@effect/sql-d1"
 import { Array as Arr, Context, Effect, Layer, Option, Order, Schema } from "effect"
@@ -27,12 +27,15 @@ export const database = Layer.unwrap(
 // under D1's 2 MB limit for one bound value.
 const rowsPerInsert = 250
 
-// Entries embedded per step: Workers AI embeds at most 100 texts per call.
-const embedPerStep = 100
+// Entries embedded or removed per step: Workers AI embeds at most 100 texts
+// per call.
+const perStep = 100
 
 const EntriesJson = Schema.fromJsonString(Schema.Array(CatalogEntry))
 
 const Pending = Schema.Struct({ rowid: Schema.Int, ...CatalogEntry.fields })
+
+const IdsJson = Schema.fromJsonString(Schema.Array(IndicatorId))
 
 // The SHA-256 of the text, in hex. A build stores one beside each generation
 // it writes and skips a source or dataset whose fingerprint matches the
@@ -58,8 +61,10 @@ interface Interface {
     source: Source,
     generation: number,
   ) => Effect.Effect<number | null, SourceUnavailable>
-  // Embeds the generation's next entries after the row `after` into Vectors,
-  // and answers the last row embedded, or null once every entry is in.
+  // Embeds into Vectors the generation's next entries after the row `after`
+  // that Vectors does not hold as listed, by the same model, and answers the
+  // last row embedded, or null once every entry is in. An entry whose name
+  // and definition did not change keeps its vector.
   readonly embed: (
     source: Source,
     { generation, after }: { generation: number; after: number },
@@ -67,6 +72,9 @@ interface Interface {
   // Points searches at the generation, unless a newer one is already
   // published, and drops the source's older generations.
   readonly publish: (source: Source, generation: number) => Effect.Effect<void>
+  // Removes from Vectors up to 100 of the source's entries that its published
+  // generation no longer lists, and answers how many it removed.
+  readonly remove: (source: Source) => Effect.Effect<number, VectorsUnavailable>
 }
 
 // A step that still failed after its retries.
@@ -145,6 +153,22 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
 
       yield* tables
 
+      // What Vectors holds: the entry each vector embeds and the model that
+      // embedded it, written after each put. A build embeds the entries that
+      // differ from it and removes those the published generation dropped,
+      // so a build that stopped part way leaves it true. Created here, since
+      // only builds read it: a stage whose tables an earlier version made
+      // gets it on its next build, which embeds each changed source in full.
+      yield* sql`
+        CREATE TABLE IF NOT EXISTS catalog_vector (
+          indicator TEXT PRIMARY KEY,
+          source TEXT NOT NULL,
+          model TEXT NOT NULL,
+          name TEXT NOT NULL,
+          definition TEXT NOT NULL
+        )
+      `
+
       const pending = SqlSchema.findAll({
         Request: Schema.Struct({
           source: Source,
@@ -155,8 +179,30 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
         execute: ({ source, generation, after }) => sql`
           SELECT rowid, indicator, name, definition FROM catalog
           WHERE rowid > ${after} AND source = ${source} AND generation = ${generation}
+            AND NOT EXISTS (
+              SELECT 1 FROM catalog_vector AS stored
+              WHERE stored.indicator = catalog.indicator AND stored.source = catalog.source
+                AND stored.model = ${vectors.model} AND stored.name = catalog.name
+                AND stored.definition = catalog.definition
+            )
           ORDER BY rowid
-          LIMIT ${embedPerStep}
+          LIMIT ${perStep}
+        `,
+      })
+
+      // The source's entries in Vectors that its published generation does
+      // not list.
+      const dropped = SqlSchema.findAll({
+        Request: Source,
+        Result: Schema.Struct({ indicator: IndicatorId }),
+        execute: (source) => sql`
+          SELECT indicator FROM catalog_vector WHERE source = ${source}
+          EXCEPT
+          SELECT catalog.indicator FROM catalog
+          JOIN catalog_current AS current
+            ON current.source = catalog.source AND current.generation = catalog.generation
+          WHERE catalog.source = ${source}
+          LIMIT ${perStep}
         `,
       })
 
@@ -227,7 +273,36 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
 
           yield* vectors.put(batch)
 
+          const rows = yield* Schema.encodeEffect(EntriesJson)(batch)
+
+          // WHERE true keeps SQLite from reading ON CONFLICT as a join's ON.
+          yield* sql`
+            INSERT INTO catalog_vector (indicator, source, model, name, definition)
+            SELECT json_extract(value, '$.indicator'), ${source}, ${vectors.model},
+              json_extract(value, '$.name'), json_extract(value, '$.definition')
+            FROM json_each(${rows}) WHERE true
+            ON CONFLICT (indicator) DO UPDATE SET source = excluded.source,
+              model = excluded.model, name = excluded.name, definition = excluded.definition
+          `
+
           return Arr.lastNonEmpty(batch).rowid
+        },
+        Effect.catchTags({ SqlError: Effect.die, SchemaError: Effect.die }),
+      )
+
+      const remove = Effect.fn("CatalogBuild.remove")(
+        function* (source: Source) {
+          const indicators = Arr.map(yield* dropped(source), ({ indicator }) => indicator)
+
+          if (!Arr.isReadonlyArrayNonEmpty(indicators)) return 0
+
+          yield* vectors.remove(indicators)
+
+          const ids = yield* Schema.encodeEffect(IdsJson)(indicators)
+
+          yield* sql`DELETE FROM catalog_vector WHERE indicator IN (SELECT value FROM json_each(${ids}))`
+
+          return indicators.length
         },
         Effect.catchTags({ SqlError: Effect.die, SchemaError: Effect.die }),
       )
@@ -251,7 +326,7 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
         Effect.catchTag("SqlError", Effect.die),
       )
 
-      return CatalogBuild.of({ write, embed, publish })
+      return CatalogBuild.of({ write, embed, publish, remove })
     }).pipe(Effect.orDie),
   )
 
@@ -267,7 +342,9 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
   // a resumed build writes the same generation and a later build a newer one.
   // A source whose published generation already holds its listing stops
   // after its write step. The step saves that decision, so a resumed build
-  // makes the same one.
+  // makes the same one. Every other decision, what to embed and what to
+  // remove, is read from D1 inside a step, which saves only a cursor or a
+  // count.
   static readonly run = Effect.fn("CatalogBuild.run")(function* (generation: number) {
     const step = yield* Step
     const build = yield* CatalogBuild
@@ -287,6 +364,17 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
       }
 
       yield* step.run(`publish ${source}`, build.publish(source, generation))
+
+      // After publishing, so search by meaning never misses an entry the
+      // published generation lists. Until then, search drops the neighbors
+      // it no longer lists (Catalog.ts).
+      let removed = 0
+      let count = perStep
+
+      while (count === perStep) {
+        count = yield* step.run(`remove ${source} after ${removed}`, build.remove(source))
+        removed += count
+      }
 
       return source
     })

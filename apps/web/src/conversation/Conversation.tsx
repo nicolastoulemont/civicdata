@@ -36,8 +36,19 @@ export const Conversation = ({ id, first }: ConversationProps) => {
   return (
     <div className="flex h-svh flex-col">
       <Header title={all[0]?.question ?? pending?.question ?? first} />
-      <main className="flex min-h-0 flex-1 flex-col gap-3">
-        <Scroll key={id} anchor={pending?.steps.length === 0 ? pending.question : undefined}>
+      <main className="flex min-h-0 flex-1 flex-col">
+        <Scroll
+          key={id}
+          anchor={pending?.steps.length === 0 ? pending.question : undefined}
+          composer={
+            <FollowUp
+              pending={pending !== undefined}
+              last={all.at(-1)?.answer}
+              answering={answering ? { stop, stopping } : undefined}
+              ask={ask}
+            />
+          }
+        >
           <Lane>
             <div className="flex flex-col gap-6">
               {turns.isError && turns.error !== dismissed ? (
@@ -59,12 +70,6 @@ export const Conversation = ({ id, first }: ConversationProps) => {
             </div>
           </Lane>
         </Scroll>
-        <FollowUp
-          pending={pending !== undefined}
-          last={all.at(-1)?.answer}
-          answering={answering ? { stop, stopping } : undefined}
-          ask={ask}
-        />
       </main>
     </div>
   )

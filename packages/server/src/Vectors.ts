@@ -30,6 +30,7 @@ export interface Index {
   readonly upsert: (
     vectors: Array<{ readonly id: string; readonly values: ReadonlyArray<number> }>,
   ) => Promise<{ readonly mutationId: string }>
+  readonly deleteByIds: (ids: Array<string>) => Promise<{ readonly mutationId: string }>
   readonly query: (
     vector: ReadonlyArray<number>,
     options: { readonly topK: number },
@@ -50,6 +51,10 @@ interface Interface {
   readonly model: string
   // Stores the meaning of each entry, replacing what an earlier put stored.
   readonly put: (entries: ReadonlyArray<CatalogEntry>) => Effect.Effect<void, VectorsUnavailable>
+  // Deletes what put stored under each indicator.
+  readonly remove: (
+    indicators: ReadonlyArray<IndicatorId>,
+  ) => Effect.Effect<void, VectorsUnavailable>
   // The indicators closest in meaning to the text, closest first.
   readonly nearest: (text: string) => Effect.Effect<ReadonlyArray<IndicatorId>, VectorsUnavailable>
 }
@@ -72,7 +77,7 @@ const topK = 20
 
 // Vectorize ids are at most 64 bytes. World Bank and Eurostat codes are far
 // shorter; the few longer OECD dataflow ids are found by words only.
-const fitsAnId = (entry: CatalogEntry) => entry.indicator.length <= 64
+const fitsAnId = (indicator: IndicatorId) => indicator.length <= 64
 
 const call = <A>(run: () => Promise<A>) =>
   Effect.tryPromise({ try: run, catch: (cause) => new VectorsUnavailable({ cause }) })
@@ -117,7 +122,7 @@ export class Vectors extends Context.Service<Vectors, Interface>()("@civicdata/s
     })
 
     const put = Effect.fn("Vectors.put")(function* (entries: ReadonlyArray<CatalogEntry>) {
-      const indexed = entries.filter(fitsAnId)
+      const indexed = entries.filter(({ indicator }) => fitsAnId(indicator))
 
       if (!Arr.isReadonlyArrayNonEmpty(indexed)) return
 
@@ -132,6 +137,14 @@ export class Vectors extends Context.Service<Vectors, Interface>()("@civicdata/s
       )
     })
 
+    const remove = Effect.fn("Vectors.remove")(function* (indicators: ReadonlyArray<IndicatorId>) {
+      const ids = indicators.filter(fitsAnId)
+
+      if (!Arr.isReadonlyArrayNonEmpty(ids)) return
+
+      yield* call(() => index.deleteByIds(ids))
+    })
+
     const nearest = Effect.fn("Vectors.nearest")(function* (text: string) {
       const vector = Arr.headNonEmpty(yield* embed([instruction + text]))
       const { matches } = yield* call(() => index.query(vector, { topK })).pipe(decode(Matches))
@@ -139,13 +152,18 @@ export class Vectors extends Context.Service<Vectors, Interface>()("@civicdata/s
       return matches.filter(({ score }) => score >= minimumScore).map(({ id }) => id)
     })
 
-    return Layer.succeed(Vectors, Vectors.of({ model, put, nearest }))
+    return Layer.succeed(Vectors, Vectors.of({ model, put, remove, nearest }))
   }
 
   static readonly none = Layer.succeed(
     Vectors,
     // Stores nothing, so a build with real Vectors embeds everything again.
-    Vectors.of({ model: "none", put: () => Effect.void, nearest: () => Effect.succeed([]) }),
+    Vectors.of({
+      model: "none",
+      put: () => Effect.void,
+      remove: () => Effect.void,
+      nearest: () => Effect.succeed([]),
+    }),
   )
 
   // Workers AI and Vectorize inside Workers (deployed, or under `alchemy

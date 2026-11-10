@@ -18,12 +18,20 @@ export const Indicator = Schema.Struct({
 })
 
 // What the World Bank says about an indicator beyond its definition: why it
-// matters ("Development relevance") and its limitations ("Limitations and
-// exceptions"). Each is null when the World Bank has written none.
+// matters ("Development relevance"), its limitations ("Limitations and
+// exceptions") and who produced it, with their page ("Source"), such as the
+// Worldwide Governance Indicators' page, which documents their method. Each
+// is null when the World Bank has written none.
 export const IndicatorNotes = Schema.Struct({
   indicator: IndicatorId,
   relevance: Schema.NullOr(Schema.NonEmptyString),
   limitations: Schema.NullOr(Schema.NonEmptyString),
+  producer: Schema.NullOr(
+    Schema.Struct({
+      name: Schema.NonEmptyString,
+      url: Schema.String.check(Schema.isPattern(/^https:\/\/\S+$/)),
+    }),
+  ),
   url: Schema.String,
   retrievedAt: Schema.DateTimeUtc,
 })

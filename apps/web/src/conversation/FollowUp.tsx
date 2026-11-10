@@ -25,9 +25,8 @@ interface FollowUpProps {
   ask: (question: string) => void
 }
 
-// The composer docked at the bottom of the lane. The timeline scrolls under it
-// and ends above it, since it keeps its place at the end of the page. Panels
-// about the next question go above the composer, in this dock.
+// The composer at the bottom of the lane, docked by the conversation's Scroll.
+// Panels about the next question go above the composer.
 export const FollowUp = ({ last, answering, pending, ask }: FollowUpProps) => {
   const question =
     !pending && answering === undefined && last !== undefined && "choices" in last
@@ -35,7 +34,7 @@ export const FollowUp = ({ last, answering, pending, ask }: FollowUpProps) => {
       : undefined
 
   return (
-    <div className="sticky bottom-0 z-10 mt-auto pb-3 sm:pb-4">
+    <div className="pb-3 sm:pb-4">
       <Lane>
         <div
           className={

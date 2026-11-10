@@ -184,6 +184,10 @@ const notes = http.get("/api/indicators/:indicator/notes", ({ params }) =>
       indicator: IndicatorId.make(String(params["indicator"])),
       relevance: "Population counts are the denominator of most indicators.",
       limitations: "Censuses happen about every ten years; years between are estimates.",
+      producer: {
+        name: "World Population Prospects, United Nations (UN)",
+        url: "https://population.un.org/wpp/",
+      },
       url: `https://api.worldbank.org/v2/sources/2/series/${String(params["indicator"])}/metadata?format=json`,
       retrievedAt: DateTime.makeUnsafe("2026-11-08T00:00:00Z"),
     }),
@@ -578,6 +582,69 @@ describe("Explore", () => {
     ).toHaveLength(2)
   })
 
+  it("keeps a year no country has a value for on the axis, so no line crosses it", async () => {
+    // Every other year, as the Worldwide Governance Indicators start.
+    const view = Trend.make({
+      ...trend,
+      countries: ["FRA"],
+      from: Year.make(1996),
+      to: Year.make(2003),
+    })
+
+    const values = [1996, 1998, 2000, 2002, 2003].map((year) => ({
+      country: "FRA" as const,
+      year: Year.make(year),
+      value: year - 2000,
+    }))
+
+    network.use(
+      http.post("/api/views/resolve", () =>
+        HttpResponse.json(
+          Schema.encodeSync(ResolvedViewSchema)({
+            ...resolvedFor(view),
+            missing: [],
+            observations: values,
+          }),
+        ),
+      ),
+    )
+
+    // A box for the chart, and a line's height for its legend, which
+    // Recharts takes off the plot's.
+    const bounds = vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: HTMLElement) {
+        return this.classList.contains("recharts-legend-wrapper")
+          ? new DOMRect(0, 0, 800, 24)
+          : new DOMRect(0, 0, 800, 320)
+      })
+
+    try {
+      const user = userEvent.setup()
+
+      show(view)
+
+      const shown = await screen.findByRole("figure")
+      const figure = within(shown)
+
+      // The tooltip steps through every year: two steps from 1996, past the
+      // empty 1997, is 1998's value.
+      await figure.findByText("France")
+      await user.click(figure.getByRole("application"))
+      await user.keyboard("{ArrowRight}{ArrowRight}")
+
+      expect(await figure.findByText("-2")).toBeDefined()
+
+      // One line, from 2002 to 2003; the years before it stand alone, each a dot.
+      const line = shown.querySelector(".recharts-line-curve")?.getAttribute("d") ?? ""
+
+      expect(line.match(/L/g)).toHaveLength(1)
+      expect(shown.querySelectorAll(".recharts-line-dots circle")).toHaveLength(3)
+    } finally {
+      bounds.mockRestore()
+    }
+  })
+
   it("notes where another source's figures differ, citing it", async () => {
     network.use(
       http.post("/api/views/resolve", async ({ request }) => {
@@ -890,7 +957,7 @@ describe("Explore", () => {
     ).toBe("P")
   })
 
-  it("says why the indicator matters, its limitations, and switches to a related one", async () => {
+  it("says why the indicator matters, its limitations, who produced it, and switches to a related one", async () => {
     const female = IndicatorId.make("SP.POP.TOTL.FE.IN")
 
     network.use(
@@ -921,6 +988,12 @@ describe("Explore", () => {
         "Censuses happen about every ten years; years between are estimates.",
       ),
     ).toBeDefined()
+
+    expect(
+      within(screen.getByRole("region", { name: "Produced by" }))
+        .getByRole("link", { name: "World Population Prospects, United Nations (UN)" })
+        .getAttribute("href"),
+    ).toBe("https://population.un.org/wpp/")
 
     const related = within(await screen.findByRole("region", { name: "Related indicators" }))
 
