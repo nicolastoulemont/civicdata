@@ -324,5 +324,7 @@
       "url": "https://api.worldbank.org/v2/country/AUT;BEL;BGR;HRV;CYP;CZE;DNK;EST;FIN;FRA;DEU;GRC;HUN;IRL;ITA;LVA;LTU;LUX;MLT;NLD;POL;PRT;ROU;SVK;SVN;ESP;SWE/indicator/SL.UEM.TOTL.ZS?format=json&date=2013:2023&per_page=297",
       "retrievedAt": "2026-11-10T07:27:10.378Z"
     }
-  ]
+  ],
+  "direction": "Lower",
+  "breaks": []
 }

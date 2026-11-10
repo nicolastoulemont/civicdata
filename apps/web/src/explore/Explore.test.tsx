@@ -1,10 +1,13 @@
 import {
   Explanation,
   CatalogUnavailable,
+  Change,
   countries as economies,
   Dimension,
   Dimensions,
   DimensionsMissing,
+  type Direction,
+  directionAfter,
   IndicatorId,
   IndicatorNotes,
   type Overlay,
@@ -61,6 +64,14 @@ const catalog = [
 // The server's plain-language titles. An indicator without one is titled
 // with its official name.
 const titles = new Map([[population, "Total population"]])
+
+const unemployment = IndicatorId.make("SL.UEM.TOTL.ZS")
+
+// The server's hand-checked directions; any other indicator is neutral.
+const directions = new Map<IndicatorId, Direction>([
+  [unemployment, "Lower"],
+  [IndicatorId.make("SP.DYN.LE00.IN"), "Higher"],
+])
 
 const reported: ResolvedView["observations"] = [
   { country: "FRA", year: Year.make(2017), value: 66_918_020 },
@@ -138,6 +149,7 @@ const resolvedFor = (view: View): ResolvedView => {
     ),
     dimensions: [],
     disagreements: [],
+    direction: directionAfter(directions.get(view.indicator) ?? "Neutral", transformOf(view)),
   }
 
   return Match.value(view).pipe(
@@ -327,6 +339,10 @@ const second = () =>
   act(() => {
     vi.advanceTimersByTime(1000)
   })
+
+// A country's shade on the map, read from its outline, which names it.
+const shadeOf = (name: string) =>
+  screen.getByText((text) => text.startsWith(`${name}: `)).parentElement?.getAttribute("fill")
 
 // The map's key, each shade's values then "No data".
 const mapKey = () =>
@@ -650,6 +666,7 @@ describe("Explore", () => {
         title: "Population on 1 January",
         dimensions: [],
         disagreements: [],
+        direction: "Neutral",
         indicator: { id: eurostat, name: "Population on 1 January", definition: "" },
         sources: [
           {
@@ -706,7 +723,7 @@ describe("Explore", () => {
   })
 
   it("asks which series of a Eurostat dataset to show, then charts the pick", async () => {
-    const unemployment = IndicatorId.make("ESTAT,UNE_RT_A,1.0")
+    const eurostatUnemployment = IndicatorId.make("ESTAT,UNE_RT_A,1.0")
 
     const sex = Schema.decodeSync(Dimension)({
       id: "sex",
@@ -726,7 +743,11 @@ describe("Explore", () => {
         if (view.dimensions?.[sex.id] === undefined)
           return HttpResponse.json(
             Schema.encodeSync(DimensionsMissing)(
-              new DimensionsMissing({ indicator: unemployment, dimensions: [sex], open: [sex.id] }),
+              new DimensionsMissing({
+                indicator: eurostatUnemployment,
+                dimensions: [sex],
+                open: [sex.id],
+              }),
             ),
             { status: 422 },
           )
@@ -741,8 +762,9 @@ describe("Explore", () => {
             missing: resolved.missing,
             dimensions: [sex],
             disagreements: [],
+            direction: "Lower",
             indicator: {
-              id: unemployment,
+              id: eurostatUnemployment,
               name: "Unemployment by sex and age - annual data",
               definition: "",
             },
@@ -753,7 +775,7 @@ describe("Explore", () => {
     )
     const user = userEvent.setup()
 
-    show(Trend.make({ ...trend, indicator: unemployment }))
+    show(Trend.make({ ...trend, indicator: eurostatUnemployment }))
 
     expect(await screen.findByText("Choose which series to show")).toBeDefined()
 
@@ -847,6 +869,7 @@ describe("Explore", () => {
             dimensions: resolved.dimensions,
             disagreements: [],
             sources: resolved.sources,
+            direction: resolved.direction,
             // France's values are provisional; Germany's series breaks in 2020.
             observations: resolved.observations.map(({ country, year, value }) =>
               country === "FRA"
@@ -957,6 +980,7 @@ describe("Explore", () => {
             missing: resolved.missing,
             dimensions: resolved.dimensions,
             sources: resolved.sources,
+            direction: resolved.direction,
             disagreements: [
               {
                 source: {
@@ -1423,6 +1447,76 @@ describe("Explore", () => {
     expect(await screen.findByText("No data in 2017 for Germany, Italy.")).toBeDefined()
     expect(mapKey()).toEqual(before)
     expect(before).toHaveLength(6)
+  })
+
+  it("shades a map of unemployment from green for the lowest to red, and says lower is better", async () => {
+    network.use(worldBank)
+
+    show(
+      Ranking.make({
+        indicator: unemployment,
+        countries: ["FRA", "DEU", "ITA"],
+        year: Year.make(2020),
+        as: "Map",
+      }),
+    )
+
+    expect(
+      await screen.findByRole("figure", {
+        name: "Map of Europe ranking countries by Unemployment, total (% of total labor force), lower is better",
+      }),
+    ).toBeDefined()
+    expect(mapKey()[0]).toBe("Lower is better")
+    expect(shadeOf("Italy")).toBe("var(--chart-better)")
+    expect(shadeOf("Germany")).toContain("var(--chart-worse)")
+  })
+
+  it("keeps a map of an indicator nobody checked blue, with no direction in its key", async () => {
+    network.use(worldBank)
+
+    show(
+      Ranking.make({
+        indicator: population,
+        countries: ["FRA", "DEU", "ITA"],
+        year: Year.make(2020),
+        as: "Map",
+      }),
+    )
+
+    await screen.findByRole("figure", {
+      name: "Map of Europe ranking countries by Total population",
+    })
+
+    expect(mapKey().filter((entry) => entry?.includes("is better"))).toEqual([])
+    expect(shadeOf("Italy")).toContain("var(--chart-1)")
+  })
+
+  it("draws a fall in unemployment as a move the better way", async () => {
+    network.use(worldBank)
+    const bounds = layOut()
+
+    try {
+      show(
+        Change.make({
+          indicator: unemployment,
+          countries: ["ITA"],
+          from: Year.make(2019),
+          to: Year.make(2020),
+        }),
+      )
+
+      const caption = await screen.findByText(
+        "Change in Unemployment, total (% of total labor force) between 2019 and 2020, by country, lower is better",
+      )
+
+      const figure = within(caption.closest("figure")!)
+
+      expect(figure.getByText("Lower is better")).toBeDefined()
+      expect(await figure.findByText("2020, better")).toBeDefined()
+      expect(figure.queryByText("2020, worse")).toBeNull()
+    } finally {
+      bounds.mockRestore()
+    }
   })
 
   it("switches a trend to the change between its first and last years", async () => {

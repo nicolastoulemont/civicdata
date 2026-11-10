@@ -128,7 +128,12 @@ const eastAsia: ReadonlyArray<Country> = ["CHN", "HKG", "JPN", "KOR", "MAC", "MN
 
 const australia: ReadonlyArray<Country> = ["AUS", "FJI", "NCL", "NZL", "PNG", "SLB", "VUT"]
 
-const africa = [...northAfrica, ...westAfrica, ...centralAfrica, ...eastAfrica, ...southernAfrica]
+// Neighbouring regions can share a country, e.g. Angola is in both Central
+// and Southern Africa, and Mexico in North and Central America. A region
+// joined from them lists it once.
+const joined = (...parts: ReadonlyArray<ReadonlyArray<Country>>) => [...new Set(parts.flat())]
+
+const africa = joined(northAfrica, westAfrica, centralAfrica, eastAfrica, southernAfrica)
 
 const latinAmerica = [...centralAmerica, ...caribbean, ...southAmerica]
 
@@ -288,7 +293,7 @@ export const regions = [
       "WSM",
     ],
   },
-  { id: "americas", name: "the Americas", countries: [...northAmerica, ...latinAmerica] },
+  { id: "americas", name: "the Americas", countries: joined(northAmerica, latinAmerica) },
 ] as const satisfies ReadonlyArray<{
   readonly id: string
   readonly name: string

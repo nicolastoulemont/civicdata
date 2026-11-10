@@ -1,4 +1,4 @@
-import type { Change, Country, ResolvedView } from "@civicdata/domain"
+import type { Change, Country, Direction, ResolvedView } from "@civicdata/domain"
 
 type Observations = ResolvedView["observations"]
 
@@ -20,6 +20,17 @@ export const changes = (resolved: ResolvedView, change: Change) =>
       return from === undefined || to === undefined ? [] : [{ country, from, to }]
     })
     .toSorted((left, right) => right.to - right.from - (left.to - left.from))
+
+// Which way a country moved between a change's two years, for an indicator
+// with a direction: the better way, the worse way, or not at all.
+export const moved = (
+  direction: Exclude<Direction, "Neutral">,
+  { from, to }: { from: number; to: number },
+) => {
+  if (to === from) return "same"
+
+  return to > from === (direction === "Higher") ? "better" : "worse"
+}
 
 // A resolved relation: its indicator's values and those it is plotted against.
 export type Paired = Extract<ResolvedView, { readonly against: object }>

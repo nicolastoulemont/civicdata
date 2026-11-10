@@ -463,5 +463,6 @@
       "url": "https://api.worldbank.org/v2/country/AUS;AUT;BEL;CAN;CHL;COL;CRI;CZE;DNK;EST;FIN;FRA;DEU;GRC;HUN;ISL;IRL;ISR;ITA;JPN;KOR;LVA;LTU;LUX;MEX;NLD;NZL;NOR;POL;PRT;SVK;SVN;ESP;SWE;CHE;TUR;GBR;USA/indicator/NY.GDP.PCAP.CD?format=json&date=2022:2022&per_page=38",
       "retrievedAt": "2026-11-10T07:27:11.252Z"
     }
-  ]
+  ],
+  "direction": "Higher"
 }

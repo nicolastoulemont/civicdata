@@ -336,6 +336,33 @@ describe("POST /api/views/resolve", () => {
     }).pipe(Effect.provide(serve(worldBank))),
   )
 
+  it.effect("says a hand-checked indicator's chart is better lower", () =>
+    Effect.gen(function* () {
+      const client = yield* HttpApiTest.groups(Api, ["views"])
+
+      const resolved = yield* client.views.resolve({
+        payload: Change.make({
+          indicator: unemployment,
+          countries: ["FRA"],
+          from: year(2022),
+          to: year(2024),
+        }),
+      })
+
+      expect(resolved.direction).toBe("Lower")
+    }).pipe(Effect.provide(serve(worldBank))),
+  )
+
+  it.effect("leaves an indicator nobody checked neutral", () =>
+    Effect.gen(function* () {
+      const client = yield* HttpApiTest.groups(Api, ["views"])
+
+      const resolved = yield* client.views.resolve({ payload: trend() })
+
+      expect(resolved.direction).toBe("Neutral")
+    }).pipe(Effect.provide(serve(worldBank))),
+  )
+
   it.effect("plots one indicator against another, citing both", () =>
     Effect.gen(function* () {
       const client = yield* HttpApiTest.groups(Api, ["views"])

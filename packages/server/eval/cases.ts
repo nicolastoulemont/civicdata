@@ -142,8 +142,7 @@ const governmentDebt = {
 
 const g7 = ["USA", "JPN", "DEU", "GBR", "FRA", "ITA", "CAN"] as const
 
-// The region lists Angola in both Central and Southern Africa.
-const africa = [...new Set(regions.find(({ id }) => id === "africa")?.countries)]
+const africa = regions.find(({ id }) => id === "africa")?.countries ?? []
 
 const eu = [
   "AUT",

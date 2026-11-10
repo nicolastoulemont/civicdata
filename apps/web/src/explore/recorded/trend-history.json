@@ -1626,5 +1626,6 @@
       "url": "https://api.worldbank.org/v2/country/FRA;DEU;ITA;ESP;POL/indicator/SP.DYN.LE00.IN?format=json&date=1960:2023&per_page=320",
       "retrievedAt": "2026-11-10T07:27:07.949Z"
     }
-  ]
+  ],
+  "direction": "Higher"
 }

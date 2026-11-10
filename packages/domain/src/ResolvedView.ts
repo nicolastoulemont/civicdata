@@ -2,6 +2,7 @@ import { Array as Arr, Predicate, Schema, Struct } from "effect"
 
 import { Country } from "./Country.ts"
 import { Dimension } from "./Dimension.ts"
+import { Direction } from "./Direction.ts"
 import { Indicator, IndicatorId } from "./Indicator.ts"
 import { Source } from "./Source.ts"
 import { Change, Ranking, Relation, Trend, Year } from "./View.ts"
@@ -54,7 +55,8 @@ const Disagreement = Schema.Struct({
 // indicator's series differ by, with the values the View can pick; it is
 // empty for the World Bank, whose indicators are single series.
 // `disagreements` lists the other sources whose values for the same figure
-// differ.
+// differ. `direction` says which way the chart's values are better, from its
+// indicator and transform; maps and changes colour by it.
 const fields = {
   title: Schema.NonEmptyString,
   indicator: Indicator,
@@ -63,6 +65,7 @@ const fields = {
   dimensions: Schema.Array(Dimension),
   disagreements: Schema.Array(Disagreement),
   sources: Schema.NonEmptyArray(Provenance),
+  direction: Direction,
 }
 
 // A Trend or Ranking, with the data behind it.

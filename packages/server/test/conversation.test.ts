@@ -87,6 +87,7 @@ import { AskLimit } from "../src/AskLimit.ts"
 import { Catalog } from "../src/Catalog.ts"
 import { serve } from "../src/ConversationObject.ts"
 import { Conversations } from "../src/Conversations.ts"
+import { Directions } from "../src/Directions.ts"
 import { Findings } from "../src/Findings.ts"
 import { Handlers } from "../src/Handlers.ts"
 import { Notes } from "../src/Notes.ts"
@@ -359,6 +360,7 @@ const serveApi = (
     Layer.provide(model),
     Layer.provide(findings),
     Layer.provide(notes),
+    Layer.provide(Directions.layer),
     Layer.provide(Resolver.layer),
     Layer.provide(catalog),
     Layer.provide(politics),
@@ -1085,6 +1087,7 @@ describe("conversations", () => {
         read(Read.make({ name: "Life expectancy at birth, total (years)" })),
       ])
       expect(model.prompts[1]).toContain("The number of years a newborn infant would live.")
+      expect(model.prompts[1]).toContain('"direction":"Higher"')
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
