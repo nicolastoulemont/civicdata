@@ -42,7 +42,7 @@ export const Conversation = ({ id, first }: ConversationProps) => {
       <main className="flex min-h-0 flex-1 flex-col">
         <Scroll
           key={id}
-          anchor={pending?.steps.length === 0 ? pending.question : undefined}
+          asked={pending?.via === "ask" ? pending.started : undefined}
           previews={questions.map(preview)}
           composer={
             <FollowUp

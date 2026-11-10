@@ -67,7 +67,7 @@ const Item = ({ id, entry, retry, answering }: ItemProps) =>
       </li>
     ),
     Pending: ({ pending }) => (
-      <li data-question data-scroll-anchor className="flex flex-col gap-4">
+      <li data-question className="flex flex-col gap-4">
         <Question text={pending.question} />
         <Agent>
           <Working steps={pending.steps} started={pending.started} />

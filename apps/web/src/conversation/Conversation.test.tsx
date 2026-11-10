@@ -60,7 +60,7 @@ import {
 import userEvent from "@testing-library/user-event"
 import { type Array as Arr, Cause, DateTime, Duration, Schema, Struct } from "effect"
 import { http, HttpResponse } from "msw/http"
-import { describe, expect, it, vi } from "vitest"
+import { describe, expect, it, onTestFinished, vi } from "vitest"
 
 import { SidebarProvider } from "@/components/ui/sidebar"
 
@@ -343,6 +343,101 @@ const layOut = () => {
   }
 
   return viewport
+}
+
+const region = () => screen.getByRole("region", { name: "Conversation" })
+
+// The scrolled content: the rows and the composer docked under them.
+const content = () => region().firstElementChild
+
+const rows = () => [...screen.getByRole("list", { name: "Questions and answers" }).children]
+
+const minHeight = (element: Element | null | undefined) =>
+  element instanceof HTMLElement ? Number.parseFloat(element.style.minHeight) || 0 : 0
+
+// happy-dom has no layout. Lays the conversation out as a browser would in a
+// 600px viewport, under a composer of no height: the rows start 24px below
+// the top of the content, 32px apart and 32px above its end. A row is as tall
+// as `heights` says at its place, 300px by default, or its inline min-height,
+// and the content is at least as tall as the viewport and its own inline
+// min-height. A scroll position stops at the end, as the content shrinks too.
+// `resize` tells the resize observers, as a browser does after a row grows.
+const browser = () => {
+  const heights: Array<number> = []
+  const observers = new Set<Observer>()
+  let scrolled = 0
+
+  class Observer implements ResizeObserver {
+    readonly callback: ResizeObserverCallback
+
+    constructor(callback: ResizeObserverCallback) {
+      this.callback = callback
+    }
+
+    observe() {
+      observers.add(this)
+    }
+
+    unobserve() {}
+
+    disconnect() {
+      observers.delete(this)
+    }
+  }
+
+  vi.stubGlobal("ResizeObserver", Observer)
+  onTestFinished(() => {
+    vi.unstubAllGlobals()
+  })
+
+  const height = (row: Element, place: number) => Math.max(heights[place] ?? 300, minHeight(row))
+
+  const offset = (place: number) =>
+    rows()
+      .slice(0, place)
+      .reduce((top, row, index) => top + height(row, index) + 32, 24)
+
+  const scrollHeight = () => Math.max(600, offset(rows().length), minHeight(content()))
+
+  const clamp = (top: number) => Math.min(Math.max(0, top), scrollHeight() - 600)
+
+  const bounds = vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (
+    this: Element,
+  ) {
+    const top = clamp(scrolled)
+
+    if (this === content()) return new DOMRect(0, -top, 736, scrollHeight())
+
+    const place = rows().findIndex((row) => row.contains(this))
+
+    if (place === -1) return new DOMRect(0, 0, 736, this === region() ? 600 : 0)
+
+    return new DOMRect(0, offset(place) - top, 736, height(rows()[place]!, place))
+  })
+
+  onTestFinished(() => bounds.mockRestore())
+
+  return {
+    heights,
+    // Gives the viewport its geometry once the conversation shows.
+    measure: () =>
+      Object.defineProperties(region(), {
+        clientHeight: { configurable: true, value: 600 },
+        scrollHeight: { configurable: true, get: scrollHeight },
+        scrollTop: {
+          configurable: true,
+          get: () => clamp(scrolled),
+          set: (top: number) => {
+            scrolled = clamp(top)
+          },
+        },
+      }),
+    resize: () => {
+      for (const observer of observers) observer.callback([], observer)
+    },
+    // How far below the top of the viewport a question sits.
+    top: async (question: string) => (await findQuestion(question)).getBoundingClientRect().top,
+  }
 }
 
 const findRail = () => screen.findByRole("toolbar", { name: "Questions" })
@@ -1308,6 +1403,95 @@ describe("Conversation", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: "Life expectancy in Brazil" }),
     ).toBeDefined()
+  })
+
+  it("keeps a follow-up 24px from the top while its answer arrives, and after it", async () => {
+    const layout = browser()
+    const reply = answer()
+    const user = userEvent.setup()
+
+    network.use(turns([brazilAnswer]), reply.handler, resolve)
+    layout.heights[0] = 700
+    show()
+    await screen.findByText("Life expectancy in Brazil rose.")
+    layout.measure()
+
+    await user.type(await findComposer(), "And in Mexico?")
+    await user.click(screen.getByRole("button", { name: "Send" }))
+    await vi.waitFor(async () => expect(await layout.top("And in Mexico?")).toBe(24))
+
+    reply.send(message(searched))
+    await findStep("Searched for “life expectancy”: 1 found")
+    layout.resize()
+    expect(await layout.top("And in Mexico?")).toBe(24)
+
+    reply.send(message(rendering(plot(mexico), 0)))
+    await screen.findByRole("heading", { name: "Life expectancy at birth (years)" })
+    layout.heights[1] = 400
+    layout.resize()
+    expect(await layout.top("And in Mexico?")).toBe(24)
+
+    reply.send(message(charted(plot(mexico), said("Life expectancy in Mexico rose."))))
+    reply.end()
+    await screen.findByRole("button", { name: /^Worked/ })
+    layout.resize()
+    expect(await layout.top("And in Mexico?")).toBe(24)
+  })
+
+  it("puts the first question of a conversation 24px from the top and keeps it there", async () => {
+    const layout = browser()
+    const reply = answer()
+
+    network.use(turns([]), reply.handler, resolve)
+    show("Life expectancy in Brazil")
+    await findStep("Thinking…")
+    layout.measure()
+    layout.resize()
+    await vi.waitFor(async () => expect(await layout.top("Life expectancy in Brazil")).toBe(24))
+
+    reply.send(message(searched))
+    await findStep("Searched for “life expectancy”: 1 found")
+    layout.resize()
+    expect(await layout.top("Life expectancy in Brazil")).toBe(24)
+
+    reply.send(message(charted(plot(brazil), said("Life expectancy in Brazil rose."))))
+    reply.end()
+    await screen.findByRole("button", { name: /^Worked/ })
+    layout.resize()
+    expect(await layout.top("Life expectancy in Brazil")).toBe(24)
+  })
+
+  it("follows an answer taller than the viewport to its end, until the reader scrolls up", async () => {
+    const layout = browser()
+    const reply = answer()
+    const user = userEvent.setup()
+
+    network.use(turns([brazilAnswer]), reply.handler, resolve)
+    layout.heights[0] = 700
+    show()
+    await screen.findByText("Life expectancy in Brazil rose.")
+    const viewport = layout.measure()
+
+    await user.type(await findComposer(), "And in Mexico?")
+    await user.click(screen.getByRole("button", { name: "Send" }))
+    await vi.waitFor(async () => expect(await layout.top("And in Mexico?")).toBe(24))
+    // Browsers fire a scroll event once the question lands.
+    fireEvent.scroll(viewport)
+
+    reply.send(message(rendering(plot(mexico), 0)))
+    await screen.findByRole("heading", { name: "Life expectancy at birth (years)" })
+    layout.heights[1] = 2000
+    layout.resize()
+    // The end of the answer shows above the composer.
+    await vi.waitFor(() => expect(viewport.scrollTop).toBe(viewport.scrollHeight - 600))
+    fireEvent.scroll(viewport)
+
+    fireEvent.scroll(viewport, { target: { scrollTop: 900 } })
+    layout.heights[1] = 2600
+    layout.resize()
+    expect(viewport.scrollTop).toBe(900)
+    expect(screen.getByRole("button", { name: "Scroll to end" })).toBeDefined()
+    reply.end()
   })
 
   it("sends with Enter and starts a new line with Shift+Enter", async () => {
