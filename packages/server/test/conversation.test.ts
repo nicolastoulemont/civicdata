@@ -969,6 +969,37 @@ describe("conversations", () => {
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
+  // Arguments a chart type does not take, each set on a chart that would
+  // otherwise draw.
+  const ignored = [
+    { name: "against on a trend", argument: "against", args: { against: gdpPerPerson } },
+    { name: "year on a trend", argument: "year", args: { year: 2002 } },
+    { name: "year on a change", argument: "year", args: { chart: "change", year: 2002 } },
+    {
+      name: "from and to on a ranking",
+      argument: "from",
+      args: { chart: "ranking", year: 2002, from: 2000, to: 2002 },
+    },
+    {
+      name: "per without a ratio",
+      argument: "per",
+      args: { transform: "Index", per: gdpPerPerson },
+    },
+  ]
+
+  for (const { name, argument, args } of ignored) {
+    it.effect(`rejects ${name}, naming the argument, instead of drawing without it`, () => {
+      const model = scripted([Effect.succeed(call("show_chart", { ...brazil, ...args }))])
+
+      return Effect.gen(function* () {
+        const steps = yield* answer("Life expectancy in Brazil")
+
+        expect(model.prompts[1]).toContain(`\\"${argument}\\"`)
+        expect(steps.at(-1)).toEqual(charted(said()))
+      }).pipe(Effect.provide(serveApi(model.layer)))
+    })
+  }
+
   it.effect("rejects a ranking over time whose year lies outside its span", () => {
     const model = scripted([
       Effect.succeed(
