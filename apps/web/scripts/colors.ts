@@ -161,15 +161,17 @@ const candidates = (flag: ReadonlyArray<Hue>): ReadonlyArray<Candidate> => {
 const apart = (left: Candidate, right: Candidate) =>
   Math.min(distance(left.points[0], right.points[0]), distance(left.points[1], right.points[1]))
 
-// EU and OECD members pick first, among themselves, since they share charts
-// most; then every other country, against all. Within each group the name's
-// hash sets the order. Each takes the candidate farthest from the colours
-// already taken, less what it costs to stray from the flag, and never one
-// already taken.
+// The G7 picks first, since its seven countries share charts most often;
+// then the other EU and OECD members; then every other country. Within each
+// group the name's hash sets the order. Each takes the candidate farthest
+// from the colours already taken, less what it costs to stray from the flag,
+// and never one already taken.
+const g7: ReadonlySet<Country> = new Set(["CAN", "FRA", "DEU", "ITA", "JPN", "GBR", "USA"])
+
+const rank = (code: Country) => (g7.has(code) ? 0 : members.has(code) ? 1 : 2)
+
 const ordered = countries.toSorted(
-  (left, right) =>
-    Number(members.has(right.code)) - Number(members.has(left.code)) ||
-    hash(left.name) - hash(right.name),
+  (left, right) => rank(left.code) - rank(right.code) || hash(left.name) - hash(right.name),
 )
 
 const taken = new Map<Country, Candidate>()
@@ -180,9 +182,7 @@ const far = 0.3
 const used = new Set<string>()
 
 for (const country of ordered) {
-  const rivals = [...taken].flatMap(([other, color]) =>
-    members.has(country.code) && !members.has(other) ? [] : [color],
-  )
+  const rivals = [...taken.values()]
 
   const best = candidates(hues(country))
     .filter((candidate) => !used.has(hex(candidate.light)) && !used.has(hex(candidate.dark)))
@@ -279,7 +279,7 @@ const closest = (group: ReadonlyArray<Country>, theme: 0 | 1) =>
 for (const [label, group] of [
   ["EU 27", eu],
   ["OECD", oecd],
-  ["G7", ["CAN", "FRA", "DEU", "ITA", "JPN", "GBR", "USA"]],
+  ["G7", [...g7]],
   ["All", countries.map(({ code }) => code)],
 ] as const) {
   console.log(`${label}, light: ${closest(group, 0)}`)
