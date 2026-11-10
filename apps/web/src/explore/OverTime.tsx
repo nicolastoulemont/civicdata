@@ -1,7 +1,9 @@
 import { inYear, type Ranked, type Span, Year } from "@civicdata/domain"
 import { cn } from "cn"
-import { type ReactNode, useState } from "react"
+import { Pause, Play } from "lucide-react"
+import { type ReactNode, useEffect, useEffectEvent, useState } from "react"
 
+import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 
 import { countryName } from "./format.ts"
@@ -19,7 +21,7 @@ export interface Moving {
   readonly year: Year
   // The year the agent wrote about, in a conversation.
   readonly agent: Year | undefined
-  // Saves a year: when the reader lets go of the slider.
+  // Saves a year: when the reader lets go of the slider, or pauses.
   readonly onYear: (year: Year) => void
 }
 
@@ -31,14 +33,20 @@ interface OverTimeProps extends Moving {
   children: (shown: Ranked) => ReactNode
 }
 
+// How long play shows each year.
+const step = 1000
+
 // A ranking or map over time: the chart of the year shown, the countries
 // without a value that year, and a slider of the span's years with the
 // agent's year marked. Moving the slider redraws the chart at once; only
 // letting go saves the year, so the link or the conversation keeps it.
+// Play shows the next year each second and saves nothing until it pauses:
+// when the reader presses Pause or moves the slider, or at the last year.
 export const OverTime = ({ resolved, span, year, agent, onYear, children }: OverTimeProps) => {
   const { from, to } = span
   const [live, setLive] = useState(year)
   const [saved, setSaved] = useState(year)
+  const [playing, setPlaying] = useState(false)
 
   // A year saved elsewhere, e.g. the agent's chart restored, moves the slider.
   if (saved !== year) {
@@ -51,6 +59,30 @@ export const OverTime = ({ resolved, span, year, agent, onYear, children }: Over
   const at = (each: number) => (to === from ? 0 : ((each - from) / (to - from)) * 100)
   const marked = agent !== undefined && agent >= from && agent <= to ? agent : undefined
 
+  const save = (next: Year) => {
+    if (next !== year) onYear(next)
+  }
+
+  // Each second shows the next year; the last pauses play and saves it.
+  const advance = useEffectEvent(() => {
+    const next = Year.make(Math.min(shown.view.year + 1, to))
+
+    setLive(next)
+
+    if (next < to) return
+
+    setPlaying(false)
+    save(next)
+  })
+
+  useEffect(() => {
+    if (!playing) return undefined
+
+    const timer = setInterval(advance, step)
+
+    return () => clearInterval(timer)
+  }, [playing])
+
   return (
     <div className="flex flex-col gap-4">
       {children(shown)}
@@ -60,7 +92,31 @@ export const OverTime = ({ resolved, span, year, agent, onYear, children }: Over
         </p>
       ) : null}
       <div className="flex flex-col gap-2">
-        <p className="text-sm font-medium tabular-nums">{shown.view.year}</p>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (playing) {
+                setPlaying(false)
+                save(shown.view.year)
+
+                return
+              }
+
+              // Played to its end, it starts again from the first year.
+              if (shown.view.year >= to) setLive(from)
+
+              setPlaying(true)
+            }}
+          >
+            {playing ? <Pause aria-hidden /> : <Play aria-hidden />}
+            {playing ? "Pause" : "Play"}
+          </Button>
+          <output aria-live="polite" className="text-sm font-medium tabular-nums">
+            {shown.view.year}
+          </output>
+        </div>
         <Slider
           value={[shown.view.year]}
           min={from}
@@ -68,12 +124,11 @@ export const OverTime = ({ resolved, span, year, agent, onYear, children }: Over
           step={1}
           thumbAlignment="center"
           labels={["Year"]}
-          onValueChange={(value) => setLive(yearOf(value))}
-          onValueCommitted={(value) => {
-            const next = yearOf(value)
-
-            if (next !== year) onYear(next)
+          onValueChange={(value) => {
+            setPlaying(false)
+            setLive(yearOf(value))
           }}
+          onValueCommitted={(value) => save(yearOf(value))}
           trackClassName="data-horizontal:h-1.5"
         >
           {marked === undefined ? null : (
