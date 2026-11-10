@@ -22,6 +22,7 @@ import {
   type Government,
   IndicatorId,
   Politics,
+  Ranking,
   Read,
   RecordId,
   Recorded,
@@ -89,8 +90,8 @@ const brazil = Trend.make({
 })
 
 const resolve = http.post("/api/views/resolve", async ({ request }) => {
-  // The conversations here answer with trends only.
-  const view = Schema.decodeUnknownSync(Trend)(await request.json())
+  // The conversations here answer with trends and rankings only.
+  const view = Schema.decodeUnknownSync(Schema.Union([Trend, Ranking]))(await request.json())
 
   return HttpResponse.json(
     Schema.encodeSync(ResolvedView)({
@@ -1449,6 +1450,89 @@ describe("Conversation", () => {
     expect(
       await screen.findByText("This answer describes the charts before your changes."),
     ).toBeDefined()
+  })
+
+  it("moves a ranking over time from the agent's year, keeping the year let go on after a reload", async () => {
+    const user = userEvent.setup()
+
+    const server = kept([
+      {
+        question: "How has the ranking of life expectancy in Brazil and Mexico evolved?",
+        answer: charted(
+          plot(
+            Ranking.make({
+              indicator: lifeExpectancy,
+              countries: ["BRA", "MEX"],
+              year: Year.make(2001),
+              span: { from: Year.make(2000), to: Year.make(2001) },
+            }),
+          ),
+          said("Brazil and Mexico stayed level."),
+        ),
+      },
+    ])
+
+    network.use(...server.handlers, resolve)
+    const page = show()
+
+    const year = await screen.findByRole("slider", { name: "Year" })
+
+    expect(screen.getByText("Agent's year 2001")).toBeDefined()
+
+    act(() => year.focus())
+    await user.keyboard("{ArrowLeft}")
+
+    await vi.waitFor(() =>
+      expect(server.turns()[0]?.shown?.[0]).toMatchObject({
+        year: 2000,
+        span: { from: 2000, to: 2001 },
+      }),
+    )
+    expect(screen.getByRole("button", { name: "Back to the agent's chart" })).toBeDefined()
+
+    page.unmount()
+    show()
+
+    const reloaded = await screen.findByRole("slider", { name: "Year" })
+
+    expect(reloaded.getAttribute("aria-valuenow")).toBe("2000")
+    expect(screen.getByText("Agent's year 2001")).toBeDefined()
+  })
+
+  it("switches an answer's ranking to over time and back to the agent's one year", async () => {
+    const user = userEvent.setup()
+
+    const ranking = Ranking.make({
+      indicator: lifeExpectancy,
+      countries: ["BRA", "MEX"],
+      year: Year.make(2001),
+    })
+
+    const server = kept([
+      {
+        question: "Which has the higher life expectancy, Brazil or Mexico?",
+        answer: charted(plot(ranking), said("They are level.")),
+      },
+    ])
+
+    network.use(...server.handlers, resolve)
+    show()
+
+    await user.click(await screen.findByRole("button", { name: "Change" }))
+    await user.click(screen.getByRole("button", { name: "Over time" }))
+
+    expect(await screen.findByRole("slider", { name: "Year" })).toBeDefined()
+    await vi.waitFor(() =>
+      expect(server.turns()[0]?.shown?.[0]).toMatchObject({
+        span: { from: 2000, to: 2001 },
+        year: 2001,
+      }),
+    )
+
+    await user.click(screen.getByRole("button", { name: "One year" }))
+
+    await vi.waitFor(() => expect(server.turns()[0]).not.toHaveProperty("shown"))
+    expect(screen.queryByRole("slider", { name: "Year" })).toBeNull()
   })
 
   it("goes back to the agent's chart, after a reload too", async () => {

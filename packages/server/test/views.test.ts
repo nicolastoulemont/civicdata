@@ -145,47 +145,52 @@ const totalAged15To74 = Schema.decodeSync(Dimensions)({
 // Greece, refused with the United States, which it does not cover; and
 // unemployment rates for France, which come in several series, and the total
 // for 15 to 74 year-olds.
-const recordedEurostat = Sdmx.layer.pipe(
-  Layer.provide(
-    http(
-      (url) =>
-        new Map([
-          [
-            `${eurostat}/sdmx/2.1/dataflow/ESTAT/TPS00001/1.0?format=JSON`,
-            Response.json(populationFlow),
-          ],
-          [
-            `${eurostat}/sdmx/2.1/dataflow/ESTAT/UNE_RT_A/1.0?format=JSON`,
-            Response.json(unemploymentFlow),
-          ],
-          [
-            `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/TPS00001/1.0/*?c[geo]=FR,EL,US&c[freq]=A&c[TIME_PERIOD]=ge:2019+le:2021&compress=false`,
-            new Response(uncovered, { status: 400 }),
-          ],
-          [
-            `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/TPS00001/1.0/*?c[geo]=FR,EL&c[freq]=A&c[TIME_PERIOD]=ge:2019+le:2021&compress=false`,
-            new Response(populations),
-          ],
-          [
-            `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/TPS00001/1.0/*?c[geo]=FR,EL,US&c[freq]=A&lastNObservations=1&compress=false`,
-            new Response(uncovered, { status: 400 }),
-          ],
-          [
-            `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/TPS00001/1.0/*?c[geo]=FR,EL&c[freq]=A&lastNObservations=1&compress=false`,
-            new Response(populationOptions),
-          ],
-          [
-            `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/UNE_RT_A/1.0/*?c[geo]=FR&c[freq]=A&lastNObservations=1&compress=false`,
-            new Response(unemploymentOptions),
-          ],
-          [
-            `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/UNE_RT_A/1.0/*?c[geo]=FR&c[freq]=A&c[age]=Y15-74&c[unit]=PC_ACT&c[sex]=T&c[TIME_PERIOD]=ge:2022+le:2024&compress=false`,
-            new Response(unemploymentRates),
-          ],
-        ]).get(url) ?? new Response("no recording", { status: 404 }),
+const eurostatRecording = (url: string) =>
+  new Map([
+    [`${eurostat}/sdmx/2.1/dataflow/ESTAT/TPS00001/1.0?format=JSON`, Response.json(populationFlow)],
+    [
+      `${eurostat}/sdmx/2.1/dataflow/ESTAT/UNE_RT_A/1.0?format=JSON`,
+      Response.json(unemploymentFlow),
+    ],
+    [
+      `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/TPS00001/1.0/*?c[geo]=FR,EL,US&c[freq]=A&c[TIME_PERIOD]=ge:2019+le:2021&compress=false`,
+      new Response(uncovered, { status: 400 }),
+    ],
+    [
+      `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/TPS00001/1.0/*?c[geo]=FR,EL&c[freq]=A&c[TIME_PERIOD]=ge:2019+le:2021&compress=false`,
+      new Response(populations),
+    ],
+    [
+      `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/TPS00001/1.0/*?c[geo]=FR,EL,US&c[freq]=A&lastNObservations=1&compress=false`,
+      new Response(uncovered, { status: 400 }),
+    ],
+    [
+      `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/TPS00001/1.0/*?c[geo]=FR,EL&c[freq]=A&lastNObservations=1&compress=false`,
+      new Response(populationOptions),
+    ],
+    [
+      `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/UNE_RT_A/1.0/*?c[geo]=FR&c[freq]=A&lastNObservations=1&compress=false`,
+      new Response(unemploymentOptions),
+    ],
+    [
+      `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/UNE_RT_A/1.0/*?c[geo]=FR&c[freq]=A&c[age]=Y15-74&c[unit]=PC_ACT&c[sex]=T&c[TIME_PERIOD]=ge:2022+le:2024&compress=false`,
+      new Response(unemploymentRates),
+    ],
+  ]).get(url) ?? new Response("no recording", { status: 404 })
+
+// Recorded Eurostat, noting each URL asked for in `asked`. A request for
+// values names its years (TIME_PERIOD); one for a dataflow's series asks
+// for the latest value only.
+const recordedEurostat = (asked: Array<string> = []) =>
+  Sdmx.layer.pipe(
+    Layer.provide(
+      http((url) => {
+        asked.push(url)
+
+        return eurostatRecording(url)
+      }),
     ),
-  ),
-)
+  )
 
 // Most tests read no indicator notes.
 const noNotes = Layer.succeed(Notes, Notes.of({ get: () => Effect.die("no notes in these tests") }))
@@ -267,6 +272,35 @@ describe("POST /api/views/resolve", () => {
       expect(resolved.observations.map((observation) => observation.year)).toEqual([2020, 2020])
     }).pipe(Effect.provide(serve(worldBank))),
   )
+
+  it.effect("resolves a ranking over time for every year of its span, in one request", () => {
+    const asked: Array<string> = []
+
+    return Effect.gen(function* () {
+      const client = yield* HttpApiTest.groups(Api, ["views"])
+
+      const resolved = yield* client.views.resolve({
+        payload: Ranking.make({
+          indicator: IndicatorId.make("ESTAT,TPS00001,1.0"),
+          countries: ["FRA", "GRC"],
+          year: year(2020),
+          span: { from: year(2019), to: year(2021) },
+        }),
+      })
+
+      expect(resolved.observations.map((each) => `${each.country} ${each.year}`)).toEqual([
+        "GRC 2019",
+        "GRC 2020",
+        "GRC 2021",
+        "FRA 2019",
+        "FRA 2020",
+        "FRA 2021",
+      ])
+      expect(asked.filter((url) => url.includes("TIME_PERIOD"))).toEqual([
+        `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/TPS00001/1.0/*?c[geo]=FR,EL&c[freq]=A&c[TIME_PERIOD]=ge:2019+le:2021&compress=false`,
+      ])
+    }).pipe(Effect.provide(serve(worldBank, { sdmx: recordedEurostat(asked) })))
+  })
 
   it.effect("resolves a change to its two years, missing a country without both", () =>
     Effect.gen(function* () {
@@ -445,7 +479,7 @@ describe("POST /api/views/resolve", () => {
           retrievedAt: expect.anything(),
         },
       ])
-    }).pipe(Effect.provide(serve(worldBank, { sdmx: recordedEurostat }))),
+    }).pipe(Effect.provide(serve(worldBank, { sdmx: recordedEurostat() }))),
   )
 
   it.effect("fails with DimensionsMissing for a dataflow with several series", () =>
@@ -463,7 +497,7 @@ describe("POST /api/views/resolve", () => {
         .pipe(Effect.flip)
 
       expect(error).toBeInstanceOf(DimensionsMissing)
-    }).pipe(Effect.provide(serve(worldBank, { sdmx: recordedEurostat }))),
+    }).pipe(Effect.provide(serve(worldBank, { sdmx: recordedEurostat() }))),
   )
 
   it.effect("resolves the series a View picks, listing what else it can pick", () =>
@@ -482,7 +516,7 @@ describe("POST /api/views/resolve", () => {
 
       expect(resolved.observations.map(({ value }) => value)).toEqual([7.3, 7.4, 7.4])
       expect(resolved.dimensions.map(({ id }) => id)).toEqual(["age", "unit", "sex"])
-    }).pipe(Effect.provide(serve(worldBank, { sdmx: recordedEurostat }))),
+    }).pipe(Effect.provide(serve(worldBank, { sdmx: recordedEurostat() }))),
   )
 
   it.effect("notes where another source's values for the same figure differ", () =>
@@ -515,7 +549,7 @@ describe("POST /api/views/resolve", () => {
           ],
         },
       ])
-    }).pipe(Effect.provide(serve(worldBank, { sdmx: recordedEurostat }))),
+    }).pipe(Effect.provide(serve(worldBank, { sdmx: recordedEurostat() }))),
   )
 })
 

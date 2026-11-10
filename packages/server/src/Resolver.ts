@@ -178,8 +178,12 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
                 missing: missing(countries, [single.observations]),
               })),
             ),
+          // A ranking over time fetches its whole span, a static one its year.
           Ranking: (ranking) =>
-            values({ ...ranking, from: ranking.year, to: ranking.year }).pipe(
+            values({
+              ...ranking,
+              ...(ranking.span ?? { from: ranking.year, to: ranking.year }),
+            }).pipe(
               Effect.map((single) => ({
                 view: ranking,
                 ...single,

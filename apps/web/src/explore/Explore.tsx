@@ -18,9 +18,9 @@ import {
   type View,
   Year,
 } from "@civicdata/domain"
-import { useQuery } from "@tanstack/react-query"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Match } from "effect"
-import { Fragment, lazy, type ReactNode, Suspense, use, useState } from "react"
+import { Fragment, type ReactNode, use, useState } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -36,6 +36,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Toggle } from "@/components/ui/toggle"
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Hold } from "@/hold"
 
 import { About } from "./About.tsx"
@@ -47,7 +48,16 @@ import { Countries } from "./Countries.tsx"
 import { Data } from "./Data.tsx"
 import { Dimensions } from "./Dimensions.tsx"
 import { Disagreements } from "./Disagreements.tsx"
-import { withAgainst, withCountries, withIndicator, withPer, withTransform } from "./edits.ts"
+import {
+  oneYear,
+  overTime,
+  withAgainst,
+  withCountries,
+  withIndicator,
+  withPer,
+  withPicks,
+  withTransform,
+} from "./edits.ts"
 import { Flags } from "./Flags.tsx"
 import {
   attribution,
@@ -60,10 +70,11 @@ import {
   transformLabel,
 } from "./format.ts"
 import { Indicator } from "./Indicator.tsx"
+import type { Moving } from "./OverTime.tsx"
 import type { Paired } from "./points.ts"
 import { archives, cited, officialPages, terms, tints } from "./politics.ts"
 import { places } from "./preview.ts"
-import { RankingChart } from "./RankingChart.tsx"
+import { RankedChart } from "./RankedChart.tsx"
 import { RelationChart } from "./RelationChart.tsx"
 import { ShowAs } from "./ShowAs.tsx"
 import { Takeaway } from "./Takeaway.tsx"
@@ -121,14 +132,7 @@ const Years = ({ view, onChange }: YearsProps) =>
         onChange={(span) => onChange(Change.make({ ...change, ...span }))}
       />
     ),
-    Ranking: (ranking) => (
-      <YearSelect
-        label="Year"
-        value={ranking.year}
-        options={years()}
-        onChange={(year) => onChange(Ranking.make({ ...ranking, year }))}
-      />
-    ),
+    Ranking: (ranking) => <RankingYears ranking={ranking} onChange={onChange} />,
     Relation: (relation) => (
       <YearSelect
         label="Year"
@@ -138,6 +142,71 @@ const Years = ({ view, onChange }: YearsProps) =>
       />
     ),
   })
+
+interface RankingYearsProps {
+  ranking: typeof Ranking.Type
+  onChange: (view: View) => void
+}
+
+// One year, or a span of years the chart moves through with a slider.
+// Switching to over time first loads the ranking's whole history, to start
+// the span at the first year every country shares.
+const RankingYears = ({ ranking, onChange }: RankingYearsProps) => {
+  const queryClient = useQueryClient()
+
+  const spanning = useMutation({
+    mutationFn: () => queryClient.fetchQuery(resolveQuery(historyOf(ranking))),
+    onSuccess: (history) => onChange(overTime(ranking, history.observations)),
+  })
+
+  return (
+    <>
+      <ToggleGroup
+        aria-label="Years shown"
+        variant="outline"
+        value={[ranking.span === undefined ? "one" : "over"]}
+        onValueChange={(next: Array<string>) => {
+          if (next.includes("one") && ranking.span !== undefined) onChange(oneYear(ranking))
+
+          if (next.includes("over") && ranking.span === undefined) spanning.mutate()
+        }}
+      >
+        <ToggleGroupItem value="one">One year</ToggleGroupItem>
+        <ToggleGroupItem value="over" disabled={spanning.isPending}>
+          Over time
+        </ToggleGroupItem>
+      </ToggleGroup>
+      {ranking.span === undefined ? (
+        <YearSelect
+          label="Year"
+          value={ranking.year}
+          options={years()}
+          onChange={(year) => onChange(Ranking.make({ ...ranking, year }))}
+        />
+      ) : (
+        <Span
+          from={ranking.span.from}
+          to={ranking.span.to}
+          onChange={(span) =>
+            onChange(
+              Ranking.make({
+                ...ranking,
+                span,
+                year: Year.make(Math.min(Math.max(ranking.year, span.from), span.to)),
+              }),
+            )
+          }
+        />
+      )}
+      {spanning.isError ? (
+        <Alert variant="destructive">
+          <AlertTitle>The years could not be loaded</AlertTitle>
+          <AlertDescription>Try again in a moment.</AlertDescription>
+        </Alert>
+      ) : null}
+    </>
+  )
+}
 
 const list = new Intl.ListFormat("en", { type: "conjunction" })
 
@@ -278,11 +347,6 @@ const Problem = ({ error, retry }: ProblemProps) =>
     </Alert>
   )
 
-// The map's outlines load only when a map is shown.
-const RankingMap = lazy(() =>
-  import("./RankingMap.tsx").then((module) => ({ default: module.RankingMap })),
-)
-
 // The trend on screen with its whole history, to pick its years over, while
 // the chart is being changed.
 interface Picking {
@@ -293,11 +357,12 @@ interface Picking {
 interface SingleProps {
   resolved: Exclude<ResolvedView, Paired>
   picking: Picking | undefined
+  moving: Moving | undefined
   politics: Politics | undefined
 }
 
 // A chart of one indicator's values.
-const Single = ({ resolved, picking, politics }: SingleProps) =>
+const Single = ({ resolved, picking, moving, politics }: SingleProps) =>
   Match.valueTags(resolved.view, {
     Trend: (shown) => (
       <TrendChart
@@ -310,50 +375,46 @@ const Single = ({ resolved, picking, politics }: SingleProps) =>
         reforms={politics?.reforms}
       />
     ),
-    Ranking: (ranking) =>
-      ranking.as === "Map" ? (
-        <Suspense fallback={<Skeleton className="aspect-2/1 w-full" />}>
-          <RankingMap resolved={resolved} />
-        </Suspense>
-      ) : (
-        <RankingChart resolved={resolved} />
-      ),
+    Ranking: (view) => <RankedChart resolved={{ ...resolved, view }} moving={moving} />,
     Change: (change) => <ChangeChart resolved={resolved} change={change} />,
   })
 
 interface ChartProps {
   resolved: ResolvedView
   picking?: Picking | undefined
+  moving?: Moving | undefined
   politics: Politics | undefined
 }
 
 // The chart, and under it the values its source flags and where other
 // sources disagree.
-const Chart = ({ resolved, picking, politics }: ChartProps) => (
+const Chart = ({ resolved, picking, moving, politics }: ChartProps) => (
   <div className="space-y-3">
     {"against" in resolved ? (
       <RelationChart resolved={resolved} />
     ) : (
-      <Single resolved={resolved} picking={picking} politics={politics} />
+      <Single resolved={resolved} picking={picking} moving={moving} politics={politics} />
     )}
     <Flags resolved={resolved} />
     <Disagreements resolved={resolved} />
   </div>
 )
 
-// A trend's whole history: every year the World Bank could have, with the
-// trend's transform. An index starts at the first year shown, so the history
-// of an indexed trend holds the values as published.
+// A View's whole history: every year the World Bank could have, with the
+// View's series and transform. An index starts at the first year shown, so
+// the history of an indexed trend holds the values as published.
 const historyOf = (view: View) => {
   const transform = transformOf(view)
 
+  const history = Trend.make({
+    indicator: view.indicator,
+    countries: view.countries,
+    from: Year.make(1960),
+    to: Year.make(new Date().getUTCFullYear()),
+  })
+
   return withTransform(
-    Trend.make({
-      indicator: view.indicator,
-      countries: view.countries,
-      from: Year.make(1960),
-      to: Year.make(new Date().getUTCFullYear()),
-    }),
+    view.dimensions === undefined ? history : withPicks(history, view.dimensions),
     transform === "Index" ? undefined : transform,
   )
 }
@@ -391,6 +452,32 @@ const usePicking = (view: View, { enabled, onChange }: PickingOptions): Picking 
       }
 }
 
+interface MovingOptions {
+  // The chart the agent answered with, in a conversation.
+  agent: View | undefined
+  onChange: (view: View) => void
+}
+
+// How a ranking over time moves through its years: from the year it saves,
+// with the agent's year marked when the agent answered with a ranking. Every
+// year the slider lets go on is saved as a change of the View.
+const movingOf = (view: View, { agent, onChange }: MovingOptions): Moving | undefined =>
+  Match.value(view).pipe(
+    Match.tag("Ranking", (ranking) =>
+      ranking.span === undefined
+        ? undefined
+        : {
+            year: ranking.year,
+            agent: Match.value(agent).pipe(
+              Match.tag("Ranking", (answered) => answered.year),
+              Match.orElse(() => undefined),
+            ),
+            onYear: (year: Year) => onChange(Ranking.make({ ...ranking, year })),
+          },
+    ),
+    Match.orElse(() => undefined),
+  )
+
 // The About tab's headings sit one level below the card's title.
 const below = { h1: "h2", h3: "h4" } as const
 
@@ -412,6 +499,7 @@ interface SectionsProps {
   // Whether the chart is the previous one, shown while the changed one loads.
   stale: boolean
   picking: Picking | undefined
+  moving: Moving | undefined
   // What the chart tab shows above the chart: its overlays' controls and notes.
   above: ReactNode
   politics: Politics | undefined
@@ -426,6 +514,7 @@ const Sections = ({
   resolved,
   stale,
   picking,
+  moving,
   above,
   politics,
   heading,
@@ -454,7 +543,7 @@ const Sections = ({
           aria-busy={stale}
           className={stale ? "opacity-50 transition-opacity" : "transition-opacity"}
         >
-          <Chart resolved={resolved} picking={picking} politics={politics} />
+          <Chart resolved={resolved} picking={picking} moving={moving} politics={politics} />
         </div>
       </TabsContent>
       <TabsContent value="data">
@@ -806,6 +895,7 @@ export const Explore = ({
               resolved={query.data}
               stale={query.isPlaceholderData}
               picking={picking}
+              moving={movingOf(view, { agent, onChange: change })}
               above={<Overlays {...political} onOverlays={onOverlays} />}
               politics={political.records}
               heading={Heading}

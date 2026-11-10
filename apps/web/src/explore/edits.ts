@@ -1,6 +1,7 @@
 import {
   applies,
   Change,
+  type Observation,
   type Code,
   type DimensionId,
   type Dimensions,
@@ -134,7 +135,11 @@ const span = (view: View) =>
   Match.valueTags(view, {
     Trend: ({ from, to }) => ({ from, to }),
     Change: ({ from, to }) => ({ from, to }),
-    Ranking: ({ year }) => ({ from: Year.make(Math.max(1960, year - rangeYears)), to: year }),
+    Ranking: (ranking) =>
+      ranking.span ?? {
+        from: Year.make(Math.max(1960, ranking.year - rangeYears)),
+        to: ranking.year,
+      },
     Relation: ({ year }) => ({ from: Year.make(Math.max(1960, year - rangeYears)), to: year }),
   })
 
@@ -166,7 +171,8 @@ export const chartOf = (view: View): Chart =>
 
 // Draws the View as another chart type, keeping its indicator, the series it
 // picks, its countries and its transform where the new type takes them. A
-// single-year chart shows the last of the years.
+// single-year chart shows the last of the years. Bars and a map of the same
+// ranking keep its years, over time or not.
 export const withChart = (view: View, chart: Chart): View => {
   const { indicator, countries, dimensions } = view
   const { from, to } = span(view)
@@ -180,15 +186,25 @@ export const withChart = (view: View, chart: Chart): View => {
       ),
     ),
     Match.when("Ranking", () =>
-      withTransform(
-        Ranking.make({ ...picked(dimensions), indicator, countries, year: to }),
-        transform,
+      Match.value(view).pipe(
+        Match.tag("Ranking", (ranking) => Ranking.make(Struct.omit(ranking, ["as"]))),
+        Match.orElse(() =>
+          withTransform(
+            Ranking.make({ ...picked(dimensions), indicator, countries, year: to }),
+            transform,
+          ),
+        ),
       ),
     ),
     Match.when("Map", () =>
-      withTransform(
-        Ranking.make({ ...picked(dimensions), indicator, countries, year: to, as: "Map" }),
-        transform,
+      Match.value(view).pipe(
+        Match.tag("Ranking", (ranking) => Ranking.make({ ...ranking, as: "Map" })),
+        Match.orElse(() =>
+          withTransform(
+            Ranking.make({ ...picked(dimensions), indicator, countries, year: to, as: "Map" }),
+            transform,
+          ),
+        ),
       ),
     ),
     Match.when("Change", () =>
@@ -209,3 +225,35 @@ export const withChart = (view: View, chart: Chart): View => {
     Match.exhaustive,
   )
 }
+
+// A ranking of one year turned into one over time: from the first year every
+// country with values has one, to the latest year with any, as `history` has
+// them. Its year moves inside the span when it lies outside. Without values
+// it stays one year.
+export const overTime = (
+  ranking: typeof Ranking.Type,
+  history: ReadonlyArray<Observation>,
+): typeof Ranking.Type => {
+  const years = [...new Set(history.map((observation) => observation.year))]
+  const covered = new Set(history.map((observation) => observation.country))
+  const held = new Set(history.map(({ country, year }) => `${country} ${year}`))
+
+  const shared = years.filter((year) =>
+    [...covered].every((country) => held.has(`${country} ${year}`)),
+  )
+
+  if (years.length === 0) return ranking
+
+  const to = Year.make(Math.max(...years))
+  const from = Year.make(Math.min(...(shared.length === 0 ? years : shared)))
+
+  return Ranking.make({
+    ...ranking,
+    year: Year.make(Math.min(Math.max(ranking.year, from), to)),
+    span: { from, to },
+  })
+}
+
+// A ranking over time turned into one of the year it shows.
+export const oneYear = (ranking: typeof Ranking.Type) =>
+  Ranking.make(Struct.omit(ranking, ["span"]))

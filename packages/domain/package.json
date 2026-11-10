@@ -6,9 +6,14 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "effect-tsgo tsc --noEmit"
+    "typecheck": "effect-tsgo tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@effect/vitest": "catalog:",
+    "vitest": "catalog:"
   }
 }
