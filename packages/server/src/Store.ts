@@ -11,7 +11,7 @@ import {
   sourceOf,
   type Year,
 } from "@civicdata/domain"
-import { Array as Arr, Context, Data, Effect, Layer, Option, Order, Schema, Struct } from "effect"
+import { Array as Arr, Context, Data, Effect, Layer, Option, Order, Schema } from "effect"
 
 import { fingerprint } from "./fingerprint.ts"
 import { Described } from "./Series.ts"
@@ -30,27 +30,33 @@ export interface Stored extends Schema.Schema.Type<typeof Stored> {}
 
 const StoredJson = Schema.fromJsonString(Schema.toCodecJson(Stored))
 
-// What a hash covers: the values and what the source calls them, without when
-// they were fetched or the release date, which change on runs that bring
-// nothing new.
-const PrintJson = Schema.fromJsonString(
-  Schema.toCodecJson(Stored.mapFields(Struct.omit(["retrievedAt", "version"]))),
-)
-
 // Country, then year: the order a stored series keeps its observations in.
 export const byCountryYear = Order.combine(
   Order.mapInput(Order.String, (observation: Observation) => observation.country),
   Order.mapInput(Order.Number, (observation: Observation) => observation.year),
 )
 
-// The SHA-256 of what a series holds, in hex. Observations are sorted first,
-// so the same values in another order hash the same.
-export const hashOf = (series: Stored) =>
-  Schema.encodeEffect(PrintJson)({
-    indicator: series.indicator,
-    dataset: series.dataset,
-    observations: Arr.sort(series.observations, byCountryYear),
-  }).pipe(Effect.orDie, Effect.flatMap(fingerprint))
+// The SHA-256 of what a series holds, in hex: its values and what the source
+// calls them, without when they were fetched or the release date, which
+// change on runs that bring nothing new. Observations are sorted first, so
+// the same values in another order hash the same. Built with JSON.stringify
+// rather than a Schema encoding, which costs five times the CPU for 14,000
+// observations.
+export const hashOf = ({ indicator, dataset, observations }: Stored) =>
+  fingerprint(
+    JSON.stringify([
+      indicator.id,
+      indicator.name,
+      indicator.definition,
+      dataset,
+      Arr.sort(observations, byCountryYear).map(({ country, year, value, flags }) => [
+        country,
+        year,
+        value,
+        flags ?? [],
+      ]),
+    ]),
+  )
 
 const folders: Record<Source, string> = {
   "World Bank": "world-bank",

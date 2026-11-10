@@ -137,6 +137,31 @@ describe("WorldBank", () => {
     }).pipe(Effect.provide(WorldBank.layer.pipe(Layer.provide(source.layer))))
   })
 
+  it.effect("retries a bulk download for longer than a visitor's request", () => {
+    let attempts = 0
+
+    const flaky = http(() => {
+      attempts += 1
+
+      return attempts <= 3
+        ? new Response("upstream down", { status: 503 })
+        : new Response(bulk(bulks.population))
+    })
+
+    return Effect.gen(function* () {
+      const fiber = yield* (yield* WorldBank)
+        .series(IndicatorId.make("SP.POP.TOTL"))
+        .pipe(Effect.forkScoped)
+
+      yield* TestClock.adjust("1 minute")
+
+      const series = yield* Fiber.join(fiber)
+
+      expect(attempts).toBe(4)
+      expect(series.observations.length).toBeGreaterThan(0)
+    }).pipe(Effect.provide(WorldBank.layer.pipe(Layer.provide(flaky))))
+  })
+
   it.effect("reports an indicator the bulk download does not know", () => {
     const source = serving({ version: "2026-10-08", answers: new Map() })
 

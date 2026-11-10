@@ -117,9 +117,17 @@ export const datasetOf = (indicator: IndicatorId, listed: string) =>
   indicator.startsWith("GOV_WGI_") ? "Worldwide Governance Indicators" : listed
 
 const make = Effect.gen(function* () {
-  const client = (yield* HttpClient.HttpClient).pipe(
-    HttpClient.filterStatusOk,
+  const ok = (yield* HttpClient.HttpClient).pipe(HttpClient.filterStatusOk)
+
+  const client = ok.pipe(
     HttpClient.retryTransient({ schedule: Schedule.exponential("250 millis"), times: 2 }),
+  )
+
+  // A gathering run waits for it, not a visitor, so a bulk download retries
+  // for about 15 seconds: one failure leaves the release unrecorded, and the
+  // next run asks for every indicator again.
+  const patient = ok.pipe(
+    HttpClient.retryTransient({ schedule: Schedule.exponential("1 second"), times: 4 }),
   )
 
   // Fetches a World Bank URL and decodes its body. Every transport, status
@@ -186,7 +194,7 @@ const make = Effect.gen(function* () {
   const series = Effect.fn("WorldBank.series")(function* (indicator: IndicatorId) {
     const url = bulkOf(indicator)
 
-    const buffer = yield* client.get(url).pipe(
+    const buffer = yield* patient.get(url).pipe(
       Effect.flatMap((response) => response.arrayBuffer),
       Effect.timeout("1 minute"),
       Effect.tapError((error) => Effect.logWarning("World Bank request failed", url, error)),

@@ -55,6 +55,11 @@ export default Alchemy.Stack(
       // Pinned so an Alchemy upgrade can't change the runtime. Keep in sync
       // with packages/server/vitest.config.ts.
       compatibility: { date: "2026-08-31" },
+      // Workflows run many steps in one invocation, whose CPU adds up: a
+      // World Bank gathering run spends about 30 seconds and tripped the
+      // 30-second default. Five minutes is the most Workers Paid allows. The
+      // limit is the Worker's, so visitors' requests get it too.
+      limits: { cpuMs: 300_000 },
       env: {
         DB: database,
         CACHE: cache,
