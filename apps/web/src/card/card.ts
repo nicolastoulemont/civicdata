@@ -8,6 +8,7 @@ import {
 import { Match } from "effect"
 
 import { colors } from "@/explore/colors.gen"
+import { europe } from "@/explore/europe.gen"
 import {
   attribution,
   countryName,
@@ -21,7 +22,8 @@ import {
 import { changes, type Paired, pairs } from "@/explore/points"
 import { places } from "@/explore/preview"
 import { around, ticks } from "@/explore/scale"
-import { rings, type Sheet, shades, sheetOf, type Steps } from "@/explore/sheet"
+import { pick, rings, type Sheet, shades, type Steps } from "@/explore/sheet"
+import { world } from "@/explore/world.gen"
 
 import { type Canvas, canvas, fill, type Ink, line, png, rect, mapInks, text } from "./canvas.ts"
 import { body, label, title } from "./faces.gen.ts"
@@ -396,10 +398,13 @@ const drawInsets = (
   }
 }
 
+// The server draws cards, so it holds both maps.
+const sheets: Record<Sheet["name"], Sheet> = { World: world, Europe: europe }
+
 // A map shaded by rank, as on the site, then its insets, then the key. A
 // country without a value stays the colour of a border.
 const drawMap = (image: Canvas, resolved: ResolvedView, box: Box) => {
-  const sheet = sheetOf(resolved.view.countries)
+  const sheet = sheets[pick(resolved.view.countries)]
   const { byCountry, key } = shades(resolved.observations)
 
   const inkOf = (country: Country): Ink => {

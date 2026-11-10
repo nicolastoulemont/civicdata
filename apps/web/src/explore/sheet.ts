@@ -1,8 +1,5 @@
 import { type Country, european, type ResolvedView } from "@civicdata/domain"
 
-import { europe } from "./europe.gen.ts"
-import { world } from "./world.gen.ts"
-
 // An outline as rings: the first point of each, then the step to each next
 // point, all in whole units.
 export type Steps = ReadonlyArray<ReadonlyArray<number>>
@@ -28,9 +25,11 @@ export interface Sheet {
   readonly insets: ReadonlyArray<Inset>
 }
 
-// The map of Europe when every country is European, else the world.
-export const sheetOf = (countries: ReadonlyArray<Country>): Sheet =>
-  countries.every((country) => european.has(country)) ? europe : world
+// The map of Europe when every country is European, else the world. Each
+// sheet's outlines live in their own module, so a page loads only the one it
+// draws.
+export const pick = (countries: ReadonlyArray<Country>): Sheet["name"] =>
+  countries.every((country) => european.has(country)) ? "Europe" : "World"
 
 type Point = readonly [number, number]
 
