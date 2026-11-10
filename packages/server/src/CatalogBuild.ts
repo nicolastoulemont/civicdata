@@ -1,10 +1,11 @@
 import { CatalogEntry, IndicatorId, Source, SourceUnavailable } from "@civicdata/domain"
-import type { CloudflareWorkersModule } from "@cloudflare/workers-types"
+import type { CloudflareWorkersModule, Rpc } from "@cloudflare/workers-types"
 import { D1Client } from "@effect/sql-d1"
 import { Array as Arr, Context, Effect, Layer, Option, Order, Schema } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
 import { tables } from "./Catalog.ts"
+import { fingerprint } from "./fingerprint.ts"
 import { Sdmx } from "./Sdmx.ts"
 import { Vectors, type VectorsUnavailable } from "./Vectors.ts"
 import { WorldBank } from "./WorldBank.ts"
@@ -37,19 +38,10 @@ const Pending = Schema.Struct({ rowid: Schema.Int, ...CatalogEntry.fields })
 
 const IdsJson = Schema.fromJsonString(Schema.Array(IndicatorId))
 
-// The SHA-256 of the text, in hex. A build stores one beside each generation
-// it writes and skips a source or dataset whose fingerprint matches the
-// published generation's.
-export const fingerprint = (text: string) =>
-  Effect.promise(() => crypto.subtle.digest("SHA-256", new TextEncoder().encode(text))).pipe(
-    Effect.map((digest) =>
-      Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join(""),
-    ),
-  )
-
-// What a step hands back, which Workflows saves: a count, a cursor or
-// nothing, never rows, so a saved result stays far below its 1 MiB limit.
-type Saved = number | null | void
+// What a step hands back, which Workflows saves: a count, a cursor, a few of
+// them or nothing, never rows, so a saved result stays far below its 1 MiB
+// limit.
+type Saved = number | string | null | void | { readonly [key: string]: number | string | null }
 
 interface Interface {
   // Lists the source's indicators into the generation, replacing what an
@@ -107,7 +99,7 @@ const retried = {
 export class Step extends Context.Service<
   Step,
   {
-    readonly run: <A extends Saved, E>(
+    readonly run: <A extends Saved & Rpc.Serializable<A>, E>(
       name: string,
       effect: Effect.Effect<A, E>,
     ) => Effect.Effect<A, StepFailed>

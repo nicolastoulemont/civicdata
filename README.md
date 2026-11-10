@@ -18,7 +18,7 @@ civicdata makes data about the economy and public policy easier to read and unde
 
 ## How it keeps numbers honest
 
-- Every value on a chart comes from a request to the World Bank, Eurostat or the OECD. A fetched series is reused for a day, or until Eurostat's next twice-daily update.
+- Every value on a chart comes from a request to the World Bank, Eurostat or the OECD. World Bank charts read our stored copy of each indicator, which a daily Workflow refreshes when the World Bank publishes a new release and never overwrites with an answer that drops values. Other fetched series are reused for a day, or until Eurostat's next twice-daily update.
 - The assistant chooses an indicator, countries and years; it never supplies a value. It may only use an indicator code that the catalog search returned, and the server checks the chart it asks for and sends any problem back for it to fix.
 - The assistant's words are not checked against the data. They may round a value or work out a difference; the chart beside them shows the published values.
 - A chart's plain title may reword the source's name for the indicator but may not add a number to it, and the official name stays on the chart.
@@ -74,7 +74,7 @@ pnpm check        # format, lint, fallow, typecheck, test, build: what CI runs
 
 A question on the home page opens a conversation at `/c/<id>`, where follow-ups like "add Mexico" change the last chart. Each conversation lives in its own Durable Object, which runs the agent and keeps the questions and charts until 30 days after the last question. An answer runs to its end and is kept even if the visitor leaves; a visitor who comes back while it runs sees it continue. The id is a random UUID made by the browser; whoever has the link can read the conversation. The agent runs on an OpenAI model. To ask them locally, copy `packages/infra/.env.example` to `packages/infra/.env` (gitignored) and fill in `OPENAI_API_KEY`; `alchemy dev` reads that file when it starts, and a variable exported in your shell overrides it. Set `OPENAI_MODEL` there to try another model than the default in `packages/server/src/Agent.ts`. Without a key the app works and every question answers "The assistant is not available".
 
-`pnpm dev` runs `alchemy dev` for the `dev_<user>` stage. Alchemy emulates D1, R2, Durable Objects and Workflows locally and serves the web app from the Workers runtime with hot reload, so the series cache works as deployed. Local Workflows run no schedules, so the local catalog stays empty and indicator search answers "unavailable" (see [docs/catalog.md](docs/catalog.md)). It needs your Cloudflare login, because the stage's state lives in your Alchemy state store. Vectorize and Workers AI have no local emulation: the stage creates a real Vectorize index in your account, and search by meaning calls Workers AI there. Nothing else is deployed. `pnpm dev:web` needs no login but runs in Node, where there is no D1, R2 or Durable Object: charts load uncached, and indicator search and questions answer "unavailable".
+`pnpm dev` runs `alchemy dev` for the `dev_<user>` stage. Alchemy emulates D1, R2, Durable Objects and Workflows locally and serves the web app from the Workers runtime with hot reload, so the series cache works as deployed. Local Workflows run no schedules, so the local catalog and store stay empty: indicator search answers "unavailable" and charts ask their source (see [docs/catalog.md](docs/catalog.md) and [docs/series.md](docs/series.md)). It needs your Cloudflare login, because the stage's state lives in your Alchemy state store. Vectorize and Workers AI have no local emulation: the stage creates a real Vectorize index in your account, and search by meaning calls Workers AI there. Nothing else is deployed. `pnpm dev:web` needs no login but runs in Node, where there is no D1, R2 or Durable Object: charts load uncached, and indicator search and questions answer "unavailable".
 
 `pnpm install` runs `effect-tsgo patch --typescript`, which patches TypeScript in `node_modules` so the editor loads the Effect plugin. Scripts call `effect-tsgo tsc`, so they don't depend on the patch.
 
@@ -102,4 +102,5 @@ Run it only on request. A change to the prompt, the tools or the model doesn't n
 ### More
 
 - [docs/catalog.md](docs/catalog.md): how the weekly Workflow builds the indicator catalog and stores the political records, and how to rebuild a stage by hand.
+- [docs/series.md](docs/series.md): how the daily Workflow stores every World Bank indicator, holds back an answer that drops values, and how charts read the store.
 - [docs/deploys.md](docs/deploys.md): stages per pull request and for `main`, the one-time setup, deploying your own stage, and upgrading Alchemy.

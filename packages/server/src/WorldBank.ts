@@ -6,12 +6,13 @@ import {
   SourceUnavailable,
   Year,
 } from "@civicdata/domain"
-import { Context, DateTime, Duration, Effect, Layer, Schedule, Schema } from "effect"
+import { Context, DateTime, Duration, Effect, Layer, Option, Schedule, Schema } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
 
 import { Cache } from "./Cache.ts"
 import { Pace } from "./Pace.ts"
 import { Described, type Query, Series, widen } from "./Series.ts"
+import { Store } from "./Store.ts"
 import { plain } from "./text.ts"
 
 const base = "https://api.worldbank.org/v2"
@@ -25,6 +26,9 @@ interface Interface {
   ) => Effect.Effect<Series, IndicatorNotFound | SourceUnavailable>
   // Every World Development Indicators indicator, in one request.
   readonly indicators: Effect.Effect<ReadonlyArray<CatalogEntry>, SourceUnavailable>
+  // The day the World Development Indicators last changed, such as
+  // "2026-10-08". The World Bank publishes one for the whole dataset.
+  readonly version: Effect.Effect<string, SourceUnavailable>
 }
 
 // The World Bank reports request errors with HTTP 200 and this body.
@@ -54,6 +58,11 @@ const DescribeBody = Schema.Union([
 // Asked with a page size above the ~1,500 indicators, so one page holds them all.
 const IndicatorsBody = Schema.Tuple([Schema.Struct({}), Schema.Array(Metadata)])
 
+const VersionBody = Schema.Tuple([
+  Schema.Struct({}),
+  Schema.Tuple([Schema.Struct({ lastupdated: Schema.NonEmptyString })]),
+])
+
 // `null` rows means the query matched nothing.
 const ObservationsBody = Schema.Union([
   Message,
@@ -62,10 +71,15 @@ const ObservationsBody = Schema.Union([
 
 const unavailable = () => new SourceUnavailable({ source: "World Bank" })
 
+// The request that answers the query's values. One page always holds every
+// row: at most one per country and year.
+const urlOf = (query: Query) =>
+  `${base}/country/${query.countries.join(";")}/indicator/${query.indicator}?format=json&date=${query.from}:${query.to}&per_page=${query.countries.length * (query.to - query.from + 1)}`
+
 // The World Development Indicators republish the estimate and score of the
 // six Worldwide Governance Indicators under GOV_WGI_ codes. Their charts
 // credit WGI, the dataset the World Bank asks users to cite for them.
-const datasetOf = (indicator: IndicatorId, listed: string) =>
+export const datasetOf = (indicator: IndicatorId, listed: string) =>
   indicator.startsWith("GOV_WGI_") ? "Worldwide Governance Indicators" : listed
 
 const make = Effect.gen(function* () {
@@ -105,9 +119,7 @@ const make = Effect.gen(function* () {
   })
 
   const observations = Effect.fn("WorldBank.observations")(function* (query: Query) {
-    const years = query.to - query.from + 1
-    // One page always holds every row: at most one per country and year.
-    const url = `${base}/country/${query.countries.join(";")}/indicator/${query.indicator}?format=json&date=${query.from}:${query.to}&per_page=${query.countries.length * years}`
+    const url = urlOf(query)
     const decoded = yield* fetch(url, ObservationsBody)
 
     if (decoded.length === 1) {
@@ -137,7 +149,12 @@ const make = Effect.gen(function* () {
     Effect.withSpan("WorldBank.indicators"),
   )
 
-  return WorldBank.of({ describe, observations, indicators })
+  const version = fetch(`${base}/sources/2?format=json`, VersionBody).pipe(
+    Effect.map(([, [source]]) => source.lastupdated),
+    Effect.withSpan("WorldBank.version"),
+  )
+
+  return WorldBank.of({ describe, observations, indicators, version })
 })
 
 // World Bank indicators change a few times a year at most.
@@ -186,9 +203,68 @@ export class WorldBank extends Context.Service<WorldBank, Interface>()(
         ),
         // The catalog keeps its own copy in D1.
         indicators: live.indicators,
+        version: live.version,
       })
     }),
   )
 
-  static readonly live = WorldBank.cached.pipe(Layer.provide(Pace.http), Layer.provide(Cache.layer))
+  // Answers an indicator's description and values from its stored series,
+  // filtered to the query, without asking the World Bank. The answer links
+  // the World Bank request that returns the same values and reports when the
+  // stored series was fetched. An indicator with no stored series, or a
+  // store that fails, is asked of the adapter it wraps.
+  static readonly stored = Layer.effect(
+    WorldBank,
+    Effect.gen(function* () {
+      const fallback = yield* WorldBank
+      const store = yield* Store
+
+      const read = (indicator: IndicatorId) =>
+        store
+          .read(indicator)
+          .pipe(
+            Effect.catchTag("StoreUnavailable", (error) =>
+              Effect.logWarning("Store unavailable, asking the World Bank", indicator, error).pipe(
+                Effect.as(Option.none()),
+              ),
+            ),
+          )
+
+      return WorldBank.of({
+        describe: Effect.fn("WorldBank.stored.describe")(function* (indicator) {
+          const stored = yield* read(indicator)
+
+          if (Option.isNone(stored)) return yield* fallback.describe(indicator)
+
+          const { dataset, retrievedAt } = stored.value
+
+          return { indicator: stored.value.indicator, dataset, retrievedAt }
+        }),
+        observations: Effect.fn("WorldBank.stored.observations")(function* (query) {
+          const stored = yield* read(query.indicator)
+
+          if (Option.isNone(stored)) return yield* fallback.observations(query)
+
+          const countries = new Set(query.countries)
+
+          return {
+            observations: stored.value.observations.filter(
+              ({ country, year }) =>
+                countries.has(country) && year >= query.from && year <= query.to,
+            ),
+            url: urlOf(query),
+            retrievedAt: stored.value.retrievedAt,
+          }
+        }),
+        indicators: fallback.indicators,
+        version: fallback.version,
+      })
+    }),
+  ).pipe(Layer.provide(WorldBank.cached))
+
+  static readonly live = WorldBank.stored.pipe(
+    Layer.provide(Store.layer),
+    Layer.provide(Pace.http),
+    Layer.provide(Cache.layer),
+  )
 }
