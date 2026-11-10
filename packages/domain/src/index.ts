@@ -8,6 +8,7 @@ export {
   Chart,
   ChartIndex,
   chartsOf,
+  Cite,
   Checked,
   ConversationId,
   Definition,
@@ -69,6 +70,7 @@ export { Indicator, IndicatorId, IndicatorNotes } from "./Indicator.ts"
 export {
   areas,
   Ballot,
+  type Citation,
   Cited,
   covers,
   Day,
@@ -79,6 +81,7 @@ export {
   idOf,
   members,
   Moment,
+  nameOf,
   Overlay,
   Overlays,
   Party,

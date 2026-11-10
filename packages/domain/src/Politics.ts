@@ -79,6 +79,8 @@ const Citation = Schema.Struct({
   retrievedAt: Schema.DateTimeUtc,
 })
 
+export interface Citation extends Schema.Schema.Type<typeof Citation> {}
+
 // A party in government, as its publisher names it. Parliamentary support
 // parties are not governing parties.
 export const Party = Schema.Struct({
@@ -360,6 +362,25 @@ export const idOf = (cited: Cited): RecordId =>
       Reform: ({ reform }) => `reform:${reform.id}`,
     }),
   )
+
+// What each election chose, inside a sentence: "the 2017 presidential
+// election".
+const ballotNames: Record<Ballot, string> = {
+  parliament: "general election",
+  president: "presidential election",
+  "president-indirect": "indirect presidential election",
+}
+
+// The name a takeaway shows for a record it cites: a government by its head,
+// an election by its year and ballot ("2017 presidential election"), an
+// event or a reform by its own name.
+export const nameOf = (cited: Cited) =>
+  Cited.match(cited, {
+    Government: ({ government }) => government.head,
+    Election: ({ election }) => `${election.date.slice(0, 4)} ${ballotNames[election.ballot]}`,
+    Event: ({ event }) => event.name,
+    Reform: ({ reform }) => reform.name,
+  })
 
 // What a trend chart can draw over its lines besides the data: elections,
 // governments, and events with reforms. Kept beside a chart, never in its

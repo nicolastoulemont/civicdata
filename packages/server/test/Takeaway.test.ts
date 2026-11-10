@@ -1,4 +1,5 @@
 import {
+  Cited,
   Day,
   End,
   IndicatorId,
@@ -68,7 +69,7 @@ const trend = summarize(
 )
 
 // The check against a chart's data alone, with no political records.
-const alone = (summary: Summary) => ({ summary, names: [] })
+const alone = (summary: Summary) => ({ summary, names: [], records: new Map() })
 
 const shows = (text: string) => Result.isSuccess(check(text, alone(trend)))
 
@@ -180,6 +181,7 @@ describe("check", () => {
       Result.succeed({
         text: "Youth unemployment in Spain peaked at 55.5% in 2013, then fell to 26.",
         numbers: 3,
+        cites: [],
       }),
     )
     expect(shows("Italy's rate went from 27.9% to 20.3% between 2010 and 2024.")).toBe(true)
@@ -202,7 +204,7 @@ describe("check", () => {
 
   it("removes Markdown bold, which the answer would show as asterisks", () => {
     expect(check("**Spain** peaked in 2013.", alone(trend))).toEqual(
-      Result.succeed({ text: "Spain peaked in 2013.", numbers: 1 }),
+      Result.succeed({ text: "Spain peaked in 2013.", numbers: 1, cites: [] }),
     )
   })
 
@@ -267,7 +269,23 @@ describe("check against the political records", () => {
     reforms: [],
   }
 
-  const against = { summary: trend, names: namesIn(spain) }
+  const [rajoy] = spain.governments
+  const [crisis] = spain.events
+
+  if (rajoy === undefined || crisis === undefined) throw new Error("Spain's records are missing")
+
+  const government = Cited.cases.Government.make({ government: rajoy })
+  const event = Cited.cases.Event.make({ event: crisis })
+
+  // The agent looked up both records.
+  const against = {
+    summary: trend,
+    names: namesIn(spain),
+    records: new Map<string, Cited>([
+      ["government:ESP:2011-12-21", government],
+      ["event:financial-crisis", event],
+    ]),
+  }
 
   it("hides a takeaway that names a head of government, a party or an event", () => {
     for (const text of [
@@ -285,6 +303,7 @@ describe("check against the political records", () => {
       Result.succeed({
         text: "Youth unemployment in Spain peaked in 2013. PPP rates aside.",
         numbers: 1,
+        cites: [],
       }),
     )
   })
@@ -299,6 +318,49 @@ describe("check against the political records", () => {
     expect(check("Because of the recession, Spain's rate peaked in 2013.", against)).toEqual(
       Result.fail("cause"),
     )
+  })
+
+  it("writes each cited record's name in place of its id, and where it starts", () => {
+    expect(
+      check(
+        "Youth unemployment in Spain peaked in 2013 under [[government:ESP:2011-12-21]], after the [[ event:financial-crisis ]].",
+        against,
+      ),
+    ).toEqual(
+      Result.succeed({
+        text: "Youth unemployment in Spain peaked in 2013 under Mariano Rajoy, after the Global financial crisis and Great Recession.",
+        // The dates in the ids are not numbers of the takeaway.
+        numbers: 1,
+        cites: [
+          { at: 49, record: government },
+          { at: 74, record: event },
+        ],
+      }),
+    )
+  })
+
+  it("hides a takeaway that cites a record the agent did not look up", () => {
+    expect(
+      check(
+        "Youth unemployment in Spain peaked in 2013 under [[government:ESP:2018-06-07]].",
+        against,
+      ),
+    ).toEqual(Result.fail("record"))
+  })
+
+  it("hides a takeaway that cites one record and names another", () => {
+    expect(
+      check(
+        "Spain's rate peaked in 2013 under [[government:ESP:2011-12-21]], before the PP lost.",
+        against,
+      ),
+    ).toEqual(Result.fail("name"))
+  })
+
+  it("hides a takeaway that ties a cited record to the data with causal wording", () => {
+    expect(
+      check("Spain's rate peaked in 2013 because of the [[event:financial-crisis]].", against),
+    ).toEqual(Result.fail("cause"))
   })
 
   it("shows a takeaway that places a movement in time without a cause", () => {

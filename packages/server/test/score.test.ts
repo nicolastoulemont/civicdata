@@ -1,8 +1,10 @@
 import {
   Answered,
+  Cited,
   Asked,
   Dimensions,
   IndicatorId,
+  Politics,
   Ranking,
   Relation,
   Trend,
@@ -14,6 +16,7 @@ import { Array as Arr, Schema } from "effect"
 import { describe, expect, it } from "vitest"
 
 import { Expected, score } from "../eval/score.ts"
+import events from "../src/official/events.json"
 
 const lifeExpectancy = IndicatorId.make("SP.DYN.LE00.IN")
 
@@ -70,6 +73,36 @@ describe("score", () => {
     ])
     // A case that names no context does not score it.
     expect(score([expected], governed)).toEqual([])
+  })
+
+  it("scores the records a takeaway cites when the case names them", () => {
+    const [crisis] = Schema.decodeUnknownSync(Politics.fields.events)(
+      events.filter(({ id }) => id === "financial-crisis"),
+    )
+
+    if (crisis === undefined) throw new Error("events.json has no financial crisis")
+
+    const event = Cited.cases.Event.make({ event: crisis })
+
+    const takeaway = "Life expectancy rose after the Global financial crisis and Great Recession."
+
+    const cited = Answered.make({
+      charts: [
+        {
+          view: brazilAndMexico(),
+          takeaway,
+          cites: [{ at: takeaway.indexOf("Global"), record: event }],
+        },
+      ],
+    })
+
+    expect(score([{ ...expected, cites: ["event:financial-crisis"] }], cited)).toEqual([])
+    expect(score([{ ...expected, cites: [] }], cited)).toEqual([
+      "cites event:financial-crisis, want none",
+    ])
+    expect(score([{ ...expected, cites: ["event:financial-crisis"] }], trend())).toEqual([
+      "cites none, want event:financial-crisis",
+    ])
   })
 
   it("rejects a ranking where a trend is expected", () => {

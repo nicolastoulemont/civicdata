@@ -10,7 +10,7 @@ import {
   SourceUnavailable,
 } from "./Errors.ts"
 import { IndicatorId } from "./Indicator.ts"
-import { Overlays } from "./Politics.ts"
+import { Cited, nameOf, Overlays } from "./Politics.ts"
 import { Source } from "./Source.ts"
 import { View, Year } from "./View.ts"
 
@@ -156,8 +156,9 @@ export const Checked = Schema.TaggedStruct("Done", { numbers: Count })
 
 // Why a takeaway failed the check: it wrote a number that is not in the
 // data, named a head of government, party or event from the political
-// records, said what caused a movement in the data, or was empty.
-export const Unchecked = Schema.Literals(["number", "name", "cause", "empty"])
+// records without citing it, cited a record the agent did not look up, said
+// what caused a movement in the data, or was empty.
+export const Unchecked = Schema.Literals(["number", "name", "record", "cause", "empty"])
 
 // The takeaway failed the check, so the chart shows without one. Takeaways
 // dropped before the check had several reasons were dropped for a number.
@@ -168,15 +169,39 @@ export const Dropped = Schema.TaggedStruct("Dropped", {
 // The agent writes the chart's takeaway and checks it against the data.
 const takeaway = <S extends Schema.Top>(state: S) => ({ id: StepId, state })
 
-// A chart of an answer, with what the agent says it shows and the political
-// context it draws over a trend, if any. A chart has no takeaway when the
-// agent's text failed the check, and charts saved before takeaways existed
-// have none.
+// A political record a takeaway cites, and where its name starts in the
+// takeaway's text.
+export const Cite = Schema.Struct({ at: Count, record: Cited })
+
+// A takeaway and the records it cites, in the order it cites them.
+const said = {
+  takeaway: Schema.optionalKey(Schema.NonEmptyString),
+  cites: Schema.optionalKey(Schema.NonEmptyArray(Cite)),
+}
+
+// Each cited record's name stands at its place in the takeaway.
+const placed = Schema.makeFilter(
+  ({
+    takeaway: text,
+    cites,
+  }: {
+    readonly takeaway?: string
+    readonly cites?: ReadonlyArray<typeof Cite.Type>
+  }) =>
+    cites === undefined ||
+    (text !== undefined && cites.every(({ at, record }) => text.startsWith(nameOf(record), at))) ||
+    "each cited record's name must stand at its place in the takeaway",
+)
+
+// A chart of an answer, with what the agent says it shows, the records it
+// cites, and the political context it draws over a trend, if any. A chart
+// has no takeaway when the agent's text failed the check, and charts saved
+// before takeaways existed have none.
 export const Chart = Schema.Struct({
   view: View,
   overlays: Schema.optionalKey(Overlays),
-  takeaway: Schema.optionalKey(Schema.NonEmptyString),
-})
+  ...said,
+}).check(placed)
 
 export interface Chart extends Schema.Schema.Type<typeof Chart> {}
 
@@ -191,10 +216,9 @@ export const ChartIndex = Schema.Int.check(
 
 export type ChartIndex = typeof ChartIndex.Type
 
-// The takeaway the agent kept for a chart it drew, if it kept one.
-export const Explained = Schema.TaggedStruct("Done", {
-  takeaway: Schema.optionalKey(Schema.NonEmptyString),
-})
+// The takeaway the agent kept for a chart it drew, if it kept one, with the
+// records it cites.
+export const Explained = Schema.TaggedStruct("Done", said).check(placed)
 
 // A step of work in any state, as it streams. Thinking is the model deciding
 // what to do next. Drawn is a chart of the answer, sent as soon as the agent

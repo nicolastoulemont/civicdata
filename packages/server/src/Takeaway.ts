@@ -1,12 +1,15 @@
 import {
+  type Cite,
+  type Cited,
   Country,
+  nameOf,
   type Observation,
   type Politics,
   type ResolvedView,
   type Unchecked,
   Year,
 } from "@civicdata/domain"
-import { Array as Arr, Match, Order, Result, Schema } from "effect"
+import { Array as Arr, Match, Order, Predicate, Result, Schema } from "effect"
 
 const Point = Schema.Struct({ year: Year, value: Schema.Finite })
 
@@ -120,7 +123,7 @@ export const summarize = (resolved: ResolvedView): Summary =>
 // How a takeaway is written, for the agent's instructions and for explaining
 // a chart on its own.
 export const rules =
-  "two short sentences of plain text, without Markdown, on what the chart shows, read from its data. Say which way each country moves, which is highest or lowest, or how the two indicators go together. Take every number and year from that data, rounded if you like; never work one out, such as a difference, a ratio or an average. Never name a head of government, a party, an election or an event, and never say what caused a movement in the data."
+  "two short sentences of plain text, without Markdown, on what the chart shows, read from its data. Say which way each country moves, which is highest or lowest, or how the two indicators go together. Take every number and year from that data, rounded if you like; never work one out, such as a difference, a ratio or an average. Never write the name of a head of government, a party, an election or an event yourself, and never say what caused a movement in the data."
 
 // Words that say one thing caused another. A takeaway says what the data
 // shows beside the political records, never why it moved: "rose from 2008,
@@ -275,40 +278,87 @@ export const namesIn = ({ governments, events, reforms }: Politics): ReadonlyArr
   ]
 }
 
-// A takeaway that passed the check, and how many numbers it has, each checked.
+// A takeaway that passed the check, as people read it: its text with each
+// cited record's name in place of its id, how many numbers it has, each
+// checked, and the records it cites.
 interface Checked {
   readonly text: string
   readonly numbers: number
+  readonly cites: ReadonlyArray<typeof Cite.Type>
 }
 
-// What a takeaway is checked against: the data the model was given, and the
-// names in the political records of the chart's countries.
+// What a takeaway is checked against: the data the model was given, the
+// names in the political records of the chart's countries, and the records
+// the agent looked up, by id: the only ones it can cite.
 interface Against {
   readonly summary: Summary
   readonly names: ReadonlyArray<RegExp>
+  readonly records: ReadonlyMap<string, Cited>
 }
 
+// A citation as the model writes it: a record's id in double brackets,
+// "[[event:financial-crisis]]".
+const citation = /\[\[\s*([^\]\s]+)\s*\]\]/g
+
+// The model's words and the records it cites between them, in order, or
+// none when it cites a record the agent did not look up.
+const partsOf = (takeaway: string, records: ReadonlyMap<string, Cited>) => {
+  const parts: Array<string | Cited> = []
+  let from = 0
+
+  for (const { 0: whole, 1: id = "", index } of takeaway.matchAll(citation)) {
+    const record = records.get(id)
+
+    if (record === undefined) return undefined
+
+    parts.push(takeaway.slice(from, index), record)
+    from = index + whole.length
+  }
+
+  parts.push(takeaway.slice(from))
+
+  return parts
+}
+
+// The takeaway as people read it: each cited record's name where the model
+// wrote its id, and where each name starts.
+const rendered = (parts: ReadonlyArray<string | Cited>) =>
+  parts.reduce<{ text: string; cites: Array<typeof Cite.Type> }>(
+    ({ text, cites }, part) =>
+      Predicate.isString(part)
+        ? { text: `${text}${part}`, cites }
+        : { text: `${text}${nameOf(part)}`, cites: [...cites, { at: text.length, record: part }] },
+    { text: "", cites: [] },
+  )
+
 // The takeaway to show from what the model wrote, or why it is not shown.
-// Every number in it must come from the data the model was given; a takeaway
-// with any other number, such as a difference the model worked out, is not
-// shown. Nor is one that names a head of government, party or event from the
-// political records, or one that says what caused a movement in the data.
+// Every number in the model's own words must come from the data it was
+// given; a takeaway with any other number, such as a difference the model
+// worked out, is not shown. Nor is one that cites a record the agent did not
+// look up, names a head of government, party or event from the political
+// records instead of citing it, or says what caused a movement in the data.
 // The answer shows plain text, so Markdown bold, which models write anyway,
 // is removed.
 export const check = (
   text: string,
-  { summary, names }: Against,
+  { summary, names, records }: Against,
 ): Result.Result<Checked, typeof Unchecked.Type> => {
   const takeaway = text.replaceAll("**", "").trim()
-  const written = writtenIn(takeaway)
 
   if (takeaway === "") return Result.fail("empty")
 
+  const parts = partsOf(takeaway, records)
+
+  if (parts === undefined) return Result.fail("record")
+
+  const words = parts.filter(Predicate.isString)
+  const written = words.flatMap(writtenIn)
+
   if (!written.every(fromData(summary))) return Result.fail("number")
 
-  if (names.some((name) => name.test(takeaway))) return Result.fail("name")
+  if (words.some((each) => names.some((name) => name.test(each)))) return Result.fail("name")
 
-  if (causes.some((cause) => cause.test(takeaway))) return Result.fail("cause")
+  if (causes.some((cause) => cause.test(words.join(" ")))) return Result.fail("cause")
 
-  return Result.succeed({ text: takeaway, numbers: written.length })
+  return Result.succeed({ ...rendered(parts), numbers: written.length })
 }

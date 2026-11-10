@@ -263,6 +263,7 @@ const fetch = ({ view, state }: typeof Fetch.Type) => {
 const unchecked: Record<typeof Unchecked.Type, string> = {
   number: "it had a number that isn't in the data",
   name: "it named a government, party or event without citing its record",
+  record: "it cited a record the assistant didn't look up",
   cause: "it said what caused a change in the data",
   empty: "the assistant wrote none",
 }

@@ -16,6 +16,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { Hold } from "@/hold"
 
 import { explain } from "./api.ts"
+import { Cited } from "./Cited.tsx"
 import { named } from "./format.ts"
 import { toQuery } from "./search.ts"
 
@@ -38,14 +39,23 @@ const isDrawn = Schema.is(Drawn)
 
 // What the agent has said about the chart on screen: nothing yet, a takeaway
 // it is writing, its takeaway, a takeaway withheld because it failed the
-// check against the data and the political records, or a takeaway for the chart before the person's changes.
+// check against the data and the political records, or a takeaway for the
+// chart before the person's changes. A takeaway comes with the chart it was
+// written for, whose countries name who an event concerns.
 type Said = Data.TaggedEnum<{
   Nothing: {}
   Writing: {}
-  Current: { readonly takeaway: string }
+  Current: { readonly explained: Written }
   Withheld: {}
-  Earlier: { readonly takeaway: string }
+  Earlier: { readonly explained: Written }
 }>
+
+// A chart with the takeaway the agent kept for it.
+interface Written extends Explained {
+  readonly takeaway: string
+}
+
+const isWritten = (explained: Explained): explained is Written => explained.takeaway !== undefined
 
 const Said = Data.taggedEnum<Said>()
 
@@ -65,13 +75,11 @@ const saidOf = (view: View, known: ReadonlyArray<Explained>): Said => {
   const current = known.find((explained) => toQuery(explained.view) === toQuery(view))
 
   if (current !== undefined)
-    return current.takeaway === undefined
-      ? Said.Withheld()
-      : Said.Current({ takeaway: current.takeaway })
+    return isWritten(current) ? Said.Current({ explained: current }) : Said.Withheld()
 
-  const earlier = known.find((explained) => explained.takeaway !== undefined)?.takeaway
+  const earlier = known.find(isWritten)
 
-  return earlier === undefined ? Said.Nothing() : Said.Earlier({ takeaway: earlier })
+  return earlier === undefined ? Said.Nothing() : Said.Earlier({ explained: earlier })
 }
 
 // What the agent has said about the chart on screen, given its own chart and
@@ -106,16 +114,22 @@ const Text = ({ said }: TextProps) =>
   Match.valueTags(said, {
     Nothing: () => null,
     Writing: () => <p className="shimmer text-sm text-muted-foreground">Writing the takeaway…</p>,
-    Current: ({ takeaway }) => <p>{takeaway}</p>,
+    Current: ({ explained }) => (
+      <p>
+        <Cited explained={explained} />
+      </p>
+    ),
     Withheld: () => (
       <p className="text-sm text-muted-foreground">
         The assistant's explanation did not match the data and records behind the chart, so it is
         not shown.
       </p>
     ),
-    Earlier: ({ takeaway }) => (
+    Earlier: ({ explained }) => (
       <>
-        <p className="text-muted-foreground">{takeaway}</p>
+        <p className="text-muted-foreground">
+          <Cited explained={explained} />
+        </p>
         <p className="text-sm text-muted-foreground">
           This describes the chart before your changes.
         </p>
