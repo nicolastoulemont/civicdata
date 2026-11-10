@@ -847,4 +847,20 @@ export const cases: ReadonlyArray<Case> = [
     questions: ["Apple's share price over the last five years"],
     accepts: [Unanswered()],
   },
+
+  // The Worldwide Governance Indicators, which the World Development
+  // Indicators republish: a dimension's estimate or its 0 to 100 score.
+  {
+    questions: ["How has control of corruption changed in Hungary since 2010?"],
+    accepts: [
+      Trend({ indicators: ["GOV_WGI_CC_EST", "GOV_WGI_CC_SC"], countries: ["HUN"], from: 2010 }),
+    ],
+  },
+  {
+    questions: ["Rank the EU on rule of law"],
+    accepts: [
+      Ranking({ indicators: ["GOV_WGI_RL_EST", "GOV_WGI_RL_SC"], countries: eu }),
+      Map({ indicators: ["GOV_WGI_RL_EST", "GOV_WGI_RL_SC"], countries: eu }),
+    ],
+  },
 ]

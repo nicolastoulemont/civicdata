@@ -1,0 +1,84 @@
+{
+  "page": 1,
+  "pages": 1,
+  "per_page": "5000",
+  "total": 15,
+  "source": [
+    {
+      "id": "2",
+      "name": "World Development Indicators",
+      "concept": [
+        {
+          "id": "Series",
+          "variable": [
+            {
+              "id": "GOV_WGI_CC_EST",
+              "metatype": [
+                {
+                  "id": "Aggregationmethod",
+                  "value": "Indicators, from the underlying data sources, are aggregated using the Unobserved Components Model (UCM). The UCM is essentially a weighted average, resulting in a governance estimate at the country level. The following provides a detailed description of the aggregation methodology: \nhttps://www.worldbank.org/content/dam/sites/govindicators/doc/The%20Worldwide%20Governance%20Indicators%202025%"
+                },
+                {
+                  "id": "Dataset",
+                  "value": "WB_WDI"
+                },
+                {
+                  "id": "Developmentrelevance",
+                  "value": "Governance\u2014the traditions and institutions by which authority in a country is exercised\u2014is widely recognized as a critical driver of development outcomes. Theoretical and empirical research shows that countries with inclusive and accountable institutions tend to achieve higher levels of economic development, better public service delivery, and more robust job creation. Conversely, weak governance\u2014marked by corruption, poor regulatory enforcement, or lack of rule of law\u2014 often impedes growth and undermines social outcomes (Acemoglu and Robinson, 2012; World Bank, 2017).\n\nThe Worldwide Governance Indicators (WGI) are designed to help researchers and analysts assess broad patterns in perceptions of governance across countries and over time. The WGI cover more than 200 economies, measuring six dimensions of governance since 1996: Voice and Accountability, Political Stability, Government Effectiveness, Regulatory Quality, Rule of Law, and Control of Corruption.\n\nThe WGI provides two complementary outputs: (i) governance estimates expressed in a standard statistical unit, and (ii) scores on an absolute 0-100 scale anchored to fixed reference points. Historical estimates have been recalculated back to 1996 to ensure full consistency over time.\n\nPlease note that the 2025 edition of the WGI introduced a set of methodological updates. These include enhancements to data source screening, indicator mapping, and the aggregation model, as well as the introduction of an absolute 0-100 scale (percentile ranks before) anchored to fixed benchmark countries."
+                },
+                {
+                  "id": "IndicatorName",
+                  "value": "Control of Corruption - Governance estimate (approx. -2.5 to +2.5)"
+                },
+                {
+                  "id": "License_Type",
+                  "value": "CC BY-4.0"
+                },
+                {
+                  "id": "License_URL",
+                  "value": "https://datacatalog.worldbank.org/public-licenses#cc-by"
+                },
+                {
+                  "id": "Limitationsandexceptions",
+                  "value": "The WGI are perception-based measures which draw on 35 distinct underlying data sources, namely expert assessments and household/firm surveys. Data sources based on expert assessments have both strengths and limitations relative to surveys. A key strength is that they are well suited to cross-country comparison, since their methodologies are explicitly designed for this purpose. Expert assessments can also provide more detailed technical judgments on specific public institutions or governance functions that typical household or firm survey respondents may not be well placed to assess. In addition, they may be less affected by respondent reticence, which can arise in household and firm surveys when questions concern sensitive topics such as corruption or other dimensions of governance. At the same time, expert assessments reflect the views of a narrower group of respondents than household or firm surveys. There is also a risk that ratings from one expert assessment may partly reflect information or judgments from other expert assessments, reducing the independence of the underlying signals. To help address this concern, the WGI exclude expert assessments that are explicitly based on other existing data sources.\n\nRegarding the usage of the published WGI data, the six composite WGI measures are useful for broad cross-country comparisons and for assessing general trends over time. However, they are not designed to guide the formulation of specific governance reforms in particular country contexts. Such reforms, and evaluation of their progress, need to be informed by much more detailed and country-specific diagnostic data that can identify the relevant constraints on governance in particular country circumstances. The WGI are complementary to a large number of other efforts to construct more detailed measures of governance, often just for a single country. Users are also encouraged to consult the disaggregated individual indicators underlying the composite WGI scores to gain more insights into the particular areas of strengths and weaknesses identified by the data."
+                },
+                {
+                  "id": "Longdefinition",
+                  "value": "Control of Corruption (CC) captures perceptions of the extent to which public power is used for private gain, including both petty and grand corruption, as well as capture of the state by elites and private interests. \n\nGovernance estimate from the aggregation model, in units of a standard normal distribution, i.e. ranging from approximately -2.5 to 2.5. Larger values correspond to better governance.\n\nThe (country-series-time) metadata include the (a) number of sources, and (b) standard error. The number of sources indicates the number of underlying data sources on which the governance estimate is based. The standard error indicates the precision of the governance estimate. Larger values indicate less precise estimates. A 90% confidence interval for the governance estimate is given by the estimate +/- 1.64 times the standard error."
+                },
+                {
+                  "id": "Periodicity",
+                  "value": "Annual"
+                },
+                {
+                  "id": "Referenceperiod",
+                  "value": "1996-2025"
+                },
+                {
+                  "id": "Shortdefinition",
+                  "value": "Control of Corruption (CC) captures perceptions of the extent to which public power is used for private gain, including both petty and grand corruption, as well as capture of the state by elites and private interests. \n\nGovernance estimate from the aggregation model, in units of a standard normal distribution, i.e. ranging from approximately -2.5 to 2.5. Larger values correspond to better governance.\n\nThe (country-series-time) metadata include the (a) number of sources, and (b) standard error. The number of sources indicates the number of underlying data sources on which the governance estimate is based. The standard error indicates the precision of the governance estimate. Larger values indicate less precise estimates. A 90% confidence interval for the governance estimate is given by the estimate +/- 1.64 times the standard error."
+                },
+                {
+                  "id": "Source",
+                  "value": "The Worldwide Governance Indicators: Revised Methodology for Measuring Governance Using Perception Data., World Bank Group (WBG), uri: https://www.worldbank.org/en/publication/worldwide-governance-indicators, note: Detailed documentation of the WGI, interactive tools for exploring the data, and full access to the underlying source data available at www.govindicators.org. Worldwide Governance Indicators, 2025 Revision, World Bank (www.govindicators.org), Accessed on 12/15/2025. And: World Bank (2025). \u201cThe Worldwide Governance Indicators: Revised Methodology for Measuring Governance Using Perception Data.\u201d Washington, DC: World Bank Group. The 2025 revision builds upon the original WGI methodology which was introduced in 1999 and summarized by the following paper: Kaufmann, Daniel & Aart C. Kraay. (2024). \u201cThe Worldwide Governance Indicators: Methodology and 2024 Update.\u201d Policy Research Working Paper. Washington, DC: World Bank Group., date accessed: 2026-06-03, date published: 2025"
+                },
+                {
+                  "id": "Statisticalconceptandmethodology",
+                  "value": "Methodology: The following are the key steps:\nSTEP 1: Assigning indicators from the underlying sources to the six governance dimensions. Individual questions or variables from the underlying data sources are mapped to up to two of the six governance dimensions.\nSTEP 2: Rescaling the individual source data to range from 0 to 1. Each question from the underlying data sources is rescaled to range from 0 to 1, with higher values corresponding to better governance outcomes.\nSTEP 3: Using an Unobserved Components Model to construct a governance estimate for each dimension by taking a weighted average of the source-by-dimension data. To aggregate data across multiple sources, the WGI uses a statistical technique known as an Unobserved Components Model (UCM).\nSTEP 4: Transforming the UCM-generated governance estimates to a 0\u2013100 absolute governance score. The WGI transform the governance estimates for each country, year, and dimension\u2014typically ranging from approximately -2.5 to 2.5 \u2014into absolute scores on a 0-100 scale, with 100 representing the best absolute governance performance.\n\nThe following is a summary of the methodology:\nhttps://www.worldbank.org/en/publication/worldwide-governance-indicators/documentation#3\nThe following is a detailed description of the methodology:\nhttps://www.worldbank.org/content/dam/sites/govindicators/doc/The%20Worldwide%20Governance%20Indicators%202025%20Methodology%20Revision.pdf\nStatistical concept(s): For each of the six governance dimensions, the following are produced: (i) a governance estimate in statistical units (approximately Normal, ranging from -2.5 to 2.5) and (ii) a linear transformation of the governance estimate into an absolute score on a 0-100 scale (anchored by benchmark countries)."
+                },
+                {
+                  "id": "Topic",
+                  "value": "Policy & institutions: Control of Corruption"
+                },
+                {
+                  "id": "Unitofmeasure",
+                  "value": "Number"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

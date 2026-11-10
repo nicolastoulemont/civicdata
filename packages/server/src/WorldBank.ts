@@ -62,6 +62,12 @@ const ObservationsBody = Schema.Union([
 
 const unavailable = () => new SourceUnavailable({ source: "World Bank" })
 
+// The World Development Indicators republish the estimate and score of the
+// six Worldwide Governance Indicators under GOV_WGI_ codes. Their charts
+// credit WGI, the dataset the World Bank asks users to cite for them.
+const datasetOf = (indicator: IndicatorId, listed: string) =>
+  indicator.startsWith("GOV_WGI_") ? "Worldwide Governance Indicators" : listed
+
 const make = Effect.gen(function* () {
   const client = (yield* HttpClient.HttpClient).pipe(
     HttpClient.filterStatusOk,
@@ -93,7 +99,7 @@ const make = Effect.gen(function* () {
 
     return {
       indicator: { id: metadata.id, name: metadata.name, definition: plain(metadata.sourceNote) },
-      dataset: metadata.source.value,
+      dataset: datasetOf(metadata.id, metadata.source.value),
       retrievedAt: yield* DateTime.now,
     }
   })
@@ -146,7 +152,7 @@ const SeriesJson = Schema.fromJsonString(Schema.toCodecJson(Series))
 // Bump a key's version when what it caches changes, so old entries are
 // ignored.
 const keys = {
-  described: (indicator: IndicatorId) => `worldbank/v2/indicator/${indicator}`,
+  described: (indicator: IndicatorId) => `worldbank/v3/indicator/${indicator}`,
   series: (query: Query) =>
     `worldbank/v1/series/${query.indicator}/${query.countries.toSorted().join(",")}/${query.from}-${query.to}`,
 }

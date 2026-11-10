@@ -8,6 +8,7 @@ import { Cache } from "../src/Cache.ts"
 import { Notes } from "../src/Notes.ts"
 import withoutLimitations from "./fixtures/worldbank/notes-without-limitations.json"
 import lifeExpectancy from "./fixtures/worldbank/notes.json"
+import corruption from "./fixtures/worldbank/wgi-notes.json"
 
 // What the World Bank answers, with HTTP 200, for a series it does not have.
 const unknown = `<?xml version="1.0" encoding="utf-8"?><wb:error xmlns:wb="http://www.worldbank.org"><wb:message id="160" key="Data not found.">The provided parameter value is not valid or data not found.</wb:message></wb:error>`
@@ -26,6 +27,8 @@ const recorded = () => {
     if (requested === url("SP.DYN.LE00.IN")) return Response.json(lifeExpectancy)
 
     if (requested === url("NY.GDP.PCAP.CD")) return Response.json(withoutLimitations)
+
+    if (requested === url("GOV_WGI_CC_EST")) return Response.json(corruption)
 
     if (requested === url("NOT.A.REAL")) {
       return new Response(unknown, { headers: { "content-type": "text/xml" } })
@@ -78,12 +81,25 @@ describe("Notes", () => {
     }).pipe(Effect.provide(recorded().layer)),
   )
 
-  it.effect("reads no limitations when the World Bank lists none", () =>
+  it.effect("reads no limitations or producer when the World Bank lists none", () =>
     Effect.gen(function* () {
       const notes = yield* read("NY.GDP.PCAP.CD")
 
       expect(notes.relevance).toMatch(/^This indicator is related to the national accounts/)
       expect(notes.limitations).toBeNull()
+      // Its Source field names producers but links no page.
+      expect(notes.producer).toBeNull()
+    }).pipe(Effect.provide(recorded().layer)),
+  )
+
+  it.effect("links the page of who produced the series", () =>
+    Effect.gen(function* () {
+      const notes = yield* read("GOV_WGI_CC_EST")
+
+      expect(notes.producer).toEqual({
+        name: "The Worldwide Governance Indicators: Revised Methodology for Measuring Governance Using Perception Data., World Bank Group (WBG)",
+        url: "https://www.worldbank.org/en/publication/worldwide-governance-indicators",
+      })
     }).pipe(Effect.provide(recorded().layer)),
   )
 
