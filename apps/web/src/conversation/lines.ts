@@ -399,6 +399,7 @@ export const lineOf = (step: Step | Saved): Line | undefined =>
     },
     Asked: () => line("Done", { icon: MessageCircleQuestion, text: "Asked which you mean" }),
     Unanswered: () => line("Done", { icon: SearchX, text: "Found no indicator" }),
+    Exhausted: () => line("Stopped", { icon: CircleStop, text: "Reached the limit of steps" }),
     Stopped: () => line("Stopped", { icon: CircleStop, text: "Stopped" }),
   })
 

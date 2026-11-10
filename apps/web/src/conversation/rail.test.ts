@@ -2,6 +2,7 @@ import {
   AgentUnavailable,
   Answered,
   Chart,
+  Exhausted,
   Asked,
   IndicatorId,
   Stopped,
@@ -35,6 +36,7 @@ describe("rail preview", () => {
     ).toEqual({ question, answer: "Which Georgia?" })
     expect(preview(turn(Unanswered.make({})))).toEqual({ question, answer: "No data found" })
     expect(preview(turn(Stopped.make({})))).toEqual({ question, answer: "Stopped" })
+    expect(preview(turn(Exhausted.make({})))).toEqual({ question, answer: "Cut short" })
   })
 
   it("shows only the question of an answer without words", () => {

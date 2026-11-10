@@ -5,6 +5,7 @@ import {
   chartsOf,
   type Country,
   type Ending,
+  Exhausted,
   idOf,
   type Overlay,
   type Transform,
@@ -134,15 +135,20 @@ const endingOf = (ending: Ending) =>
     },
     Asked: ({ question }) => `the question "${question}"`,
     Unanswered: () => "no chart",
+    Exhausted: () => "cut short",
     Stopped: () => "stopped",
   })
 
 const isAsked = Schema.is(Asked)
 const isStopped = Schema.is(Stopped)
+const isExhausted = Schema.is(Exhausted)
+
+// The agent did not finish its answer: it asked back, was stopped, or was cut
+// short at its limit, whatever charts it drew before.
+const unfinished = (ending: Ending) => isAsked(ending) || isStopped(ending) || isExhausted(ending)
 
 // The agent answered without a chart: in words alone, or not at all.
-const uncharted = (ending: Ending) =>
-  !isAsked(ending) && !isStopped(ending) && chartsOf(ending).length === 0
+const uncharted = (ending: Ending) => !unfinished(ending) && chartsOf(ending).length === 0
 
 // How the chart's picks differ from the series wanted, one line per dimension.
 const seriesDifferences = (view: View, wanted: Series): ReadonlyArray<string> => {
@@ -274,7 +280,7 @@ const wantedOf = (drawn: Drawn): Wanted =>
 const chartsDiffer = (wanted: Arr.NonEmptyReadonlyArray<Wanted>, ending: Ending) => {
   const charts = chartsOf(ending)
 
-  if (isStopped(ending) || charts.length === 0) {
+  if (unfinished(ending) || charts.length === 0) {
     return [`${endingOf(ending)}, want ${listed(wanted.map(({ chart }) => chart))}`]
   }
 

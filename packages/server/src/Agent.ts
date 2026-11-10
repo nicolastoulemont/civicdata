@@ -17,8 +17,10 @@ import {
   Dimensions,
   type DimensionsMissing,
   End,
+  type Ending,
   type Explanation,
   Evidence,
+  Exhausted,
   Failed,
   Fetch,
   Fetched,
@@ -134,8 +136,8 @@ interface Interface {
   // A new chat that knows how to answer, with no questions yet.
   readonly start: Effect.Effect<Chat.Chat>
   // Answers a question asked in the chat, streaming what the agent does. The
-  // stream ends with Answered, Asked or Unanswered, and the chat then holds
-  // the question and the answer, so a follow-up can build on them.
+  // stream ends with Answered, Asked, Unanswered or Exhausted, and the chat
+  // then holds the question and the answer, so a follow-up can build on them.
   readonly ask: (chat: Chat.Chat, asked: Asking) => Stream.Stream<Step, Failure>
   // What a chart on its own shows, outside a chat, e.g. after someone edited
   // the chart the agent showed.
@@ -144,7 +146,8 @@ interface Interface {
 
 // Model turns before the agent gives up on a question: enough for each of
 // three charts to search, read a definition, look up places, look up years,
-// be fixed once and be written about. Each turn is one model request.
+// be fixed once and be written about. Each turn is one model request. An
+// answer still calling tools after the last one ends Exhausted.
 const rounds = 18
 
 // Earlier questions the model is sent again with a new one. Older questions,
@@ -1197,9 +1200,23 @@ const askedIn = (round: Round) =>
 
       return first === undefined
         ? []
-        : [Asked.make({ question: call.params.question, choices: [first, ...rest] })]
+        : [{ question: call.params.question, choices: Arr.make(first, ...rest) }]
     })[0],
   )
+
+// An ending's blocks: none when the agent wrote none.
+const kept = (blocks: ReadonlyArray<Block>) =>
+  Arr.isReadonlyArrayNonEmpty(blocks) ? { blocks } : {}
+
+// How the answer ends after a round, given every block written so far, if
+// it does: complete when the model called no tool, else with the question
+// it asked the person, after the blocks.
+const endingOf = (round: Round, blocks: ReadonlyArray<Block>): Option.Option<Ending> =>
+  round.toolCalls.length === 0
+    ? Option.some(
+        Arr.isReadonlyArrayNonEmpty(blocks) ? Answered.make({ blocks }) : Unanswered.make({}),
+      )
+    : Option.map(askedIn(round), (asked) => Asked.make({ ...asked, ...kept(blocks) }))
 
 // What the model wrote as a block, with the records it cites linked by name.
 // Words that cite a record the agent did not look up are none.
@@ -1344,10 +1361,12 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
           return Arr.getSomes(found)
         })
 
-        // The answer ends when the model stops calling tools or asks the
-        // person which reading they mean. A question asked after the answer
-        // has blocks is dropped, with what the model wrote beside it: the
-        // blocks answer.
+        // The answer ends when the model stops calling tools, asks the
+        // person which reading they mean, or reaches the last round still
+        // calling tools. Each round's blocks are kept, the asking round's
+        // too, so the ending holds every chart the steps fetched. A question
+        // keeps the blocks written before it: the chat tells the model the
+        // person saw it, and their next message is the reply.
         const decided = Effect.gen(function* () {
           yield* Ref.update(chat.history, forget)
 
@@ -1366,25 +1385,18 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
 
             yield* think(Thought.make({}))
 
-            const question = askedIn(response)
-
-            if (Option.isSome(question)) {
-              if (blocks.length === 0) return question.value
-
-              break
-            }
-
             for (const block of yield* shown(response)) {
               yield* send(Rendered.make({ id: StepId.make(`block-${blocks.length}`), block }))
 
               blocks.push(block)
             }
 
-            // The model answered in words alone: the answer is complete.
-            if (response.toolCalls.length === 0) break
+            const ending = endingOf(response, blocks)
+
+            if (Option.isSome(ending)) return ending.value
           }
 
-          return Arr.isArrayNonEmpty(blocks) ? Answered.make({ blocks }) : Unanswered.make({})
+          return Exhausted.make(kept(blocks))
         })
 
         yield* decided.pipe(

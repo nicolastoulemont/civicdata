@@ -14,6 +14,7 @@ import {
   Definition,
   End,
   Ended,
+  Exhausted,
   Evidence,
   Failed,
   Fetch,
@@ -1237,6 +1238,50 @@ describe("Conversation", () => {
     expect(
       screen.getByRole("button", { name: "Worked for 14s · 3 searches, 2 charts" }),
     ).toBeDefined()
+  })
+
+  it("says an answer was cut short, after the blocks the agent wrote by then", async () => {
+    network.use(
+      turns([
+        {
+          question: "Life expectancy in Brazil",
+          answer: Exhausted.make({
+            blocks: [plot(brazil), said("Life expectancy in Brazil rose.")],
+          }),
+        },
+      ]),
+      resolve,
+    )
+    show()
+
+    const chart = await screen.findByRole("region", { name: "Chart 1 of the answer" })
+    const cut = await screen.findByText(/^Cut short:/)
+
+    expect(screen.getByText("Life expectancy in Brazil rose.")).toBeDefined()
+    expect(chart.compareDocumentPosition(cut)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+  })
+
+  it("shows the agent's question back after the chart it drew before asking", async () => {
+    network.use(
+      turns([
+        {
+          question: "How long do people live in Brazil?",
+          answer: Asked.make({
+            question: "At birth or at 65?",
+            choices: ["At birth", "At 65"],
+            blocks: [plot(brazil)],
+          }),
+        },
+      ]),
+      resolve,
+    )
+    show()
+
+    const chart = await screen.findByRole("region", { name: "Chart 1 of the answer" })
+    const question = await findQuestion("At birth or at 65?")
+
+    expect(chart.compareDocumentPosition(question)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(screen.getByRole("button", { name: "At 65" })).toBeDefined()
   })
 
   it("changes the second chart of an answer and leaves the first as it was", async () => {

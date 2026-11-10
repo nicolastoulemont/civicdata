@@ -15,6 +15,7 @@ const suggest = (last: Ending | undefined, answering: Answering | undefined) =>
           Answered: () => "Add Mexico, or show it per person",
           Asked: () => "Pick a choice above, or say what you mean",
           Unanswered: () => "Name what to measure and where",
+          Exhausted: () => "Ask again, or ask a narrower question",
           Stopped: () => "Ask again, or ask something else",
         })
 

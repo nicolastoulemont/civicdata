@@ -27,6 +27,7 @@ export const preview = (entry: Entry): Preview =>
         Answered: ({ blocks }) => blocks.find(isText)?.text,
         Asked: ({ question }) => question,
         Unanswered: () => "No data found",
+        Exhausted: () => "Cut short",
         Stopped: () => "Stopped",
       }),
     }),

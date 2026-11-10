@@ -16,6 +16,7 @@ import {
   Definition,
   DimensionId,
   Evidence,
+  Exhausted,
   Finding,
   Dimensions,
   Failed,
@@ -1424,6 +1425,55 @@ describe("conversations", () => {
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
+  it.effect("asks the person after a chart, keeping the chart and the question", () => {
+    const choices = { question: "Which measure?", choices: ["At birth", "At 65"] as const }
+
+    const model = scripted([
+      Effect.succeed(call("show_chart", brazil)),
+      Effect.succeed(saying(takeaway, call("ask_user", choices))),
+      Effect.succeed(call("show_chart", { ...brazil, countries: ["BRA", "MEX"] })),
+    ])
+
+    const asked = Asked.make({ ...choices, blocks: [chart(brazilTrend), said()] })
+
+    return Effect.gen(function* () {
+      expect((yield* answer("How long do people live in Brazil?")).at(-1)).toEqual(asked)
+      expect((yield* turns).answered[0]?.answer).toEqual(asked)
+
+      // The reply answers the question the person saw.
+      yield* answer("At birth")
+
+      expect(model.prompts[2]).toContain("Which measure?")
+      expect(model.prompts[2]).toContain("At birth")
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("keeps a chart drawn in the round that asks, with the question", () => {
+    const both: ReadonlyArray<Response.PartEncoded> = [
+      { type: "tool-call", id: "call-show_chart", name: "show_chart", params: brazil },
+      {
+        type: "tool-call",
+        id: "call-ask_user",
+        name: "ask_user",
+        params: { question: "Which measure?", choices: ["At birth", "At 65"] },
+      },
+      finish,
+    ]
+
+    const model = scripted([Effect.succeed(both)])
+
+    const asked = Asked.make({
+      question: "Which measure?",
+      choices: ["At birth", "At 65"],
+      blocks: [chart(brazilTrend)],
+    })
+
+    return Effect.gen(function* () {
+      expect((yield* answer("How long do people live in Brazil?")).at(-1)).toEqual(asked)
+      expect((yield* turns).answered[0]).toMatchObject({ answer: asked, steps: [fetched()] })
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
   it.effect("fails the answer with AgentUnavailable when the model fails, keeping nothing", () => {
     const model = scripted([
       Effect.fail(
@@ -2253,7 +2303,7 @@ describe("several charts", () => {
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
-  it.effect("ends the answer after its last round, keeping what it showed", () => {
+  it.effect("cuts the answer short when the model still calls tools at its last round", () => {
     const model = scripted([
       ...Array.from({ length: 18 }, (_, round) =>
         Effect.succeed(call("show_chart", brazil, { step: `chart-${round}` })),
@@ -2261,11 +2311,26 @@ describe("several charts", () => {
       Effect.die("the model must not be asked a nineteenth time"),
     ])
 
-    return Effect.gen(function* () {
-      const ending = (yield* answer("Life expectancy in Brazil, again and again")).at(-1)
+    const cut = Exhausted.make({ blocks: Arr.makeBy(18, () => chart(brazilTrend)) })
 
-      expect(ending).toEqual(Answered.make({ blocks: Arr.makeBy(18, () => chart(brazilTrend)) }))
+    return Effect.gen(function* () {
+      expect((yield* answer("Life expectancy in Brazil, again and again")).at(-1)).toEqual(cut)
       expect(model.prompts).toHaveLength(18)
+      expect((yield* turns).answered[0]?.answer).toEqual(cut)
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("cuts short an answer that wrote nothing by its last round", () => {
+    const model = scripted(
+      Array.from({ length: 18 }, (_, round) =>
+        Effect.succeed(
+          call("search_indicators", { text: "life", source: null }, { step: `search-${round}` }),
+        ),
+      ),
+    )
+
+    return Effect.gen(function* () {
+      expect((yield* answer("Life expectancy in Brazil")).at(-1)).toEqual(Exhausted.make({}))
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
