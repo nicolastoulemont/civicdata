@@ -178,8 +178,12 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
                 missing: missing(countries, [single.observations]),
               })),
             ),
+          // A ranking over time fetches its whole span, a static one its year.
           Ranking: (ranking) =>
-            values({ ...ranking, from: ranking.year, to: ranking.year }).pipe(
+            values({
+              ...ranking,
+              ...(ranking.span ?? { from: ranking.year, to: ranking.year }),
+            }).pipe(
               Effect.map((single) => ({
                 view: ranking,
                 ...single,
@@ -219,17 +223,20 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
                 }
               }),
             ),
+          // A relation over time fetches both indicators over its span.
           Relation: (relation) =>
             Effect.all(
               [
-                values({ ...relation, from: relation.year, to: relation.year }),
+                values({
+                  ...relation,
+                  ...(relation.span ?? { from: relation.year, to: relation.year }),
+                }),
                 // The View's dimensions pick the series of `indicator` only.
                 values({
                   ...relation,
                   indicator: relation.against,
                   dimensions: {},
-                  from: relation.year,
-                  to: relation.year,
+                  ...(relation.span ?? { from: relation.year, to: relation.year }),
                 }),
               ],
               { concurrency: 2 },

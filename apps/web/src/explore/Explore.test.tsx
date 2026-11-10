@@ -10,6 +10,7 @@ import {
   type Overlay,
   type ResolvedView,
   Ranking,
+  Relation,
   ResolvedView as ResolvedViewSchema,
   sourceOf,
   SourceUnavailable,
@@ -29,6 +30,7 @@ import { describe, expect, it, vi } from "vitest"
 
 import { network } from "../../test/network.ts"
 import { Explore } from "./Explore.tsx"
+import { fromUrl } from "./search.ts"
 
 const population = IndicatorId.make("SP.POP.TOTL")
 
@@ -104,12 +106,18 @@ const resolvedFor = (view: View): ResolvedView => {
       ({ from, to }) =>
       (year: number) =>
         year >= from && year <= to,
-    Ranking: (ranking) => (year: number) => year === ranking.year,
+    Ranking:
+      ({ year, span }) =>
+      (each: number) =>
+        span === undefined ? each === year : each >= span.from && each <= span.to,
     Change:
       ({ from, to }) =>
       (year: number) =>
         year === from || year === to,
-    Relation: (relation) => (year: number) => year === relation.year,
+    Relation:
+      ({ year, span }) =>
+      (each: number) =>
+        span === undefined ? each === year : each >= span.from && each <= span.to,
   })
 
   // Per person, the fake divides by a round million so the change is visible.
@@ -313,6 +321,18 @@ const layOut = () =>
 // Each line's colour, in the order of the trend's countries.
 const strokes = (figure: HTMLElement) =>
   [...figure.querySelectorAll(".recharts-line-curve")].map((line) => line.getAttribute("stroke"))
+
+// One second of a faked clock, rendered.
+const second = () =>
+  act(() => {
+    vi.advanceTimersByTime(1000)
+  })
+
+// The map's key, each shade's values then "No data".
+const mapKey = () =>
+  [...screen.getByText("No data").parentElement!.querySelectorAll("li")].map(
+    (entry) => entry.textContent,
+  )
 
 describe("Explore", () => {
   it("names all seven countries in the legend, at their lines' ends and in the table, each in its own colour", async () => {
@@ -1070,18 +1090,339 @@ describe("Explore", () => {
     expect(screen.queryByRole("combobox", { name: "From" })).toBeNull()
   })
 
-  it("draws a trend's last year as a world map with a key", async () => {
+  it("draws a trend of European countries on a map of Europe, with the outermost regions", async () => {
     network.use(worldBank)
     const user = userEvent.setup()
 
     show(trend)
 
     await screen.findByRole("heading", { name: "Total population" })
-    await user.click(screen.getByRole("button", { name: "World map ranking one year" }))
+    await user.click(screen.getByRole("button", { name: "Map ranking one year" }))
 
-    expect(await screen.findByText("World map ranking countries by Total population")).toBeDefined()
+    expect(
+      await screen.findByRole("figure", {
+        name: "Map of Europe ranking countries by Total population",
+      }),
+    ).toBeDefined()
+    expect(screen.getByText("French Guiana")).toBeDefined()
+    expect(screen.getByText("Réunion")).toBeDefined()
+    expect(screen.getByText("Azores")).toBeDefined()
     expect(screen.getByText("No data")).toBeDefined()
     expect(screen.getByRole("combobox", { name: "Year" }).textContent).toContain("2020")
+  })
+
+  // Answers a ranking with a value for every country asked for.
+  const everywhere = http.post("/api/views/resolve", async ({ request }) => {
+    const view = Schema.decodeUnknownSync(View)(await request.json())
+    const resolved = resolvedFor(view)
+
+    return HttpResponse.json(
+      Schema.encodeSync(ResolvedViewSchema)({
+        ...resolved,
+        observations: view.countries.map((country, index) => ({
+          country,
+          year: Year.make(2020),
+          value: 1000 * (index + 1),
+        })),
+        missing: [],
+      }),
+    )
+  })
+
+  it.each([
+    [["USA", "MEX"], "Map of North America", ["Hawaii"]],
+    [["MEX", "GTM"], "Map of Central America", []],
+    [["SAU", "ARE"], "Map of the Gulf states", []],
+    [["EGY", "MAR"], "Map of North Africa", []],
+    [["RUS", "CHN"], "Map of Northeast Asia", []],
+    [["FRA", "USA"], "World map", []],
+  ] as const)("draws %j on the %s", async (countries, title, insets) => {
+    network.use(everywhere)
+
+    show(Ranking.make({ indicator: population, countries, year: Year.make(2020), as: "Map" }))
+
+    expect(
+      await screen.findByRole("figure", { name: `${title} ranking countries by Total population` }),
+    ).toBeDefined()
+    expect(screen.queryByText("French Guiana")).toBeNull()
+    expect(insets.filter((name) => screen.queryByText(name) === null)).toEqual([])
+  })
+
+  // France, Germany and Italy from 2017 to 2020: Germany and Italy have
+  // values from 2019 only.
+  const overTime = Ranking.make({
+    indicator: population,
+    countries: ["FRA", "DEU", "ITA"],
+    year: Year.make(2020),
+    span: { from: Year.make(2017), to: Year.make(2020) },
+  })
+
+  it("moves a ranking over time with the arrow keys, and keeps the year in its link", async () => {
+    network.use(worldBank)
+    const user = userEvent.setup()
+    const bounds = layOut()
+
+    try {
+      const page = show(overTime)
+
+      const shown = (
+        await screen.findByText("Bar chart ranking countries by Total population")
+      ).closest("figure")!
+
+      const bars = () => shown.querySelectorAll(".recharts-bar-rectangle")
+      const year = await screen.findByRole("slider", { name: "Year" })
+
+      await vi.waitFor(() => expect(bars()).toHaveLength(3))
+      expect(screen.getByText("France, Germany, and Italy · 2017–2020")).toBeDefined()
+
+      act(() => year.focus())
+      await user.keyboard("{ArrowLeft}{ArrowLeft}")
+
+      expect(await screen.findByText("No data in 2018 for Germany, Italy.")).toBeDefined()
+      await vi.waitFor(() => expect(bars()).toHaveLength(1))
+
+      await user.click(screen.getByRole("button", { name: "Copy link" }))
+      expect(await screen.findByRole("button", { name: "Link copied" })).toBeDefined()
+
+      const link = new URL(await navigator.clipboard.readText())
+
+      expect(Object.fromEntries(link.searchParams)).toMatchObject({
+        chart: "ranking",
+        year: "2018",
+        from: "2017",
+        to: "2020",
+      })
+
+      // Reopened from its link, the chart shows the year it was left on.
+      page.unmount()
+      show(fromUrl(link))
+
+      expect(await screen.findByText("No data in 2018 for Germany, Italy.")).toBeDefined()
+    } finally {
+      bounds.mockRestore()
+    }
+  })
+
+  it("plays a ranking over time from its first year, and keeps the year it pauses on", async () => {
+    network.use(worldBank)
+    const user = userEvent.setup()
+    const page = show(overTime)
+
+    await screen.findByText("Bar chart ranking countries by Total population")
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] })
+
+    try {
+      // At its last year, play starts again from the first.
+      await user.click(screen.getByRole("button", { name: "Play" }))
+      expect(screen.getByRole("status").textContent).toBe("2017")
+
+      second()
+      expect(screen.getByRole("status").textContent).toBe("2018")
+      expect(screen.getByText("No data in 2018 for Germany, Italy.")).toBeDefined()
+
+      await user.click(screen.getByRole("button", { name: "Pause" }))
+      second()
+      second()
+      second()
+      expect(screen.getByRole("status").textContent).toBe("2018")
+    } finally {
+      vi.useRealTimers()
+    }
+
+    await user.click(screen.getByRole("button", { name: "Copy link" }))
+    expect(await screen.findByRole("button", { name: "Link copied" })).toBeDefined()
+
+    const link = new URL(await navigator.clipboard.readText())
+
+    expect(link.searchParams.get("year")).toBe("2018")
+
+    page.unmount()
+    show(fromUrl(link))
+
+    expect(await screen.findByText("No data in 2018 for Germany, Italy.")).toBeDefined()
+  })
+
+  it("stops play at the last year, and pauses when the reader moves the slider", async () => {
+    network.use(worldBank)
+    const user = userEvent.setup()
+
+    show(Ranking.make({ ...overTime, year: Year.make(2018) }))
+
+    await screen.findByText("Bar chart ranking countries by Total population")
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] })
+
+    try {
+      await user.click(screen.getByRole("button", { name: "Play" }))
+      second()
+      second()
+      second()
+
+      expect(screen.getByRole("status").textContent).toBe("2020")
+      expect(screen.getByRole("button", { name: "Play" })).toBeDefined()
+
+      await user.click(screen.getByRole("button", { name: "Play" }))
+      second()
+      expect(screen.getByRole("status").textContent).toBe("2018")
+
+      act(() => screen.getByRole("slider", { name: "Year" }).focus())
+      await user.keyboard("{ArrowRight}")
+      second()
+      second()
+      second()
+
+      expect(screen.getByRole("status").textContent).toBe("2019")
+      expect(screen.getByRole("button", { name: "Play" })).toBeDefined()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("moves a relation's dots through its span, tracing their paths only while paused", async () => {
+    network.use(worldBank)
+    const user = userEvent.setup()
+    const bounds = layOut()
+
+    try {
+      show(
+        Relation.make({
+          indicator: population,
+          against: IndicatorId.make("NY.GDP.PCAP.CD"),
+          countries: ["FRA", "DEU"],
+          year: Year.make(2020),
+          span: { from: Year.make(2017), to: Year.make(2020) },
+        }),
+      )
+
+      const shown = (await screen.findByText(/^Scatter plot of Total population against/)).closest(
+        "figure",
+      )!
+
+      const lines = () => shown.querySelectorAll(".recharts-scatter-line")
+
+      expect(screen.getByText("Lines trace each country from 2017 to 2020.")).toBeDefined()
+      await vi.waitFor(() => expect(lines()).toHaveLength(2))
+
+      act(() => screen.getByRole("slider", { name: "Year" }).focus())
+      await user.keyboard("{ArrowLeft}{ArrowLeft}")
+
+      expect(await screen.findByText("No data in 2018 for Germany.")).toBeDefined()
+      expect(screen.getByText("Lines trace each country from 2017 to 2018.")).toBeDefined()
+      await vi.waitFor(() => expect(lines()).toHaveLength(1))
+
+      vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] })
+
+      try {
+        await user.click(screen.getByRole("button", { name: "Play" }))
+        second()
+
+        expect(screen.getByRole("status").textContent).toBe("2019")
+        expect(screen.queryByText(/^Lines trace/)).toBeNull()
+        await vi.waitFor(() => expect(lines()).toHaveLength(0))
+
+        await user.click(screen.getByRole("button", { name: "Pause" }))
+
+        expect(screen.getByText("Lines trace each country from 2017 to 2019.")).toBeDefined()
+      } finally {
+        vi.useRealTimers()
+      }
+    } finally {
+      bounds.mockRestore()
+    }
+  })
+
+  it("switches a relation to over time, from the first year both indicators share", async () => {
+    network.use(worldBank)
+    const user = userEvent.setup()
+
+    show(
+      Relation.make({
+        indicator: population,
+        against: IndicatorId.make("NY.GDP.PCAP.CD"),
+        countries: ["FRA", "DEU"],
+        year: Year.make(2020),
+      }),
+    )
+
+    await screen.findByText(/^Scatter plot of Total population against/)
+    await user.click(screen.getByRole("button", { name: "Over time" }))
+
+    expect(await screen.findByRole("slider", { name: "Year" })).toBeDefined()
+    expect(screen.getByText("France and Germany · 2019–2020")).toBeDefined()
+
+    await user.click(screen.getByRole("button", { name: "One year" }))
+
+    expect(await screen.findByText("France and Germany · 2020")).toBeDefined()
+    expect(screen.queryByRole("slider", { name: "Year" })).toBeNull()
+  })
+
+  it("asks for a ranking over time's span once, whichever year it shows", async () => {
+    const asked: Array<View> = []
+
+    network.use(
+      http.post("/api/views/resolve", async ({ request }) => {
+        const view = Schema.decodeUnknownSync(View)(await request.json())
+
+        asked.push(view)
+
+        return HttpResponse.json(Schema.encodeSync(ResolvedViewSchema)(resolvedFor(view)))
+      }),
+    )
+
+    const user = userEvent.setup()
+
+    show(overTime)
+
+    await screen.findByText("Bar chart ranking countries by Total population")
+    act(() => screen.getByRole("slider", { name: "Year" }).focus())
+    await user.keyboard("{ArrowLeft}")
+
+    expect(await screen.findByText("2019")).toBeDefined()
+    expect(asked).toEqual([overTime])
+  })
+
+  it("switches a ranking to over time, from the first year its countries share, and back", async () => {
+    network.use(worldBank)
+    const user = userEvent.setup()
+
+    show(Ranking.make({ indicator: population, countries: ["FRA", "DEU"], year: Year.make(2020) }))
+
+    await screen.findByText("Bar chart ranking countries by Total population")
+    expect(screen.queryByRole("slider", { name: "Year" })).toBeNull()
+
+    await user.click(screen.getByRole("button", { name: "Over time" }))
+
+    expect(await screen.findByRole("slider", { name: "Year" })).toBeDefined()
+    expect(screen.getByText("France and Germany · 2019–2020")).toBeDefined()
+    expect(screen.getByRole("combobox", { name: "From" }).textContent).toContain("2019")
+    expect(screen.getByRole("combobox", { name: "To" }).textContent).toContain("2020")
+
+    await user.click(screen.getByRole("button", { name: "One year" }))
+
+    expect(await screen.findByText("France and Germany · 2020")).toBeDefined()
+    expect(screen.queryByRole("slider", { name: "Year" })).toBeNull()
+    expect(screen.getByRole("combobox", { name: "Year" }).textContent).toContain("2020")
+  })
+
+  it("shades a map over time by value on a key that stays the same in every year", async () => {
+    network.use(worldBank)
+    const user = userEvent.setup()
+
+    show(Ranking.make({ ...overTime, as: "Map" }))
+
+    expect(
+      await screen.findByRole("figure", {
+        name: "Map of Europe shading countries by Total population",
+      }),
+    ).toBeDefined()
+
+    const before = mapKey()
+
+    act(() => screen.getByRole("slider", { name: "Year" }).focus())
+    await user.keyboard("{Home}")
+
+    expect(await screen.findByText("No data in 2017 for Germany, Italy.")).toBeDefined()
+    expect(mapKey()).toEqual(before)
+    expect(before).toHaveLength(6)
   })
 
   it("switches a trend to the change between its first and last years", async () => {

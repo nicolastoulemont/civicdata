@@ -1,4 +1,4 @@
-import { Schema } from "effect"
+import { Array as Arr, Predicate, Schema, Struct } from "effect"
 
 import { Country } from "./Country.ts"
 import { Dimension } from "./Dimension.ts"
@@ -68,6 +68,61 @@ const fields = {
 // A Trend or Ranking, with the data behind it.
 const Single = Schema.Struct({ view: Schema.Union([Trend, Ranking]), ...fields })
 
+export interface Ranked extends Schema.Schema.Type<typeof Single> {
+  readonly view: typeof Ranking.Type
+}
+
+export const isRanked = (resolved: ResolvedView): resolved is Ranked =>
+  Predicate.isTagged(resolved.view, "Ranking")
+
+// The values of one year, and other sources' disagreements that year.
+const at = <O extends { readonly year: Year }>(observations: ReadonlyArray<O>, year: Year) =>
+  observations.filter((observation) => observation.year === year)
+
+const disagreementsIn = (disagreements: Ranked["disagreements"], year: Year) =>
+  disagreements.flatMap((disagreement) => {
+    const kept = at(disagreement.observations, year)
+
+    return Arr.isArrayNonEmpty(kept) ? [{ ...disagreement, observations: kept }] : []
+  })
+
+const held = (shown: ReadonlyArray<Observation>, country: Country) =>
+  shown.some((observation) => observation.country === country)
+
+// A chart over time as the static chart of one year of its span: that year's
+// values and other sources' disagreements, with the countries that have no
+// value that year missing; for a relation, no value of either indicator.
+export function inYear(resolved: Ranked, year: Year): Ranked
+export function inYear(resolved: Related, year: Year): Related
+export function inYear(resolved: Ranked | Related, year: Year): Ranked | Related
+export function inYear(resolved: Ranked | Related, year: Year): Ranked | Related {
+  const observations = at(resolved.observations, year)
+  const disagreements = disagreementsIn(resolved.disagreements, year)
+
+  if (!("against" in resolved)) {
+    return {
+      ...resolved,
+      view: Ranking.make({ ...Struct.omit(resolved.view, ["span"]), year }),
+      observations,
+      missing: resolved.view.countries.filter((country) => !held(observations, country)),
+      disagreements,
+    }
+  }
+
+  const against = at(resolved.against.observations, year)
+
+  return {
+    ...resolved,
+    view: Relation.make({ ...Struct.omit(resolved.view, ["span"]), year }),
+    observations,
+    against: { ...resolved.against, observations: against },
+    missing: resolved.view.countries.filter(
+      (country) => !held(observations, country) || !held(against, country),
+    ),
+    disagreements,
+  }
+}
+
 // A Change shows its two years only. `breaks` keeps each break in series in
 // the years it spans, which its observations drop.
 const Stepped = Schema.Struct({ view: Change, ...fields, breaks: Schema.Array(Break) })
@@ -83,6 +138,8 @@ const Paired = Schema.Struct({
     observations: Schema.Array(Observation),
   }),
 })
+
+export interface Related extends Schema.Schema.Type<typeof Paired> {}
 
 export const ResolvedView = Schema.Union([Single, Stepped, Paired])
 

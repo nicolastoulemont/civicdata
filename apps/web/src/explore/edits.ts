@@ -1,6 +1,7 @@
 import {
   applies,
   Change,
+  type Observation,
   type Code,
   type DimensionId,
   type Dimensions,
@@ -8,6 +9,7 @@ import {
   Ranking,
   Ratio,
   Relation,
+  type Span,
   type Transform,
   transformOf,
   Trend,
@@ -106,7 +108,12 @@ export const withPer = (view: View, per: Picked) => withTransform(view, Ratio.ma
 // Switches the indicator a relation is plotted against. Picking its own
 // indicator swaps the two axes, which drops the dimensions it picked.
 export const withAgainst = (relation: Relation, against: Picked) => {
-  const kept = { against: against.id, countries: relation.countries, year: relation.year }
+  const kept = {
+    ...Struct.pick(relation, ["span"]),
+    against: against.id,
+    countries: relation.countries,
+    year: relation.year,
+  }
 
   return against.id === relation.indicator
     ? Relation.make({ ...kept, indicator: relation.against })
@@ -134,8 +141,16 @@ const span = (view: View) =>
   Match.valueTags(view, {
     Trend: ({ from, to }) => ({ from, to }),
     Change: ({ from, to }) => ({ from, to }),
-    Ranking: ({ year }) => ({ from: Year.make(Math.max(1960, year - rangeYears)), to: year }),
-    Relation: ({ year }) => ({ from: Year.make(Math.max(1960, year - rangeYears)), to: year }),
+    Ranking: (ranking) =>
+      ranking.span ?? {
+        from: Year.make(Math.max(1960, ranking.year - rangeYears)),
+        to: ranking.year,
+      },
+    Relation: (relation) =>
+      relation.span ?? {
+        from: Year.make(Math.max(1960, relation.year - rangeYears)),
+        to: relation.year,
+      },
   })
 
 const gdpPerPerson = IndicatorId.make("NY.GDP.PCAP.CD")
@@ -166,7 +181,8 @@ export const chartOf = (view: View): Chart =>
 
 // Draws the View as another chart type, keeping its indicator, the series it
 // picks, its countries and its transform where the new type takes them. A
-// single-year chart shows the last of the years.
+// single-year chart shows the last of the years. Bars and a map of the same
+// ranking keep its years, over time or not.
 export const withChart = (view: View, chart: Chart): View => {
   const { indicator, countries, dimensions } = view
   const { from, to } = span(view)
@@ -180,15 +196,25 @@ export const withChart = (view: View, chart: Chart): View => {
       ),
     ),
     Match.when("Ranking", () =>
-      withTransform(
-        Ranking.make({ ...picked(dimensions), indicator, countries, year: to }),
-        transform,
+      Match.value(view).pipe(
+        Match.tag("Ranking", (ranking) => Ranking.make(Struct.omit(ranking, ["as"]))),
+        Match.orElse(() =>
+          withTransform(
+            Ranking.make({ ...picked(dimensions), indicator, countries, year: to }),
+            transform,
+          ),
+        ),
       ),
     ),
     Match.when("Map", () =>
-      withTransform(
-        Ranking.make({ ...picked(dimensions), indicator, countries, year: to, as: "Map" }),
-        transform,
+      Match.value(view).pipe(
+        Match.tag("Ranking", (ranking) => Ranking.make({ ...ranking, as: "Map" })),
+        Match.orElse(() =>
+          withTransform(
+            Ranking.make({ ...picked(dimensions), indicator, countries, year: to, as: "Map" }),
+            transform,
+          ),
+        ),
       ),
     ),
     Match.when("Change", () =>
@@ -209,3 +235,50 @@ export const withChart = (view: View, chart: Chart): View => {
     Match.exhaustive,
   )
 }
+
+// A chart that can move through a span of years.
+export type Spanned = typeof Ranking.Type | typeof Relation.Type
+
+// Sets a chart's span, moving its year inside the span when it lies outside.
+export const withSpan = (view: Spanned, years: Span): Spanned => {
+  const year = Year.make(Math.min(Math.max(view.year, years.from), years.to))
+
+  return Match.valueTags(view, {
+    Ranking: (ranking) => Ranking.make({ ...ranking, year, span: years }),
+    Relation: (relation) => Relation.make({ ...relation, year, span: years }),
+  })
+}
+
+// A chart of one year turned into one over time: from the first year every
+// country with values has one, to the latest year with any, as `history`
+// has them. Without values it stays one year.
+export const overTime = (view: Spanned, history: ReadonlyArray<Observation>): Spanned => {
+  const years = [...new Set(history.map((observation) => observation.year))]
+  const covered = new Set(history.map((observation) => observation.country))
+  const held = new Set(history.map(({ country, year }) => `${country} ${year}`))
+
+  const shared = years.filter((year) =>
+    [...covered].every((country) => held.has(`${country} ${year}`)),
+  )
+
+  if (years.length === 0) return view
+
+  return withSpan(view, {
+    from: Year.make(Math.min(...(shared.length === 0 ? years : shared))),
+    to: Year.make(Math.max(...years)),
+  })
+}
+
+// A chart over time turned into one of the year it shows.
+export const oneYear = (view: Spanned): Spanned =>
+  Match.valueTags(view, {
+    Ranking: (ranking) => Ranking.make(Struct.omit(ranking, ["span"])),
+    Relation: (relation) => Relation.make(Struct.omit(relation, ["span"])),
+  })
+
+// Sets the single year of a chart of one year.
+export const withYear = (view: Spanned, year: Year): Spanned =>
+  Match.valueTags(view, {
+    Ranking: (ranking) => Ranking.make({ ...ranking, year }),
+    Relation: (relation) => Relation.make({ ...relation, year }),
+  })

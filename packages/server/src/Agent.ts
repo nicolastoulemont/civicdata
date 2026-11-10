@@ -427,7 +427,8 @@ const FindYears = Tool.make("find_years", {
   dependencies: [Report],
 })
 
-// The chart types show_chart draws. A map is a ranking drawn on a world map.
+// The chart types show_chart draws. A map is a ranking drawn on the map of the
+// narrowest region holding every country, else on a world map.
 const Form = Schema.Literals(["trend", "ranking", "map", "change", "relation"])
 
 const ShowChart = Tool.make("show_chart", {
@@ -436,7 +437,7 @@ const ShowChart = Tool.make("show_chart", {
   parameters: Schema.Struct({
     chart: Form.annotate({
       description:
-        "trend: one line per country over a range of years. ranking: countries compared in one year, as bars. map: a ranking drawn as a world map. change: each country's value in two years, from and to. relation: one dot per country in one year, the indicator against another.",
+        "trend: one line per country over a range of years. ranking: countries compared in one year, as bars, or over a span of years with a slider. map: a ranking drawn as a map, of the narrowest region holding every country (e.g. the Gulf states, Europe, East Asia, Africa), else of the world. change: each country's value in two years, from and to. relation: one dot per country in one year, the indicator against another, or over a span of years with a slider that moves each dot.",
     }),
     indicator: subject.indicator,
     against: Schema.NullOr(Schema.String).annotate({
@@ -451,7 +452,16 @@ const ShowChart = Tool.make("show_chart", {
       description: "Last year of a trend or a change; null otherwise",
     }),
     year: Schema.NullOr(Schema.Int).annotate({
-      description: "The year of a ranking, a map or a relation; null otherwise",
+      description:
+        "The year of a ranking, a map or a relation; null otherwise. A chart over time shows this year first and the person can move to others.",
+    }),
+    span_from: Schema.NullOr(Schema.Int).annotate({
+      description:
+        "First year of a ranking, map or relation over time, which the person moves through with a slider; null for one of a single year, and for a trend or a change",
+    }),
+    span_to: Schema.NullOr(Schema.Int).annotate({
+      description:
+        "Last year of a ranking, map or relation over time; null for one of a single year, and for a trend or a change",
     }),
     transform: Schema.NullOr(Schema.Literals(["PerPerson", "Growth", "Index", "Ratio"])).annotate({
       description:
@@ -502,7 +512,7 @@ const checked = <A>(made: Effect.Effect<A, SchemaIssue.Issue>) =>
 
 // The View the model described. Decodes the fields the chart type takes, then
 // builds the View, which checks it, e.g. that the years run forwards. A
-// transform the chart type does not take is an error, not dropped.
+// transform or a span the chart type does not take is an error, not dropped.
 const toView = Effect.fnUntraced(function* (draft: Draft) {
   const { indicator, against, countries, from, to, year } = draft
 
@@ -512,16 +522,24 @@ const toView = Effect.fnUntraced(function* (draft: Draft) {
       ? Ratio.make(yield* Schema.decodeUnknownEffect(RatioFields)({ per: draft.per }))
       : draft.transform
 
-  const fields: Record<string, Draft[keyof Draft] | Ratio | Readonly<Record<string, string>>> =
-    Match.value(draft.chart).pipe(
-      Match.whenOr("trend", "change", () => ({ indicator, countries, from, to })),
-      Match.when("ranking", () => ({ indicator, countries, year })),
-      Match.when("map", () => ({ indicator, countries, year, as: "Map" })),
-      Match.when("relation", () => ({ indicator, against, countries, year })),
-      Match.exhaustive,
-    )
+  const fields: Record<
+    string,
+    | Draft[keyof Draft]
+    | Ratio
+    | Readonly<Record<string, string>>
+    | { readonly from: number | null; readonly to: number | null }
+  > = Match.value(draft.chart).pipe(
+    Match.whenOr("trend", "change", () => ({ indicator, countries, from, to })),
+    Match.when("ranking", () => ({ indicator, countries, year })),
+    Match.when("map", () => ({ indicator, countries, year, as: "Map" })),
+    Match.when("relation", () => ({ indicator, against, countries, year })),
+    Match.exhaustive,
+  )
 
   if (transform !== null) fields["transform"] = transform
+
+  if (draft.span_from !== null || draft.span_to !== null)
+    fields["span"] = { from: draft.span_from, to: draft.span_to }
 
   if (draft.dimensions !== null && draft.dimensions.length > 0)
     fields["dimensions"] = Object.fromEntries(
@@ -560,6 +578,8 @@ const draftOf = (view: View): Draft => {
     from: null,
     to: null,
     year: null,
+    span_from: null,
+    span_to: null,
     transform: transform === undefined ? null : kindOf(transform),
     per: Match.value(transform).pipe(
       Match.when({ _tag: "Ratio" }, ({ per }) => per),
@@ -573,13 +593,22 @@ const draftOf = (view: View): Draft => {
 
   return Match.valueTags(view, {
     Trend: ({ from, to }): Draft => ({ ...fields, chart: "trend", from, to }),
-    Ranking: ({ as, year }): Draft => ({
+    Ranking: ({ as, year, span }): Draft => ({
       ...fields,
       chart: as === "Map" ? "map" : "ranking",
       year,
+      span_from: span?.from ?? null,
+      span_to: span?.to ?? null,
     }),
     Change: ({ from, to }): Draft => ({ ...fields, chart: "change", from, to }),
-    Relation: ({ against, year }): Draft => ({ ...fields, chart: "relation", against, year }),
+    Relation: ({ against, year, span }): Draft => ({
+      ...fields,
+      chart: "relation",
+      against,
+      year,
+      span_from: span?.from ?? null,
+      span_to: span?.to ?? null,
+    }),
   })
 }
 
@@ -1049,6 +1078,8 @@ const ToolsLayer = Tools.toLayer(
             from,
             to,
             year: null,
+            span_from: null,
+            span_to: null,
             transform: null,
             per: null,
             dimensions,
@@ -1169,20 +1200,22 @@ A measure only one source publishes comes from that source.
    - A Eurostat or OECD dataflow holds several series, e.g. by sex or age. find_years' and show_chart's rejections list its dimensions and their codes: pick the series the question asks for, else the total.
    - Charts show annual values. Prefer a Eurostat or OECD dataflow whose name does not say quarterly or monthly.
 3. Unless the question names the years, call find_years with the indicator, the countries and the series before show_chart, and pick the years from what it returns. For a relation, call it for both indicators.
-   - "shared" holds the years every country has a value in. A ranking, map or relation shows the latest of them. A change runs from the first year it would show, or the first shared year after it, to the latest shared year.
+   - "shared" holds the years every country has a value in. A ranking, map or relation shows the latest of them. A change runs from the first year it would show, or the first shared year after it, to the latest shared year. A ranking, map or relation over time spans the same years as a change, and shows its last year unless the question names another.
    - A trend covers the last 20 years unless the question asks for others, and keeps them when a country's values start later: its line shows where data exists. It is ${year} now; most indicators have values up to ${year - 2}.
    - Years carried over from a chart you drew before are not named by the question.
 4. Call show_chart with the chart type, the indicator, the countries, the series and the years. Pass the same countries and series as find_years, so the chart reads the values find_years fetched. Use a transform only when the question asks for one.
 5. If find_years or show_chart rejects what you asked, fix what it names and call it again.
-6. Once show_chart shows a chart, write about it from the data show_chart returned for it, never before. ${writing} When you picked one source over others that measure the same thing, name it, e.g. "Eurostat's figures show". When you picked years other than those on screen or in the question, say why in one sentence, e.g. "Eurostat has data for all seven countries from 2009." Write as much as the question needs: most charts need two to four sentences.
+6. Once show_chart shows a chart, write about it from the data show_chart returned for it, never before. ${writing} For a chart over time, the data gives the values in its year and in the first and last years of its span: say how the comparison, or the two measures, moved between them. When you picked one source over others that measure the same thing, name it, e.g. "Eurostat's figures show". When you picked years other than those on screen or in the question, say why in one sentence, e.g. "Eurostat has data for all seven countries from 2009." Write as much as the question needs: most charts need two to four sentences.
 7. If the question needs another chart, as the section on several charts below says, call find_years and show_chart for it. Otherwise stop calling tools: the answer is complete.
 
 Chart types: each does one job. Pick the one that fits what the question asks, not the words it uses.
 - trend: how a measure moved over time. "Has India caught up with China?" and "How did Poland's wages move in the 2010s?" are trends, and so is "How has unemployment moved across the EU since 2008?".
 - ranking: how countries compare at one point in time. "Which G7 country has the most doctors per person?" is a ranking.
 - map: the same comparison across a region or the world. "How do the 27 EU countries compare?" is a ranking or a map.
+- ranking or map over time: how a comparison across countries evolved over years, with a slider through them. "How has the map of life expectancy in Africa changed since 1990?" is a map over time, and "How has the EU's ranking on debt evolved since 2010?" a ranking over time. Pass span_from and span_to only then; every other ranking or map shows one year, with both null. A question about how a measure moved in a few countries is a trend, and one about how much each country moved between two years is a change.
 - change: how much each country moved between two years. "Which grew fastest since 2000?" is a change from 2000 to the latest year.
 - relation: how one measure goes with another across countries, e.g. "Does more schooling go with higher incomes?". Search for the second indicator too.
+- relation over time: how two measures moved together over years, each country's dot moving with a slider. "How have income and life expectancy moved together since 1990?" is a relation over time. Pass span_from and span_to only then; a relation of one year has both null.
 Any chart type takes any number of countries: draw the countries the question asks about in the type that answers it.
 
 Several charts: most answers need one chart. Show more only when one chart cannot show what the question asks:

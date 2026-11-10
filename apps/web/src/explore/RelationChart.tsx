@@ -1,3 +1,4 @@
+import type { Country } from "@civicdata/domain"
 import { CartesianGrid, LabelList, Scatter, ScatterChart, XAxis, YAxis } from "recharts"
 
 import {
@@ -8,17 +9,32 @@ import {
 } from "@/components/ui/chart"
 
 import { countryName, formatCompact } from "./format.ts"
-import { fill } from "./palette.ts"
+import { color, fill } from "./palette.ts"
 import { type Paired, pairs } from "./points.ts"
 import { around } from "./scale.ts"
 
+// Where a country's dot has been, oldest first.
+interface Path {
+  readonly country: Country
+  readonly points: ReadonlyArray<{ readonly x: number; readonly y: number }>
+}
+
+const still: ReadonlyArray<Path> = []
+
 interface RelationChartProps {
+  // One year's values.
   resolved: Paired
+  // The values the axes cover: every year's, for a relation over time.
+  covers?: ReadonlyArray<{ readonly x: number; readonly y: number }> | undefined
+  // Each country's path up to the year shown, while a relation over time is
+  // paused.
+  paths?: ReadonlyArray<Path> | undefined
 }
 
 // A dot per country: the indicator up the side, the one it is plotted against
-// along the bottom.
-export const RelationChart = ({ resolved }: RelationChartProps) => {
+// along the bottom. A paused relation over time draws faintly, in each
+// country's colour, the path its dot took to the year shown.
+export const RelationChart = ({ resolved, covers, paths = still }: RelationChartProps) => {
   const points = pairs(resolved).map(({ country, x, y }) => ({
     country,
     x,
@@ -26,8 +42,8 @@ export const RelationChart = ({ resolved }: RelationChartProps) => {
     name: countryName(country),
   }))
 
-  const along = around(points.map((point) => point.x))
-  const up = around(points.map((point) => point.y))
+  const along = around((covers ?? points).map((point) => point.x))
+  const up = around((covers ?? points).map((point) => point.y))
 
   // The axes by indicator title, and the countries by name for the tooltip's title.
   const config: ChartConfig = {
@@ -64,6 +80,17 @@ export const RelationChart = ({ resolved }: RelationChartProps) => {
             label={{ value: resolved.title, angle: -90, position: "left", offset: 4 }}
           />
           <ChartTooltip content={<ChartTooltipContent labelKey="country" hideIndicator />} />
+          {paths.map(({ country, points: path }) => (
+            <Scatter
+              key={country}
+              data={[...path]}
+              line={{ stroke: color(country), strokeOpacity: 0.4, strokeWidth: 1.5 }}
+              fill="none"
+              legendType="none"
+              tooltipType="none"
+              isAnimationActive={false}
+            />
+          ))}
           <Scatter data={points} fill="var(--color-y)">
             <LabelList dataKey="name" position="top" className="fill-muted-foreground" />
           </Scatter>

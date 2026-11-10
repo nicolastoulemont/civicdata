@@ -123,6 +123,42 @@ describe("score", () => {
     expect(score([map], charted(ranking))).toEqual(["a ranking, want a map"])
   })
 
+  it("tells a map over time from a map of one year", () => {
+    const map = Ranking.make({
+      indicator: lifeExpectancy,
+      countries: ["BRA", "MEX"],
+      year: Year.make(2020),
+      as: "Map",
+    })
+
+    const moving = Ranking.make({ ...map, span: { from: Year.make(2000), to: Year.make(2020) } })
+
+    expect(score([Expected.Map({ ...expected, overTime: true })], charted(moving))).toEqual([])
+    expect(score([Expected.Map({ ...expected, overTime: true })], charted(map))).toEqual([
+      "one year, want over time",
+    ])
+    expect(score([Expected.Map(expected)], charted(moving))).toEqual(["over time, want one year"])
+  })
+
+  it("tells a relation over time from a relation of one year", () => {
+    const relation = Relation.make({
+      indicator: lifeExpectancy,
+      against: IndicatorId.make("NY.GDP.PCAP.CD"),
+      countries: ["BRA", "MEX"],
+      year: Year.make(2020),
+    })
+
+    const wanted = Expected.Relation({ ...expected, against: ["NY.GDP.PCAP.CD"], overTime: true })
+
+    const moving = Relation.make({
+      ...relation,
+      span: { from: Year.make(2000), to: Year.make(2020) },
+    })
+
+    expect(score([wanted], charted(moving))).toEqual([])
+    expect(score([wanted], charted(relation))).toEqual(["one year, want over time"])
+  })
+
   it("scores the indicator a relation plots against", () => {
     const relation = charted(
       Relation.make({

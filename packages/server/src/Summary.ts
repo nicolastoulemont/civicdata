@@ -3,7 +3,10 @@ import {
   Country,
   type Covered,
   type Flag,
+  inYear,
   type Observation,
+  type Ranked,
+  type Related,
   type ResolvedView,
   Year,
 } from "@civicdata/domain"
@@ -42,23 +45,46 @@ const Lines = Schema.TaggedStruct("Lines", {
   flagged: Flagged,
 })
 
-// A ranking's values, highest first.
+const Ranked = Schema.Array(Schema.Struct({ country: Country, value: Schema.Finite }))
+
+// A ranking's values in its year, highest first. A ranking over time adds
+// each country's values in the first and last years of its span, so the
+// model can say how the comparison moved. `missing` lists the countries with
+// no value in the year shown; `flagged` covers every year fetched, so a break
+// in series inside the span is told.
 const Bars = Schema.TaggedStruct("Bars", {
   name: Schema.String,
   year: Year,
-  bars: Schema.Array(Schema.Struct({ country: Country, value: Schema.Finite })),
+  bars: Ranked,
+  span: Schema.optionalKey(
+    Schema.Struct({
+      from: Schema.Struct({ year: Year, bars: Ranked }),
+      to: Schema.Struct({ year: Year, bars: Ranked }),
+    }),
+  ),
   missing: Schema.Array(Country),
   flagged: Flagged,
 })
 
-// A relation's dots: each country's value of the indicator and of the one it
-// is plotted against, named in `against`.
+const Paired = Schema.Array(
+  Schema.Struct({ country: Country, value: Schema.Finite, against: Schema.Finite }),
+)
+
+// A relation's dots in its year: each country's value of the indicator and of
+// the one it is plotted against, named in `against`. A relation over time
+// adds each country's dots in the first and last years of its span, so the
+// model can say how the two measures moved together; `missing` and
+// `flagged` read as a ranking's.
 const Dots = Schema.TaggedStruct("Dots", {
   name: Schema.String,
   against: Schema.String,
   year: Year,
-  dots: Schema.Array(
-    Schema.Struct({ country: Country, value: Schema.Finite, against: Schema.Finite }),
+  dots: Paired,
+  span: Schema.optionalKey(
+    Schema.Struct({
+      from: Schema.Struct({ year: Year, dots: Paired }),
+      to: Schema.Struct({ year: Year, dots: Paired }),
+    }),
   ),
   missing: Schema.Array(Country),
   flagged: Flagged,
@@ -121,17 +147,53 @@ const lines = (
     flagged: flaggedOf(observations, breaks),
   })
 
-const bars = ({ indicator, observations, missing }: ResolvedView, year: Year) =>
-  Bars.make({
+const ranked = (observations: ReadonlyArray<Observation>) =>
+  Arr.sort(observations, Order.flip(byValue)).map(({ country, value }) => ({ country, value }))
+
+const bars = (resolved: Ranked) => {
+  const { view, indicator } = resolved
+  const { observations, missing } = inYear(resolved, view.year)
+  const at = (year: Year) => ({ year, bars: ranked(inYear(resolved, year).observations) })
+
+  const shown = {
     name: indicator.name,
-    year,
-    bars: Arr.sort(observations, Order.flip(byValue)).map(({ country, value }) => ({
-      country,
-      value,
-    })),
+    year: view.year,
+    bars: ranked(observations),
     missing,
-    flagged: flaggedOf(observations),
-  })
+    flagged: flaggedOf(resolved.observations),
+  }
+
+  return view.span === undefined
+    ? Bars.make(shown)
+    : Bars.make({ ...shown, span: { from: at(view.span.from), to: at(view.span.to) } })
+}
+
+// Each country with a value of both indicators in the relation's one year.
+const paired = ({ observations, against }: Related) =>
+  observations.flatMap(({ country, value }) =>
+    against.observations
+      .filter((other) => other.country === country)
+      .map((other) => ({ country, value, against: other.value })),
+  )
+
+const dots = (resolved: Related) => {
+  const { view } = resolved
+  const shown = inYear(resolved, view.year)
+  const at = (year: Year) => ({ year, dots: paired(inYear(resolved, year)) })
+
+  const told = {
+    name: resolved.indicator.name,
+    against: resolved.against.indicator.name,
+    year: view.year,
+    dots: paired(shown),
+    missing: shown.missing,
+    flagged: flaggedOf(resolved.observations),
+  }
+
+  return view.span === undefined
+    ? Dots.make(told)
+    : Dots.make({ ...told, span: { from: at(view.span.from), to: at(view.span.to) } })
+}
 
 // Only a relation holds the values it is plotted against, and only a change
 // the breaks between its two years.
@@ -139,21 +201,10 @@ export const summarize = (resolved: ResolvedView): Summary => {
   if ("breaks" in resolved) return lines(resolved, { ...resolved.view, breaks: resolved.breaks })
 
   return "against" in resolved
-    ? Dots.make({
-        name: resolved.indicator.name,
-        against: resolved.against.indicator.name,
-        year: resolved.view.year,
-        dots: resolved.observations.flatMap(({ country, value }) =>
-          resolved.against.observations
-            .filter((other) => other.country === country)
-            .map((other) => ({ country, value, against: other.value })),
-        ),
-        missing: resolved.missing,
-        flagged: flaggedOf(resolved.observations),
-      })
+    ? dots(resolved)
     : Match.valueTags(resolved.view, {
         Trend: (trend) => lines(resolved, trend),
-        Ranking: ({ year }) => bars(resolved, year),
+        Ranking: (view) => bars({ ...resolved, view }),
       })
 }
 

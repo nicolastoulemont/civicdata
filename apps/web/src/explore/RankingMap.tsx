@@ -1,49 +1,100 @@
-import { countries, type ResolvedView } from "@civicdata/domain"
+import { type Country, countries, regionOf, type ResolvedView } from "@civicdata/domain"
+import { use, useId } from "react"
 
 import { countryName, formatCompact, formatValue } from "./format.ts"
 import { blend } from "./palette.ts"
-import { height, offMap, path, shades, width } from "./world.ts"
+import { banded, type Band, load, offMap, path, shades } from "./sheet.ts"
 
 interface RankingMapProps {
+  // One year's values.
   resolved: ResolvedView
+  // The shades of a map over time, fixed across its span.
+  bands?: ReadonlyArray<Band> | undefined
 }
 
-// A world map shaded by rank, with a key of each shade's values. A country
-// without a value, or not asked for, stays blank. A note names the countries
-// too small to draw; the data table lists every value.
-export const RankingMap = ({ resolved }: RankingMapProps) => {
-  const { byCountry, key } = shades(resolved.observations)
+// A map shaded by rank, or for a map over time by value on bands fixed across
+// its span, with a key of each shade's values: of the first region holding
+// every country asked for, else of the world. It suspends while that map's
+// outlines load. A country without a value, or not asked for, stays blank;
+// the land around a region is fainter still. A note names the countries too
+// small to draw; the data table lists every value.
+export const RankingMap = ({ resolved, bands }: RankingMapProps) => {
+  const caption = useId()
+  const region = regionOf(resolved.view.countries)
+  const sheet = use(load(region))
+
+  const { byCountry, key } =
+    bands === undefined
+      ? shades(resolved.observations)
+      : { byCountry: banded(resolved.observations, bands), key: bands }
+
   const values = new Map(resolved.observations.map((each) => [each.country, each.value]))
-  const hidden = offMap(resolved.observations.map((each) => each.country))
+
+  const hidden = offMap(
+    sheet,
+    resolved.observations.map((each) => each.country),
+  )
+
+  const fillOf = (country: Country) => {
+    const shade = byCountry.get(country)
+
+    return shade === undefined ? "var(--border)" : blend(shade)
+  }
+
+  const valueOf = (country: Country) => {
+    const value = values.get(country)
+
+    return value === undefined ? "no data" : formatValue(value)
+  }
 
   return (
-    <figure className="flex flex-col gap-3">
-      <figcaption className="sr-only">{`World map ranking countries by ${resolved.title}`}</figcaption>
-      <svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full" aria-hidden>
+    <figure className="flex flex-col gap-3" aria-labelledby={caption}>
+      <figcaption
+        id={caption}
+        className="sr-only"
+      >{`${region === undefined ? "World map" : `Map of ${region.name}`} ${bands === undefined ? "ranking" : "shading"} countries by ${resolved.title}`}</figcaption>
+      <svg
+        viewBox={`0 0 ${sheet.width} ${sheet.height}`}
+        className="h-auto max-h-[70svh] w-full"
+        aria-hidden
+      >
+        <path d={path(sheet.land)} className="fill-muted/60" />
         {countries.flatMap(({ code }) => {
-          const outline = path(code)
-          const shade = byCountry.get(code)
-          const value = values.get(code)
+          const outline = sheet.outlines[code]
 
-          return outline === ""
+          return outline === undefined
             ? []
             : [
                 <path
                   key={code}
-                  d={outline}
-                  className="stroke-background"
-                  fill={shade === undefined ? "var(--border)" : blend(shade)}
+                  d={path(outline)}
+                  className="stroke-background motion-safe:transition-[fill] motion-safe:duration-500"
+                  fill={fillOf(code)}
                   strokeWidth={0.5}
                 >
-                  <title>
-                    {value === undefined
-                      ? `${countryName(code)}: no data`
-                      : `${countryName(code)}: ${formatValue(value)}`}
-                  </title>
+                  <title>{`${countryName(code)}: ${valueOf(code)}`}</title>
                 </path>,
               ]
         })}
       </svg>
+      {sheet.insets.length > 0 ? (
+        <ul className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+          {sheet.insets.map((inset) => (
+            <li key={inset.name} className="flex flex-col gap-1 text-xs text-muted-foreground">
+              <svg
+                viewBox={`0 0 ${inset.width} ${inset.height}`}
+                className="h-auto w-full rounded-sm border"
+                aria-hidden
+              >
+                <path d={path(inset.outline)} fill={fillOf(inset.country)}>
+                  <title>{`${inset.name}, ${countryName(inset.country)}: ${valueOf(inset.country)}`}</title>
+                </path>
+              </svg>
+              {inset.name}
+            </li>
+          ))}
+        </ul>
+      ) : null}
       <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
         {key.map(({ shade, low, high }) => (
           <li key={shade} className="flex items-center gap-1.5">

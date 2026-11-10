@@ -42,13 +42,16 @@ interface Chart {
 }
 
 // The chart types a case can expect. A relation plots its indicator against
-// any of `against`.
+// any of `against`. A ranking, map or relation moves through a span of years
+// when `overTime`, and shows one year otherwise.
+type Over = { readonly year?: number; readonly overTime?: boolean }
+
 type Types = {
   Trend: Chart & { readonly from?: number; readonly to?: number }
-  Ranking: Chart & { readonly year?: number }
-  Map: Chart & { readonly year?: number }
+  Ranking: Chart & Over
+  Map: Chart & Over
   Change: Chart & { readonly from?: number; readonly to?: number }
-  Relation: Chart & { readonly against: ReadonlyArray<string>; readonly year?: number }
+  Relation: Chart & Over & { readonly against: ReadonlyArray<string> }
 }
 
 // One chart a case expects.
@@ -70,24 +73,33 @@ export type Expected = Data.TaggedEnum<
 export const Expected = Data.taggedEnum<Expected>()
 
 // The parts of a chart a case scores, with a ranking's year as a one-year
-// range, and the indicator a relation plots against.
+// range, whether a ranking moves over time, and the indicator a relation
+// plots against.
 interface Parts {
   readonly chart: "trend" | "ranking" | "map" | "change" | "relation"
   readonly from?: number | undefined
   readonly to?: number | undefined
+  readonly overTime?: boolean
   readonly against?: string | undefined
 }
 
 const partsOf = (view: View): Parts =>
   Match.valueTags(view, {
     Trend: ({ from, to }): Parts => ({ chart: "trend", from, to }),
-    Ranking: ({ year, as }): Parts => ({
+    Ranking: ({ year, as, span }): Parts => ({
       chart: as === "Map" ? "map" : "ranking",
       from: year,
       to: year,
+      overTime: span !== undefined,
     }),
     Change: ({ from, to }): Parts => ({ chart: "change", from, to }),
-    Relation: ({ year, against }): Parts => ({ chart: "relation", from: year, to: year, against }),
+    Relation: ({ year, against, span }): Parts => ({
+      chart: "relation",
+      from: year,
+      to: year,
+      overTime: span !== undefined,
+      against,
+    }),
   })
 
 // The parts a case wants, with the indicators a relation may plot against.
@@ -95,6 +107,7 @@ interface Wanted extends Chart {
   readonly chart: Parts["chart"]
   readonly from?: number | undefined
   readonly to?: number | undefined
+  readonly overTime?: boolean
   readonly against?: ReadonlyArray<string>
 }
 
@@ -174,6 +187,20 @@ const citesDiffer = (got: ReadonlyArray<string>, want: ReadonlyArray<string> | u
   return [`cites ${got.length === 0 ? "none" : got.join(", ")}, want ${want.join(", ") || "none"}`]
 }
 
+// How the chart's years differ from those a case names. Years left out are
+// not scored; whether a ranking moves over time always is.
+const yearsDiffer = (got: Parts, want: Wanted): ReadonlyArray<string> =>
+  (
+    [
+      [want.from === undefined || got.from === want.from, `from ${got.from}, want ${want.from}`],
+      [want.to === undefined || got.to === want.to, `to ${got.to}, want ${want.to}`],
+      [
+        got.overTime === want.overTime,
+        got.overTime === true ? "over time, want one year" : "one year, want over time",
+      ],
+    ] as const
+  ).flatMap(([right, difference]) => (right ? [] : [difference]))
+
 // How the chart differs from the one expected, one line per difference,
 // given the records the answer's words cite.
 const compare = (
@@ -198,8 +225,6 @@ const compare = (
       describe(transformOf(view)) === describe(want.transform),
       `transform ${describe(transformOf(view))}, want ${describe(want.transform)}`,
     ],
-    [want.from === undefined || got.from === want.from, `from ${got.from}, want ${want.from}`],
-    [want.to === undefined || got.to === want.to, `to ${got.to}, want ${want.to}`],
     [
       want.against === undefined ||
         (got.against !== undefined && want.against.includes(got.against)),
@@ -209,6 +234,7 @@ const compare = (
 
   return [
     ...checks.flatMap(([right, difference]) => (right ? [] : [difference])),
+    ...yearsDiffer(got, want),
     ...overlaysDiffer(overlays, want.overlays),
     ...citesDiffer(cited, want.cites),
     ...(wanted === undefined ? [] : seriesDifferences(view, wanted)),
@@ -224,14 +250,22 @@ const wantedOf = (drawn: Drawn): Wanted =>
       chart: "ranking",
       from: ranking.year,
       to: ranking.year,
+      overTime: ranking.overTime ?? false,
     }),
-    Map: (map): Wanted => ({ ...map, chart: "map", from: map.year, to: map.year }),
+    Map: (map): Wanted => ({
+      ...map,
+      chart: "map",
+      from: map.year,
+      to: map.year,
+      overTime: map.overTime ?? false,
+    }),
     Change: (change): Wanted => ({ ...change, chart: "change" }),
     Relation: (relation): Wanted => ({
       ...relation,
       chart: "relation",
       from: relation.year,
       to: relation.year,
+      overTime: relation.overTime ?? false,
     }),
   })
 

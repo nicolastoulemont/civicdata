@@ -225,6 +225,8 @@ const brazil = {
   from: 2000,
   to: 2002,
   year: null,
+  span_from: null,
+  span_to: null,
   transform: null,
   per: null,
   dimensions: null,
@@ -771,6 +773,156 @@ describe("conversations", () => {
           said(),
         ),
       )
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("answers with a map over time, telling the model the values at its span's ends", () => {
+    const model = scripted([
+      Effect.succeed(
+        call("show_chart", {
+          ...brazil,
+          chart: "map",
+          countries: latinAmerica,
+          from: null,
+          to: null,
+          year: 2002,
+          span_from: 2000,
+          span_to: 2002,
+        }),
+      ),
+    ])
+
+    return Effect.gen(function* () {
+      const steps = yield* answer("How has the map of life expectancy in Latin America changed?")
+
+      expect(steps.at(-1)).toEqual(
+        charted(
+          chart(
+            Ranking.make({
+              indicator: lifeExpectancy,
+              countries: latinAmerica,
+              year: Year.make(2002),
+              span: { from: Year.make(2000), to: Year.make(2002) },
+              as: "Map",
+            }),
+          ),
+          said(),
+        ),
+      )
+      expect(model.prompts[1]).toContain(
+        JSON.stringify({
+          from: {
+            year: 2000,
+            bars: [
+              { country: "BRA", value: 70 },
+              { country: "MEX", value: 70 },
+            ],
+          },
+          to: {
+            year: 2002,
+            bars: [
+              { country: "BRA", value: 72 },
+              { country: "MEX", value: 72 },
+            ],
+          },
+        }),
+      )
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect(
+    "answers with a relation over time, telling the model the dots at its span's ends",
+    () => {
+      const model = scripted([
+        Effect.succeed(
+          call("show_chart", {
+            ...brazil,
+            chart: "relation",
+            against: gdpPerPerson,
+            countries: ["BRA", "MEX"],
+            from: null,
+            to: null,
+            year: 2002,
+            span_from: 2000,
+            span_to: 2002,
+          }),
+        ),
+      ])
+
+      return Effect.gen(function* () {
+        const steps = yield* answer("How have income and life expectancy moved together?")
+
+        expect(steps.at(-1)).toEqual(
+          charted(
+            chart(
+              Relation.make({
+                indicator: lifeExpectancy,
+                against: gdpPerPerson,
+                countries: ["BRA", "MEX"],
+                year: Year.make(2002),
+                span: { from: Year.make(2000), to: Year.make(2002) },
+              }),
+            ),
+            said(),
+          ),
+        )
+        expect(model.prompts[1]).toContain(
+          JSON.stringify({
+            from: {
+              year: 2000,
+              dots: [
+                { country: "BRA", value: 70, against: 70 },
+                { country: "MEX", value: 70, against: 70 },
+              ],
+            },
+            to: {
+              year: 2002,
+              dots: [
+                { country: "BRA", value: 72, against: 72 },
+                { country: "MEX", value: 72, against: 72 },
+              ],
+            },
+          }),
+        )
+      }).pipe(Effect.provide(serveApi(model.layer)))
+    },
+  )
+
+  it.effect("rejects a span on a trend, then draws the trend", () => {
+    const model = scripted([
+      Effect.succeed(
+        call("show_chart", { ...brazil, span_from: 2000, span_to: 2002 }, { step: "chart-1" }),
+      ),
+      Effect.succeed(call("show_chart", brazil, { step: "chart-2" })),
+    ])
+
+    return Effect.gen(function* () {
+      const steps = yield* answer("Life expectancy in Brazil since 2000")
+
+      expect(model.prompts[1]).toContain("span")
+      expect(steps.at(-1)).toEqual(charted(chart(brazilTrend), said()))
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("rejects a ranking over time whose year lies outside its span", () => {
+    const model = scripted([
+      Effect.succeed(
+        call("show_chart", {
+          ...brazil,
+          chart: "ranking",
+          from: null,
+          to: null,
+          year: 2010,
+          span_from: 2000,
+          span_to: 2002,
+        }),
+      ),
+    ])
+
+    return Effect.gen(function* () {
+      yield* answer("How has the ranking of life expectancy evolved since 2000?")
+
+      expect(model.prompts[1]).toContain("year must lie inside span")
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 

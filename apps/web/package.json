@@ -7,7 +7,7 @@
     "build": "vite build",
     "typecheck": "effect-tsgo tsc --noEmit && effect-tsgo tsc --noEmit -p scripts",
     "glyphs": "node scripts/glyphs.ts",
-    "world": "node scripts/world.ts",
+    "maps": "node scripts/maps.ts",
     "flags": "node scripts/flags.ts",
     "colors": "node scripts/colors.ts",
     "test": "vitest run",

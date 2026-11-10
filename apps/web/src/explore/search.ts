@@ -8,6 +8,7 @@ import {
   Ranking,
   Ratio,
   Relation,
+  type Span,
   type Transform,
   Trend,
   type View,
@@ -22,7 +23,8 @@ import { withPicks, withTransform } from "./edits.ts"
 // ?chart=trend&indicator=SP.POP.TOTL&countries=FRA,DEU&from=2000&to=2022&transform=index
 // ?chart=relation&indicator=SP.DYN.LE00.IN&against=NY.GDP.PCAP.CD&countries=FRA,DEU&year=2022
 // A ratio names the indicator it divides by: &transform=ratio&per=NY.GDP.MKTP.CD
-// A ranking drawn as a world map adds &as=map. An SDMX indicator adds the
+// A ranking drawn as a map adds &as=map. A ranking or relation over time adds
+// the span its year lies in: &from=1990&to=2022. An SDMX indicator adds the
 // value of each dimension: &dimensions=sex:T,age:Y15-74
 // A trend lists what it draws over its lines besides the View, outside it:
 // &overlays=governments
@@ -43,6 +45,8 @@ const Search = Schema.Union([
     indicator: IndicatorId,
     countries: Schema.String,
     year: Year,
+    from: Schema.optionalKey(Year),
+    to: Schema.optionalKey(Year),
     transform: Schema.optionalKey(Schema.Literals(["per-person", "growth", "ratio"])),
     per: Schema.optionalKey(IndicatorId),
     as: Schema.optionalKey(Schema.Literal("map")),
@@ -64,6 +68,8 @@ const Search = Schema.Union([
     against: IndicatorId,
     countries: Schema.String,
     year: Year,
+    from: Schema.optionalKey(Year),
+    to: Schema.optionalKey(Year),
     dimensions: Schema.optionalKey(Schema.String),
   }),
 ])
@@ -95,6 +101,19 @@ function transformParams(transform: Transform | undefined) {
 // A ranking drawn as a map as link parameters, none for bars.
 const drawnParams = (as: "Map" | undefined): { readonly as?: "map" } =>
   as === undefined ? {} : { as: "map" }
+
+// A ranking's span as link parameters, none for one year.
+const spanParams = (span: Span | undefined): { readonly from?: Year; readonly to?: Year } =>
+  span === undefined ? {} : span
+
+// The span a link names. Throws when it names one end only.
+const spanOfParams = (from: Year | undefined, to: Year | undefined) => {
+  if (from !== undefined && to !== undefined) return { span: { from, to } }
+
+  if (from !== undefined || to !== undefined) throw new Error("from goes with to")
+
+  return {}
+}
 
 // The transform a link names. Throws when a ratio lacks the indicator it
 // divides by, or another transform names one.
@@ -139,21 +158,24 @@ export const toView = (search: Search): View =>
         dimensions,
       ),
     ),
-    Match.when({ chart: "ranking" }, ({ indicator, countries, year, as, dimensions, ...params }) =>
-      picking(
-        withTransform(
-          as === undefined
-            ? Ranking.make({ indicator, countries: countryList(countries.split(",")), year })
-            : Ranking.make({
-                indicator,
-                countries: countryList(countries.split(",")),
-                year,
-                as: "Map",
-              }),
-          transformOfParams(params),
-        ),
-        dimensions,
-      ),
+    Match.when(
+      { chart: "ranking" },
+      ({ indicator, countries, year, as, dimensions, from, to, ...params }) => {
+        const ranking = Ranking.make({
+          indicator,
+          countries: countryList(countries.split(",")),
+          year,
+          ...spanOfParams(from, to),
+        })
+
+        return picking(
+          withTransform(
+            as === undefined ? ranking : Ranking.make({ ...ranking, as: "Map" }),
+            transformOfParams(params),
+          ),
+          dimensions,
+        )
+      },
     ),
     Match.when({ chart: "change" }, ({ indicator, countries, from, to, dimensions, ...params }) =>
       picking(
@@ -164,11 +186,19 @@ export const toView = (search: Search): View =>
         dimensions,
       ),
     ),
-    Match.when({ chart: "relation" }, ({ indicator, against, countries, year, dimensions }) =>
-      picking(
-        Relation.make({ indicator, against, countries: countryList(countries.split(",")), year }),
-        dimensions,
-      ),
+    Match.when(
+      { chart: "relation" },
+      ({ indicator, against, countries, year, from, to, dimensions }) =>
+        picking(
+          Relation.make({
+            indicator,
+            against,
+            countries: countryList(countries.split(",")),
+            year,
+            ...spanOfParams(from, to),
+          }),
+          dimensions,
+        ),
     ),
     Match.exhaustive,
   )
@@ -199,11 +229,12 @@ export const toSearch = (view: View, overlays: ReadonlyArray<Overlay> = []): Sea
       ...dimensionParams(dimensions),
       ...overlayParams(overlays),
     }),
-    Ranking: ({ indicator, countries, year, transform, as, dimensions }) => ({
+    Ranking: ({ indicator, countries, year, span, transform, as, dimensions }) => ({
       chart: "ranking" as const,
       indicator,
       countries: countries.join(","),
       year,
+      ...spanParams(span),
       ...transformParams(transform),
       ...drawnParams(as),
       ...dimensionParams(dimensions),
@@ -217,12 +248,13 @@ export const toSearch = (view: View, overlays: ReadonlyArray<Overlay> = []): Sea
       ...transformParams(transform),
       ...dimensionParams(dimensions),
     }),
-    Relation: ({ indicator, against, countries, year, dimensions }) => ({
+    Relation: ({ indicator, against, countries, year, span, dimensions }) => ({
       chart: "relation" as const,
       indicator,
       against,
       countries: countries.join(","),
       year,
+      ...spanParams(span),
       ...dimensionParams(dimensions),
     }),
   })

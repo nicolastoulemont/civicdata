@@ -847,6 +847,15 @@ export const title: Face = {
       height: 4,
       alpha: "011100111011102fff16ffc0bff82fff16ffc0bff82fff16ffc0bff8",
     },
+    é: {
+      advance: 13,
+      left: 0,
+      top: -17,
+      width: 13,
+      height: 18,
+      alpha:
+        "00000012210000000008ff3000000001ef80000000006fd0000000000000000000003aefeb4000006fffffff70003ffe636dff300aff40003ffa00efd00000dfe02fffffffffff12fffeeeeeeee21ffd0000000000cff20001986005ffc302aff9000afffffffd100007efffe91000000034310000",
+    },
   },
 }
 
@@ -1546,6 +1555,14 @@ export const body: Face = {
     "–": { advance: 7.68, left: 0, top: -5, width: 8, height: 2, alpha: "255555514aaaaaa1" },
     "·": { advance: 2.61, left: 0, top: -5, width: 3, height: 2, alpha: "4a05b0" },
     "…": { advance: 7.42, left: 0, top: -2, width: 7, height: 2, alpha: "38083566f1f79d" },
+    é: {
+      advance: 7.29,
+      left: 0,
+      top: -10,
+      width: 7,
+      height: 11,
+      alpha: "00006100005a00000310003cfe601e603e45d111996edddd95c000001e501c604eee900002100",
+    },
   },
 }
 
@@ -2184,5 +2201,13 @@ export const label: Face = {
     "–": { advance: 6.5, left: 0, top: -4, width: 7, height: 2, alpha: "59999901333330" },
     "·": { advance: 2.21, left: 0, top: -4, width: 2, height: 2, alpha: "8b23" },
     "…": { advance: 6.28, left: 0, top: -2, width: 6, height: 2, alpha: "2323238b7b7c" },
+    é: {
+      advance: 6.17,
+      left: 0,
+      top: -8,
+      width: 6,
+      height: 9,
+      alpha: "000b3000140006dd803d10a67b77aa7a66644c006508dcb1001100",
+    },
   },
 }

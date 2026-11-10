@@ -93,37 +93,45 @@ const published = new Map<IndicatorId, { name: string; values: ResolvedView["obs
 ])
 
 // Answers like the real API: only the requested countries and years, and
-// nothing for a country it has no value for.
-const worldBank = Layer.succeed(
-  WorldBank,
-  WorldBank.of({
-    describe: (indicator) => {
-      const known = published.get(indicator)
+// nothing for a country it has no value for. Notes each request for values
+// in `asked`.
+const worldBankNoting = (asked: Array<string> = []) =>
+  Layer.succeed(
+    WorldBank,
+    WorldBank.of({
+      describe: (indicator) => {
+        const known = published.get(indicator)
 
-      return known === undefined
-        ? Effect.fail(new IndicatorNotFound({ indicator }))
-        : Effect.succeed({
-            indicator: { id: indicator, name: known.name, definition: "" },
-            dataset: "World Development Indicators",
+        return known === undefined
+          ? Effect.fail(new IndicatorNotFound({ indicator }))
+          : Effect.succeed({
+              indicator: { id: indicator, name: known.name, definition: "" },
+              dataset: "World Development Indicators",
+              retrievedAt,
+            })
+      },
+      observations: (query) =>
+        Effect.sync(() => {
+          asked.push(`${query.indicator} ${query.from}-${query.to}`)
+        }).pipe(
+          Effect.as({
+            observations: (published.get(query.indicator)?.values ?? []).filter(
+              (observation) =>
+                query.countries.includes(observation.country) &&
+                observation.year >= query.from &&
+                observation.year <= query.to,
+            ),
+            url: `https://api.worldbank.org/v2/indicator/${query.indicator}`,
             retrievedAt,
-          })
-    },
-    observations: (query) =>
-      Effect.succeed({
-        observations: (published.get(query.indicator)?.values ?? []).filter(
-          (observation) =>
-            query.countries.includes(observation.country) &&
-            observation.year >= query.from &&
-            observation.year <= query.to,
+          }),
         ),
-        url: `https://api.worldbank.org/v2/indicator/${query.indicator}`,
-        retrievedAt,
-      }),
-    indicators: Effect.succeed([]),
-    version: Effect.die("not used by charts"),
-    series: () => Effect.die("not used by charts"),
-  }),
-)
+      indicators: Effect.succeed([]),
+      version: Effect.die("not used by charts"),
+      series: () => Effect.die("not used by charts"),
+    }),
+  )
+
+const worldBank = worldBankNoting()
 
 const down = Layer.succeed(
   WorldBank,
@@ -149,47 +157,52 @@ const totalAged15To74 = Schema.decodeSync(Dimensions)({
 // Greece, refused with the United States, which it does not cover; and
 // unemployment rates for France, which come in several series, and the total
 // for 15 to 74 year-olds.
-const recordedEurostat = Sdmx.layer.pipe(
-  Layer.provide(
-    http(
-      (url) =>
-        new Map([
-          [
-            `${eurostat}/sdmx/2.1/dataflow/ESTAT/TPS00001/1.0?format=JSON`,
-            Response.json(populationFlow),
-          ],
-          [
-            `${eurostat}/sdmx/2.1/dataflow/ESTAT/UNE_RT_A/1.0?format=JSON`,
-            Response.json(unemploymentFlow),
-          ],
-          [
-            `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/TPS00001/1.0/*?c[geo]=FR,EL,US&c[freq]=A&c[TIME_PERIOD]=ge:2019+le:2021&compress=false`,
-            new Response(uncovered, { status: 400 }),
-          ],
-          [
-            `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/TPS00001/1.0/*?c[geo]=FR,EL&c[freq]=A&c[TIME_PERIOD]=ge:2019+le:2021&compress=false`,
-            new Response(populations),
-          ],
-          [
-            `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/TPS00001/1.0/*?c[geo]=FR,EL,US&c[freq]=A&lastNObservations=1&compress=false`,
-            new Response(uncovered, { status: 400 }),
-          ],
-          [
-            `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/TPS00001/1.0/*?c[geo]=FR,EL&c[freq]=A&lastNObservations=1&compress=false`,
-            new Response(populationOptions),
-          ],
-          [
-            `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/UNE_RT_A/1.0/*?c[geo]=FR&c[freq]=A&lastNObservations=1&compress=false`,
-            new Response(unemploymentOptions),
-          ],
-          [
-            `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/UNE_RT_A/1.0/*?c[geo]=FR&c[freq]=A&c[age]=Y15-74&c[unit]=PC_ACT&c[sex]=T&c[TIME_PERIOD]=ge:2022+le:2024&compress=false`,
-            new Response(unemploymentRates),
-          ],
-        ]).get(url) ?? new Response("no recording", { status: 404 }),
+const eurostatRecording = (url: string) =>
+  new Map([
+    [`${eurostat}/sdmx/2.1/dataflow/ESTAT/TPS00001/1.0?format=JSON`, Response.json(populationFlow)],
+    [
+      `${eurostat}/sdmx/2.1/dataflow/ESTAT/UNE_RT_A/1.0?format=JSON`,
+      Response.json(unemploymentFlow),
+    ],
+    [
+      `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/TPS00001/1.0/*?c[geo]=FR,EL,US&c[freq]=A&c[TIME_PERIOD]=ge:2019+le:2021&compress=false`,
+      new Response(uncovered, { status: 400 }),
+    ],
+    [
+      `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/TPS00001/1.0/*?c[geo]=FR,EL&c[freq]=A&c[TIME_PERIOD]=ge:2019+le:2021&compress=false`,
+      new Response(populations),
+    ],
+    [
+      `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/TPS00001/1.0/*?c[geo]=FR,EL,US&c[freq]=A&lastNObservations=1&compress=false`,
+      new Response(uncovered, { status: 400 }),
+    ],
+    [
+      `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/TPS00001/1.0/*?c[geo]=FR,EL&c[freq]=A&lastNObservations=1&compress=false`,
+      new Response(populationOptions),
+    ],
+    [
+      `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/UNE_RT_A/1.0/*?c[geo]=FR&c[freq]=A&lastNObservations=1&compress=false`,
+      new Response(unemploymentOptions),
+    ],
+    [
+      `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/UNE_RT_A/1.0/*?c[geo]=FR&c[freq]=A&c[age]=Y15-74&c[unit]=PC_ACT&c[sex]=T&c[TIME_PERIOD]=ge:2022+le:2024&compress=false`,
+      new Response(unemploymentRates),
+    ],
+  ]).get(url) ?? new Response("no recording", { status: 404 })
+
+// Recorded Eurostat, noting each URL asked for in `asked`. A request for
+// values names its years (TIME_PERIOD); one for a dataflow's series asks
+// for the latest value only.
+const recordedEurostat = (asked: Array<string> = []) =>
+  Sdmx.layer.pipe(
+    Layer.provide(
+      http((url) => {
+        asked.push(url)
+
+        return eurostatRecording(url)
+      }),
     ),
-  ),
-)
+  )
 
 // Most tests read no indicator notes.
 const noNotes = Layer.succeed(Notes, Notes.of({ get: () => Effect.die("no notes in these tests") }))
@@ -272,6 +285,35 @@ describe("POST /api/views/resolve", () => {
     }).pipe(Effect.provide(serve(worldBank))),
   )
 
+  it.effect("resolves a ranking over time for every year of its span, in one request", () => {
+    const asked: Array<string> = []
+
+    return Effect.gen(function* () {
+      const client = yield* HttpApiTest.groups(Api, ["views"])
+
+      const resolved = yield* client.views.resolve({
+        payload: Ranking.make({
+          indicator: IndicatorId.make("ESTAT,TPS00001,1.0"),
+          countries: ["FRA", "GRC"],
+          year: year(2020),
+          span: { from: year(2019), to: year(2021) },
+        }),
+      })
+
+      expect(resolved.observations.map((each) => `${each.country} ${each.year}`)).toEqual([
+        "GRC 2019",
+        "GRC 2020",
+        "GRC 2021",
+        "FRA 2019",
+        "FRA 2020",
+        "FRA 2021",
+      ])
+      expect(asked.filter((url) => url.includes("TIME_PERIOD"))).toEqual([
+        `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/TPS00001/1.0/*?c[geo]=FR,EL&c[freq]=A&c[TIME_PERIOD]=ge:2019+le:2021&compress=false`,
+      ])
+    }).pipe(Effect.provide(serve(worldBank, { sdmx: recordedEurostat(asked) })))
+  })
+
   it.effect("resolves a change to its two years, missing a country without both", () =>
     Effect.gen(function* () {
       const client = yield* HttpApiTest.groups(Api, ["views"])
@@ -321,6 +363,31 @@ describe("POST /api/views/resolve", () => {
       })
       expect(resolved.sources.map((source) => source.indicator)).toEqual([gdp, population])
     }).pipe(Effect.provide(serve(worldBank))),
+  )
+
+  it.effect(
+    "resolves a relation over time for both indicators over its span, one request each",
+    () => {
+      const asked: Array<string> = []
+
+      return Effect.gen(function* () {
+        const client = yield* HttpApiTest.groups(Api, ["views"])
+
+        const resolved = yield* client.views.resolve({
+          payload: Relation.make({
+            indicator: gdp,
+            against: population,
+            countries: ["FRA", "DEU"],
+            year: year(2020),
+            span: { from: year(2018), to: year(2020) },
+          }),
+        })
+
+        expect(asked).toEqual([`${gdp} 2018-2020`, `${population} 2018-2020`])
+        expect("against" in resolved && resolved.against.observations).toHaveLength(5)
+        expect(resolved.missing).toEqual([])
+      }).pipe(Effect.provide(serve(worldBankNoting(asked))))
+    },
   )
 
   it.effect("fails with IndicatorNotFound for an unknown indicator", () =>
@@ -449,7 +516,7 @@ describe("POST /api/views/resolve", () => {
           retrievedAt: expect.anything(),
         },
       ])
-    }).pipe(Effect.provide(serve(worldBank, { sdmx: recordedEurostat }))),
+    }).pipe(Effect.provide(serve(worldBank, { sdmx: recordedEurostat() }))),
   )
 
   it.effect("fails with DimensionsMissing for a dataflow with several series", () =>
@@ -467,7 +534,7 @@ describe("POST /api/views/resolve", () => {
         .pipe(Effect.flip)
 
       expect(error).toBeInstanceOf(DimensionsMissing)
-    }).pipe(Effect.provide(serve(worldBank, { sdmx: recordedEurostat }))),
+    }).pipe(Effect.provide(serve(worldBank, { sdmx: recordedEurostat() }))),
   )
 
   it.effect("resolves the series a View picks, listing what else it can pick", () =>
@@ -486,7 +553,7 @@ describe("POST /api/views/resolve", () => {
 
       expect(resolved.observations.map(({ value }) => value)).toEqual([7.3, 7.4, 7.4])
       expect(resolved.dimensions.map(({ id }) => id)).toEqual(["age", "unit", "sex"])
-    }).pipe(Effect.provide(serve(worldBank, { sdmx: recordedEurostat }))),
+    }).pipe(Effect.provide(serve(worldBank, { sdmx: recordedEurostat() }))),
   )
 
   it.effect("notes where another source's values for the same figure differ", () =>
@@ -519,7 +586,7 @@ describe("POST /api/views/resolve", () => {
           ],
         },
       ])
-    }).pipe(Effect.provide(serve(worldBank, { sdmx: recordedEurostat }))),
+    }).pipe(Effect.provide(serve(worldBank, { sdmx: recordedEurostat() }))),
   )
 })
 

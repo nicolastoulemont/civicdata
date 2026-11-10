@@ -97,8 +97,49 @@ describe("summarize", () => {
     )
 
     expect(ranking).toMatchObject({
+      name: "Unemployment, youth total (% of total labor force ages 15-24)",
       year: 2024,
-      bars: [55.48, 41.53, 27.9, 26.47, 20.31].map((value) => ({ value })),
+      bars: [
+        { country: "ESP", value: 26.47 },
+        { country: "ITA", value: 20.31 },
+      ],
+      missing: [],
+      flagged: { breaks: [], provisional: 0, estimated: 0 },
+    })
+  })
+
+  it("gives a ranking over time its year's bars and its span's first and last", () => {
+    const ranking = summarize(
+      resolved(
+        Ranking.make({
+          indicator: youthUnemployment,
+          countries: ["ESP", "ITA"],
+          year: Year.make(2013),
+          span: { from: Year.make(2010), to: Year.make(2024) },
+        }),
+      ),
+    )
+
+    expect(ranking).toMatchObject({
+      year: 2013,
+      bars: [{ country: "ESP", value: 55.48 }],
+      missing: ["ITA"],
+      span: {
+        from: {
+          year: 2010,
+          bars: [
+            { country: "ESP", value: 41.53 },
+            { country: "ITA", value: 27.9 },
+          ],
+        },
+        to: {
+          year: 2024,
+          bars: [
+            { country: "ESP", value: 26.47 },
+            { country: "ITA", value: 20.31 },
+          ],
+        },
+      },
     })
   })
 })
