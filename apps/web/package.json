@@ -8,6 +8,8 @@
     "typecheck": "effect-tsgo tsc --noEmit && effect-tsgo tsc --noEmit -p scripts",
     "glyphs": "node scripts/glyphs.ts",
     "world": "node scripts/world.ts",
+    "flags": "node scripts/flags.ts",
+    "colors": "node scripts/colors.ts",
     "test": "vitest run",
     "storybook": "storybook dev --port 6006",
     "build-storybook": "storybook build"
@@ -42,6 +44,7 @@
   },
   "devDependencies": {
     "@fontsource/geist": "^5.3.0",
+    "@resvg/resvg-js": "^2.6.2",
     "@storybook/react-vite": "^10.6.6",
     "@tailwindcss/vite": "^4.3.5",
     "@testing-library/dom": "^10.4.2",
@@ -57,6 +60,7 @@
     "@types/topojson-specification": "^1.0.5",
     "@vitejs/plugin-react": "^6.2.0",
     "d3-geo": "^3.1.2",
+    "flag-icons": "^7.6.0",
     "happy-dom": "^21.0.4",
     "i18n-iso-countries": "^7.14.0",
     "msw": "^3.0.4",

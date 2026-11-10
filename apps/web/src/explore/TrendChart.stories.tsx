@@ -4,6 +4,8 @@ import { Schema } from "effect"
 import { fn } from "storybook/test"
 
 import { decode } from "./recorded/decode.ts"
+import eu from "./recorded/trend-eu.json"
+import g7 from "./recorded/trend-g7.json"
 import history from "./recorded/trend-history.json"
 import recorded from "./recorded/trend.json"
 import { TrendChart } from "./TrendChart.tsx"
@@ -34,4 +36,14 @@ export const Picking: Story = {
       onChange: fn(),
     },
   },
+}
+
+// Unemployment in the 27 EU members, each in its own colour.
+export const Europe: Story = {
+  args: { resolved: decode(eu), trend: Schema.decodeUnknownSync(Trend)(eu.view) },
+}
+
+// Unemployment in the G7.
+export const G7: Story = {
+  args: { resolved: decode(g7), trend: Schema.decodeUnknownSync(Trend)(g7.view) },
 }

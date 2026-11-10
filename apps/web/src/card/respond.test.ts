@@ -104,11 +104,11 @@ describe("GET /explore.png", () => {
 
     expect(response.status).toBe(200)
     expect(response.headers.get("content-type")).toBe("image/png")
-    // Every row holds a filter byte and one palette entry per pixel.
+    // Every row holds a filter byte and three bytes, red, green and blue, per pixel.
     expect(await decode(new Uint8Array(await response.arrayBuffer()))).toEqual({
       width: 600,
       height: 315,
-      rows: 601 * 315,
+      rows: (1 + 600 * 3) * 315,
     })
   })
 

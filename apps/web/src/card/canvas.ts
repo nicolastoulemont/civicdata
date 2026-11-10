@@ -6,11 +6,6 @@ const inks = {
   muted: [115, 115, 115],
   border: [229, 229, 229],
   "chart-1": [42, 120, 214],
-  "chart-2": [235, 104, 52],
-  "chart-3": [27, 175, 122],
-  "chart-4": [98, 80, 214],
-  "chart-5": [232, 123, 164],
-  "chart-6": [0, 131, 0],
   "chart-other": [133, 133, 133],
   "chart-faint": [221, 221, 221],
   "map-0": [195, 207, 222],
@@ -20,36 +15,32 @@ const inks = {
   "map-4": [42, 120, 214],
 } as const
 
-export type Ink = keyof typeof inks
+type Token = keyof typeof inks
 
-export const series: ReadonlyArray<Ink> = [
-  "chart-1",
-  "chart-2",
-  "chart-3",
-  "chart-4",
-  "chart-5",
-  "chart-6",
-]
+// A theme token, or a country's own colour as hex.
+export type Ink = Token | `#${string}`
 
 export const mapInks: ReadonlyArray<Ink> = ["map-0", "map-1", "map-2", "map-3", "map-4"]
 
-// Coverage is kept in 15 steps, so each ink has 15 palette entries blended
-// onto the white background. Entry 0 is the background.
+const isToken = (ink: Ink): ink is Token => Object.hasOwn(inks, ink)
+
+type Rgb = readonly [number, number, number]
+
+const rgbOf = (ink: Ink): Rgb =>
+  isToken(ink)
+    ? inks[ink]
+    : [
+        Number.parseInt(ink.slice(1, 3), 16),
+        Number.parseInt(ink.slice(3, 5), 16),
+        Number.parseInt(ink.slice(5, 7), 16),
+      ]
+
+// Coverage is kept in 15 steps; a pixel's colour is its ink blended onto the
+// white background by its coverage.
 const steps = 15
 
-const palette = Uint8Array.from([
-  255,
-  255,
-  255,
-  ...Object.values(inks).flatMap((rgb) =>
-    Array.from({ length: steps }, (_, step) =>
-      rgb.map((channel) => Math.round(255 + ((channel - 255) * (step + 1)) / steps)),
-    ).flat(),
-  ),
-])
-
-// A white image with one palette entry per pixel. `levels` keeps how much
-// ink each pixel holds, so a faint edge never paints over a solid stroke.
+// A white RGB image. `levels` keeps how much ink each pixel holds, so a faint
+// edge never paints over a solid stroke.
 export interface Canvas {
   readonly width: number
   readonly height: number
@@ -60,21 +51,27 @@ export interface Canvas {
 export const canvas = (width: number, height: number): Canvas => ({
   width,
   height,
-  pixels: new Uint8Array(width * height),
+  pixels: new Uint8Array(width * height * 3).fill(255),
   levels: new Uint8Array(width * height),
 })
 
-const order: ReadonlyArray<string> = Object.keys(inks)
-
-// The palette entry for an ink at full coverage; one step less per level below.
-const solid = (ink: Ink) => order.indexOf(ink) * steps + steps
-
 // Inks the pixel at `at` unless it already holds more ink.
-const paint = (target: Canvas, at: number, ink: number, level: number) => {
+const paint = (target: Canvas, at: number, [red, green, blue]: Rgb, level: number) => {
   if (level <= 0 || level < (target.levels[at] ?? 0)) return
 
+  const blended = (channel: number) => Math.round(255 + ((channel - 255) * level) / steps)
+
   target.levels[at] = level
-  target.pixels[at] = ink - steps + level
+  target.pixels[at * 3] = blended(red)
+  target.pixels[at * 3 + 1] = blended(green)
+  target.pixels[at * 3 + 2] = blended(blue)
+}
+
+// Inks the pixels from `from` up to `to` in full.
+const solid = (target: Canvas, { from, to, rgb }: { from: number; to: number; rgb: Rgb }) => {
+  for (let at = from; at < to; at += 1) target.pixels.set(rgb, at * 3)
+
+  target.levels.fill(steps, from, to)
 }
 
 // The rows or columns from `from` to `to`, clipped to `size`.
@@ -96,8 +93,7 @@ export const rect = (
     y < Math.min(target.height, Math.round(box.y + box.height));
     y += 1
   ) {
-    target.pixels.fill(solid(ink), y * target.width + left, y * target.width + right)
-    target.levels.fill(steps, y * target.width + left, y * target.width + right)
+    solid(target, { from: y * target.width + left, to: y * target.width + right, rgb: rgbOf(ink) })
   }
 }
 
@@ -149,6 +145,7 @@ export const fill = (
   rings: ReadonlyArray<ReadonlyArray<readonly [number, number]>>,
   ink: Ink,
 ) => {
+  const rgb = rgbOf(ink)
   const edges = edgesOf(rings)
   const ys = rings.flatMap((ring) => ring.map(([, y]) => y))
   const rows = clip(Math.min(...ys), Math.max(...ys), target.height)
@@ -160,10 +157,8 @@ export const fill = (
       const left = Math.max(0, Math.round(across[index] ?? 0))
       const right = Math.min(target.width, Math.round(across[index + 1] ?? 0))
 
-      if (right > left) {
-        target.pixels.fill(solid(ink), y * target.width + left, y * target.width + right)
-        target.levels.fill(steps, y * target.width + left, y * target.width + right)
-      }
+      if (right > left)
+        solid(target, { from: y * target.width + left, to: y * target.width + right, rgb })
     }
   }
 }
@@ -180,7 +175,7 @@ export const line = (
   const dx = x1 - x0
   const dy = y1 - y0
   const length = dx * dx + dy * dy
-  const color = solid(ink)
+  const color = rgbOf(ink)
   const rows = clip(Math.min(y0, y1) - reach, Math.max(y0, y1) + reach, target.height)
   const columns = clip(Math.min(x0, x1) - reach, Math.max(x0, x1) + reach, target.width)
 
@@ -221,7 +216,7 @@ export const text = (
   content: string,
   { x, y, ink, align = "start" }: { x: number; y: number; ink: Ink; align?: "start" | "end" },
 ) => {
-  const color = solid(ink)
+  const color = rgbOf(ink)
   // Faces hold single UTF-16 code units only, so splitting by unit is exact.
   const glyphs = content.split("").map((character) => glyph(face, character))
 
@@ -280,7 +275,7 @@ const chunk = (type: string, data: Uint8Array) => {
   return bytes
 }
 
-// Encodes the canvas as an 8-bit palette PNG. The runtime's CompressionStream
+// Encodes the canvas as an 8-bit RGB PNG. The runtime's CompressionStream
 // does the deflate ("deflate" is the zlib format PNG expects).
 export const png = async (source: Canvas) => {
   const header = new Uint8Array(13)
@@ -288,17 +283,15 @@ export const png = async (source: Canvas) => {
 
   view.setUint32(0, source.width)
   view.setUint32(4, source.height)
-  // Bit depth 8, colour type 3 (palette); compression, filter and interlace 0.
-  header.set([8, 3, 0, 0, 0], 8)
+  // Bit depth 8, colour type 2 (RGB); compression, filter and interlace 0.
+  header.set([8, 2, 0, 0, 0], 8)
 
   // Each row starts with filter type 0 (none).
-  const rows = new Uint8Array((source.width + 1) * source.height)
+  const row = source.width * 3
+  const rows = new Uint8Array((row + 1) * source.height)
 
   for (let y = 0; y < source.height; y += 1) {
-    rows.set(
-      source.pixels.subarray(y * source.width, (y + 1) * source.width),
-      y * (source.width + 1) + 1,
-    )
+    rows.set(source.pixels.subarray(y * row, (y + 1) * row), y * (row + 1) + 1)
   }
 
   const compressed = new Uint8Array(
@@ -310,7 +303,6 @@ export const png = async (source: Canvas) => {
   const parts = [
     Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
     chunk("IHDR", header),
-    chunk("PLTE", palette),
     chunk("IDAT", compressed),
     chunk("IEND", new Uint8Array(0)),
   ]

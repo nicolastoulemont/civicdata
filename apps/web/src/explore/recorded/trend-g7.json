@@ -1,0 +1,765 @@
+{
+  "view": {
+    "_tag": "Trend",
+    "indicator": "SL.UEM.TOTL.ZS",
+    "countries": ["CAN", "FRA", "DEU", "ITA", "JPN", "GBR", "USA"],
+    "from": 2004,
+    "to": 2024
+  },
+  "title": "Unemployment rate (%)",
+  "indicator": {
+    "id": "SL.UEM.TOTL.ZS",
+    "name": "Unemployment, total (% of total labor force) (modeled ILO estimate)",
+    "definition": "Unemployment refers to the share of the labor force that is without work but available for and seeking employment."
+  },
+  "observations": [
+    {
+      "country": "CAN",
+      "year": 2004,
+      "value": 7.185
+    },
+    {
+      "country": "CAN",
+      "year": 2005,
+      "value": 6.758
+    },
+    {
+      "country": "CAN",
+      "year": 2006,
+      "value": 6.484
+    },
+    {
+      "country": "CAN",
+      "year": 2007,
+      "value": 6.156
+    },
+    {
+      "country": "CAN",
+      "year": 2008,
+      "value": 6.284
+    },
+    {
+      "country": "CAN",
+      "year": 2009,
+      "value": 8.46
+    },
+    {
+      "country": "CAN",
+      "year": 2010,
+      "value": 8.178
+    },
+    {
+      "country": "CAN",
+      "year": 2011,
+      "value": 7.637
+    },
+    {
+      "country": "CAN",
+      "year": 2012,
+      "value": 7.392
+    },
+    {
+      "country": "CAN",
+      "year": 2013,
+      "value": 7.143
+    },
+    {
+      "country": "CAN",
+      "year": 2014,
+      "value": 7.023
+    },
+    {
+      "country": "CAN",
+      "year": 2015,
+      "value": 6.945
+    },
+    {
+      "country": "CAN",
+      "year": 2016,
+      "value": 7.038
+    },
+    {
+      "country": "CAN",
+      "year": 2017,
+      "value": 6.426
+    },
+    {
+      "country": "CAN",
+      "year": 2018,
+      "value": 5.837
+    },
+    {
+      "country": "CAN",
+      "year": 2019,
+      "value": 5.69
+    },
+    {
+      "country": "CAN",
+      "year": 2020,
+      "value": 9.657
+    },
+    {
+      "country": "CAN",
+      "year": 2021,
+      "value": 7.527
+    },
+    {
+      "country": "CAN",
+      "year": 2022,
+      "value": 5.279
+    },
+    {
+      "country": "CAN",
+      "year": 2023,
+      "value": 5.415
+    },
+    {
+      "country": "CAN",
+      "year": 2024,
+      "value": 6.351
+    },
+    {
+      "country": "DEU",
+      "year": 2004,
+      "value": 10.727
+    },
+    {
+      "country": "DEU",
+      "year": 2005,
+      "value": 11.193
+    },
+    {
+      "country": "DEU",
+      "year": 2006,
+      "value": 10.277
+    },
+    {
+      "country": "DEU",
+      "year": 2007,
+      "value": 8.732
+    },
+    {
+      "country": "DEU",
+      "year": 2008,
+      "value": 7.508
+    },
+    {
+      "country": "DEU",
+      "year": 2009,
+      "value": 7.88
+    },
+    {
+      "country": "DEU",
+      "year": 2010,
+      "value": 7.043
+    },
+    {
+      "country": "DEU",
+      "year": 2011,
+      "value": 5.967
+    },
+    {
+      "country": "DEU",
+      "year": 2012,
+      "value": 5.372
+    },
+    {
+      "country": "DEU",
+      "year": 2013,
+      "value": 5.316
+    },
+    {
+      "country": "DEU",
+      "year": 2014,
+      "value": 4.979
+    },
+    {
+      "country": "DEU",
+      "year": 2015,
+      "value": 4.612
+    },
+    {
+      "country": "DEU",
+      "year": 2016,
+      "value": 4.104
+    },
+    {
+      "country": "DEU",
+      "year": 2017,
+      "value": 3.781
+    },
+    {
+      "country": "DEU",
+      "year": 2018,
+      "value": 3.384
+    },
+    {
+      "country": "DEU",
+      "year": 2019,
+      "value": 3.163
+    },
+    {
+      "country": "DEU",
+      "year": 2020,
+      "value": 3.881
+    },
+    {
+      "country": "DEU",
+      "year": 2021,
+      "value": 3.594
+    },
+    {
+      "country": "DEU",
+      "year": 2022,
+      "value": 3.137
+    },
+    {
+      "country": "DEU",
+      "year": 2023,
+      "value": 3.071
+    },
+    {
+      "country": "DEU",
+      "year": 2024,
+      "value": 3.4
+    },
+    {
+      "country": "FRA",
+      "year": 2004,
+      "value": 8.914
+    },
+    {
+      "country": "FRA",
+      "year": 2005,
+      "value": 8.882
+    },
+    {
+      "country": "FRA",
+      "year": 2006,
+      "value": 8.832
+    },
+    {
+      "country": "FRA",
+      "year": 2007,
+      "value": 8.008
+    },
+    {
+      "country": "FRA",
+      "year": 2008,
+      "value": 7.386
+    },
+    {
+      "country": "FRA",
+      "year": 2009,
+      "value": 9.122
+    },
+    {
+      "country": "FRA",
+      "year": 2010,
+      "value": 9.279
+    },
+    {
+      "country": "FRA",
+      "year": 2011,
+      "value": 9.228
+    },
+    {
+      "country": "FRA",
+      "year": 2012,
+      "value": 9.841
+    },
+    {
+      "country": "FRA",
+      "year": 2013,
+      "value": 9.913
+    },
+    {
+      "country": "FRA",
+      "year": 2014,
+      "value": 10.273
+    },
+    {
+      "country": "FRA",
+      "year": 2015,
+      "value": 10.354
+    },
+    {
+      "country": "FRA",
+      "year": 2016,
+      "value": 10.057
+    },
+    {
+      "country": "FRA",
+      "year": 2017,
+      "value": 9.409
+    },
+    {
+      "country": "FRA",
+      "year": 2018,
+      "value": 9.018
+    },
+    {
+      "country": "FRA",
+      "year": 2019,
+      "value": 8.415
+    },
+    {
+      "country": "FRA",
+      "year": 2020,
+      "value": 8.009
+    },
+    {
+      "country": "FRA",
+      "year": 2021,
+      "value": 7.871
+    },
+    {
+      "country": "FRA",
+      "year": 2022,
+      "value": 7.303
+    },
+    {
+      "country": "FRA",
+      "year": 2023,
+      "value": 7.335
+    },
+    {
+      "country": "FRA",
+      "year": 2024,
+      "value": 7.4
+    },
+    {
+      "country": "GBR",
+      "year": 2004,
+      "value": 4.594
+    },
+    {
+      "country": "GBR",
+      "year": 2005,
+      "value": 4.884
+    },
+    {
+      "country": "GBR",
+      "year": 2006,
+      "value": 5.472
+    },
+    {
+      "country": "GBR",
+      "year": 2007,
+      "value": 5.399
+    },
+    {
+      "country": "GBR",
+      "year": 2008,
+      "value": 5.748
+    },
+    {
+      "country": "GBR",
+      "year": 2009,
+      "value": 7.683
+    },
+    {
+      "country": "GBR",
+      "year": 2010,
+      "value": 7.973
+    },
+    {
+      "country": "GBR",
+      "year": 2011,
+      "value": 8.195
+    },
+    {
+      "country": "GBR",
+      "year": 2012,
+      "value": 8.279
+    },
+    {
+      "country": "GBR",
+      "year": 2013,
+      "value": 7.752
+    },
+    {
+      "country": "GBR",
+      "year": 2014,
+      "value": 6.398
+    },
+    {
+      "country": "GBR",
+      "year": 2015,
+      "value": 5.552
+    },
+    {
+      "country": "GBR",
+      "year": 2016,
+      "value": 4.909
+    },
+    {
+      "country": "GBR",
+      "year": 2017,
+      "value": 4.501
+    },
+    {
+      "country": "GBR",
+      "year": 2018,
+      "value": 4.145
+    },
+    {
+      "country": "GBR",
+      "year": 2019,
+      "value": 3.657
+    },
+    {
+      "country": "GBR",
+      "year": 2020,
+      "value": 4.472
+    },
+    {
+      "country": "GBR",
+      "year": 2021,
+      "value": 4.864
+    },
+    {
+      "country": "GBR",
+      "year": 2022,
+      "value": 3.768
+    },
+    {
+      "country": "GBR",
+      "year": 2023,
+      "value": 4.025
+    },
+    {
+      "country": "GBR",
+      "year": 2024,
+      "value": 4.361
+    },
+    {
+      "country": "ITA",
+      "year": 2004,
+      "value": 7.866
+    },
+    {
+      "country": "ITA",
+      "year": 2005,
+      "value": 7.73
+    },
+    {
+      "country": "ITA",
+      "year": 2006,
+      "value": 6.777
+    },
+    {
+      "country": "ITA",
+      "year": 2007,
+      "value": 6.076
+    },
+    {
+      "country": "ITA",
+      "year": 2008,
+      "value": 6.723
+    },
+    {
+      "country": "ITA",
+      "year": 2009,
+      "value": 7.749
+    },
+    {
+      "country": "ITA",
+      "year": 2010,
+      "value": 8.363
+    },
+    {
+      "country": "ITA",
+      "year": 2011,
+      "value": 8.359
+    },
+    {
+      "country": "ITA",
+      "year": 2012,
+      "value": 10.655
+    },
+    {
+      "country": "ITA",
+      "year": 2013,
+      "value": 12.149
+    },
+    {
+      "country": "ITA",
+      "year": 2014,
+      "value": 12.683
+    },
+    {
+      "country": "ITA",
+      "year": 2015,
+      "value": 11.896
+    },
+    {
+      "country": "ITA",
+      "year": 2016,
+      "value": 11.688
+    },
+    {
+      "country": "ITA",
+      "year": 2017,
+      "value": 11.211
+    },
+    {
+      "country": "ITA",
+      "year": 2018,
+      "value": 10.538
+    },
+    {
+      "country": "ITA",
+      "year": 2019,
+      "value": 9.884
+    },
+    {
+      "country": "ITA",
+      "year": 2020,
+      "value": 9.192
+    },
+    {
+      "country": "ITA",
+      "year": 2021,
+      "value": 9.497
+    },
+    {
+      "country": "ITA",
+      "year": 2022,
+      "value": 8.069
+    },
+    {
+      "country": "ITA",
+      "year": 2023,
+      "value": 7.627
+    },
+    {
+      "country": "ITA",
+      "year": 2024,
+      "value": 6.5
+    },
+    {
+      "country": "JPN",
+      "year": 2004,
+      "value": 4.734
+    },
+    {
+      "country": "JPN",
+      "year": 2005,
+      "value": 4.446
+    },
+    {
+      "country": "JPN",
+      "year": 2006,
+      "value": 4.192
+    },
+    {
+      "country": "JPN",
+      "year": 2007,
+      "value": 3.888
+    },
+    {
+      "country": "JPN",
+      "year": 2008,
+      "value": 4.002
+    },
+    {
+      "country": "JPN",
+      "year": 2009,
+      "value": 5.068
+    },
+    {
+      "country": "JPN",
+      "year": 2010,
+      "value": 5.102
+    },
+    {
+      "country": "JPN",
+      "year": 2011,
+      "value": 4.55
+    },
+    {
+      "country": "JPN",
+      "year": 2012,
+      "value": 4.358
+    },
+    {
+      "country": "JPN",
+      "year": 2013,
+      "value": 4.038
+    },
+    {
+      "country": "JPN",
+      "year": 2014,
+      "value": 3.589
+    },
+    {
+      "country": "JPN",
+      "year": 2015,
+      "value": 3.385
+    },
+    {
+      "country": "JPN",
+      "year": 2016,
+      "value": 3.132
+    },
+    {
+      "country": "JPN",
+      "year": 2017,
+      "value": 2.822
+    },
+    {
+      "country": "JPN",
+      "year": 2018,
+      "value": 2.467
+    },
+    {
+      "country": "JPN",
+      "year": 2019,
+      "value": 2.351
+    },
+    {
+      "country": "JPN",
+      "year": 2020,
+      "value": 2.809
+    },
+    {
+      "country": "JPN",
+      "year": 2021,
+      "value": 2.808
+    },
+    {
+      "country": "JPN",
+      "year": 2022,
+      "value": 2.614
+    },
+    {
+      "country": "JPN",
+      "year": 2023,
+      "value": 2.6
+    },
+    {
+      "country": "JPN",
+      "year": 2024,
+      "value": 2.5
+    },
+    {
+      "country": "USA",
+      "year": 2004,
+      "value": 5.529
+    },
+    {
+      "country": "USA",
+      "year": 2005,
+      "value": 5.084
+    },
+    {
+      "country": "USA",
+      "year": 2006,
+      "value": 4.623
+    },
+    {
+      "country": "USA",
+      "year": 2007,
+      "value": 4.622
+    },
+    {
+      "country": "USA",
+      "year": 2008,
+      "value": 5.784
+    },
+    {
+      "country": "USA",
+      "year": 2009,
+      "value": 9.254
+    },
+    {
+      "country": "USA",
+      "year": 2010,
+      "value": 9.633
+    },
+    {
+      "country": "USA",
+      "year": 2011,
+      "value": 8.949
+    },
+    {
+      "country": "USA",
+      "year": 2012,
+      "value": 8.069
+    },
+    {
+      "country": "USA",
+      "year": 2013,
+      "value": 7.375
+    },
+    {
+      "country": "USA",
+      "year": 2014,
+      "value": 6.168
+    },
+    {
+      "country": "USA",
+      "year": 2015,
+      "value": 5.28
+    },
+    {
+      "country": "USA",
+      "year": 2016,
+      "value": 4.869
+    },
+    {
+      "country": "USA",
+      "year": 2017,
+      "value": 4.355
+    },
+    {
+      "country": "USA",
+      "year": 2018,
+      "value": 3.896
+    },
+    {
+      "country": "USA",
+      "year": 2019,
+      "value": 3.669
+    },
+    {
+      "country": "USA",
+      "year": 2020,
+      "value": 8.055
+    },
+    {
+      "country": "USA",
+      "year": 2021,
+      "value": 5.349
+    },
+    {
+      "country": "USA",
+      "year": 2022,
+      "value": 3.65
+    },
+    {
+      "country": "USA",
+      "year": 2023,
+      "value": 3.638
+    },
+    {
+      "country": "USA",
+      "year": 2024,
+      "value": 4.022
+    }
+  ],
+  "missing": [],
+  "dimensions": [],
+  "disagreements": [],
+  "sources": [
+    {
+      "indicator": "SL.UEM.TOTL.ZS",
+      "name": "Unemployment, total (% of total labor force) (modeled ILO estimate)",
+      "source": "World Bank",
+      "dataset": "World Development Indicators",
+      "url": "https://api.worldbank.org/v2/country/CAN;FRA;DEU;ITA;JPN;GBR;USA/indicator/SL.UEM.TOTL.ZS?format=json&date=2004:2024&per_page=147",
+      "retrievedAt": "2026-11-10T11:27:32.544Z"
+    }
+  ]
+}

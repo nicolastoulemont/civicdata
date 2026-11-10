@@ -1,12 +1,16 @@
-/** A categorical slot or a theme-mixed gray. */
-export type Slot = 1 | 2 | 3 | 4 | 5 | 6 | "other" | "faint"
+import type { Country } from "@civicdata/domain"
+
+import { colors } from "./colors.gen.ts"
+
+/** The one colour of a chart that colours no country, or a theme-mixed gray. */
+type Slot = 1 | "other" | "faint"
 
 export const fill = (slot: Slot) => `var(--chart-${slot})`
 
-const slots = [1, 2, 3, 4, 5, 6] as const
-
-/** Position assigns identity; countries past six keep their names in gray. */
-export const slot = (index: number): Slot => slots[index] ?? "other"
+// A country's own colour, the same in every chart, from its flag. The page's
+// color-scheme picks the light or dark version.
+export const color = (country: Country) =>
+  `light-dark(${colors[country].light}, ${colors[country].dark})`
 
 /** The five rank bands, from faint blue to solid blue. */
 export const blend = (shade: number) =>

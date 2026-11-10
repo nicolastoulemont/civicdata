@@ -1,6 +1,7 @@
 import { type Change, countries, type ResolvedView, type Trend } from "@civicdata/domain"
 import { Match } from "effect"
 
+import { colors } from "@/explore/colors.gen"
 import {
   attribution,
   countryName,
@@ -16,18 +17,7 @@ import { places } from "@/explore/preview"
 import { around, ticks } from "@/explore/scale"
 import * as world from "@/explore/world"
 
-import {
-  type Canvas,
-  canvas,
-  fill,
-  type Ink,
-  line,
-  png,
-  rect,
-  series,
-  mapInks,
-  text,
-} from "./canvas.ts"
+import { type Canvas, canvas, fill, type Ink, line, png, rect, mapInks, text } from "./canvas.ts"
 import { body, label, title } from "./faces.gen.ts"
 import { fit, measure, wrap } from "./font.ts"
 
@@ -145,9 +135,9 @@ const drawTrend = (image: Canvas, resolved: ResolvedView, trend: Trend, box: Box
   const high = scale.at(-1) ?? 1
 
   const lines = trend.countries
-    .map((country, index) => ({
+    .map((country) => ({
       name: countryName(country),
-      ink: series[index] ?? "chart-other",
+      ink: colors[country].light,
       points: resolved.observations
         .filter((observation) => observation.country === country)
         .toSorted((left, right) => left.year - right.year),

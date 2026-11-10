@@ -1,0 +1,1788 @@
+{
+  "source": "flag-icons 7.6.0, flags/4x3, https://github.com/lipis/flag-icons",
+  "licence": "MIT, Copyright (c) 2013 Panayiotis Lipiridis",
+  "flags": {
+    "ABW": {
+      "flag": "aw",
+      "colors": [
+        { "color": "#3399cc", "share": 0.85 },
+        { "color": "#ffff00", "share": 0.1 },
+        { "color": "#cc0000", "share": 0.022 }
+      ]
+    },
+    "AFG": {
+      "flag": "af",
+      "colors": [
+        { "color": "#000001", "share": 0.331 },
+        { "color": "#009900", "share": 0.331 },
+        { "color": "#bf0000", "share": 0.263 },
+        { "color": "#df8080", "share": 0.027 }
+      ]
+    },
+    "AGO": {
+      "flag": "ao",
+      "colors": [
+        { "color": "#ff0000", "share": 0.474 },
+        { "color": "#000001", "share": 0.467 },
+        { "color": "#ffec00", "share": 0.038 }
+      ]
+    },
+    "ALB": {
+      "flag": "al",
+      "colors": [
+        { "color": "#ff0000", "share": 0.854 },
+        { "color": "#000001", "share": 0.101 }
+      ]
+    },
+    "AND": {
+      "flag": "ad",
+      "colors": [
+        { "color": "#0018a8", "share": 0.319 },
+        { "color": "#d0103a", "share": 0.328 },
+        { "color": "#fedf00", "share": 0.263 },
+        { "color": "#bead2a", "share": 0.034 },
+        { "color": "#b1956a", "share": 0.035 }
+      ]
+    },
+    "ARE": {
+      "flag": "ae",
+      "colors": [
+        { "color": "#ff0000", "share": 0.344 },
+        { "color": "#00732f", "share": 0.219 },
+        { "color": "#ffffff", "share": 0.219 },
+        { "color": "#000001", "share": 0.219 }
+      ]
+    },
+    "ARG": {
+      "flag": "ar",
+      "colors": [
+        { "color": "#74acdf", "share": 0.667 },
+        { "color": "#ffffff", "share": 0.296 }
+      ]
+    },
+    "ARM": {
+      "flag": "am",
+      "colors": [
+        { "color": "#d90012", "share": 0.333 },
+        { "color": "#0033a0", "share": 0.333 },
+        { "color": "#f2a800", "share": 0.333 }
+      ]
+    },
+    "ASM": {
+      "flag": "as",
+      "colors": [
+        { "color": "#000066", "share": 0.494 },
+        { "color": "#ffffff", "share": 0.322 },
+        { "color": "#bd1021", "share": 0.086 },
+        { "color": "#5a3719", "share": 0.028 }
+      ]
+    },
+    "ATG": {
+      "flag": "ag",
+      "colors": [
+        { "color": "#ce1126", "share": 0.496 },
+        { "color": "#000001", "share": 0.227 },
+        { "color": "#0072c6", "share": 0.106 },
+        { "color": "#fcd116", "share": 0.072 },
+        { "color": "#ffffff", "share": 0.072 }
+      ]
+    },
+    "AUS": {
+      "flag": "au",
+      "colors": [
+        { "color": "#00008b", "share": 0.74 },
+        { "color": "#ffffff", "share": 0.117 },
+        { "color": "#ff0000", "share": 0.105 }
+      ]
+    },
+    "AUT": {
+      "flag": "at",
+      "colors": [
+        { "color": "#c8102e", "share": 0.667 },
+        { "color": "#ffffff", "share": 0.333 }
+      ]
+    },
+    "AZE": {
+      "flag": "az",
+      "colors": [
+        { "color": "#00b9e4", "share": 0.333 },
+        { "color": "#3f9c35", "share": 0.333 },
+        { "color": "#ed2939", "share": 0.305 },
+        { "color": "#ffffff", "share": 0.021 }
+      ]
+    },
+    "BDI": {
+      "flag": "bi",
+      "colors": [
+        { "color": "#ffffff", "share": 0.399 },
+        { "color": "#cf0921", "share": 0.356 },
+        { "color": "#18b637", "share": 0.219 }
+      ]
+    },
+    "BEL": {
+      "flag": "be",
+      "colors": [
+        { "color": "#000001", "share": 0.331 },
+        { "color": "#f31830", "share": 0.331 },
+        { "color": "#ffd90c", "share": 0.331 }
+      ]
+    },
+    "BEN": {
+      "flag": "bj",
+      "colors": [
+        { "color": "#319400", "share": 0.394 },
+        { "color": "#ffd600", "share": 0.3 },
+        { "color": "#de2110", "share": 0.3 }
+      ]
+    },
+    "BFA": {
+      "flag": "bf",
+      "colors": [
+        { "color": "#35a100", "share": 0.489 },
+        { "color": "#de0000", "share": 0.487 },
+        { "color": "#fff300", "share": 0.021 }
+      ]
+    },
+    "BGD": {
+      "flag": "bd",
+      "colors": [
+        { "color": "#006a4e", "share": 0.736 },
+        { "color": "#f42a41", "share": 0.258 }
+      ]
+    },
+    "BGR": {
+      "flag": "bg",
+      "colors": [
+        { "color": "#ffffff", "share": 0.333 },
+        { "color": "#00966e", "share": 0.333 },
+        { "color": "#d62612", "share": 0.333 }
+      ]
+    },
+    "BHR": {
+      "flag": "bh",
+      "colors": [
+        { "color": "#ce1126", "share": 0.759 },
+        { "color": "#ffffff", "share": 0.232 }
+      ]
+    },
+    "BHS": {
+      "flag": "bs",
+      "colors": [
+        { "color": "#08ced6", "share": 0.514 },
+        { "color": "#000001", "share": 0.298 },
+        { "color": "#ffe900", "share": 0.156 }
+      ]
+    },
+    "BIH": {
+      "flag": "ba",
+      "colors": [
+        { "color": "#000099", "share": 0.553 },
+        { "color": "#ffcc00", "share": 0.372 },
+        { "color": "#ffffff", "share": 0.045 }
+      ]
+    },
+    "BLR": {
+      "flag": "by",
+      "colors": [
+        { "color": "#ce1720", "share": 0.629 },
+        { "color": "#007c30", "share": 0.275 },
+        { "color": "#ffffff", "share": 0.047 },
+        { "color": "#f3c6c8", "share": 0.022 }
+      ]
+    },
+    "BLZ": {
+      "flag": "bz",
+      "colors": [
+        { "color": "#003f87", "share": 0.482 },
+        { "color": "#ffffff", "share": 0.186 },
+        { "color": "#ce1126", "share": 0.133 },
+        { "color": "#007f00", "share": 0.042 },
+        { "color": "#cfe7cf", "share": 0.024 }
+      ]
+    },
+    "BMU": {
+      "flag": "bm",
+      "colors": [
+        { "color": "#cf142b", "share": 0.74 },
+        { "color": "#ffffff", "share": 0.117 },
+        { "color": "#000066", "share": 0.048 }
+      ]
+    },
+    "BOL": {
+      "flag": "bo",
+      "colors": [
+        { "color": "#d52b1e", "share": 0.343 },
+        { "color": "#007934", "share": 0.339 },
+        { "color": "#ffe000", "share": 0.29 }
+      ]
+    },
+    "BRA": {
+      "flag": "br",
+      "colors": [
+        { "color": "#229e45", "share": 0.611 },
+        { "color": "#f8e509", "share": 0.213 },
+        { "color": "#2b49a3", "share": 0.137 }
+      ]
+    },
+    "BRB": {
+      "flag": "bb",
+      "colors": [
+        { "color": "#00267f", "share": 0.663 },
+        { "color": "#ffc726", "share": 0.286 },
+        { "color": "#000001", "share": 0.026 }
+      ]
+    },
+    "BRN": {
+      "flag": "bn",
+      "colors": [
+        { "color": "#f7e017", "share": 0.532 },
+        { "color": "#ffffff", "share": 0.195 },
+        { "color": "#000001", "share": 0.149 },
+        { "color": "#cf1126", "share": 0.067 }
+      ]
+    },
+    "BTN": {
+      "flag": "bt",
+      "colors": [
+        { "color": "#ffd520", "share": 0.43 },
+        { "color": "#ff4e12", "share": 0.394 },
+        { "color": "#ffffff", "share": 0.102 },
+        { "color": "#e1e1e1", "share": 0.048 }
+      ]
+    },
+    "BWA": {
+      "flag": "bw",
+      "colors": [
+        { "color": "#00cbff", "share": 0.667 },
+        { "color": "#000001", "share": 0.217 },
+        { "color": "#ffffff", "share": 0.1 }
+      ]
+    },
+    "CAF": {
+      "flag": "cf",
+      "colors": [
+        { "color": "#ffff00", "share": 0.212 },
+        { "color": "#009a00", "share": 0.203 },
+        { "color": "#ffffff", "share": 0.203 },
+        { "color": "#ff0000", "share": 0.186 },
+        { "color": "#0000ff", "share": 0.184 }
+      ]
+    },
+    "CAN": {
+      "flag": "ca",
+      "colors": [
+        { "color": "#d52b1e", "share": 0.557 },
+        { "color": "#ffffff", "share": 0.421 }
+      ]
+    },
+    "CHE": {
+      "flag": "ch",
+      "colors": [
+        { "color": "#ff0000", "share": 0.851 },
+        { "color": "#ffffff", "share": 0.144 }
+      ]
+    },
+    "CHI": {
+      "flag": "je",
+      "colors": [
+        { "color": "#ffffff", "share": 0.705 },
+        { "color": "#cf142b", "share": 0.243 }
+      ]
+    },
+    "CHL": {
+      "flag": "cl",
+      "colors": [
+        { "color": "#d52b1e", "share": 0.5 },
+        { "color": "#ffffff", "share": 0.326 },
+        { "color": "#0039a6", "share": 0.17 }
+      ]
+    },
+    "CHN": {
+      "flag": "cn",
+      "colors": [
+        { "color": "#ee1c25", "share": 0.968 },
+        { "color": "#ffff00", "share": 0.024 }
+      ]
+    },
+    "CIV": {
+      "flag": "ci",
+      "colors": [
+        { "color": "#ff8200", "share": 0.331 },
+        { "color": "#009a44", "share": 0.331 },
+        { "color": "#ffffff", "share": 0.338 }
+      ]
+    },
+    "CMR": {
+      "flag": "cm",
+      "colors": [
+        { "color": "#fcd116", "share": 0.342 },
+        { "color": "#007a5e", "share": 0.331 },
+        { "color": "#ce1126", "share": 0.318 }
+      ]
+    },
+    "COD": {
+      "flag": "cd",
+      "colors": [
+        { "color": "#007fff", "share": 0.663 },
+        { "color": "#ce1021", "share": 0.197 },
+        { "color": "#f7d618", "share": 0.118 }
+      ]
+    },
+    "COG": {
+      "flag": "cg",
+      "colors": [
+        { "color": "#ffff00", "share": 0.364 },
+        { "color": "#00ca00", "share": 0.318 },
+        { "color": "#ff0000", "share": 0.312 }
+      ]
+    },
+    "COL": {
+      "flag": "co",
+      "colors": [
+        { "color": "#ffe800", "share": 0.5 },
+        { "color": "#00148e", "share": 0.25 },
+        { "color": "#da0010", "share": 0.25 }
+      ]
+    },
+    "COM": {
+      "flag": "km",
+      "colors": [
+        { "color": "#239e46", "share": 0.236 },
+        { "color": "#ffff00", "share": 0.214 },
+        { "color": "#3b5aa3", "share": 0.214 },
+        { "color": "#ffffff", "share": 0.176 },
+        { "color": "#be0027", "share": 0.145 }
+      ]
+    },
+    "CPV": {
+      "flag": "cv",
+      "colors": [
+        { "color": "#081873", "share": 0.718 },
+        { "color": "#ffffff", "share": 0.146 },
+        { "color": "#de3929", "share": 0.074 },
+        { "color": "#ffce08", "share": 0.023 }
+      ]
+    },
+    "CRI": {
+      "flag": "cr",
+      "colors": [
+        { "color": "#ffffff", "share": 0.333 },
+        { "color": "#0000b4", "share": 0.317 },
+        { "color": "#d90000", "share": 0.325 }
+      ]
+    },
+    "CUB": {
+      "flag": "cu",
+      "colors": [
+        { "color": "#002a8f", "share": 0.42 },
+        { "color": "#cb1515", "share": 0.296 },
+        { "color": "#ffffff", "share": 0.258 }
+      ]
+    },
+    "CUW": {
+      "flag": "cw",
+      "colors": [
+        { "color": "#002b7f", "share": 0.849 },
+        { "color": "#f9e814", "share": 0.117 }
+      ]
+    },
+    "CYM": {
+      "flag": "ky",
+      "colors": [
+        { "color": "#000066", "share": 0.616 },
+        { "color": "#c8102e", "share": 0.117 },
+        { "color": "#ffffff", "share": 0.097 },
+        { "color": "#0b50a0", "share": 0.021 },
+        { "color": "#f1c3ca", "share": 0.027 },
+        { "color": "#adb76d", "share": 0.023 }
+      ]
+    },
+    "CYP": {
+      "flag": "cy",
+      "colors": [
+        { "color": "#ffffff", "share": 0.874 },
+        { "color": "#d47600", "share": 0.095 }
+      ]
+    },
+    "CZE": {
+      "flag": "cz",
+      "colors": [
+        { "color": "#ffffff", "share": 0.358 },
+        { "color": "#d7141a", "share": 0.358 },
+        { "color": "#11457e", "share": 0.278 }
+      ]
+    },
+    "DEU": {
+      "flag": "de",
+      "colors": [
+        { "color": "#000001", "share": 0.333 },
+        { "color": "#ff0000", "share": 0.333 },
+        { "color": "#ffcc00", "share": 0.333 }
+      ]
+    },
+    "DJI": {
+      "flag": "dj",
+      "colors": [
+        { "color": "#6699ff", "share": 0.358 },
+        { "color": "#00cc00", "share": 0.358 },
+        { "color": "#fffefe", "share": 0.267 }
+      ]
+    },
+    "DMA": {
+      "flag": "dm",
+      "colors": [
+        { "color": "#108c00", "share": 0.55 },
+        { "color": "#e72910", "share": 0.125 },
+        { "color": "#ffffff", "share": 0.09 },
+        { "color": "#ffd600", "share": 0.091 },
+        { "color": "#000001", "share": 0.083 }
+      ]
+    },
+    "DNK": {
+      "flag": "dk",
+      "colors": [
+        { "color": "#c8102e", "share": 0.754 },
+        { "color": "#ffffff", "share": 0.22 },
+        { "color": "#e38897", "share": 0.025 }
+      ]
+    },
+    "DOM": {
+      "flag": "do",
+      "colors": [
+        { "color": "#002d62", "share": 0.342 },
+        { "color": "#ce1126", "share": 0.343 },
+        { "color": "#ffffff", "share": 0.297 }
+      ]
+    },
+    "DZA": {
+      "flag": "dz",
+      "colors": [
+        { "color": "#ffffff", "share": 0.474 },
+        { "color": "#006233", "share": 0.454 },
+        { "color": "#d21034", "share": 0.062 }
+      ]
+    },
+    "ECU": {
+      "flag": "ec",
+      "colors": [
+        { "color": "#ffe800", "share": 0.402 },
+        { "color": "#da0010", "share": 0.254 },
+        { "color": "#00148e", "share": 0.156 },
+        { "color": "#0000c4", "share": 0.02 },
+        { "color": "#a7cfff", "share": 0.022 },
+        { "color": "#984000", "share": 0.041 }
+      ]
+    },
+    "EGY": {
+      "flag": "eg",
+      "colors": [
+        { "color": "#ce1126", "share": 0.333 },
+        { "color": "#000001", "share": 0.333 },
+        { "color": "#ffffff", "share": 0.3 }
+      ]
+    },
+    "ERI": {
+      "flag": "er",
+      "colors": [
+        { "color": "#be0027", "share": 0.387 },
+        { "color": "#239e46", "share": 0.247 },
+        { "color": "#b4d7f4", "share": 0.247 },
+        { "color": "#f3e295", "share": 0.079 }
+      ]
+    },
+    "ESP": {
+      "flag": "es",
+      "colors": [
+        { "color": "#aa151b", "share": 0.518 },
+        { "color": "#f1bf00", "share": 0.43 }
+      ]
+    },
+    "EST": {
+      "flag": "ee",
+      "colors": [
+        { "color": "#1791ff", "share": 0.333 },
+        { "color": "#000001", "share": 0.333 },
+        { "color": "#ffffff", "share": 0.333 }
+      ]
+    },
+    "ETH": {
+      "flag": "et",
+      "colors": [
+        { "color": "#298c08", "share": 0.328 },
+        { "color": "#ef2118", "share": 0.327 },
+        { "color": "#ffc621", "share": 0.254 },
+        { "color": "#006bc6", "share": 0.075 }
+      ]
+    },
+    "FIN": {
+      "flag": "fi",
+      "colors": [
+        { "color": "#ffffff", "share": 0.564 },
+        { "color": "#002f6c", "share": 0.413 }
+      ]
+    },
+    "FJI": {
+      "flag": "fj",
+      "colors": [
+        { "color": "#68bfe5", "share": 0.646 },
+        { "color": "#c8102e", "share": 0.127 },
+        { "color": "#ffffff", "share": 0.095 },
+        { "color": "#012169", "share": 0.048 },
+        { "color": "#f1c3ca", "share": 0.022 }
+      ]
+    },
+    "FRA": {
+      "flag": "fr",
+      "colors": [
+        { "color": "#000091", "share": 0.331 },
+        { "color": "#e1000f", "share": 0.331 },
+        { "color": "#ffffff", "share": 0.331 }
+      ]
+    },
+    "FRO": {
+      "flag": "fo",
+      "colors": [
+        { "color": "#ffffff", "share": 0.637 },
+        { "color": "#d72828", "share": 0.173 },
+        { "color": "#003897", "share": 0.152 }
+      ]
+    },
+    "FSM": {
+      "flag": "fm",
+      "colors": [
+        { "color": "#6797d6", "share": 0.959 },
+        { "color": "#ffffff", "share": 0.032 }
+      ]
+    },
+    "GAB": {
+      "flag": "ga",
+      "colors": [
+        { "color": "#36a100", "share": 0.333 },
+        { "color": "#ffe700", "share": 0.333 },
+        { "color": "#006dbc", "share": 0.333 }
+      ]
+    },
+    "GBR": {
+      "flag": "gb",
+      "colors": [
+        { "color": "#c8102e", "share": 0.408 },
+        { "color": "#ffffff", "share": 0.332 },
+        { "color": "#012169", "share": 0.201 },
+        { "color": "#f1c3ca", "share": 0.025 }
+      ]
+    },
+    "GEO": {
+      "flag": "ge",
+      "colors": [
+        { "color": "#ffffff", "share": 0.626 },
+        { "color": "#ff0000", "share": 0.363 }
+      ]
+    },
+    "GHA": {
+      "flag": "gh",
+      "colors": [
+        { "color": "#ce1126", "share": 0.333 },
+        { "color": "#006b3f", "share": 0.333 },
+        { "color": "#fcd116", "share": 0.302 },
+        { "color": "#000001", "share": 0.024 }
+      ]
+    },
+    "GIB": {
+      "flag": "gi",
+      "colors": [
+        { "color": "#ffffff", "share": 0.469 },
+        { "color": "#da000c", "share": 0.403 },
+        { "color": "#000001", "share": 0.026 },
+        { "color": "#ad000a", "share": 0.033 }
+      ]
+    },
+    "GIN": {
+      "flag": "gn",
+      "colors": [
+        { "color": "#ff0000", "share": 0.331 },
+        { "color": "#009900", "share": 0.331 },
+        { "color": "#ffff00", "share": 0.331 }
+      ]
+    },
+    "GMB": {
+      "flag": "gm",
+      "colors": [
+        { "color": "#000099", "share": 0.283 },
+        { "color": "#ff0000", "share": 0.275 },
+        { "color": "#009900", "share": 0.275 },
+        { "color": "#ffffff", "share": 0.142 }
+      ]
+    },
+    "GNB": {
+      "flag": "gw",
+      "colors": [
+        { "color": "#fcd116", "share": 0.328 },
+        { "color": "#009e49", "share": 0.328 },
+        { "color": "#ce1126", "share": 0.318 },
+        { "color": "#000001", "share": 0.02 }
+      ]
+    },
+    "GNQ": {
+      "flag": "gq",
+      "colors": [
+        { "color": "#3e9a00", "share": 0.305 },
+        { "color": "#e32118", "share": 0.301 },
+        { "color": "#ffffff", "share": 0.231 },
+        { "color": "#0073ce", "share": 0.139 }
+      ]
+    },
+    "GRC": {
+      "flag": "gr",
+      "colors": [
+        { "color": "#0d5eaf", "share": 0.543 },
+        { "color": "#ffffff", "share": 0.423 }
+      ]
+    },
+    "GRD": {
+      "flag": "gd",
+      "colors": [
+        { "color": "#ce1126", "share": 0.412 },
+        { "color": "#fcd116", "share": 0.29 },
+        { "color": "#007a5e", "share": 0.255 }
+      ]
+    },
+    "GRL": {
+      "flag": "gl",
+      "colors": [
+        { "color": "#ffffff", "share": 0.496 },
+        { "color": "#d00c33", "share": 0.497 }
+      ]
+    },
+    "GTM": {
+      "flag": "gt",
+      "colors": [
+        { "color": "#4997d0", "share": 0.663 },
+        { "color": "#ffffff", "share": 0.28 }
+      ]
+    },
+    "GUM": {
+      "flag": "gu",
+      "colors": [
+        { "color": "#3b5aa3", "share": 0.61 },
+        { "color": "#be0027", "share": 0.222 },
+        { "color": "#cbe0e5", "share": 0.096 }
+      ]
+    },
+    "GUY": {
+      "flag": "gy",
+      "colors": [
+        { "color": "#399408", "share": 0.512 },
+        { "color": "#de2110", "share": 0.179 },
+        { "color": "#ffde08", "share": 0.175 },
+        { "color": "#ffffff", "share": 0.069 },
+        { "color": "#000001", "share": 0.036 }
+      ]
+    },
+    "HKG": {
+      "flag": "hk",
+      "colors": [
+        { "color": "#ec1b2e", "share": 0.896 },
+        { "color": "#ffffff", "share": 0.084 }
+      ]
+    },
+    "HND": {
+      "flag": "hn",
+      "colors": [
+        { "color": "#18c3df", "share": 0.679 },
+        { "color": "#ffffff", "share": 0.318 }
+      ]
+    },
+    "HRV": {
+      "flag": "hr",
+      "colors": [
+        { "color": "#ff0000", "share": 0.339 },
+        { "color": "#171796", "share": 0.325 },
+        { "color": "#ffffff", "share": 0.281 }
+      ]
+    },
+    "HTI": {
+      "flag": "ht",
+      "colors": [
+        { "color": "#00209f", "share": 0.473 },
+        { "color": "#d21034", "share": 0.472 },
+        { "color": "#ffffff", "share": 0.022 }
+      ]
+    },
+    "HUN": {
+      "flag": "hu",
+      "colors": [
+        { "color": "#d43516", "share": 0.333 },
+        { "color": "#ffffff", "share": 0.333 },
+        { "color": "#388d00", "share": 0.333 }
+      ]
+    },
+    "IDN": {
+      "flag": "id",
+      "colors": [
+        { "color": "#e70011", "share": 0.5 },
+        { "color": "#ffffff", "share": 0.5 }
+      ]
+    },
+    "IMN": {
+      "flag": "im",
+      "colors": [
+        { "color": "#ba0000", "share": 0.88 },
+        { "color": "#ffffff", "share": 0.054 }
+      ]
+    },
+    "IND": {
+      "flag": "in",
+      "colors": [
+        { "color": "#ff9933", "share": 0.333 },
+        { "color": "#128807", "share": 0.333 },
+        { "color": "#ffffff", "share": 0.302 }
+      ]
+    },
+    "IRL": {
+      "flag": "ie",
+      "colors": [
+        { "color": "#009a49", "share": 0.331 },
+        { "color": "#ff7900", "share": 0.331 },
+        { "color": "#ffffff", "share": 0.325 }
+      ]
+    },
+    "IRN": {
+      "flag": "ir",
+      "colors": [
+        { "color": "#da0000", "share": 0.322 },
+        { "color": "#ffffff", "share": 0.307 },
+        { "color": "#239f40", "share": 0.288 },
+        { "color": "#91cf9f", "share": 0.031 },
+        { "color": "#f5bfbf", "share": 0.022 }
+      ]
+    },
+    "IRQ": {
+      "flag": "iq",
+      "colors": [
+        { "color": "#ce1126", "share": 0.333 },
+        { "color": "#000001", "share": 0.333 },
+        { "color": "#ffffff", "share": 0.298 }
+      ]
+    },
+    "ISL": {
+      "flag": "is",
+      "colors": [
+        { "color": "#003897", "share": 0.633 },
+        { "color": "#d72828", "share": 0.168 },
+        { "color": "#ffffff", "share": 0.15 },
+        { "color": "#e15d5d", "share": 0.026 },
+        { "color": "#406ab1", "share": 0.023 }
+      ]
+    },
+    "ISR": {
+      "flag": "il",
+      "colors": [
+        { "color": "#ffffff", "share": 0.673 },
+        { "color": "#0038b8", "share": 0.288 }
+      ]
+    },
+    "ITA": {
+      "flag": "it",
+      "colors": [
+        { "color": "#009246", "share": 0.331 },
+        { "color": "#ce2b37", "share": 0.331 },
+        { "color": "#ffffff", "share": 0.325 }
+      ]
+    },
+    "JAM": {
+      "flag": "jm",
+      "colors": [
+        { "color": "#009900", "share": 0.33 },
+        { "color": "#000001", "share": 0.323 },
+        { "color": "#ffcc00", "share": 0.33 }
+      ]
+    },
+    "JOR": {
+      "flag": "jo",
+      "colors": [
+        { "color": "#ff0000", "share": 0.366 },
+        { "color": "#000001", "share": 0.248 },
+        { "color": "#009900", "share": 0.248 },
+        { "color": "#ffffff", "share": 0.126 }
+      ]
+    },
+    "JPN": {
+      "flag": "jp",
+      "colors": [
+        { "color": "#ffffff", "share": 0.767 },
+        { "color": "#bc002d", "share": 0.224 }
+      ]
+    },
+    "KAZ": {
+      "flag": "kz",
+      "colors": [
+        { "color": "#00abc2", "share": 0.842 },
+        { "color": "#ffec2d", "share": 0.095 },
+        { "color": "#80cb77", "share": 0.045 }
+      ]
+    },
+    "KEN": {
+      "flag": "ke",
+      "colors": [
+        { "color": "#bb0000", "share": 0.289 },
+        { "color": "#006600", "share": 0.287 },
+        { "color": "#000001", "share": 0.296 },
+        { "color": "#ffffff", "share": 0.1 }
+      ]
+    },
+    "KGZ": {
+      "flag": "kg",
+      "colors": [
+        { "color": "#ff0000", "share": 0.889 },
+        { "color": "#ffff00", "share": 0.064 },
+        { "color": "#ff8000", "share": 0.029 }
+      ]
+    },
+    "KHM": {
+      "flag": "kh",
+      "colors": [
+        { "color": "#032ea1", "share": 0.5 },
+        { "color": "#e00025", "share": 0.374 },
+        { "color": "#ffffff", "share": 0.028 },
+        { "color": "#bcbcbc", "share": 0.046 }
+      ]
+    },
+    "KIR": {
+      "flag": "ki",
+      "colors": [
+        { "color": "#e73e2d", "share": 0.471 },
+        { "color": "#005989", "share": 0.213 },
+        { "color": "#ffffff", "share": 0.199 },
+        { "color": "#fec74a", "share": 0.073 }
+      ]
+    },
+    "KNA": {
+      "flag": "kn",
+      "colors": [
+        { "color": "#000001", "share": 0.316 },
+        { "color": "#c70000", "share": 0.288 },
+        { "color": "#35a100", "share": 0.273 },
+        { "color": "#ffe900", "share": 0.07 }
+      ]
+    },
+    "KOR": {
+      "flag": "kr",
+      "colors": [
+        { "color": "#ffffff", "share": 0.742 },
+        { "color": "#0047a0", "share": 0.071 },
+        { "color": "#cd2e3a", "share": 0.071 },
+        { "color": "#000001", "share": 0.068 }
+      ]
+    },
+    "KWT": {
+      "flag": "kw",
+      "colors": [
+        { "color": "#00d941", "share": 0.27 },
+        { "color": "#f31830", "share": 0.27 },
+        { "color": "#000001", "share": 0.246 },
+        { "color": "#ffffff", "share": 0.208 }
+      ]
+    },
+    "LAO": {
+      "flag": "la",
+      "colors": [
+        { "color": "#ce1126", "share": 0.483 },
+        { "color": "#002868", "share": 0.388 },
+        { "color": "#ffffff", "share": 0.106 }
+      ]
+    },
+    "LBN": {
+      "flag": "lb",
+      "colors": [
+        { "color": "#ee161f", "share": 0.5 },
+        { "color": "#ffffff", "share": 0.397 },
+        { "color": "#00a850", "share": 0.086 }
+      ]
+    },
+    "LBR": {
+      "flag": "lr",
+      "colors": [
+        { "color": "#cc0000", "share": 0.442 },
+        { "color": "#ffffff", "share": 0.377 },
+        { "color": "#000066", "share": 0.129 },
+        { "color": "#e58080", "share": 0.028 }
+      ]
+    },
+    "LBY": {
+      "flag": "ly",
+      "colors": [
+        { "color": "#000001", "share": 0.479 },
+        { "color": "#e70013", "share": 0.25 },
+        { "color": "#239e46", "share": 0.25 }
+      ]
+    },
+    "LCA": {
+      "flag": "lc",
+      "colors": [
+        { "color": "#65cfff", "share": 0.789 },
+        { "color": "#ffce00", "share": 0.1 },
+        { "color": "#000001", "share": 0.049 },
+        { "color": "#ffffff", "share": 0.043 }
+      ]
+    },
+    "LIE": {
+      "flag": "li",
+      "colors": [
+        { "color": "#ce1126", "share": 0.5 },
+        { "color": "#002b7f", "share": 0.45 }
+      ]
+    },
+    "LKA": {
+      "flag": "lk",
+      "colors": [
+        { "color": "#8d2029", "share": 0.408 },
+        { "color": "#ffb700", "share": 0.276 },
+        { "color": "#005641", "share": 0.121 },
+        { "color": "#ff5b00", "share": 0.121 },
+        { "color": "#bf9f11", "share": 0.029 }
+      ]
+    },
+    "LSO": {
+      "flag": "ls",
+      "colors": [
+        { "color": "#ffffff", "share": 0.356 },
+        { "color": "#00209f", "share": 0.3 },
+        { "color": "#009543", "share": 0.3 },
+        { "color": "#000000", "share": 0.027 }
+      ]
+    },
+    "LTU": {
+      "flag": "lt",
+      "colors": [
+        { "color": "#006a44", "share": 0.333 },
+        { "color": "#fdb913", "share": 0.325 },
+        { "color": "#c1272d", "share": 0.325 }
+      ]
+    },
+    "LUX": {
+      "flag": "lu",
+      "colors": [
+        { "color": "#ed2939", "share": 0.333 },
+        { "color": "#ffffff", "share": 0.333 },
+        { "color": "#00a1de", "share": 0.333 }
+      ]
+    },
+    "LVA": {
+      "flag": "lv",
+      "colors": [
+        { "color": "#981e32", "share": 0.8 },
+        { "color": "#ffffff", "share": 0.2 }
+      ]
+    },
+    "MAC": {
+      "flag": "mo",
+      "colors": [
+        { "color": "#00785e", "share": 0.899 },
+        { "color": "#ffffff", "share": 0.067 }
+      ]
+    },
+    "MAF": {
+      "flag": "mf",
+      "colors": [
+        { "color": "#000091", "share": 0.331 },
+        { "color": "#e1000f", "share": 0.331 },
+        { "color": "#ffffff", "share": 0.325 }
+      ]
+    },
+    "MAR": { "flag": "ma", "colors": [{ "color": "#c1272d", "share": 0.978 }] },
+    "MCO": {
+      "flag": "mc",
+      "colors": [
+        { "color": "#f31830", "share": 0.5 },
+        { "color": "#ffffff", "share": 0.5 }
+      ]
+    },
+    "MDA": {
+      "flag": "md",
+      "colors": [
+        { "color": "#de2110", "share": 0.347 },
+        { "color": "#00319c", "share": 0.313 },
+        { "color": "#ffde00", "share": 0.182 },
+        { "color": "#a77b3b", "share": 0.063 },
+        { "color": "#604722", "share": 0.023 }
+      ]
+    },
+    "MDG": {
+      "flag": "mg",
+      "colors": [
+        { "color": "#ffffff", "share": 0.331 },
+        { "color": "#fc3d32", "share": 0.331 },
+        { "color": "#007e3a", "share": 0.331 }
+      ]
+    },
+    "MDV": {
+      "flag": "mv",
+      "colors": [
+        { "color": "#d21034", "share": 0.688 },
+        { "color": "#007e3a", "share": 0.295 }
+      ]
+    },
+    "MEX": {
+      "flag": "mx",
+      "colors": [
+        { "color": "#006847", "share": 0.332 },
+        { "color": "#ce1126", "share": 0.331 },
+        { "color": "#ffffff", "share": 0.289 }
+      ]
+    },
+    "MHL": {
+      "flag": "mh",
+      "colors": [
+        { "color": "#3b5aa3", "share": 0.683 },
+        { "color": "#ffffff", "share": 0.179 },
+        { "color": "#e2ae57", "share": 0.097 }
+      ]
+    },
+    "MKD": {
+      "flag": "mk",
+      "colors": [
+        { "color": "#d20000", "share": 0.649 },
+        { "color": "#ffe600", "share": 0.32 }
+      ]
+    },
+    "MLI": {
+      "flag": "ml",
+      "colors": [
+        { "color": "#009a00", "share": 0.331 },
+        { "color": "#ff0000", "share": 0.331 },
+        { "color": "#ffff00", "share": 0.331 }
+      ]
+    },
+    "MLT": {
+      "flag": "mt",
+      "colors": [
+        { "color": "#cf142b", "share": 0.507 },
+        { "color": "#ffffff", "share": 0.448 }
+      ]
+    },
+    "MMR": {
+      "flag": "mm",
+      "colors": [
+        { "color": "#fecb00", "share": 0.327 },
+        { "color": "#ea2839", "share": 0.312 },
+        { "color": "#34b233", "share": 0.249 },
+        { "color": "#ffffff", "share": 0.103 }
+      ]
+    },
+    "MNE": {
+      "flag": "me",
+      "colors": [
+        { "color": "#c40308", "share": 0.698 },
+        { "color": "#d3ae3b", "share": 0.246 },
+        { "color": "#c68d32", "share": 0.031 }
+      ]
+    },
+    "MNG": {
+      "flag": "mn",
+      "colors": [
+        { "color": "#da2032", "share": 0.576 },
+        { "color": "#0066b3", "share": 0.338 },
+        { "color": "#ffd900", "share": 0.066 }
+      ]
+    },
+    "MNP": {
+      "flag": "mp",
+      "colors": [
+        { "color": "#0071bc", "share": 0.704 },
+        { "color": "#ffffff", "share": 0.098 },
+        { "color": "#8c8a8c", "share": 0.066 },
+        { "color": "#48687d", "share": 0.026 },
+        { "color": "#d8d8d8", "share": 0.022 }
+      ]
+    },
+    "MOZ": {
+      "flag": "mz",
+      "colors": [
+        { "color": "#ffca00", "share": 0.269 },
+        { "color": "#009a00", "share": 0.26 },
+        { "color": "#ff0000", "share": 0.211 },
+        { "color": "#000001", "share": 0.177 },
+        { "color": "#ffffff", "share": 0.036 }
+      ]
+    },
+    "MRT": {
+      "flag": "mr",
+      "colors": [
+        { "color": "#006233", "share": 0.635 },
+        { "color": "#cd2a3e", "share": 0.3 },
+        { "color": "#ffc400", "share": 0.054 }
+      ]
+    },
+    "MUS": {
+      "flag": "mu",
+      "colors": [
+        { "color": "#ee2737", "share": 0.25 },
+        { "color": "#151f6d", "share": 0.25 },
+        { "color": "#ffcd00", "share": 0.25 },
+        { "color": "#00a04d", "share": 0.25 }
+      ]
+    },
+    "MWI": {
+      "flag": "mw",
+      "colors": [
+        { "color": "#f41408", "share": 0.378 },
+        { "color": "#21873b", "share": 0.333 },
+        { "color": "#000001", "share": 0.246 }
+      ]
+    },
+    "MYS": {
+      "flag": "my",
+      "colors": [
+        { "color": "#cc0000", "share": 0.35 },
+        { "color": "#ffffff", "share": 0.317 },
+        { "color": "#000066", "share": 0.238 },
+        { "color": "#ffcc00", "share": 0.027 },
+        { "color": "#e89090", "share": 0.029 }
+      ]
+    },
+    "NAM": {
+      "flag": "na",
+      "colors": [
+        { "color": "#c70000", "share": 0.352 },
+        { "color": "#38a100", "share": 0.288 },
+        { "color": "#3662a2", "share": 0.243 },
+        { "color": "#ffffff", "share": 0.07 },
+        { "color": "#ffe700", "share": 0.02 }
+      ]
+    },
+    "NCL": {
+      "flag": "nc",
+      "colors": [
+        { "color": "#0072ce", "share": 0.281 },
+        { "color": "#009639", "share": 0.282 },
+        { "color": "#fedb00", "share": 0.214 },
+        { "color": "#e03c31", "share": 0.173 },
+        { "color": "#000001", "share": 0.029 }
+      ]
+    },
+    "NER": {
+      "flag": "ne",
+      "colors": [
+        { "color": "#e05206", "share": 0.379 },
+        { "color": "#0db02b", "share": 0.333 },
+        { "color": "#ffffff", "share": 0.285 }
+      ]
+    },
+    "NGA": {
+      "flag": "ng",
+      "colors": [
+        { "color": "#008753", "share": 0.663 },
+        { "color": "#ffffff", "share": 0.325 }
+      ]
+    },
+    "NIC": {
+      "flag": "ni",
+      "colors": [
+        { "color": "#0067c6", "share": 0.667 },
+        { "color": "#ffffff", "share": 0.311 }
+      ]
+    },
+    "NLD": {
+      "flag": "nl",
+      "colors": [
+        { "color": "#ae1c28", "share": 0.333 },
+        { "color": "#ffffff", "share": 0.333 },
+        { "color": "#21468b", "share": 0.333 }
+      ]
+    },
+    "NOR": {
+      "flag": "no",
+      "colors": [
+        { "color": "#ed2939", "share": 0.609 },
+        { "color": "#002664", "share": 0.194 },
+        { "color": "#ffffff", "share": 0.171 },
+        { "color": "#7f92b1", "share": 0.026 }
+      ]
+    },
+    "NPL": {
+      "flag": "np",
+      "colors": [
+        { "color": "#ffffff", "share": 0.681 },
+        { "color": "#ce0000", "share": 0.216 },
+        { "color": "#000063", "share": 0.066 }
+      ]
+    },
+    "NRU": {
+      "flag": "nr",
+      "colors": [
+        { "color": "#002170", "share": 0.861 },
+        { "color": "#ffb20d", "share": 0.083 },
+        { "color": "#ffffff", "share": 0.029 }
+      ]
+    },
+    "NZL": {
+      "flag": "nz",
+      "colors": [
+        { "color": "#00247d", "share": 0.779 },
+        { "color": "#c8102e", "share": 0.103 },
+        { "color": "#ffffff", "share": 0.078 }
+      ]
+    },
+    "OMN": {
+      "flag": "om",
+      "colors": [
+        { "color": "#ef2d29", "share": 0.492 },
+        { "color": "#009025", "share": 0.248 },
+        { "color": "#ffffff", "share": 0.239 }
+      ]
+    },
+    "PAK": {
+      "flag": "pk",
+      "colors": [
+        { "color": "#0c590b", "share": 0.73 },
+        { "color": "#ffffff", "share": 0.261 }
+      ]
+    },
+    "PAN": {
+      "flag": "pa",
+      "colors": [
+        { "color": "#ffffff", "share": 0.453 },
+        { "color": "#0000ab", "share": 0.279 },
+        { "color": "#db0000", "share": 0.247 }
+      ]
+    },
+    "PER": {
+      "flag": "pe",
+      "colors": [
+        { "color": "#d91023", "share": 0.663 },
+        { "color": "#ffffff", "share": 0.325 }
+      ]
+    },
+    "PHL": {
+      "flag": "ph",
+      "colors": [
+        { "color": "#0038a8", "share": 0.336 },
+        { "color": "#ce1126", "share": 0.336 },
+        { "color": "#ffffff", "share": 0.261 },
+        { "color": "#fcd116", "share": 0.051 }
+      ]
+    },
+    "PLW": {
+      "flag": "pw",
+      "colors": [
+        { "color": "#4aadd6", "share": 0.81 },
+        { "color": "#ffde00", "share": 0.184 }
+      ]
+    },
+    "PNG": {
+      "flag": "pg",
+      "colors": [
+        { "color": "#000001", "share": 0.47 },
+        { "color": "#ff0000", "share": 0.433 },
+        { "color": "#ffcc00", "share": 0.057 }
+      ]
+    },
+    "POL": {
+      "flag": "pl",
+      "colors": [
+        { "color": "#ffffff", "share": 0.5 },
+        { "color": "#dc143c", "share": 0.5 }
+      ]
+    },
+    "PRI": {
+      "flag": "pr",
+      "colors": [
+        { "color": "#ed0000", "share": 0.43 },
+        { "color": "#0050f0", "share": 0.295 },
+        { "color": "#ffffff", "share": 0.263 }
+      ]
+    },
+    "PRK": {
+      "flag": "kp",
+      "colors": [
+        { "color": "#c60000", "share": 0.454 },
+        { "color": "#3e5698", "share": 0.35 },
+        { "color": "#ffffff", "share": 0.152 },
+        { "color": "#f0c0c0", "share": 0.022 }
+      ]
+    },
+    "PRT": {
+      "flag": "pt",
+      "colors": [
+        { "color": "#ff0000", "share": 0.567 },
+        { "color": "#006600", "share": 0.349 }
+      ]
+    },
+    "PRY": {
+      "flag": "py",
+      "colors": [
+        { "color": "#d52b1e", "share": 0.333 },
+        { "color": "#0038a8", "share": 0.333 },
+        { "color": "#ffffff", "share": 0.308 }
+      ]
+    },
+    "PSE": {
+      "flag": "ps",
+      "colors": [
+        { "color": "#000000", "share": 0.276 },
+        { "color": "#009639", "share": 0.277 },
+        { "color": "#ed2e38", "share": 0.247 },
+        { "color": "#ffffff", "share": 0.193 }
+      ]
+    },
+    "PYF": {
+      "flag": "pf",
+      "colors": [
+        { "color": "#de2010", "share": 0.513 },
+        { "color": "#ffffff", "share": 0.396 },
+        { "color": "#ef7d08", "share": 0.029 }
+      ]
+    },
+    "QAT": {
+      "flag": "qa",
+      "colors": [
+        { "color": "#8d1b3d", "share": 0.669 },
+        { "color": "#ffffff", "share": 0.316 }
+      ]
+    },
+    "ROU": {
+      "flag": "ro",
+      "colors": [
+        { "color": "#00319c", "share": 0.331 },
+        { "color": "#de2110", "share": 0.331 },
+        { "color": "#ffde00", "share": 0.331 }
+      ]
+    },
+    "RUS": {
+      "flag": "ru",
+      "colors": [
+        { "color": "#ffffff", "share": 0.333 },
+        { "color": "#0039a6", "share": 0.333 },
+        { "color": "#d52b1e", "share": 0.333 }
+      ]
+    },
+    "RWA": {
+      "flag": "rw",
+      "colors": [
+        { "color": "#00a1de", "share": 0.474 },
+        { "color": "#fad201", "share": 0.255 },
+        { "color": "#20603d", "share": 0.25 }
+      ]
+    },
+    "SAU": {
+      "flag": "sa",
+      "colors": [
+        { "color": "#165d31", "share": 0.893 },
+        { "color": "#ffffff", "share": 0.056 }
+      ]
+    },
+    "SDN": {
+      "flag": "sd",
+      "colors": [
+        { "color": "#ff0000", "share": 0.276 },
+        { "color": "#000001", "share": 0.276 },
+        { "color": "#009a00", "share": 0.247 },
+        { "color": "#ffffff", "share": 0.193 }
+      ]
+    },
+    "SEN": {
+      "flag": "sn",
+      "colors": [
+        { "color": "#0b7226", "share": 0.364 },
+        { "color": "#bc0000", "share": 0.331 },
+        { "color": "#ffff00", "share": 0.292 }
+      ]
+    },
+    "SGP": {
+      "flag": "sg",
+      "colors": [
+        { "color": "#ffffff", "share": 0.527 },
+        { "color": "#df0000", "share": 0.464 }
+      ]
+    },
+    "SLB": {
+      "flag": "sb",
+      "colors": [
+        { "color": "#0000d6", "share": 0.565 },
+        { "color": "#006000", "share": 0.278 },
+        { "color": "#ffcc00", "share": 0.098 },
+        { "color": "#ffffff", "share": 0.034 }
+      ]
+    },
+    "SLE": {
+      "flag": "sl",
+      "colors": [
+        { "color": "#00cd00", "share": 0.333 },
+        { "color": "#0000cd", "share": 0.333 },
+        { "color": "#ffffff", "share": 0.325 }
+      ]
+    },
+    "SLV": {
+      "flag": "sv",
+      "colors": [
+        { "color": "#0f47af", "share": 0.668 },
+        { "color": "#ffffff", "share": 0.298 }
+      ]
+    },
+    "SMR": {
+      "flag": "sm",
+      "colors": [
+        { "color": "#ffffff", "share": 0.446 },
+        { "color": "#19b6ef", "share": 0.431 },
+        { "color": "#8fc753", "share": 0.025 }
+      ]
+    },
+    "SOM": {
+      "flag": "so",
+      "colors": [
+        { "color": "#40a6ff", "share": 0.94 },
+        { "color": "#ffffff", "share": 0.055 }
+      ]
+    },
+    "SRB": {
+      "flag": "rs",
+      "colors": [
+        { "color": "#ffffff", "share": 0.336 },
+        { "color": "#c6363c", "share": 0.335 },
+        { "color": "#0c4076", "share": 0.238 }
+      ]
+    },
+    "SSD": {
+      "flag": "ss",
+      "colors": [
+        { "color": "#0f47af", "share": 0.298 },
+        { "color": "#000001", "share": 0.24 },
+        { "color": "#078930", "share": 0.241 },
+        { "color": "#da121a", "share": 0.133 },
+        { "color": "#ffffff", "share": 0.057 }
+      ]
+    },
+    "STP": {
+      "flag": "st",
+      "colors": [
+        { "color": "#12ad2b", "share": 0.505 },
+        { "color": "#ffce00", "share": 0.252 },
+        { "color": "#d21034", "share": 0.184 },
+        { "color": "#000001", "share": 0.029 }
+      ]
+    },
+    "SUR": {
+      "flag": "sr",
+      "colors": [
+        { "color": "#377e3f", "share": 0.4 },
+        { "color": "#b40a2d", "share": 0.365 },
+        { "color": "#ffffff", "share": 0.2 },
+        { "color": "#ecc81d", "share": 0.031 }
+      ]
+    },
+    "SVK": {
+      "flag": "sk",
+      "colors": [
+        { "color": "#ee1c25", "share": 0.395 },
+        { "color": "#ffffff", "share": 0.334 },
+        { "color": "#0b4ea2", "share": 0.256 }
+      ]
+    },
+    "SVN": {
+      "flag": "si",
+      "colors": [
+        { "color": "#0000bf", "share": 0.339 },
+        { "color": "#d50000", "share": 0.337 },
+        { "color": "#ffffff", "share": 0.309 }
+      ]
+    },
+    "SWE": {
+      "flag": "se",
+      "colors": [
+        { "color": "#005293", "share": 0.68 },
+        { "color": "#fecb00", "share": 0.32 }
+      ]
+    },
+    "SWZ": {
+      "flag": "sz",
+      "colors": [
+        { "color": "#3e5eb9", "share": 0.367 },
+        { "color": "#b10c0c", "share": 0.309 },
+        { "color": "#ffd900", "share": 0.121 },
+        { "color": "#000000", "share": 0.059 },
+        { "color": "#ffffff", "share": 0.06 },
+        { "color": "#333333", "share": 0.026 },
+        { "color": "#9e9b5d", "share": 0.02 }
+      ]
+    },
+    "SXM": {
+      "flag": "sx",
+      "colors": [
+        { "color": "#ed2939", "share": 0.386 },
+        { "color": "#002395", "share": 0.373 },
+        { "color": "#ffffff", "share": 0.172 }
+      ]
+    },
+    "SYC": {
+      "flag": "sc",
+      "colors": [
+        { "color": "#d92223", "share": 0.328 },
+        { "color": "#003d88", "share": 0.165 },
+        { "color": "#007a39", "share": 0.165 },
+        { "color": "#fcd955", "share": 0.162 },
+        { "color": "#ffffff", "share": 0.16 }
+      ]
+    },
+    "SYR": {
+      "flag": "sy",
+      "colors": [
+        { "color": "#007a3d", "share": 0.333 },
+        { "color": "#000000", "share": 0.333 },
+        { "color": "#ffffff", "share": 0.279 },
+        { "color": "#ce1126", "share": 0.043 }
+      ]
+    },
+    "TCA": {
+      "flag": "tc",
+      "colors": [
+        { "color": "#002868", "share": 0.644 },
+        { "color": "#c8102e", "share": 0.1 },
+        { "color": "#ffffff", "share": 0.085 },
+        { "color": "#fcd116", "share": 0.073 }
+      ]
+    },
+    "TCD": {
+      "flag": "td",
+      "colors": [
+        { "color": "#002664", "share": 0.331 },
+        { "color": "#c60c30", "share": 0.331 },
+        { "color": "#fecb00", "share": 0.325 }
+      ]
+    },
+    "TGO": {
+      "flag": "tg",
+      "colors": [
+        { "color": "#118600", "share": 0.42 },
+        { "color": "#ffe300", "share": 0.297 },
+        { "color": "#d80000", "share": 0.246 }
+      ]
+    },
+    "THA": {
+      "flag": "th",
+      "colors": [
+        { "color": "#a51931", "share": 0.333 },
+        { "color": "#2d2a4a", "share": 0.325 },
+        { "color": "#f4f5f8", "share": 0.317 }
+      ]
+    },
+    "TJK": {
+      "flag": "tj",
+      "colors": [
+        { "color": "#ffffff", "share": 0.398 },
+        { "color": "#cc0000", "share": 0.283 },
+        { "color": "#006600", "share": 0.283 }
+      ]
+    },
+    "TKM": {
+      "flag": "tm",
+      "colors": [
+        { "color": "#00843d", "share": 0.803 },
+        { "color": "#d22630", "share": 0.083 },
+        { "color": "#ab4a33", "share": 0.022 }
+      ]
+    },
+    "TLS": {
+      "flag": "tl",
+      "colors": [
+        { "color": "#cb000f", "share": 0.622 },
+        { "color": "#000001", "share": 0.217 },
+        { "color": "#f8c00c", "share": 0.118 },
+        { "color": "#ffffff", "share": 0.02 }
+      ]
+    },
+    "TON": {
+      "flag": "to",
+      "colors": [
+        { "color": "#c10000", "share": 0.867 },
+        { "color": "#ffffff", "share": 0.127 }
+      ]
+    },
+    "TTO": {
+      "flag": "tt",
+      "colors": [
+        { "color": "#e00000", "share": 0.72 },
+        { "color": "#000001", "share": 0.179 },
+        { "color": "#ffffff", "share": 0.077 }
+      ]
+    },
+    "TUN": {
+      "flag": "tn",
+      "colors": [
+        { "color": "#e70013", "share": 0.89 },
+        { "color": "#ffffff", "share": 0.096 }
+      ]
+    },
+    "TUR": {
+      "flag": "tr",
+      "colors": [
+        { "color": "#e30a17", "share": 0.928 },
+        { "color": "#ffffff", "share": 0.062 }
+      ]
+    },
+    "TUV": {
+      "flag": "tv",
+      "colors": [
+        { "color": "#009fca", "share": 0.696 },
+        { "color": "#c8102e", "share": 0.098 },
+        { "color": "#ffffff", "share": 0.075 },
+        { "color": "#012169", "share": 0.048 },
+        { "color": "#fff40d", "share": 0.037 }
+      ]
+    },
+    "TZA": {
+      "flag": "tz",
+      "colors": [
+        { "color": "#000001", "share": 0.305 },
+        { "color": "#009900", "share": 0.28 },
+        { "color": "#0099ff", "share": 0.278 },
+        { "color": "#ffff00", "share": 0.112 }
+      ]
+    },
+    "UGA": {
+      "flag": "ug",
+      "colors": [
+        { "color": "#ffe700", "share": 0.333 },
+        { "color": "#000001", "share": 0.305 },
+        { "color": "#de3908", "share": 0.306 },
+        { "color": "#fffdff", "share": 0.037 }
+      ]
+    },
+    "UKR": {
+      "flag": "ua",
+      "colors": [
+        { "color": "#0057b8", "share": 0.5 },
+        { "color": "#ffd700", "share": 0.5 }
+      ]
+    },
+    "URY": {
+      "flag": "uy",
+      "colors": [
+        { "color": "#ffffff", "share": 0.567 },
+        { "color": "#0038a8", "share": 0.329 },
+        { "color": "#406abe", "share": 0.026 },
+        { "color": "#a2860f", "share": 0.023 }
+      ]
+    },
+    "USA": {
+      "flag": "us",
+      "colors": [
+        { "color": "#bd3d44", "share": 0.337 },
+        { "color": "#ffffff", "share": 0.305 },
+        { "color": "#192f5d", "share": 0.303 }
+      ]
+    },
+    "UZB": {
+      "flag": "uz",
+      "colors": [
+        { "color": "#ffffff", "share": 0.326 },
+        { "color": "#1eb53a", "share": 0.317 },
+        { "color": "#0099b5", "share": 0.3 }
+      ]
+    },
+    "VCT": {
+      "flag": "vc",
+      "colors": [
+        { "color": "#f4f100", "share": 0.459 },
+        { "color": "#199a00", "share": 0.292 },
+        { "color": "#0058aa", "share": 0.231 }
+      ]
+    },
+    "VEN": {
+      "flag": "ve",
+      "colors": [
+        { "color": "#ffcc00", "share": 0.333 },
+        { "color": "#cf142b", "share": 0.333 },
+        { "color": "#00247d", "share": 0.316 }
+      ]
+    },
+    "VGB": {
+      "flag": "vg",
+      "colors": [
+        { "color": "#000066", "share": 0.619 },
+        { "color": "#c8102e", "share": 0.099 },
+        { "color": "#ffffff", "share": 0.087 },
+        { "color": "#006129", "share": 0.074 },
+        { "color": "#f1c3ca", "share": 0.027 }
+      ]
+    },
+    "VIR": {
+      "flag": "vi",
+      "colors": [
+        { "color": "#ffffff", "share": 0.701 },
+        { "color": "#f4c53d", "share": 0.093 },
+        { "color": "#162667", "share": 0.022 },
+        { "color": "#0081c6", "share": 0.025 },
+        { "color": "#d5ac38", "share": 0.03 },
+        { "color": "#a9892c", "share": 0.031 }
+      ]
+    },
+    "VNM": {
+      "flag": "vn",
+      "colors": [
+        { "color": "#da251d", "share": 0.917 },
+        { "color": "#ffff00", "share": 0.074 }
+      ]
+    },
+    "VUT": {
+      "flag": "vu",
+      "colors": [
+        { "color": "#d21034", "share": 0.311 },
+        { "color": "#009543", "share": 0.311 },
+        { "color": "#000000", "share": 0.23 },
+        { "color": "#fdce12", "share": 0.1 }
+      ]
+    },
+    "WSM": {
+      "flag": "ws",
+      "colors": [
+        { "color": "#ce1126", "share": 0.75 },
+        { "color": "#002b7f", "share": 0.229 }
+      ]
+    },
+    "XKX": {
+      "flag": "xk",
+      "colors": [
+        { "color": "#244aa5", "share": 0.877 },
+        { "color": "#d0a650", "share": 0.095 }
+      ]
+    },
+    "YEM": {
+      "flag": "ye",
+      "colors": [
+        { "color": "#f10600", "share": 0.333 },
+        { "color": "#ffffff", "share": 0.333 },
+        { "color": "#000001", "share": 0.333 }
+      ]
+    },
+    "ZAF": {
+      "flag": "za",
+      "colors": [
+        { "color": "#007847", "share": 0.327 },
+        { "color": "#e1392d", "share": 0.195 },
+        { "color": "#000c8a", "share": 0.195 },
+        { "color": "#ffffff", "share": 0.117 },
+        { "color": "#000001", "share": 0.094 },
+        { "color": "#ffb915", "share": 0.056 }
+      ]
+    },
+    "ZMB": {
+      "flag": "zm",
+      "colors": [
+        { "color": "#198a00", "share": 0.706 },
+        { "color": "#ef7d00", "share": 0.094 },
+        { "color": "#000001", "share": 0.084 },
+        { "color": "#de2010", "share": 0.079 }
+      ]
+    },
+    "ZWE": {
+      "flag": "zw",
+      "colors": [
+        { "color": "#006400", "share": 0.254 },
+        { "color": "#ffd200", "share": 0.215 },
+        { "color": "#ffffff", "share": 0.198 },
+        { "color": "#d40000", "share": 0.194 },
+        { "color": "#000001", "share": 0.086 }
+      ]
+    }
+  }
+}

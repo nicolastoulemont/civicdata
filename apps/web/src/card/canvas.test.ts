@@ -3,6 +3,8 @@ import { readFileSync } from "node:fs"
 
 import { describe, expect, it } from "vitest"
 
+import { colors } from "@/explore/colors.gen"
+
 import { canvas, type Ink, png, rect } from "./canvas.ts"
 
 const css =
@@ -41,36 +43,41 @@ const mixed = (name: string) => {
   return gray(neutral("foreground") * weight + neutral("card") * (1 - weight))
 }
 
-describe("preview card colors", () => {
-  it("encodes the light chart tokens from styles.css in its PNG palette", async () => {
-    const names: ReadonlyArray<Ink> = [
-      "chart-1",
-      "chart-2",
-      "chart-3",
-      "chart-4",
-      "chart-5",
-      "chart-6",
-      "chart-other",
-      "chart-faint",
-    ]
+// The RGB of each pixel in the PNG's first row: its IDAT inflated, after the
+// row's filter byte.
+const firstRow = async (bytes: Uint8Array) => {
+  const view = new DataView(bytes.buffer, bytes.byteOffset)
+  let at = 8
 
+  while (new TextDecoder().decode(bytes.subarray(at + 4, at + 8)) !== "IDAT") {
+    at += view.getUint32(at) + 12
+  }
+
+  const idat = bytes.slice(at + 8, at + 8 + view.getUint32(at))
+
+  const rows = new Uint8Array(
+    await new Response(
+      new Blob([idat]).stream().pipeThrough(new DecompressionStream("deflate")),
+    ).arrayBuffer(),
+  )
+
+  return (x: number) => [...rows.subarray(1 + x * 3, 4 + x * 3)]
+}
+
+describe("preview card colors", () => {
+  it("draws the light chart tokens from styles.css and a country's own colour", async () => {
+    const names: ReadonlyArray<Ink> = ["chart-1", "chart-other", "chart-faint", colors.FRA.light]
     const image = canvas(names.length, 1)
 
     names.forEach((name, x) => rect(image, { x, y: 0, width: 1, height: 1 }, name))
 
-    const bytes = await png(image)
-    // PNG's fixed IHDR chunk is followed by PLTE; its RGB entries start at 41.
-    const palette = bytes.subarray(41)
+    const pixel = await firstRow(await png(image))
 
-    for (const [x, name] of names.entries()) {
-      const expected =
-        name === "chart-other" || name === "chart-faint"
-          ? mixed(name)
-          : [...Buffer.from(token(name).slice(1), "hex")]
-
-      const entry = (image.pixels[x] ?? 0) * 3
-
-      expect([...palette.subarray(entry, entry + 3)]).toEqual(expected)
-    }
+    expect(names.map((_, x) => pixel(x))).toEqual([
+      [...Buffer.from(token("chart-1").slice(1), "hex")],
+      mixed("chart-other"),
+      mixed("chart-faint"),
+      [...Buffer.from(colors.FRA.light.slice(1), "hex")],
+    ])
   })
 })
