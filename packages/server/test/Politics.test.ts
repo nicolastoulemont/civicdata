@@ -19,6 +19,7 @@ import { Politics, PoliticsRoutes } from "../src/Politics.ts"
 import { PoliticsBuild, PoliticsBuildFailed } from "../src/PoliticsBuild.ts"
 import { steps } from "./fakes.ts"
 import parlgovCabinets from "./fixtures/parlgov/data_cabinet.csv?raw"
+import ppegGovernments from "./fixtures/ppeg/governments.csv?raw"
 import {
   build,
   dropFingerprints,
@@ -28,6 +29,7 @@ import {
   politicsOver,
   published,
   recorded,
+  zipped,
 } from "./politics.ts"
 
 // Every test starts from empty bindings: the test Worker's D1 database and
@@ -171,15 +173,27 @@ describe("politics", () => {
 
   it.effect("colours a ParlGov government by ParlGov's own party id", () =>
     Effect.gen(function* () {
-      // Without PPEG's governments, Spain's come from ParlGov.
-      yield* build(1).pipe(Effect.ignore)
+      // PPEG records no government of Spain's, so they come from ParlGov.
+      yield* build(1)
 
       const { governments } = yield* records(["ESP"], 2012, 2012)
 
       expect(governments[0]?.citation.publisher).toBe("ParlGov")
       expect(governments[0]?.color?.url).toBe("https://www.wikidata.org/wiki/Q185088#P465")
     }).pipe(
-      Effect.provide(serve(recorded({ "https://ppeg.wzb.eu/www/ppeg_gov_2025v1.zip": gone }))),
+      Effect.provide(
+        serve(
+          recorded({
+            "https://ppeg.wzb.eu/www/ppeg_gov_2025v1.zip": zipped(
+              "ppeg_gov_2025v1",
+              ppegGovernments
+                .split("\n")
+                .filter((line) => !line.startsWith('"ESP"'))
+                .join("\n"),
+            ),
+          }),
+        ),
+      ),
     ),
   )
 
@@ -334,6 +348,26 @@ describe("politics", () => {
       expect(error).toEqual(new PoliticsUnavailable())
     }).pipe(Effect.provide(serve(recorded()))),
   )
+
+  it.effect("is unavailable until a build stores every publisher's records of both kinds", () => {
+    const files = recorded({ "https://parlgov.fly.dev/data-csv/data_cabinet/": gone })
+
+    return Effect.gen(function* () {
+      yield* build(1).pipe(Effect.flip)
+
+      // ParlGov's elections are in, but not its governments, so Canada's
+      // governments are unknown rather than none.
+      expect(yield* records(["CAN"], 2016, 2016).pipe(Effect.flip)).toEqual(
+        new PoliticsUnavailable(),
+      )
+
+      files["https://parlgov.fly.dev/data-csv/data_cabinet/"] =
+        recorded()["https://parlgov.fly.dev/data-csv/data_cabinet/"]
+      yield* build(2)
+
+      expect(heads((yield* records(["CAN"], 2016, 2016)).governments)).toEqual(["Trudeau J"])
+    }).pipe(Effect.provide(serve(files)))
+  })
 
   it.effect("keeps a publisher's records while it is down, and stores the others", () => {
     const files = recorded()

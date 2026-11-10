@@ -115,7 +115,7 @@ export class Catalog extends Context.Service<Catalog, Interface>()("@civicdata/s
       // The sources with a published generation.
       const published = SqlSchema.findAll({
         Request: Schema.Void,
-        Result: Schema.Struct({ source: Schema.String }),
+        Result: Schema.Struct({ source: Source }),
         execute: () => sql`SELECT source FROM catalog_current`,
       })
 
@@ -189,8 +189,16 @@ export class Catalog extends Context.Service<Catalog, Interface>()("@civicdata/s
 
           if (match === undefined) return []
 
-          // Before the first build publishes a source, there is nothing to search.
-          if (!Arr.isReadonlyArrayNonEmpty(yield* published())) {
+          // Before a build publishes the source searched, or any source for
+          // a search of all, there is nothing to search: an unpublished
+          // source would answer that it lists no such indicator.
+          const sources = yield* published()
+
+          if (
+            source === null
+              ? !Arr.isReadonlyArrayNonEmpty(sources)
+              : !sources.some((found) => found.source === source)
+          ) {
             return yield* new CatalogUnavailable()
           }
 

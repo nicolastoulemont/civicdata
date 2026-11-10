@@ -71,6 +71,26 @@ describe("Catalog", () => {
     }).pipe(Effect.provide(catalogOver(listings()))),
   )
 
+  it.effect("fails with CatalogUnavailable for a source no build has published", () => {
+    const lists = listings({ OECD: "down" })
+
+    return Effect.gen(function* () {
+      const catalog = yield* Catalog
+
+      yield* build(1).pipe(Effect.flip)
+
+      expect(
+        yield* catalog.search("unemployment", { source: "OECD" }).pipe(Effect.flip),
+      ).toBeInstanceOf(CatalogUnavailable)
+      // A search of every source answers from those published.
+      expect(names(yield* catalog.search("unemployment")).toSorted()).toEqual([
+        "Unemployment by sex and age - annual data",
+        "Unemployment, total (% of total labor force)",
+        "Unemployment, youth total (% of total labor force ages 15-24)",
+      ])
+    }).pipe(Effect.provide(catalogOver(lists)))
+  })
+
   it.effect("ranks indicators whose code starts with the search first", () =>
     Effect.gen(function* () {
       yield* build(1)

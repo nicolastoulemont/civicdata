@@ -17,7 +17,7 @@ import {
   yearsOf,
 } from "@civicdata/domain"
 import { D1Client } from "@effect/sql-d1"
-import { Array as Arr, Context, Effect, Layer, Schema } from "effect"
+import { Context, Effect, Layer, Schema } from "effect"
 import { HttpApiBuilder } from "effect/http-api"
 import { SqlClient, SqlSchema } from "effect/sql"
 
@@ -39,7 +39,17 @@ interface Interface {
 }
 
 // The kinds of political records, each in its own table.
-export const Records = Schema.Literals(["governments", "elections"])
+const Records = Schema.Literals(["governments", "elections"])
+
+// One publisher's records of one kind, stored and published together.
+export const Dataset = Schema.Struct({ records: Records, publisher: Publisher })
+
+export type Dataset = typeof Dataset.Type
+
+// Every dataset a build stores and every answer reads.
+export const datasets: ReadonlyArray<Dataset> = Records.literals.flatMap((records) =>
+  Publisher.literals.map((publisher) => ({ records, publisher })),
+)
 
 // The political records' tables. `governments` and `elections` hold every
 // generation of each publisher's records; `politics_current` names the
@@ -295,11 +305,11 @@ export class Politics extends Context.Service<Politics, Interface>()("@civicdata
         ]),
       )
 
-      // The datasets published so far, of either kind.
+      // The datasets published so far.
       const published = SqlSchema.findAll({
         Request: Schema.Void,
-        Result: Schema.Struct({ publisher: Publisher }),
-        execute: () => sql`SELECT publisher FROM politics_current`,
+        Result: Dataset,
+        execute: () => sql`SELECT records, publisher FROM politics_current`,
       })
 
       const governments = SqlSchema.findAll({
@@ -332,8 +342,19 @@ export class Politics extends Context.Service<Politics, Interface>()("@civicdata
 
       const records = Effect.fn("Politics.records")(
         function* ({ countries, from, to }: Query) {
-          // Before the first build publishes anything, there is nothing to read.
-          if (!Arr.isReadonlyArrayNonEmpty(yield* published())) {
+          // Every answer reads each publisher's records of both kinds, so
+          // until a build has published them all, a country's records are
+          // unknown rather than none.
+          const stored = yield* published()
+
+          if (
+            !datasets.every((dataset) =>
+              stored.some(
+                (found) =>
+                  found.records === dataset.records && found.publisher === dataset.publisher,
+              ),
+            )
+          ) {
             return yield* new PoliticsUnavailable()
           }
 

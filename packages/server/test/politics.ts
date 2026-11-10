@@ -24,7 +24,7 @@ import ppegPresidents from "./fixtures/ppeg/presidents.csv?raw"
 export type Files = Record<string, () => Response>
 
 // A PPEG archive: the CSV beside the codebook it ships with.
-const zipped = (name: string, csv: string) => () =>
+export const zipped = (name: string, csv: string) => () =>
   new Response(
     zipSync({ [`${name}.csv`]: strToU8(csv), [`codebook_${name}.pdf`]: strToU8("%PDF") }),
   )
