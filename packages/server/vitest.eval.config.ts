@@ -11,6 +11,14 @@ import { defineConfig } from "vitest/config"
 
 import { runtime } from "./vitest.config.ts"
 
+// Every case spends OpenAI tokens and a run takes about 25 minutes, so the
+// eval starts only when someone asked for a run, never as a routine check.
+if (process.env["RUN_AGENT_EVAL"] !== "1") {
+  throw new Error(
+    "The agent eval runs only on request: it spends OpenAI tokens and takes about 25 minutes. Coding agents run it only when the user asked for an eval run in the current task, never to check their own change. To run it: RUN_AGENT_EVAL=1 pnpm --filter @civicdata/server eval",
+  )
+}
+
 // The key `alchemy dev` reads. A variable exported in the shell overrides it.
 const keys = fileURLToPath(new URL("../infra/.env", import.meta.url))
 
@@ -49,7 +57,7 @@ const RECORDINGS = async (request: Request) => {
 
 // Asks the agent every question in eval/cases.ts, against OpenAI and the
 // sources' recorded answers. Each question costs a few model requests, so
-// this runs by hand, never in CI.
+// this runs on request only, never in CI.
 export default defineConfig({
   plugins: [
     cloudflareTest({
