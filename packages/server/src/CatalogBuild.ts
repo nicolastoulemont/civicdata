@@ -99,9 +99,12 @@ const retried = {
 export class Step extends Context.Service<
   Step,
   {
+    // A step that waits on many writes, such as gathering a large dataset,
+    // may ask for a longer `timeout` than the default five minutes.
     readonly run: <A extends Saved & Rpc.Serializable<A>, E>(
       name: string,
       effect: Effect.Effect<A, E>,
+      options?: { readonly timeout?: CloudflareWorkersModule.WorkflowStepConfig["timeout"] },
     ) => Effect.Effect<A, StepFailed>
   }
 >()("@civicdata/server/CatalogBuild/Step") {
@@ -109,9 +112,14 @@ export class Step extends Context.Service<
     Layer.succeed(
       Step,
       Step.of({
-        run: (name, effect) =>
+        run: (name, effect, options) =>
           Effect.tryPromise({
-            try: () => step.do(name, retried, () => Effect.runPromise(effect)),
+            try: () =>
+              step.do(
+                name,
+                options?.timeout === undefined ? retried : { ...retried, timeout: options.timeout },
+                () => Effect.runPromise(effect),
+              ),
             catch: (cause) => new StepFailed({ step: name, cause }),
           }),
       }),

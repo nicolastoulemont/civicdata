@@ -320,6 +320,7 @@ const failing: SeriesBucket = {
   get: () => Promise.reject(new Error("R2 is down")),
   head: () => Promise.reject(new Error("R2 is down")),
   put: () => Promise.reject(new Error("R2 is down")),
+  list: () => Promise.reject(new Error("R2 is down")),
 }
 
 describe("WorldBank.stored", () => {

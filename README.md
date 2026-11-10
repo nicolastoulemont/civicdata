@@ -18,7 +18,7 @@ civicdata makes data about the economy and public policy easier to read and unde
 
 ## How it keeps numbers honest
 
-- Every value on a chart comes from a request to the World Bank, Eurostat or the OECD. World Bank charts read our stored copy of each indicator, which a daily Workflow refreshes when the World Bank publishes a new release and never overwrites with an answer that drops values. Other fetched series are reused for a day, or until Eurostat's next twice-daily update.
+- Every value on a chart comes from a request to the World Bank, Eurostat or the OECD. World Bank and Eurostat charts read our stored copy of each series, which a daily Workflow refreshes when the source publishes a new release and never overwrites with an answer that drops values. Other fetched series are reused for a day, or until Eurostat's next twice-daily update.
 - The assistant chooses an indicator, countries and years; it never supplies a value. It may only use an indicator code that the catalog search returned, and the server checks the chart it asks for and sends any problem back for it to fix.
 - The assistant's words are not checked against the data. They may round a value or work out a difference; the chart beside them shows the published values.
 - A chart's plain title may reword the source's name for the indicator but may not add a number to it, and the official name stays on the chart.
@@ -102,5 +102,5 @@ Run it only on request. A change to the prompt, the tools or the model doesn't n
 ### More
 
 - [docs/catalog.md](docs/catalog.md): how the weekly Workflow builds the indicator catalog and stores the political records, and how to rebuild a stage by hand.
-- [docs/series.md](docs/series.md): how the daily Workflow stores every World Bank indicator, holds back an answer that drops values, and how charts read the store.
+- [docs/series.md](docs/series.md): how the daily Workflow stores every World Bank indicator and Eurostat series, holds back an answer that drops values, and how charts read the store.
 - [docs/deploys.md](docs/deploys.md): stages per pull request and for `main`, the one-time setup, deploying your own stage, and upgrading Alchemy.

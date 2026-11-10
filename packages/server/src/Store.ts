@@ -5,6 +5,7 @@
 
 import {
   type Country,
+  Dimensions,
   type IndicatorId,
   Observation,
   type Source,
@@ -19,10 +20,12 @@ import { Described } from "./Series.ts"
 // One stored series: an indicator's values for every country and year we
 // chart, what the source calls it, when the source was asked, and the
 // source's own date for the release the values came from, such as the World
-// Development Indicators' last update.
+// Development Indicators' last update. An SDMX dataflow holds one series per
+// combination of its dimensions' values, such as { sex: "F", age: "Y15-24" }.
 export const Stored = Schema.Struct({
   ...Described.fields,
   version: Schema.NonEmptyString,
+  dimensions: Schema.optionalKey(Dimensions),
   observations: Schema.Array(Observation),
 })
 
@@ -64,12 +67,40 @@ const folders: Record<Source, string> = {
   OECD: "oecd",
 }
 
-// Where a series lives in the bucket: `series/v1/<source>/<indicator>`.
-// Eurostat and OECD series will add their dimension values after the
-// indicator. Bump the version when what an object holds changes, so a reader
-// never decodes an object of another format.
-export const keyOf = (indicator: IndicatorId) =>
+// Which series: an indicator, and for an SDMX dataflow the value of each of
+// its dimensions.
+export interface Address {
+  readonly indicator: IndicatorId
+  readonly dimensions?: Dimensions | undefined
+}
+
+const folderOf = (indicator: IndicatorId) =>
   `series/v1/${folders[sourceOf(indicator)]}/${indicator}`
+
+// Where a series lives in the bucket: `series/v1/world-bank/<indicator>`, or
+// for an SDMX dataflow `series/v1/<source>/<indicator>/<dimension=code,...>`,
+// dimensions in id order. Bump the version when what an object holds
+// changes, so a reader never decodes an object of another format.
+export const keyOf = ({ indicator, dimensions = {} }: Address) =>
+  sourceOf(indicator) === "World Bank"
+    ? folderOf(indicator)
+    : `${folderOf(indicator)}/${Object.entries(dimensions)
+        .toSorted(([a], [b]) => (a < b ? -1 : 1))
+        .map(([id, code]) => `${id}=${code}`)
+        .join(",")}`
+
+const addressOf = (series: Stored): Address => ({
+  indicator: series.indicator.id,
+  dimensions: series.dimensions,
+})
+
+// One page of a bucket listing: the objects under `prefix` after `cursor`,
+// with each object's custom metadata.
+interface Listing {
+  readonly prefix: string
+  readonly include: Array<"customMetadata">
+  readonly cursor?: string
+}
 
 // What the store needs from an R2 bucket binding.
 export interface SeriesBucket {
@@ -82,6 +113,14 @@ export interface SeriesBucket {
     value: string,
     options: { readonly customMetadata: Record<string, string> },
   ) => Promise<{ readonly key: string } | null>
+  readonly list: (options: Listing) => Promise<
+    {
+      readonly objects: ReadonlyArray<{
+        readonly key: string
+        readonly customMetadata?: Record<string, string> | undefined
+      }>
+    } & ({ readonly truncated: true; readonly cursor: string } | { readonly truncated: false })
+  >
 }
 
 // The bucket failed to answer or to store.
@@ -91,11 +130,16 @@ class StoreUnavailable extends Schema.TaggedError<
 >()("StoreUnavailable", { cause: Schema.Defect() }) {}
 
 interface Interface {
-  // The stored series of the indicator, if one is stored. An object that no
-  // longer decodes counts as none.
-  readonly read: (indicator: IndicatorId) => Effect.Effect<Option.Option<Stored>, StoreUnavailable>
+  // The stored series, if one is stored. An object that no longer decodes
+  // counts as none.
+  readonly read: (address: Address) => Effect.Effect<Option.Option<Stored>, StoreUnavailable>
   // The hash of the stored series, read without reading the series.
-  readonly hash: (indicator: IndicatorId) => Effect.Effect<Option.Option<string>, StoreUnavailable>
+  readonly hash: (address: Address) => Effect.Effect<Option.Option<string>, StoreUnavailable>
+  // The hash of every stored series of an SDMX dataflow, by key: one request
+  // per thousand series.
+  readonly hashes: (
+    indicator: IndicatorId,
+  ) => Effect.Effect<ReadonlyMap<string, string>, StoreUnavailable>
   // Stores the series with its hash, replacing the stored one.
   readonly write: (series: Stored) => Effect.Effect<void, StoreUnavailable>
 }
@@ -111,8 +155,8 @@ export class Store extends Context.Service<Store, Interface>()("@civicdata/serve
     Layer.succeed(
       Store,
       Store.of({
-        read: (indicator) =>
-          attempt(() => bucket.get(keyOf(indicator))).pipe(
+        read: (address) =>
+          attempt(() => bucket.get(keyOf(address))).pipe(
             Effect.flatMap((object) =>
               object === null
                 ? Effect.succeedNone
@@ -125,26 +169,53 @@ export class Store extends Context.Service<Store, Interface>()("@civicdata/serve
                   Schema.decodeEffect(StoredJson)(text).pipe(
                     Effect.asSome,
                     Effect.catchTag("SchemaError", (error) =>
-                      Effect.logWarning("Stored series no longer decodes", indicator, error).pipe(
-                        Effect.as(Option.none()),
-                      ),
+                      Effect.logWarning(
+                        "Stored series no longer decodes",
+                        keyOf(address),
+                        error,
+                      ).pipe(Effect.as(Option.none())),
                     ),
                   ),
               }),
             ),
             Effect.withSpan("Store.read"),
           ),
-        hash: (indicator) =>
-          attempt(() => bucket.head(keyOf(indicator))).pipe(
+        hash: (address) =>
+          attempt(() => bucket.head(keyOf(address))).pipe(
             Effect.map((object) => Option.fromNullishOr(object?.customMetadata?.["hash"])),
           ),
+        hashes: (indicator) =>
+          Effect.gen(function* () {
+            const found = new Map<string, string>()
+            const prefix = `${folderOf(indicator)}/`
+            let cursor: string | undefined
+
+            do {
+              const include: Array<"customMetadata"> = ["customMetadata"]
+
+              const request: Listing =
+                cursor === undefined ? { prefix, include } : { prefix, include, cursor }
+
+              const page = yield* attempt(() => bucket.list(request))
+
+              for (const { key, customMetadata } of page.objects) {
+                const hash = customMetadata?.["hash"]
+
+                if (hash !== undefined) found.set(key, hash)
+              }
+
+              cursor = page.truncated ? page.cursor : undefined
+            } while (cursor !== undefined)
+
+            return found
+          }).pipe(Effect.withSpan("Store.hashes")),
         write: (series) =>
           Effect.gen(function* () {
             const text = yield* Schema.encodeEffect(StoredJson)(series).pipe(Effect.orDie)
             const hash = yield* hashOf(series)
 
             yield* attempt(() =>
-              bucket.put(keyOf(series.indicator.id), text, { customMetadata: { hash } }),
+              bucket.put(keyOf(addressOf(series)), text, { customMetadata: { hash } }),
             )
           }).pipe(Effect.withSpan("Store.write")),
       }),
@@ -156,6 +227,7 @@ export class Store extends Context.Service<Store, Interface>()("@civicdata/serve
     Store.of({
       read: () => Effect.succeedNone,
       hash: () => Effect.succeedNone,
+      hashes: () => Effect.succeed(new Map()),
       write: () => Effect.fail(new StoreUnavailable({ cause: "No SERIES bucket" })),
     }),
   )

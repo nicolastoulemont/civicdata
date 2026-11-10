@@ -50,7 +50,7 @@ export const areas: Record<"Eurostat" | "OECD", Area> = {
 }
 
 // The flags in one cell, each once.
-const flagsIn = (cell: string, area: Area) => [
+export const flagsIn = (cell: string, area: Area) => [
   ...new Set(cell.split("").flatMap((letter) => area.flags.get(letter) ?? [])),
 ]
 

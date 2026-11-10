@@ -298,7 +298,7 @@ export class WorldBank extends Context.Service<WorldBank, Interface>()(
 
       const read = (indicator: IndicatorId) =>
         store
-          .read(indicator)
+          .read({ indicator })
           .pipe(
             Effect.catchTag("StoreUnavailable", (error) =>
               Effect.logWarning("Store unavailable, asking the World Bank", indicator, error).pipe(

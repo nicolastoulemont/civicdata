@@ -57,9 +57,12 @@ export default Alchemy.Stack(
       compatibility: { date: "2026-08-31" },
       // Workflows run many steps in one invocation, whose CPU adds up: a
       // World Bank gathering run spends about 30 seconds and tripped the
-      // 30-second default. Five minutes is the most Workers Paid allows. The
-      // limit is the Worker's, so visitors' requests get it too.
-      limits: { cpuMs: 300_000 },
+      // 30-second default. Five minutes is the most Workers Paid allows.
+      // A gathering run's R2 reads and writes count as subrequests of its
+      // Workflow instance, and storing Eurostat's datasets takes millions,
+      // past the default of 10,000; ten million is the most allowed. Both
+      // limits are the Worker's, so visitors' requests get them too.
+      limits: { cpuMs: 300_000, subrequests: 10_000_000 },
       env: {
         DB: database,
         CACHE: cache,

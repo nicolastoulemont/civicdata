@@ -2,7 +2,7 @@ import {
   CatalogEntry,
   type Country,
   Dimension,
-  type Dimensions,
+  Dimensions,
   DimensionsMissing,
   type IndicatorId,
   IndicatorNotFound,
@@ -30,6 +30,7 @@ import { geo } from "./geo.ts"
 import { Pace } from "./Pace.ts"
 import type { Described, Query } from "./Series.ts"
 import { Series, widen } from "./Series.ts"
+import { type Address, type Stored, Store } from "./Store.ts"
 import { plain } from "./text.ts"
 
 // A query for an SDMX dataflow also says which value of each dimension to
@@ -224,7 +225,33 @@ const choose = (all: ReadonlyArray<Dimension>, picked: Dimensions) => {
 const area = (indicator: IndicatorId) =>
   Csv.areas[sourceOf(indicator) === "Eurostat" ? "Eurostat" : "OECD"]
 
-const make = (remember: Remember) =>
+// A Eurostat data query: the countries' Eurostat codes, annual frequency,
+// the picked values, and the years or each series' latest value. Eurostat
+// filters by dimension name, and gzips its answer, without saying so in
+// Content-Encoding, unless asked `compress=false`.
+const eurostatUrl = (
+  query: Query,
+  {
+    codes,
+    filters,
+    latest,
+  }: { codes: ReadonlyArray<string>; filters: Ask["filters"]; latest: boolean },
+) => {
+  const { id, version } = parts(query.indicator)
+
+  const picks = Object.entries(filters)
+    .map(([dimension, code]) => `&c[${dimension}]=${code}`)
+    .join("")
+
+  return `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/${id}/${version}/*?c[geo]=${codes.join(",")}&c[freq]=A${picks}&${period(query, { latest, eurostat: true })}&compress=false`
+}
+
+const decodeDimensions = Schema.decodeUnknownOption(Dimensions)
+
+// What the adapter reads stored series with: none outside Workers.
+type Read = (address: Address) => Effect.Effect<Option.Option<Stored>>
+
+const make = ({ remember, read }: { remember: Remember; read: Read }) =>
   Effect.gen(function* () {
     const client = (yield* HttpClient.HttpClient).pipe(
       HttpClient.retryTransient({
@@ -376,23 +403,16 @@ const make = (remember: Remember) =>
       }
     })
 
-    // Eurostat filters by dimension name. It gzips its answer, without saying
-    // so in Content-Encoding, unless asked `compress=false`. It rejects a
-    // whole query that names a country its dataflow does not cover, so those
-    // countries are dropped and asked once more; they come back missing.
+    // Eurostat rejects a whole query that names a country its dataflow does
+    // not cover, so those countries are dropped and asked once more; they
+    // come back missing.
     const eurostatData = Effect.fn("Sdmx.eurostat")(function* (
       query: Query,
       { filters, latest, accept }: Ask & { accept: string },
     ) {
-      const { id, version } = parts(query.indicator)
-
-      const picks = Object.entries(filters)
-        .map(([dimension, code]) => `&c[${dimension}]=${code}`)
-        .join("")
-
       const attempt = (codes: ReadonlyArray<string>) =>
         Effect.gen(function* () {
-          const url = `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/${id}/${version}/*?c[geo]=${codes.join(",")}&c[freq]=A${picks}&${period(query, { latest, eurostat: true })}&compress=false`
+          const url = eurostatUrl(query, { codes, filters, latest })
 
           return { url, answer: yield* ask("Eurostat", url, accept) }
         })
@@ -476,13 +496,12 @@ const make = (remember: Remember) =>
         fetch: options(query),
       })
 
-    // Lists the dataflow's dimensions first, so a View that leaves one open
-    // fails before its data is asked for, with the values it could pick.
-    const observations = Effect.fn("Sdmx.observations")(function* (query: SdmxQuery) {
-      const { listed, filters, open } = choose(
-        (yield* cachedOptions(query)).dimensions,
-        query.dimensions,
-      )
+    // The dataflow's dimensions for the query's countries, and its picks.
+    // A View that leaves a dimension open fails here, before its data is
+    // asked for, with the values it could pick.
+    const picked = Effect.fn("Sdmx.picked")(function* (query: SdmxQuery) {
+      const all = (yield* cachedOptions(query)).dimensions
+      const { listed, filters, open } = choose(all, query.dimensions)
 
       if (Arr.isArrayNonEmpty(open))
         return yield* new DimensionsMissing({
@@ -491,6 +510,11 @@ const make = (remember: Remember) =>
           open: Arr.map(open, ({ id }) => id),
         })
 
+      return { all, listed, filters }
+    })
+
+    const observations = Effect.fn("Sdmx.observations")(function* (query: SdmxQuery) {
+      const { listed, filters } = yield* picked(query)
       const { url, csv } = yield* data(query, { filters, latest: false, accept: sdmxCsv })
       const retrievedAt = yield* DateTime.now
 
@@ -514,18 +538,77 @@ const make = (remember: Remember) =>
       return { observations: parsed.observations, url, retrievedAt, dimensions: listed }
     })
 
+    // A Eurostat query's stored series, when a gathering run stored its
+    // dataflow: one series per combination of the dataflow's dimensions, so
+    // the query's picks and each dimension with a single value name it. The
+    // dimensions come from the options, as for the live query, so a query
+    // that leaves one open fails the same way. It links the data query for
+    // the chart's own countries, years and picks, which answers the same
+    // values.
+    const stored = Effect.fn("Sdmx.stored")(function* (query: SdmxQuery) {
+      if (sourceOf(query.indicator) !== "Eurostat") return Option.none<SdmxSeries>()
+
+      const { all, listed, filters } = yield* picked(query)
+
+      const dimensions = decodeDimensions(
+        Object.fromEntries(
+          all.flatMap(({ id, options: values }) =>
+            id === "freq" ? [] : [[id, filters[id] ?? values[0].code] as const],
+          ),
+        ),
+      )
+
+      if (Option.isNone(dimensions)) return Option.none<SdmxSeries>()
+
+      const found = yield* read({ indicator: query.indicator, dimensions: dimensions.value })
+
+      return Option.map(found, (series) => {
+        const kept = series.observations.filter(
+          ({ country, year }) =>
+            query.countries.includes(country) && year >= query.from && year <= query.to,
+        )
+
+        const charted = query.countries.filter((country) =>
+          kept.some((observation) => observation.country === country),
+        )
+
+        return {
+          observations: kept,
+          url: eurostatUrl(query, {
+            codes: (Arr.isArrayNonEmpty(charted) ? charted : query.countries).map(
+              (country) => geo[country],
+            ),
+            filters,
+            latest: false,
+          }),
+          retrievedAt: series.retrievedAt,
+          dimensions: listed,
+        }
+      })
+    })
+
     return Sdmx.of({
       describe,
       // The catalog keeps its own copy in D1.
       indicators,
       observations: (query) =>
-        remember(keys.series(query), {
-          json: SeriesJson,
-          fresh: freshness(query.indicator),
-          fetch: observations(query),
-        }),
+        stored(query).pipe(
+          Effect.flatMap(
+            Option.match({
+              onSome: Effect.succeed,
+              onNone: () =>
+                remember(keys.series(query), {
+                  json: SeriesJson,
+                  fresh: freshness(query.indicator),
+                  fetch: observations(query),
+                }),
+            }),
+          ),
+        ),
     })
   })
+
+const unstored: Read = () => Effect.succeedNone
 
 type Remember = Effect.Success<typeof Cache.remember>
 
@@ -579,17 +662,48 @@ const keys = {
 
 // Eurostat and OECD data, read through their SDMX REST APIs as SDMX-CSV.
 export class Sdmx extends Context.Service<Sdmx, Interface>()("@civicdata/server/Sdmx") {
-  static readonly layer = Layer.effect(Sdmx, make(passthrough))
+  static readonly layer = Layer.effect(Sdmx, make({ remember: passthrough, read: unstored }))
 
-  // Serves a stored dataflow, list of dimensions or series while its source
-  // has not published since, otherwise asks the source and stores the answer.
-  // Asks for the recent years at once (`widen`).
+  // Serves a cached dataflow, list of dimensions or series while its source
+  // has not published since, otherwise asks the source and caches the
+  // answer. Asks for the recent years at once (`widen`).
   static readonly cached = Layer.effect(
     Sdmx,
-    Effect.flatMap(Cache.remember, make).pipe(
+    Effect.flatMap(Cache.remember, (remember) => make({ remember, read: unstored })).pipe(
       Effect.map((sdmx) => Sdmx.of({ ...sdmx, observations: widen(sdmx.observations) })),
     ),
   )
 
-  static readonly live = Sdmx.cached.pipe(Layer.provide(Pace.http), Layer.provide(Cache.layer))
+  // As `cached`, but a Eurostat series a gathering run stored is read from
+  // the store; a series not stored, or a store that fails, is asked for.
+  static readonly stored = Layer.effect(
+    Sdmx,
+    Effect.gen(function* () {
+      const remember = yield* Cache.remember
+      const store = yield* Store
+
+      const read: Read = (address) =>
+        store
+          .read(address)
+          .pipe(
+            Effect.catchTag("StoreUnavailable", (error) =>
+              Effect.logWarning(
+                "Store unavailable, asking Eurostat",
+                address.indicator,
+                error,
+              ).pipe(Effect.as(Option.none<Stored>())),
+            ),
+          )
+
+      const sdmx = yield* make({ remember, read })
+
+      return Sdmx.of({ ...sdmx, observations: widen(sdmx.observations) })
+    }),
+  )
+
+  static readonly live = Sdmx.stored.pipe(
+    Layer.provide(Store.layer),
+    Layer.provide(Pace.http),
+    Layer.provide(Cache.layer),
+  )
 }

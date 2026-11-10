@@ -1,0 +1,5 @@
+"title"	"code"	"type"	"last update of data"	"last table structure change"	"data start"	"data end"	"values"
+"Database by themes"	"data"	"folder"	" "	" "	" "	" "	
+"                Current account - quarterly data"	"ei_bpm6ca_q"	"table"	"28.10.2026"	"02.10.2026"	"1991-Q1"	"2026-Q2"	314870
+"                    Population on 1 January"	"tps00001"	"table"	"27.10.2026"	"30.09.2026"	"2015"	"2026"	581
+"                        Unemployment by sex and age - annual data"	"une_rt_a"	"dataset"	"06.11.2026"	"06.11.2026"	"2003"	"2025"	38655
