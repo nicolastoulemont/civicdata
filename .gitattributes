@@ -1,0 +1,2 @@
+# Source answers the agent eval records and replays: data, not code.
+packages/server/eval/recordings/** linguist-generated=true -diff

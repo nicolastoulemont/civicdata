@@ -106,7 +106,7 @@ export interface Namespace {
 const SlotJson = Schema.fromJsonString(Slot)
 
 // The hosts each adapter asks, so one HttpClient paces them all.
-const hosts = new Map<string, Source>([
+export const hosts = new Map<string, Source>([
   ["api.worldbank.org", "World Bank"],
   ["ec.europa.eu", "Eurostat"],
   ["sdmx.oecd.org", "OECD"],

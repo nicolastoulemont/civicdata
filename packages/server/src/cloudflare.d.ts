@@ -20,6 +20,9 @@ declare module "cloudflare:workers" {
     }
     // One PaceObject per source, named by it.
     readonly PACE?: import("./Pace.ts").Namespace
+    // The sources' answers the agent eval replays, served from disk by
+    // vitest.eval.config.ts. Only the eval has it.
+    readonly RECORDINGS?: { readonly fetch: (request: Request) => Promise<Response> }
     readonly OPENAI_API_KEY?: string
     readonly OPENAI_MODEL?: string
   }
