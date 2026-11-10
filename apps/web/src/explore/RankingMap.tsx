@@ -68,7 +68,7 @@ export const RankingMap = ({ resolved, bands }: RankingMapProps) => {
                 <path
                   key={code}
                   d={path(outline)}
-                  className="stroke-background"
+                  className="stroke-background motion-safe:transition-[fill] motion-safe:duration-500"
                   fill={fillOf(code)}
                   strokeWidth={0.5}
                 >

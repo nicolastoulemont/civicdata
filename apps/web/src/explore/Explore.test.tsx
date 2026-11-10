@@ -318,6 +318,12 @@ const layOut = () =>
 const strokes = (figure: HTMLElement) =>
   [...figure.querySelectorAll(".recharts-line-curve")].map((line) => line.getAttribute("stroke"))
 
+// One second of a faked clock, rendered.
+const second = () =>
+  act(() => {
+    vi.advanceTimersByTime(1000)
+  })
+
 // The map's key, each shade's values then "No data".
 const mapKey = () =>
   [...screen.getByText("No data").parentElement!.querySelectorAll("li")].map(
@@ -1190,6 +1196,80 @@ describe("Explore", () => {
       expect(await screen.findByText("No data in 2018 for Germany, Italy.")).toBeDefined()
     } finally {
       bounds.mockRestore()
+    }
+  })
+
+  it("plays a ranking over time from its first year, and keeps the year it pauses on", async () => {
+    network.use(worldBank)
+    const user = userEvent.setup()
+    const page = show(overTime)
+
+    await screen.findByText("Bar chart ranking countries by Total population")
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] })
+
+    try {
+      // At its last year, play starts again from the first.
+      await user.click(screen.getByRole("button", { name: "Play" }))
+      expect(screen.getByRole("status").textContent).toBe("2017")
+
+      second()
+      expect(screen.getByRole("status").textContent).toBe("2018")
+      expect(screen.getByText("No data in 2018 for Germany, Italy.")).toBeDefined()
+
+      await user.click(screen.getByRole("button", { name: "Pause" }))
+      second()
+      second()
+      second()
+      expect(screen.getByRole("status").textContent).toBe("2018")
+    } finally {
+      vi.useRealTimers()
+    }
+
+    await user.click(screen.getByRole("button", { name: "Copy link" }))
+    expect(await screen.findByRole("button", { name: "Link copied" })).toBeDefined()
+
+    const link = new URL(await navigator.clipboard.readText())
+
+    expect(link.searchParams.get("year")).toBe("2018")
+
+    page.unmount()
+    show(fromUrl(link))
+
+    expect(await screen.findByText("No data in 2018 for Germany, Italy.")).toBeDefined()
+  })
+
+  it("stops play at the last year, and pauses when the reader moves the slider", async () => {
+    network.use(worldBank)
+    const user = userEvent.setup()
+
+    show(Ranking.make({ ...overTime, year: Year.make(2018) }))
+
+    await screen.findByText("Bar chart ranking countries by Total population")
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] })
+
+    try {
+      await user.click(screen.getByRole("button", { name: "Play" }))
+      second()
+      second()
+      second()
+
+      expect(screen.getByRole("status").textContent).toBe("2020")
+      expect(screen.getByRole("button", { name: "Play" })).toBeDefined()
+
+      await user.click(screen.getByRole("button", { name: "Play" }))
+      second()
+      expect(screen.getByRole("status").textContent).toBe("2018")
+
+      act(() => screen.getByRole("slider", { name: "Year" }).focus())
+      await user.keyboard("{ArrowRight}")
+      second()
+      second()
+      second()
+
+      expect(screen.getByRole("status").textContent).toBe("2019")
+      expect(screen.getByRole("button", { name: "Play" })).toBeDefined()
+    } finally {
+      vi.useRealTimers()
     }
   })
 
