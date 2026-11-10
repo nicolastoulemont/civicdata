@@ -12,7 +12,7 @@ import { render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Schema } from "effect"
 import { http, HttpResponse } from "msw/http"
-import { afterEach, expect, it, onTestFinished } from "vitest"
+import { expect, it, onTestFinished } from "vitest"
 
 import { preload } from "@/conversation/preload"
 
@@ -31,8 +31,6 @@ const brazil = Trend.make({
 
 const encodeTurns = Schema.encodeSync(Schema.toCodecJson(Turns))
 const decodeView = Schema.decodeUnknownSync(View)
-
-afterEach(() => localStorage.clear())
 
 it("starts loading a conversation's charts when its sidebar row is hovered", async () => {
   localStorage.setItem(

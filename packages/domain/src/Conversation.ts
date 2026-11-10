@@ -15,7 +15,9 @@ import { Source } from "./Source.ts"
 import { View, Year } from "./View.ts"
 
 // Questions are capped so one request cannot send the model an essay.
-export const Question = Schema.String.check(Schema.isMinLength(3), Schema.isMaxLength(500))
+export const maxQuestion = 500
+
+export const Question = Schema.String.check(Schema.isMinLength(3), Schema.isMaxLength(maxQuestion))
 
 // A conversation with the agent. The browser makes a random UUID, which is
 // also what lets someone read the conversation: whoever has the id has it.

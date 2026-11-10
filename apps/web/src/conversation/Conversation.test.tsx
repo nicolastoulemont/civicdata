@@ -62,6 +62,7 @@ import { describe, expect, it, vi } from "vitest"
 
 import { SidebarProvider } from "@/components/ui/sidebar"
 
+import { line, typed } from "../../test/composer.ts"
 import { network } from "../../test/network.ts"
 import { Conversation } from "./Conversation.tsx"
 
@@ -1265,7 +1266,7 @@ describe("Conversation", () => {
 
     const user = userEvent.setup()
 
-    expect((await findComposer()).getAttribute("placeholder")).toBe(
+    expect((await findComposer()).getAttribute("aria-placeholder")).toBe(
       "Add Mexico, or show it per person",
     )
     expect(
@@ -1301,8 +1302,8 @@ describe("Conversation", () => {
     )
     show()
 
-    await user.type(await findComposer(), "Add Mexico{Shift>}{Enter}{/Shift}per person")
-    expect(await findComposer()).toHaveProperty("value", "Add Mexico\nper person")
+    await user.type(line(await findComposer()), "Add Mexico{Shift>}{Enter}{/Shift}per person")
+    expect(typed(await findComposer())).toBe("Add Mexico\nper person")
 
     await user.keyboard("{Enter}")
 
@@ -1311,15 +1312,31 @@ describe("Conversation", () => {
         normalizer: getDefaultNormalizer({ collapseWhitespace: false }),
       }),
     ).toBeDefined()
-    expect(await findComposer()).toHaveProperty("value", "")
+    expect(typed(await findComposer())).toBe("")
 
     reply.send(message(Unanswered.make({})))
     reply.end()
 
     expect(await screen.findByText("No World Bank indicator answers this question")).toBeDefined()
-    expect((await findComposer()).getAttribute("placeholder")).toBe(
+    expect((await findComposer()).getAttribute("aria-placeholder")).toBe(
       "Name what to measure and where",
     )
+  })
+
+  it("says why a question too short to send cannot be sent", async () => {
+    const user = userEvent.setup()
+
+    network.use(turns([]))
+    show()
+
+    await user.type(line(await findComposer()), "Hi{Enter}")
+
+    expect(
+      screen
+        .getByRole("button", { name: "Type a longer question to send" })
+        .getAttribute("aria-disabled"),
+    ).toBe("true")
+    expect(typed(await findComposer())).toBe("Hi")
   })
 
   it("stops an answer in progress and is ready for the next question", async () => {
@@ -1351,7 +1368,7 @@ describe("Conversation", () => {
     ).toBeDefined()
     expect(screen.queryByRole("button", { name: "Stop" })).toBeNull()
 
-    await user.clear(await findComposer())
+    await user.type(await findComposer(), "{Backspace>10/}")
     await user.click(screen.getByRole("button", { name: "Stop" }))
 
     expect(await screen.findByText("You stopped")).toBeDefined()
@@ -1361,7 +1378,7 @@ describe("Conversation", () => {
     const composer = await findComposer()
 
     expect(document.activeElement).toBe(composer)
-    expect(composer.getAttribute("placeholder")).toBe("Ask again, or ask something else")
+    expect(composer.getAttribute("aria-placeholder")).toBe("Ask again, or ask something else")
 
     await user.click(screen.getByRole("button", { name: "Worked · 1 search" }))
     expect(await findStep("Stopped searching for “life expectancy”")).toBeDefined()
@@ -1445,7 +1462,7 @@ describe("Conversation", () => {
 
     const panel = await screen.findByRole("region", { name: "Which Korea?" })
     expect(within(panel).getAllByRole("button")).toHaveLength(2)
-    expect((await findComposer()).getAttribute("placeholder")).toBe(
+    expect((await findComposer()).getAttribute("aria-placeholder")).toBe(
       "Pick a choice above, or say what you mean",
     )
 
@@ -1504,13 +1521,13 @@ describe("Conversation", () => {
     show()
 
     expect(await findQuestion("Life expectancy in Brazil")).toBeDefined()
-    expect((await findComposer()).getAttribute("placeholder")).toBe(
+    expect((await findComposer()).getAttribute("aria-placeholder")).toBe(
       "Write your next question while civicdata answers",
     )
 
     // A draft waits: Enter sends nothing while the agent answers.
-    await userEvent.setup().type(await findComposer(), "And in Chile?{Enter}")
-    expect(await findComposer()).toHaveProperty("value", "And in Chile?")
+    await userEvent.setup().type(line(await findComposer()), "And in Chile?{Enter}")
+    expect(typed(await findComposer())).toBe("And in Chile?")
     expect(
       screen
         .getByRole("button", { name: "Wait for the answer to send another question" })

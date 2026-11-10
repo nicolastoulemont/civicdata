@@ -2,6 +2,8 @@ import { ConversationId } from "@civicdata/domain"
 import { Array, DateTime, Option, Order, Schema } from "effect"
 import { useSyncExternalStore } from "react"
 
+import { save } from "@/conversation/draft"
+
 // A conversation asked in this browser: its first question as a title, and
 // when its last question was asked here.
 const Entry = Schema.Struct({
@@ -101,4 +103,8 @@ export const record = (id: ConversationId, question: string) => {
   ])
 }
 
-export const forget = (id: ConversationId) => write(read().filter((entry) => entry.id !== id))
+// Drops a conversation the server no longer has, and the draft typed in it.
+export const forget = (id: ConversationId) => {
+  save(id, "")
+  write(read().filter((entry) => entry.id !== id))
+}

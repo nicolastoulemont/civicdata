@@ -1,4 +1,4 @@
-import type { Ending } from "@civicdata/domain"
+import type { ConversationId, Ending } from "@civicdata/domain"
 import { Match } from "effect"
 
 import { Choices } from "./Choices.tsx"
@@ -19,6 +19,7 @@ const suggest = (last: Ending | undefined, answering: Answering | undefined) =>
         })
 
 interface FollowUpProps {
+  id: ConversationId
   last: Ending | undefined
   answering: Answering | undefined
   pending: boolean
@@ -27,7 +28,7 @@ interface FollowUpProps {
 
 // The composer at the bottom of the lane, docked by the conversation's Scroll.
 // Panels about the next question go above the composer.
-export const FollowUp = ({ last, answering, pending, ask }: FollowUpProps) => {
+export const FollowUp = ({ id, last, answering, pending, ask }: FollowUpProps) => {
   const question =
     !pending && answering === undefined && last !== undefined && "choices" in last
       ? last
@@ -47,6 +48,7 @@ export const FollowUp = ({ last, answering, pending, ask }: FollowUpProps) => {
           <QuestionForm
             label="Ask a follow-up"
             placeholder={suggest(last, answering)}
+            draft={id}
             answering={answering}
             onAsk={ask}
           />
