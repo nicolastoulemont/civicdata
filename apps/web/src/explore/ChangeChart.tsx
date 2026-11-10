@@ -14,6 +14,7 @@ import { countryName, formatCompact } from "./format.ts"
 import { fill } from "./palette.ts"
 import { changes } from "./points.ts"
 import { around } from "./scale.ts"
+import { ShowAll } from "./ShowAll.tsx"
 
 const row = 36
 
@@ -23,7 +24,8 @@ interface ChangeChartProps {
 }
 
 // One row per country, the largest rise first: a dot for each year, joined by
-// a thin bar from the lower value to the higher.
+// a thin bar from the lower value to the higher. The scale fits every row;
+// past 25 countries, a button shows the rest.
 export const ChangeChart = ({ resolved, change }: ChangeChartProps) => {
   const config = {
     from: { label: `${change.from}`, color: fill("other") },
@@ -44,35 +46,39 @@ export const ChangeChart = ({ resolved, change }: ChangeChartProps) => {
   return (
     <figure>
       <figcaption className="sr-only">{`Change in ${resolved.title} between ${change.from} and ${change.to}, by country`}</figcaption>
-      <ChartContainer
-        config={config}
-        className="aspect-auto w-full"
-        style={{ height: rows.length * row + 64 }}
-      >
-        <ComposedChart data={rows} layout="vertical" accessibilityLayer>
-          <CartesianGrid horizontal={false} />
-          <XAxis
-            type="number"
-            domain={[scale.low, scale.high]}
-            ticks={scale.ticks}
-            tickFormatter={formatCompact}
-            tickLine={false}
-            axisLine={false}
-          />
-          <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={120} />
-          <ChartTooltip content={<ChartTooltipContent />} />
-          <ChartLegend content={<ChartLegendContent />} />
-          <Bar
-            dataKey="span"
-            barSize={2}
-            fill="var(--border)"
-            tooltipType="none"
-            legendType="none"
-          />
-          <Scatter dataKey="from" fill="var(--color-from)" />
-          <Scatter dataKey="to" fill="var(--color-to)" />
-        </ComposedChart>
-      </ChartContainer>
+      <ShowAll rows={rows}>
+        {(shown) => (
+          <ChartContainer
+            config={config}
+            className="aspect-auto w-full"
+            style={{ height: shown.length * row + 64 }}
+          >
+            <ComposedChart data={[...shown]} layout="vertical" accessibilityLayer>
+              <CartesianGrid horizontal={false} />
+              <XAxis
+                type="number"
+                domain={[scale.low, scale.high]}
+                ticks={scale.ticks}
+                tickFormatter={formatCompact}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={120} />
+              <ChartTooltip content={<ChartTooltipContent />} />
+              <ChartLegend content={<ChartLegendContent />} />
+              <Bar
+                dataKey="span"
+                barSize={2}
+                fill="var(--border)"
+                tooltipType="none"
+                legendType="none"
+              />
+              <Scatter dataKey="from" fill="var(--color-from)" />
+              <Scatter dataKey="to" fill="var(--color-to)" />
+            </ComposedChart>
+          </ChartContainer>
+        )}
+      </ShowAll>
     </figure>
   )
 }

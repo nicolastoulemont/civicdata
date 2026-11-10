@@ -131,8 +131,10 @@ const records = <S extends Schema.Top>(state: S) => ({
 //   person to a percentage.
 // - OpenDimensions: the dataflow holds several series, and the chart has not
 //   picked one of these dimensions, or picked a value they do not take.
-// - TooMany: the chart type shows at most `most` countries and stays readable.
-// - TooFew: the chart type needs at least `least` countries to show anything.
+// - TooMany, TooFew: the chart had more countries than `most`, or fewer than
+//   `least`, for its type. No longer produced: charts take any number of
+//   countries since NTO-167. Conversations stored before it keep these steps
+//   in their work logs, so they stay here to decode them.
 export const Rejection = Schema.TaggedUnion({
   NoValues: {},
   NoIndicator: { indicator: IndicatorId },

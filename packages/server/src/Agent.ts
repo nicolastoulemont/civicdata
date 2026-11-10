@@ -87,7 +87,6 @@ import { FetchHttpClient } from "effect/http"
 import { Catalog } from "./Catalog.ts"
 import { cite } from "./Citations.ts"
 import { Politics } from "./Politics.ts"
-import { Form, limits, unreadable, type Unreadable } from "./readable.ts"
 import { Resolver } from "./Resolver.ts"
 import { Sdmx } from "./Sdmx.ts"
 import { recent } from "./Series.ts"
@@ -374,12 +373,16 @@ const FindYears = Tool.make("find_years", {
   dependencies: [Report],
 })
 
+// The chart types show_chart draws. A map is a ranking drawn on a world map.
+const Form = Schema.Literals(["trend", "ranking", "map", "change", "relation"])
+
 const ShowChart = Tool.make("show_chart", {
   description:
     "Show one chart of a World Bank, Eurostat or OECD indicator in the answer, after what you wrote so far. The chart is checked against the data; when it is rejected, fix what the problem names and call again. Returns a summary of the charted values to write about.",
   parameters: Schema.Struct({
     chart: Form.annotate({
-      description: `trend: one line per country over a range of years, at most ${limits.trend.most} countries. ranking: countries compared in one year, as bars, at most ${limits.ranking.most}. map: a ranking drawn as a world map, at least ${limits.map.least} countries. change: each country's value in two years, from and to, at most ${limits.change.most}. relation: one dot per country in one year, the indicator against another, at least ${limits.relation.least} countries.`,
+      description:
+        "trend: one line per country over a range of years. ranking: countries compared in one year, as bars. map: a ranking drawn as a world map. change: each country's value in two years, from and to. relation: one dot per country in one year, the indicator against another.",
     }),
     indicator: subject.indicator,
     against: Schema.NullOr(Schema.String).annotate({
@@ -542,23 +545,6 @@ const prompted = ({ question, changed }: Asking) =>
 
 const rejected = (problem: string) => Refused.make({ problem })
 
-// What to draw instead of a chart with too many or too few countries to read.
-const instead: Record<Form, string> = {
-  trend: `use a ranking or a map for one year, a change for two years, or pick up to ${limits.trend.most} countries`,
-  ranking: "use a map",
-  change: "use a map",
-  map: "use a ranking",
-  relation: "use a trend of each indicator",
-}
-
-// Why a chart cannot be read, and what to draw instead, as the model reads it:
-// "Too many countries for a trend: 12, at most 6. Instead, use a ranking…".
-const crowded = (form: Form, { countries, reason }: { countries: number; reason: Unreadable }) =>
-  `${Match.valueTags(reason, {
-    TooMany: ({ most }) => `Too many countries for a ${form}: ${countries}, at most ${most}.`,
-    TooFew: ({ least }) => `Too few countries for a ${form}: ${countries}, at least ${least}.`,
-  })} Instead, ${instead[form]}.`
-
 // A chart the data cannot show: why, for people, and what to fix, for the model.
 interface Refusal<R extends Rejection = Rejection> {
   readonly reason: R
@@ -702,8 +688,8 @@ const ToolsLayer = Tools.toLayer(
         }),
       )
 
-    // Draws the chart the model described, once it decodes, people can read
-    // it and the data has values for it. Only a trend draws political context.
+    // Draws the chart the model described, once it decodes and the data has
+    // values for it. Only a trend draws political context.
     const draw = (draft: Draft, toolCallId: string | undefined) =>
       toView(draft).pipe(
         Effect.flatMap((view) => {
@@ -718,9 +704,7 @@ const ToolsLayer = Tools.toLayer(
           const at = (state: typeof Fetch.Type.state) =>
             Fetch.make({ id: stepOf(toolCallId, "show_chart"), view, state })
 
-          const countries = view.countries.length
-
-          const resolving: Effect.Effect<
+          const fetched: Effect.Effect<
             Result.Result<ResolvedView, Refusal>,
             SourceUnavailable
           > = resolve(view).pipe(
@@ -740,13 +724,6 @@ const ToolsLayer = Tools.toLayer(
               ),
             ),
           )
-
-          // A chart nobody could read is refused before any data is fetched.
-          const fetched = Option.match(unreadable(draft.chart, countries), {
-            onNone: () => resolving,
-            onSome: (reason) =>
-              Effect.succeed(refuse(reason, crowded(draft.chart, { countries, reason }))),
-          })
 
           return reported(fetched, {
             at,
@@ -1046,12 +1023,12 @@ A measure only one source publishes comes from that source.
 7. If the question needs another chart, as the section on several charts below says, call find_years and show_chart for it. Otherwise stop calling tools: the answer is complete.
 
 Chart types: each does one job. Pick the one that fits what the question asks, not the words it uses.
-- trend: how a measure moved over time, for at most ${limits.trend.most} countries. "Has India caught up with China?" and "How did Poland's wages move in the 2010s?" are trends.
-- ranking: how countries compare at one point in time, for at most ${limits.ranking.most} countries. "Which G7 country has the most doctors per person?" is a ranking.
-- map: the same comparison across a region or the world, for ${limits.map.least} countries or more. "How do the 27 EU countries compare?" is a ranking or a map.
-- change: how much each country moved between two years. "Which grew fastest since 2000?" is a change from 2000 to the latest year. A question over time about more than ${limits.trend.most} countries is a change too: a trend of that many lines cannot be read.
-- relation: how one measure goes with another across at least ${limits.relation.least} countries, e.g. "Does more schooling go with higher incomes?". Search for the second indicator too.
-show_chart rejects a chart with too many or too few countries to read, and names the type to use instead.
+- trend: how a measure moved over time. "Has India caught up with China?" and "How did Poland's wages move in the 2010s?" are trends, and so is "How has unemployment moved across the EU since 2008?".
+- ranking: how countries compare at one point in time. "Which G7 country has the most doctors per person?" is a ranking.
+- map: the same comparison across a region or the world. "How do the 27 EU countries compare?" is a ranking or a map.
+- change: how much each country moved between two years. "Which grew fastest since 2000?" is a change from 2000 to the latest year.
+- relation: how one measure goes with another across countries, e.g. "Does more schooling go with higher incomes?". Search for the second indicator too.
+Any chart type takes any number of countries: draw the countries the question asks about in the type that answers it.
 
 Several charts: most answers need one chart. Show more only when one chart cannot show what the question asks:
 - The question asks about measures with different units, e.g. "How have inflation and unemployment moved in Portugal?" is a trend of each.

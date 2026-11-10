@@ -9,6 +9,7 @@ import {
   ChartIndex,
   ConversationBusy,
   type Country,
+  countries as economies,
   ConversationId,
   Coverage,
   Covered,
@@ -27,6 +28,7 @@ import {
   put,
   Ranking,
   Read,
+  Relation,
   Recorded,
   Records,
   Rejected,
@@ -94,26 +96,36 @@ import unemploymentRates from "./fixtures/eurostat/unemployment-total.csv?raw"
 import { build, emptyPolitics, politicsOver, recorded as archived } from "./politics.ts"
 
 const lifeExpectancy = IndicatorId.make("SP.DYN.LE00.IN")
+const gdpPerPerson = IndicatorId.make("NY.GDP.PCAP.CD")
+
+// The World Bank's names for the indicators it publishes here.
+const named = new Map([
+  [lifeExpectancy, "Life expectancy at birth, total (years)"],
+  [gdpPerPerson, "GDP per capita (current US$)"],
+])
 
 const id = ConversationId.make("0b5d7c1e-8f4a-4c2b-9d3e-1a2b3c4d5e6f")
 
-// A World Bank that publishes life expectancy for Brazil, Mexico and Spain,
-// 2000 to 2002.
+// A World Bank that publishes life expectancy and GDP per person for Brazil,
+// Mexico and Spain, 2000 to 2002.
 const recordedWorldBank = Layer.succeed(
   WorldBank,
   WorldBank.of({
-    describe: (indicator) =>
-      indicator === lifeExpectancy
-        ? Effect.succeed({
+    describe: (indicator) => {
+      const name = named.get(indicator)
+
+      return name === undefined
+        ? Effect.fail(new IndicatorNotFound({ indicator }))
+        : Effect.succeed({
             indicator: {
               id: indicator,
-              name: "Life expectancy at birth, total (years)",
+              name,
               definition: "The number of years a newborn infant would live.",
             },
             dataset: "World Development Indicators",
             retrievedAt: DateTime.makeUnsafe("2026-11-01T00:00:00Z"),
           })
-        : Effect.fail(new IndicatorNotFound({ indicator })),
+    },
     observations: (query) =>
       Effect.succeed({
         observations: (["BRA", "MEX", "ESP"] as const).flatMap((country) =>
@@ -394,6 +406,57 @@ const brazilTrend = Trend.make({
   to: Year.make(2002),
 })
 
+// Brazil, Mexico and Spain, which have values, then other countries in the
+// domain's order: `count` in all.
+const many = (count: number): Arr.NonEmptyReadonlyArray<Country> => [
+  "BRA",
+  ...economies
+    .map(({ code }) => code)
+    .filter((code) => code !== "BRA")
+    .slice(0, count - 1),
+]
+
+// Charts of many countries, and of few: each is drawn.
+const drawn = [
+  {
+    name: "a trend of 10 countries",
+    args: { countries: many(10) },
+    view: Trend.make({ ...brazilTrend, countries: many(10) }),
+  },
+  {
+    name: "a ranking of 60 countries",
+    args: { chart: "ranking", countries: many(60), from: null, to: null, year: 2002 },
+    view: Ranking.make({ indicator: lifeExpectancy, countries: many(60), year: Year.make(2002) }),
+  },
+  {
+    name: "a map of 3 countries",
+    args: { chart: "map", countries: many(3), from: null, to: null, year: 2002 },
+    view: Ranking.make({
+      indicator: lifeExpectancy,
+      countries: many(3),
+      year: Year.make(2002),
+      as: "Map",
+    }),
+  },
+  {
+    name: "a relation of 3 countries",
+    args: {
+      chart: "relation",
+      against: gdpPerPerson,
+      countries: many(3),
+      from: null,
+      to: null,
+      year: 2002,
+    },
+    view: Relation.make({
+      indicator: lifeExpectancy,
+      against: gdpPerPerson,
+      countries: many(3),
+      year: Year.make(2002),
+    }),
+  },
+]
+
 const running = Running.make({})
 
 // The model deciding in a round: running, then done once a tool starts or it answers.
@@ -673,64 +736,17 @@ describe("conversations", () => {
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
-  it.effect(
-    "rejects a trend of too many countries to read without fetching it, and names a chart that fits",
-    () => {
-      const seven = ["BRA", "MEX", "ARG", "CHL", "COL", "PER", "ECU"] as const
-      const asked: Array<ReadonlyArray<string>> = []
-
-      // The World Bank as recorded, noting which countries each request asks for.
-      const worldBank = Layer.effect(
-        WorldBank,
-        Effect.map(WorldBank, (recorded) =>
-          WorldBank.of({
-            ...recorded,
-            observations: (query) => {
-              asked.push(query.countries)
-
-              return recorded.observations(query)
-            },
-          }),
-        ),
-      ).pipe(Layer.provide(recordedWorldBank))
-
-      const model = scripted([
-        Effect.succeed(call("show_chart", { ...brazil, countries: seven }, { step: "chart-1" })),
-        Effect.succeed(
-          call("show_chart", { ...brazil, chart: "change", countries: seven }, { step: "chart-2" }),
-        ),
-      ])
+  for (const { name, args, view } of drawn) {
+    it.effect(`draws ${name} instead of rejecting it`, () => {
+      const model = scripted([Effect.succeed(call("show_chart", { ...brazil, ...args }))])
 
       return Effect.gen(function* () {
-        const steps = yield* answer("Life expectancy in Latin America since 2000")
+        const steps = yield* answer("Life expectancy across countries")
 
-        expect(log(steps)[0]).toEqual(
-          fetched(Rejected.make({ reason: Rejection.cases.TooMany.make({ most: 6 }) }), {
-            step: "chart-1",
-            view: Trend.make({ ...brazilTrend, countries: seven }),
-          }),
-        )
-        expect(model.prompts[1]).toContain(
-          "Too many countries for a trend: 7, at most 6. Instead, use a ranking or a map for one year, a change for two years, or pick up to 6 countries.",
-        )
-        // Only the change was fetched.
-        expect(asked).toEqual([seven])
-        expect(steps.at(-1)).toEqual(
-          charted(
-            chart(
-              Change.make({
-                indicator: lifeExpectancy,
-                countries: seven,
-                from: Year.make(2000),
-                to: Year.make(2002),
-              }),
-            ),
-            said(),
-          ),
-        )
-      }).pipe(Effect.provide(serveApi(model.layer, { worldBank })))
-    },
-  )
+        expect(steps.at(-1)).toEqual(charted(chart(view), said()))
+      }).pipe(Effect.provide(serveApi(model.layer)))
+    })
+  }
 
   it.effect("rejects a relation of an indicator to itself", () => {
     const model = scripted([
