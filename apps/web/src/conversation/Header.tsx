@@ -16,9 +16,10 @@ interface HeaderProps {
 // Names the conversation by its first question, cut to one line, under the
 // site. A conversation with no question yet is just "Conversation". The
 // sidebar toggle comes first while the sidebar is closed; "New conversation"
-// is in the sidebar.
+// is in the sidebar. The header keeps the toggle's height (28px plus padding)
+// while the toggle is hidden, so opening the sidebar does not move the page.
 export const Header = ({ title }: HeaderProps) => (
-  <header className="flex items-center gap-2 p-3">
+  <header className="flex min-h-13 items-center gap-2 p-3">
     <Toggle />
     <Breadcrumb className="min-w-0">
       <BreadcrumbList className="flex-nowrap">
