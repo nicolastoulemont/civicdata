@@ -69,8 +69,9 @@ interface Interface {
   ) => Effect.Effect<void, TurnNotFound | NoChart>
   // Deletes the conversation once no answer is running: now, or when the
   // answer in progress fails. An answer that keeps its turn keeps the
-  // conversation too, as saving it moves the alarm on. Returns once the
-  // conversation is deleted, or at once when an answer is running.
+  // conversation too, as saving it moves the alarm on, even when this alarm
+  // was already on its way. Returns once the conversation is deleted, or at
+  // once when an answer is running.
   readonly expire: Effect.Effect<void>
 }
 
@@ -205,7 +206,7 @@ const lifecycle = Machine.make<Phase, PhaseEvent>()({
     // Storage failures are defects. One is logged and ends the deletion, so
     // the conversation can answer again; the next save moves the alarm on.
     Expiring: () =>
-      Transcript.use((transcript) => transcript.delete).pipe(
+      Transcript.use((transcript) => transcript.expire).pipe(
         Effect.catchDefect((defect) => Effect.logError("Conversation not deleted", defect)),
         Effect.as(PhaseEvent.Deleted()),
       ),

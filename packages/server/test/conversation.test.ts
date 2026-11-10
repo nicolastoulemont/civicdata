@@ -96,7 +96,7 @@ import { Notes } from "../src/Notes.ts"
 import { Politics } from "../src/Politics.ts"
 import { Resolver } from "../src/Resolver.ts"
 import { Sdmx } from "../src/Sdmx.ts"
-import { type Storage, Transcript } from "../src/Transcript.ts"
+import { keep, type Storage, Transcript } from "../src/Transcript.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 import { http, memory, memoryStorage } from "./fakes.ts"
 import participationFlow from "./fixtures/eurostat/participation-flow.json"
@@ -345,10 +345,13 @@ interface ServeOptions {
 }
 
 // The conversation's Durable Object alarm, which Cloudflare fires `keep` after
-// the conversation was last saved.
-class Alarm extends Context.Service<Alarm, { readonly fire: Effect.Effect<void> }>()(
-  "test/Alarm",
-) {}
+// the conversation was last saved. `fire` moves the clock to the time the
+// alarm is set for, then fires it. `arrive` delivers an alarm Cloudflare sent
+// earlier, at the clock's time.
+class Alarm extends Context.Service<
+  Alarm,
+  { readonly fire: Effect.Effect<void>; readonly arrive: Effect.Effect<void> }
+>()("test/Alarm") {}
 
 const alarm = Alarm.use(({ fire }) => fire)
 
@@ -403,11 +406,25 @@ const serveApi = (
             Layer.provide(Directions.listed),
           ),
           HttpServer.layerServices,
-          Layer.succeed(Alarm, Alarm.of({ fire: Effect.promise(() => conversation.alarm()) })),
+          Layer.succeed(
+            Alarm,
+            alarmOf(storage, () => conversation.alarm()),
+          ),
         ),
       )
     }),
   )
+}
+
+const alarmOf = (storage: Storage | undefined, ring: () => Promise<void>) => {
+  const arrive = Effect.promise(ring)
+
+  const fire = Effect.promise(async () => storage?.getAlarm() ?? null).pipe(
+    Effect.flatMap((time) => (time === null ? Effect.void : TestClock.setTime(time))),
+    Effect.andThen(arrive),
+  )
+
+  return Alarm.of({ fire, arrive })
 }
 
 const client = HttpApiTest.groups(Api, ["conversation"])
@@ -1826,6 +1843,26 @@ describe("expiring a conversation", () => {
       }).pipe(Effect.provide(serveApi(model.layer, { storage: fake })))
     }),
   )
+
+  it.effect("keeps a conversation whose alarm arrives after an answer moved it on", () => {
+    const values = new Map<string, string>()
+    const { fake } = memoryStorage(values)
+
+    return Effect.gen(function* () {
+      yield* answer("Life expectancy in Brazil")
+
+      // Cloudflare sends the alarm as it falls due, and the answer to a
+      // question asked just before saves first.
+      yield* TestClock.setTime(keep)
+      yield* answer("Life expectancy in Mexico")
+      yield* Alarm.use(({ arrive }) => arrive)
+
+      expect((yield* turns).answered.map(({ question }) => question)).toEqual([
+        "Life expectancy in Brazil",
+        "Life expectancy in Mexico",
+      ])
+    }).pipe(Effect.provide(serveApi(scripted([]).layer, { storage: fake })))
+  })
 
   it.effect("deletes the conversation once an answer fails after its alarm fired", () =>
     Effect.gen(function* () {

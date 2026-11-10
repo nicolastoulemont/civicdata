@@ -10,19 +10,27 @@ export interface Saved {
   readonly changed?: TurnIndex
 }
 
-// The part of a Durable Object's storage a transcript uses.
-export interface Storage {
-  readonly get: (key: string) => Promise<string | undefined>
+// The writes a save makes in one storage transaction.
+export interface Writes {
   readonly put: (key: string, value: string) => Promise<void>
   readonly setAlarm: (time: number) => Promise<void>
+}
+
+// The part of a Durable Object's storage a transcript uses. A transaction
+// commits all its writes or, when its closure rejects, none of them.
+export interface Storage {
+  readonly get: (key: string) => Promise<string | undefined>
+  readonly getAlarm: () => Promise<number | null>
+  readonly transaction: (closure: (txn: Writes) => Promise<void>) => Promise<void>
   readonly deleteAll: () => Promise<void>
 }
 
 interface Interface {
   readonly load: Effect.Effect<Option.Option<Saved>>
   readonly save: (saved: Saved) => Effect.Effect<void>
-  // Deletes the conversation: a load after it finds nothing.
-  readonly delete: Effect.Effect<void>
+  // Deletes the conversation once its time is up: a load after it finds
+  // nothing. A save since the alarm fired moved the time on, and keeps it.
+  readonly expire: Effect.Effect<void>
 }
 
 const Stored = Schema.fromJsonString(
@@ -52,13 +60,15 @@ export class Transcript extends Context.Service<Transcript, Interface>()(
       return Transcript.of({
         load: Ref.get(saved),
         save: (next) => Ref.set(saved, Option.some(next)),
-        delete: Ref.set(saved, Option.none()),
+        expire: Ref.set(saved, Option.none()),
       })
     }),
   )
 
   // A Durable Object's storage. Each save moves the object's alarm to `keep`
-  // from now; the object deletes everything when it fires. Storage failures
+  // from now in the same transaction, so a conversation is never kept without
+  // an alarm to delete it. The object deletes everything when it fires, unless
+  // a save set a later alarm after Cloudflare sent this one. Storage failures
   // are defects: there is nothing a caller can do about them.
   static readonly durable = (storage: Storage) =>
     Layer.succeed(
@@ -76,13 +86,21 @@ export class Transcript extends Context.Service<Transcript, Interface>()(
           const json = yield* Schema.encodeEffect(Stored)(saved)
           const now = yield* Clock.currentTimeMillis
 
-          yield* Effect.tryPromise(() => storage.put(key, json))
-          yield* Effect.tryPromise(() => storage.setAlarm(now + keep))
+          yield* Effect.tryPromise(() =>
+            storage.transaction(async (txn) => {
+              await txn.put(key, json)
+              await txn.setAlarm(now + keep)
+            }),
+          )
         }, Effect.orDie),
-        delete: Effect.tryPromise(() => storage.deleteAll()).pipe(
-          Effect.orDie,
-          Effect.withSpan("Transcript.delete"),
-        ),
+        expire: Effect.gen(function* () {
+          const alarm = yield* Effect.tryPromise(() => storage.getAlarm())
+          const now = yield* Clock.currentTimeMillis
+
+          if (alarm !== null && alarm > now) return
+
+          yield* Effect.tryPromise(() => storage.deleteAll())
+        }).pipe(Effect.orDie, Effect.withSpan("Transcript.expire")),
       }),
     )
 }

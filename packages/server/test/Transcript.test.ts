@@ -1,6 +1,6 @@
 import { Unanswered } from "@civicdata/domain"
 import { describe, expect, it } from "@effect/vitest"
-import { Effect, Option } from "effect"
+import { Effect, Exit, Option } from "effect"
 import { TestClock } from "effect/testing"
 
 import { keep, Transcript } from "../src/Transcript.ts"
@@ -33,4 +33,15 @@ describe("Transcript.durable", () => {
       expect(alarms).toEqual([1_000 + keep])
     }).pipe(Effect.provide(Transcript.durable(fake)))
   })
+
+  it.effect("keeps nothing when the alarm that would delete it cannot be set", () =>
+    Effect.gen(function* () {
+      const transcript = yield* Transcript
+
+      expect(Exit.isFailure(yield* Effect.exit(transcript.save(saved)))).toBe(true)
+      expect(yield* transcript.load).toEqual(Option.none())
+    }).pipe(
+      Effect.provide(Transcript.durable(memoryStorage(undefined, { alarmFails: true }).fake)),
+    ),
+  )
 })
