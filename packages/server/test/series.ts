@@ -7,7 +7,7 @@ import { strToU8, zipSync } from "fflate"
 import { Gather } from "../src/Gather.ts"
 import { type SeriesBucket, Store } from "../src/Store.ts"
 import { WorldBank } from "../src/WorldBank.ts"
-import { build, catalogOver, emptyCatalog, entry, listings } from "./catalog.ts"
+import { build, catalogOver, entry, listings } from "./catalog.ts"
 import { http, memory } from "./fakes.ts"
 import population from "./fixtures/worldbank/bulk-population.csv?raw"
 import unemployment from "./fixtures/worldbank/bulk-unemployment.csv?raw"
@@ -142,12 +142,6 @@ export const publishing = (codes: ReturnType<typeof indicators>): Published => (
     [codes.unemployment, bulk(recorded.unemployment)],
   ]),
 })
-
-// The catalog tables and the gathering run's tables, empty.
-export const emptyTables = async () => {
-  await emptyCatalog()
-  await db.exec("DROP TABLE IF EXISTS series_version; DROP TABLE IF EXISTS series_held;")
-}
 
 // The catalog listing `entries`, published.
 export const catalogue = (entries: ReadonlyArray<CatalogEntry>) =>

@@ -16,6 +16,7 @@ import {
   Year,
 } from "@civicdata/domain"
 import { describe, expect, it } from "@effect/vitest"
+import { reset } from "cloudflare:test"
 import { DateTime, Effect, Layer, Schema } from "effect"
 import { HttpServer } from "effect/http"
 import { HttpApiTest } from "effect/http-api"
@@ -24,12 +25,14 @@ import { Agent } from "../src/Agent.ts"
 import { AskLimit } from "../src/AskLimit.ts"
 import { Catalog } from "../src/Catalog.ts"
 import { Conversations } from "../src/Conversations.ts"
+import { Directions } from "../src/Directions.ts"
 import { Handlers } from "../src/Handlers.ts"
 import { Notes } from "../src/Notes.ts"
 import { Politics } from "../src/Politics.ts"
 import { Sdmx } from "../src/Sdmx.ts"
 import { titles } from "../src/titles.gen.ts"
 import { WorldBank } from "../src/WorldBank.ts"
+import { build, catalogOver, entry, listings, stored } from "./catalog.ts"
 import { http, memory, offline } from "./fakes.ts"
 import populationFlow from "./fixtures/eurostat/population-flow.json"
 import populationOptions from "./fixtures/eurostat/population-options.csv?raw"
@@ -39,6 +42,7 @@ import unemploymentFlow from "./fixtures/eurostat/unemployment-flow.json"
 import unemploymentOptions from "./fixtures/eurostat/unemployment-options.csv?raw"
 import unemploymentRates from "./fixtures/eurostat/unemployment-total.csv?raw"
 import unemploymentNotes from "./fixtures/oecd/unemployment-notes.csv?raw"
+import { fakeModel } from "./model.ts"
 
 const population = IndicatorId.make("SP.POP.TOTL")
 const gdp = IndicatorId.make("NY.GDP.MKTP.CD")
@@ -214,7 +218,12 @@ const serve = (
   {
     sdmx = Sdmx.layer.pipe(Layer.provide(offline)),
     notes = noNotes,
-  }: { sdmx?: Layer.Layer<Sdmx>; notes?: Layer.Layer<Notes> } = {},
+    directions = Directions.listed,
+  }: {
+    sdmx?: Layer.Layer<Sdmx>
+    notes?: Layer.Layer<Notes>
+    directions?: Layer.Layer<Directions>
+  } = {},
 ) =>
   Layer.mergeAll(
     Handlers.pipe(
@@ -226,6 +235,7 @@ const serve = (
       Layer.provide(Politics.unavailable),
       Layer.provide(source),
       Layer.provide(sdmx),
+      Layer.provide(directions),
     ),
     HttpServer.layerServices,
   )
@@ -361,6 +371,33 @@ describe("POST /api/views/resolve", () => {
 
       expect(resolved.direction).toBe("Neutral")
     }).pipe(Effect.provide(serve(worldBank))),
+  )
+
+  it.effect(
+    "gives a chart the direction the catalog build classified, off the hand-checked list",
+    () =>
+      Effect.gen(function* () {
+        yield* Effect.promise(reset)
+
+        // The fake model's answer for GDP, which the list does not hold.
+        const model = fakeModel({ [gdp]: "Higher" })
+
+        yield* build(1).pipe(
+          Effect.provide(
+            catalogOver(listings({ "World Bank": [entry(gdp, "GDP (current US$)")] }), {
+              classifier: model.classifier,
+            }),
+          ),
+        )
+
+        const client = yield* HttpApiTest.groups(Api, ["views"])
+
+        const resolved = yield* client.views.resolve({
+          payload: Ranking.make({ indicator: gdp, countries: ["FRA", "DEU"], year: year(2020) }),
+        })
+
+        expect(resolved.direction).toBe("Higher")
+      }).pipe(Effect.provide(serve(worldBank, { directions: stored }))),
   )
 
   it.effect("plots one indicator against another, citing both", () =>

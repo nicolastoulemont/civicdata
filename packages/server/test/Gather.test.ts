@@ -1,5 +1,6 @@
 import { Year } from "@civicdata/domain"
 import { beforeEach, describe, expect, it } from "@effect/vitest"
+import { reset } from "cloudflare:test"
 import { DateTime, Effect, Layer } from "effect"
 import { TestClock } from "effect/testing"
 
@@ -14,7 +15,6 @@ import {
   catalogOf,
   catalogue,
   charts,
-  emptyTables,
   gathered,
   gatherOver,
   held,
@@ -24,7 +24,9 @@ import {
   serving,
 } from "./series.ts"
 
-beforeEach(emptyTables)
+// Every test starts from empty bindings: the test Worker's D1 database and
+// buckets are shared by the file's tests.
+beforeEach(() => reset())
 
 const run = Gather.run().pipe(Effect.provide(Step.immediate))
 

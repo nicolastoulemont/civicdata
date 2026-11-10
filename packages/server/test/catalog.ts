@@ -5,6 +5,8 @@ import { Effect, Layer } from "effect"
 
 import { Catalog } from "../src/Catalog.ts"
 import { CatalogBuild, Step } from "../src/CatalogBuild.ts"
+import { Classifier } from "../src/Classifier.ts"
+import { Directions } from "../src/Directions.ts"
 import { Sdmx } from "../src/Sdmx.ts"
 import { type Ai, type Index, Vectors } from "../src/Vectors.ts"
 import { WorldBank } from "../src/WorldBank.ts"
@@ -159,12 +161,6 @@ const db = env.DB
 
 if (db === undefined) throw new Error("vitest.config.ts must bind a D1 database as DB")
 
-// The test Worker's D1 database is shared by every test that uses it.
-export const emptyCatalog = () =>
-  db.exec(
-    "DROP TABLE IF EXISTS catalog; DROP TABLE IF EXISTS catalog_current; DROP TABLE IF EXISTS catalog_fingerprint; DROP TABLE IF EXISTS catalog_vector;",
-  )
-
 // Drops tables, leaving the catalog as an earlier version made it.
 export const drop = (...tables: ReadonlyArray<string>) =>
   Effect.promise(() => db.exec(tables.map((table) => `DROP TABLE ${table};`).join(" ")))
@@ -176,22 +172,33 @@ export const published = () =>
   ).pipe(Effect.map(({ results }) => results))
 
 // The real catalog and its build over the test Worker's local D1 database,
-// with the sources faked as services and Workers AI and Vectorize faked at
-// their bindings. Each layer built is a Worker starting: it creates the
-// tables it lacks.
+// with the sources faked as services, Workers AI and Vectorize faked at
+// their bindings, and no classifier unless a test passes one (test/model.ts).
+// Each layer built is a Worker starting: it creates the tables it lacks.
 export const catalogOver = (
   lists: Listings,
   {
     ai = workersAi({ up: true }),
     index = vectorize().index,
     model,
-  }: { ai?: Ai; index?: Index; model?: string } = {},
+    classifier = Classifier.unavailable,
+  }: {
+    ai?: Ai
+    index?: Index
+    model?: string
+    classifier?: Layer.Layer<Classifier>
+  } = {},
 ) =>
   Layer.mergeAll(Catalog.layer, CatalogBuild.layer).pipe(
     Layer.provide(sources(lists)),
     Layer.provide(Vectors.cloudflare({ ai, index, model })),
+    Layer.provide(classifier),
     Layer.provide(D1Client.layer({ db }).pipe(Layer.orDie)),
   )
+
+// The directions charts read: the hand-checked list, then what builds stored
+// in the test Worker's D1 database.
+export const stored = Directions.layer.pipe(Layer.provide(D1Client.layer({ db }).pipe(Layer.orDie)))
 
 export const build = (generation: number) =>
   CatalogBuild.run(generation).pipe(Effect.provide(Step.immediate))

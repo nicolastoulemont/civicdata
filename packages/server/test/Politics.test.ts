@@ -8,6 +8,7 @@ import {
   Year,
 } from "@civicdata/domain"
 import { beforeEach, describe, expect, it } from "@effect/vitest"
+import { reset } from "cloudflare:test"
 import { Effect, Layer } from "effect"
 import { HttpServer } from "effect/http"
 import { HttpApiTest } from "effect/http-api"
@@ -21,7 +22,6 @@ import parlgovCabinets from "./fixtures/parlgov/data_cabinet.csv?raw"
 import {
   build,
   dropFingerprints,
-  emptyPolitics,
   forgetPartyIds,
   gone,
   type Files,
@@ -30,7 +30,9 @@ import {
   recorded,
 } from "./politics.ts"
 
-beforeEach(emptyPolitics)
+// Every test starts from empty bindings: the test Worker's D1 database and
+// buckets are shared by the file's tests.
+beforeEach(() => reset())
 
 // The politics routes with real records over D1, built from the recorded
 // files.

@@ -1,10 +1,16 @@
-import { type Direction, IndicatorId } from "@civicdata/domain"
-import { Context, Effect, Layer } from "effect"
+import { Direction, IndicatorId } from "@civicdata/domain"
+import { D1Client } from "@effect/sql-d1"
+import { Context, Effect, Layer, Option, Schema } from "effect"
+import { SqlClient, SqlSchema } from "effect/sql"
+
+import { tables } from "./Catalog.ts"
 
 interface Interface {
   // Which way an indicator's values are better; Neutral when nobody knows.
   readonly of: (indicator: IndicatorId) => Effect.Effect<Direction>
 }
+
+const decode = Schema.decodeUnknownOption(Direction)
 
 const entry = (indicator: string, direction: Direction) =>
   [IndicatorId.make(indicator), direction] as const
@@ -61,13 +67,68 @@ const checked: ReadonlyMap<IndicatorId, Direction> = new Map([
   entry("OECD.ELS.HD,DSD_HEALTH_STAT@DF_MIM,1.1", "Lower"),
 ])
 
-// The one place a direction comes from. The hand-checked list wins; a
-// classification stored by the catalog Workflow will answer for the rest.
+// The one place a direction comes from: the hand-checked list, else the
+// direction the catalog Workflow's model stored, else Neutral.
 export class Directions extends Context.Service<Directions, Interface>()(
   "@civicdata/server/Directions",
 ) {
-  static readonly layer = Layer.succeed(
+  // Needs a SqlClient over the catalog's database.
+  static readonly layer = Layer.effect(
+    Directions,
+    Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient
+
+      yield* tables
+
+      const stored = SqlSchema.findOneOption({
+        Request: IndicatorId,
+        Result: Schema.Struct({ direction: Schema.String }),
+        execute: (indicator) =>
+          sql`SELECT direction FROM catalog_direction WHERE indicator = ${indicator}`,
+      })
+
+      const of = Effect.fn("Directions.of")(
+        function* (indicator: IndicatorId) {
+          const listed = checked.get(indicator)
+
+          if (listed !== undefined) return listed
+
+          // A stored value that is not a direction is Neutral.
+          return Option.getOrElse(
+            Option.flatMap(yield* stored(indicator), ({ direction }) => decode(direction)),
+            () => "Neutral" as const,
+          )
+        },
+        // The chart still draws without a direction.
+        Effect.catchTags({
+          SqlError: (error) =>
+            Effect.logWarning("Reading a direction failed", error).pipe(
+              Effect.as("Neutral" as const),
+            ),
+          SchemaError: Effect.die,
+        }),
+      )
+
+      return Directions.of({ of })
+    }).pipe(Effect.orDie),
+  )
+
+  // The hand-checked list alone, where there is no catalog database.
+  static readonly listed = Layer.succeed(
     Directions,
     Directions.of({ of: (indicator) => Effect.succeed(checked.get(indicator) ?? "Neutral") }),
+  )
+
+  // D1 inside Workers (deployed, or under `alchemy dev`). Plain `pnpm dev`
+  // runs in Node, where `cloudflare:workers` does not exist.
+  static readonly live = Layer.unwrap(
+    Effect.tryPromise(() => import("cloudflare:workers")).pipe(
+      Effect.map(({ env }) =>
+        env.DB === undefined
+          ? Directions.listed
+          : Directions.layer.pipe(Layer.provide(D1Client.layer({ db: env.DB }).pipe(Layer.orDie))),
+      ),
+      Effect.orElseSucceed(() => Directions.listed),
+    ),
   )
 }

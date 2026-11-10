@@ -56,7 +56,8 @@ const fuse = (rankings: ReadonlyArray<ReadonlyArray<CatalogEntry>>) => {
 // entries in SQLite full-text search (FTS5); `catalog_current` names the
 // generation of each source that searches read; `catalog_fingerprint` holds
 // a fingerprint of what each generation stores, which tells a build whether a
-// listing matches the published generation. A build writes a new generation
+// listing matches the published generation; `catalog_direction` holds which
+// way each indicator's values are better. A build writes a new generation
 // and publishes it once complete (see CatalogBuild.ts).
 export const tables = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient
@@ -81,6 +82,17 @@ export const tables = Effect.gen(function* () {
       generation INTEGER NOT NULL,
       fingerprint TEXT NOT NULL,
       PRIMARY KEY (source, generation)
+    )
+  `
+  // The direction the catalog Workflow's model gave each indicator, with the
+  // name and definition it read: a build asks again only when they change.
+  // Kept across generations, so an unchanged entry keeps its direction.
+  yield* sql`
+    CREATE TABLE IF NOT EXISTS catalog_direction (
+      indicator TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      definition TEXT NOT NULL,
+      direction TEXT NOT NULL
     )
   `
   // Left by the catalog that loaded and embedded itself during searches.
