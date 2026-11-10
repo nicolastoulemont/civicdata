@@ -365,9 +365,9 @@ const read = ({ publisher, url }: Citation): Page => ({
   url,
 })
 
-// What the card of a record a takeaway cites shows, as the chart's tooltip
-// says it for the year the record starts: its line, the pages it cites,
-// numbered as its line refers to them, and the page its name links to.
+// What the card of a record the agent's words cite shows, as the chart's
+// tooltip says it for the year the record starts: its line, the pages it
+// cites, numbered as its line refers to them, and the page its name links to.
 export const card = (record: Cited, countries: ReadonlyArray<Country>) =>
   Cited.match(record, {
     Government: ({ government }) => ({

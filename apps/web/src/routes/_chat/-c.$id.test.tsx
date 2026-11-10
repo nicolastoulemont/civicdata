@@ -1,4 +1,13 @@
-import { Answered, ConversationId, IndicatorId, Trend, Turns, View, Year } from "@civicdata/domain"
+import {
+  Answered,
+  Chart,
+  ConversationId,
+  IndicatorId,
+  Trend,
+  Turns,
+  View,
+  Year,
+} from "@civicdata/domain"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import {
   createMemoryHistory,
@@ -56,7 +65,7 @@ it("starts loading a conversation's charts when its sidebar row is hovered", asy
           answered: [
             {
               question: "How has life expectancy changed in Brazil?",
-              answer: Answered.make({ charts: [{ view: brazil }] }),
+              answer: Answered.make({ blocks: [Chart.make({ view: brazil })] }),
             },
           ],
         }),

@@ -1,4 +1,4 @@
-import { type Chart, type Cite, type Country, nameOf } from "@civicdata/domain"
+import { type Cite, type Country, nameOf } from "@civicdata/domain"
 import { Fragment } from "react"
 
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
@@ -7,11 +7,11 @@ import { card } from "./politics.ts"
 
 interface MentionProps {
   cite: typeof Cite.Type
-  // The countries of the chart the takeaway describes.
+  // The countries of the charts the words describe.
   countries: ReadonlyArray<Country>
 }
 
-// A record a takeaway cites, by its name: a link to the page that
+// A record the agent's words cite, by its name: a link to the page that
 // establishes it, whose card shows what the chart's tooltip says of it.
 const Mention = ({ cite, countries }: MentionProps) => {
   const { lines, pages, link } = card(cite.record, countries)
@@ -45,22 +45,25 @@ const Mention = ({ cite, countries }: MentionProps) => {
 }
 
 interface CitedProps {
-  // A chart with the takeaway the agent kept for it.
-  explained: Chart & { readonly takeaway: string }
+  text: string
+  // The records the text cites, in order, each where its name starts.
+  cites: ReadonlyArray<typeof Cite.Type>
+  // The countries of the charts the text describes, which name who an event
+  // concerns.
+  countries: ReadonlyArray<Country>
 }
 
-// A takeaway's text, with each record it cites as a mention in its place.
-export const Cited = ({ explained: { view, takeaway, cites: cited } }: CitedProps) => {
-  const cites: ReadonlyArray<typeof Cite.Type> = cited ?? []
+// The agent's words, with each record they cite as a mention in its place.
+export const Cited = ({ text, cites, countries }: CitedProps) => {
   const ends = cites.map(({ at, record }) => at + nameOf(record).length)
 
   return (
     <>
-      {takeaway.slice(0, cites[0]?.at)}
+      {text.slice(0, cites[0]?.at)}
       {cites.map((cite, index) => (
         <Fragment key={cite.at}>
-          <Mention cite={cite} countries={view.countries} />
-          {takeaway.slice(ends[index], cites[index + 1]?.at)}
+          <Mention cite={cite} countries={countries} />
+          {text.slice(ends[index], cites[index + 1]?.at)}
         </Fragment>
       ))}
     </>

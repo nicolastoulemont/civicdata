@@ -1,6 +1,7 @@
 import {
   AgentUnavailable,
   Answered,
+  Chart,
   Asked,
   IndicatorId,
   Stopped,
@@ -36,8 +37,8 @@ describe("rail preview", () => {
     expect(preview(turn(Stopped.make({})))).toEqual({ question, answer: "Stopped" })
   })
 
-  it("shows only the question of a chart without a takeaway", () => {
-    expect(preview(turn(Answered.make({ charts: [{ view }] })))).toEqual({
+  it("shows only the question of an answer without words", () => {
+    expect(preview(turn(Answered.make({ blocks: [Chart.make({ view })] })))).toEqual({
       question,
       answer: undefined,
     })

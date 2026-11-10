@@ -2,11 +2,13 @@ import {
   Answered,
   Cited,
   Asked,
+  Chart,
   Dimensions,
   IndicatorId,
   Politics,
   Ranking,
   Relation,
+  Text,
   Trend,
   Unanswered,
   type View,
@@ -33,7 +35,7 @@ const brazilAndMexico = (changes: Partial<Trend> = {}) =>
 
 // An answer of these charts, in order.
 const charted = (...views: Arr.NonEmptyReadonlyArray<View>) =>
-  Answered.make({ charts: Arr.map(views, (view) => ({ view })) })
+  Answered.make({ blocks: Arr.map(views, (view) => Chart.make({ view })) })
 
 const trend = (changes: Partial<Trend> = {}) => charted(brazilAndMexico(changes))
 
@@ -61,7 +63,7 @@ describe("score", () => {
 
   it("scores the political context a chart draws when the case names it", () => {
     const governed = Answered.make({
-      charts: [{ view: brazilAndMexico(), overlays: ["governments"] }],
+      blocks: [Chart.make({ view: brazilAndMexico(), overlays: ["governments"] })],
     })
 
     expect(score([{ ...expected, overlays: ["governments"] }], governed)).toEqual([])
@@ -75,7 +77,7 @@ describe("score", () => {
     expect(score([expected], governed)).toEqual([])
   })
 
-  it("scores the records a takeaway cites when the case names them", () => {
+  it("scores the records an answer's words cite when the case names them", () => {
     const [crisis] = Schema.decodeUnknownSync(Politics.fields.events)(
       events.filter(({ id }) => id === "financial-crisis"),
     )
@@ -84,15 +86,12 @@ describe("score", () => {
 
     const event = Cited.cases.Event.make({ event: crisis })
 
-    const takeaway = "Life expectancy rose after the Global financial crisis and Great Recession."
+    const text = "Life expectancy rose after the Global financial crisis and Great Recession."
 
     const cited = Answered.make({
-      charts: [
-        {
-          view: brazilAndMexico(),
-          takeaway,
-          cites: [{ at: takeaway.indexOf("Global"), record: event }],
-        },
+      blocks: [
+        Chart.make({ view: brazilAndMexico() }),
+        Text.make({ text, cites: [{ at: text.indexOf("Global"), record: event }] }),
       ],
     })
 
@@ -181,6 +180,16 @@ describe("score", () => {
       'the question "Which GDP?", want no chart',
     ])
     expect(score([expected], Unanswered.make({}))).toEqual(["no chart, want a trend"])
+  })
+
+  it("scores the charts of an answer and none of its text", () => {
+    const said = Text.make({ text: "No indicator measures this." })
+
+    expect(score([Expected.Unanswered()], Answered.make({ blocks: [said] }))).toEqual([])
+    expect(score([expected], Answered.make({ blocks: [said] }))).toEqual(["no chart, want a trend"])
+    expect(
+      score([expected], Answered.make({ blocks: [said, Chart.make({ view: brazilAndMexico() })] })),
+    ).toEqual([])
   })
 
   describe("series", () => {

@@ -1,4 +1,4 @@
-import { Match, Schema, SchemaGetter } from "effect"
+import { Match, Schema } from "effect"
 
 import { Country } from "./Country.ts"
 import { DimensionId } from "./Dimension.ts"
@@ -153,80 +153,56 @@ export const Rejected = Schema.TaggedStruct("Rejected", { reason: Rejection })
 // The agent fetches the data of the chart it proposed, which checks it.
 const fetch = <S extends Schema.Top>(state: S) => ({ id: StepId, view: View, state })
 
-// The takeaway kept, with how many of its numbers were checked against the data.
-export const Checked = Schema.TaggedStruct("Done", { numbers: Count })
-
-// Why a takeaway failed the check: it wrote a number that is not in the
-// data, named a head of government, party or event from the political
-// records without citing it, cited a record the agent did not look up, said
-// what caused a movement in the data, or was empty.
-export const Unchecked = Schema.Literals(["number", "name", "record", "cause", "empty"])
-
-// The takeaway failed the check, so the chart shows without one. Takeaways
-// dropped before the check had several reasons were dropped for a number.
-export const Dropped = Schema.TaggedStruct("Dropped", {
-  reason: Schema.optionalKey(Unchecked),
-})
-
-// The agent writes the chart's takeaway and checks it against the data.
-const takeaway = <S extends Schema.Top>(state: S) => ({ id: StepId, state })
-
-// A political record a takeaway cites, and where its name starts in the
-// takeaway's text.
+// A political record the agent's words cite, and where its name starts in
+// the text.
 export const Cite = Schema.Struct({ at: Count, record: Cited })
 
-// A takeaway and the records it cites, in the order it cites them.
-const said = {
-  takeaway: Schema.optionalKey(Schema.NonEmptyString),
-  cites: Schema.optionalKey(Schema.NonEmptyArray(Cite)),
-}
-
-// Each cited record's name stands at its place in the takeaway.
+// Each cited record's name stands at its place in the text.
 const placed = Schema.makeFilter(
-  ({
-    takeaway: text,
-    cites,
-  }: {
-    readonly takeaway?: string
-    readonly cites?: ReadonlyArray<typeof Cite.Type>
-  }) =>
+  ({ text, cites }: { readonly text: string; readonly cites?: ReadonlyArray<typeof Cite.Type> }) =>
     cites === undefined ||
-    (text !== undefined && cites.every(({ at, record }) => text.startsWith(nameOf(record), at))) ||
-    "each cited record's name must stand at its place in the takeaway",
+    cites.every(({ at, record }) => text.startsWith(nameOf(record), at)) ||
+    "each cited record's name must stand at its place in the text",
 )
 
-// A chart of an answer, with what the agent says it shows, the records it
-// cites, and the political context it draws over a trend, if any. A chart
-// has no takeaway when the agent's text failed the check, and charts saved
-// before takeaways existed have none.
-export const Chart = Schema.Struct({
-  view: View,
-  overlays: Schema.optionalKey(Overlays),
-  ...said,
+// What the agent wrote, in plain text, with the political records it cites
+// in the order it cites them. Paragraphs are separated by a blank line.
+export const Text = Schema.TaggedStruct("Text", {
+  text: Schema.NonEmptyString,
+  cites: Schema.optionalKey(Schema.NonEmptyArray(Cite)),
 }).check(placed)
 
-export interface Chart extends Schema.Schema.Type<typeof Chart> {}
+// A chart of fetched data, with the political context it draws over a trend,
+// if any. The chart's card fetches its data and its source.
+export const Chart = Schema.TaggedStruct("Chart", {
+  view: View,
+  overlays: Schema.optionalKey(Overlays),
+})
 
-// The most charts one answer holds. Most answers hold one; the agent draws
-// more only when one chart cannot show what the question asks.
-export const maxCharts = 3
+export type Chart = typeof Chart.Type
 
-// A chart's place in its answer, the first 0.
-export const ChartIndex = Schema.Int.check(
-  Schema.isBetween({ minimum: 0, maximum: maxCharts - 1 }),
-).pipe(Schema.brand("ChartIndex"))
+// A block of an answer, in the order the agent wrote it: its words or a chart.
+export const Block = Schema.Union([Text, Chart])
+
+export type Block = typeof Block.Type
+
+// A chart's place among the charts of its answer, the first 0. Turns are
+// kept as they ended, so a place keeps naming the same chart.
+export const ChartIndex = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)).pipe(
+  Schema.brand("ChartIndex"),
+)
 
 export type ChartIndex = typeof ChartIndex.Type
 
-// The takeaway the agent kept for a chart it drew, if it kept one, with the
-// records it cites.
-export const Explained = Schema.TaggedStruct("Done", said).check(placed)
+// What the agent says a chart shows, asked for on demand, e.g. after a person
+// changed the chart it drew.
+export const Explanation = Schema.Struct({ view: View, text: Schema.NonEmptyString })
+
+export interface Explanation extends Schema.Schema.Type<typeof Explanation> {}
 
 // A step of work in any state, as it streams. Thinking is the model deciding
-// what to do next. Drawn is a chart of the answer, sent as soon as the agent
-// draws it, with the context it draws over a trend: running while its
-// takeaway is written, then done with the takeaway it kept, if any. A stop
-// while the takeaway is written keeps the chart without one.
+// what to do next. Rendered is a block of the answer, sent as soon as the
+// agent writes it or the data shows its chart.
 const Work = Schema.TaggedUnion({
   Thinking: { id: StepId, state: live(Thought) },
   Search: search(live(Searched)),
@@ -234,18 +210,12 @@ const Work = Schema.TaggedUnion({
   Lookup: lookup(live(Located)),
   Records: records(live(Recorded)),
   Fetch: fetch(live(Fetched, Rejected)),
-  Takeaway: takeaway(live(Checked, Dropped)),
-  Drawn: {
-    id: StepId,
-    view: View,
-    overlays: Schema.optionalKey(Overlays),
-    state: Schema.Union([Running, Explained, Halted]),
-  },
+  Rendered: { id: StepId, block: Block },
 })
 
 export type Work = typeof Work.Type
 
-export const { Thinking, Search, Definition, Lookup, Records, Fetch, Takeaway, Drawn } = Work.cases
+export const { Thinking, Search, Definition, Lookup, Records, Fetch, Rendered } = Work.cases
 
 // A step of work that ended, as a turn keeps it. Thinking is not kept: it
 // only fills the time between steps.
@@ -255,25 +225,11 @@ export const Ended = Schema.TaggedUnion({
   Lookup: lookup(ended(Located)),
   Records: records(ended(Recorded)),
   Fetch: fetch(ended(Fetched, Rejected)),
-  Takeaway: takeaway(ended(Checked, Dropped)),
 })
 
-// Steps as turns saved before steps had states keep them: what the agent
-// asked for, with the sources a search found once those were recorded.
-const Legacy = Schema.Union([
-  Schema.TaggedStruct("Searched", {
-    text: Schema.String,
-    source: Schema.optionalKey(Source),
-    found: Schema.optionalKey(Schema.Array(Source)),
-  }),
-  Schema.TaggedStruct("Described", { indicator: IndicatorId }),
-  Schema.TaggedStruct("Located", { names: Schema.Array(Schema.String) }),
-  Schema.TaggedStruct("Rejected", { problem: Schema.String }),
-])
-
-// The charts that answer the question, in the order the agent drew them.
+// The blocks that answer the question, in the order the agent wrote them.
 export const Answered = Schema.TaggedStruct("Answered", {
-  charts: Schema.NonEmptyArray(Chart).check(Schema.isMaxLength(maxCharts)),
+  blocks: Schema.NonEmptyArray(Block),
 })
 
 // The question can be read several ways that give different charts; the
@@ -283,14 +239,14 @@ export const Asked = Schema.TaggedStruct("Asked", {
   choices: Schema.NonEmptyArray(Schema.String),
 })
 
-// No World Bank indicator measures what the question asks.
+// The agent wrote nothing and showed no chart, e.g. because no indicator
+// measures what the question asks.
 export const Unanswered = Schema.TaggedStruct("Unanswered", {})
 
-// The person stopped the answer, which keeps the charts the agent drew
-// before the stop, in order. Answers stopped before any chart, or before
-// charts were kept, have none.
+// The person stopped the answer, which keeps the blocks the agent wrote
+// before the stop, in order. Answers stopped before any block have none.
 export const Stopped = Schema.TaggedStruct("Stopped", {
-  charts: Schema.optionalKey(Schema.NonEmptyArray(Chart).check(Schema.isMaxLength(maxCharts))),
+  blocks: Schema.optionalKey(Schema.NonEmptyArray(Block)),
 })
 
 // What the agent did while answering, streamed as it happens: each step of
@@ -314,40 +270,26 @@ export const Ending = Schema.Union([Answered, Asked, Unanswered, Stopped])
 
 export type Ending = typeof Ending.Type
 
-// The charts an answer ended with: every chart of an answer, those drawn
+// The blocks an answer ended with: every block of an answer, those written
 // before a stop, or none.
-export const chartsOf = (ending: Ending): ReadonlyArray<Chart> =>
+export const blocksOf = (ending: Ending): ReadonlyArray<Block> =>
   Match.valueTags(ending, {
-    Answered: ({ charts }) => charts,
-    Stopped: ({ charts }) => charts ?? [],
+    Answered: ({ blocks }) => blocks,
+    Stopped: ({ blocks }) => blocks ?? [],
     Asked: () => [],
     Unanswered: () => [],
   })
 
-// An answer saved when answers held one chart reads as an answer of one.
-const OneChart = Schema.TaggedStruct("Answered", {
-  view: Schema.toEncoded(View),
-  takeaway: Schema.optionalKey(Schema.String),
-}).pipe(
-  Schema.decodeTo(Answered, {
-    decode: SchemaGetter.transform(({ _tag, ...chart }) => ({ _tag, charts: [chart] })),
-    encode: SchemaGetter.forbidden(() => "Answers are saved with their charts"),
-  }),
-)
+const isChart = Schema.is(Chart)
+
+// The charts an answer ended with, in order: each one's place is its
+// ChartIndex.
+export const chartsOf = (ending: Ending): ReadonlyArray<Chart> => blocksOf(ending).filter(isChart)
 
 // The chart on screen in place of each of an answer's charts, at the same
 // place: one a person changed the agent's chart to, or null where they did
 // not change it.
 const Shown = Schema.Array(Schema.NullOr(View))
-
-// A turn saved when answers held one chart kept the chart its first chart
-// was changed to.
-const ShownOne = Schema.toEncoded(View).pipe(
-  Schema.decodeTo(Shown, {
-    decode: SchemaGetter.transform((view) => [view]),
-    encode: SchemaGetter.forbidden(() => "Changed charts are saved per chart"),
-  }),
-)
 
 // A question and how the agent answered it: the steps it ended on the way,
 // and how long the answer took from the question to its ending. Turns saved
@@ -356,10 +298,10 @@ const ShownOne = Schema.toEncoded(View).pipe(
 // or changed back, has none.
 export const Turn = Schema.Struct({
   question: Question,
-  answer: Schema.Union([Ending, OneChart]),
-  steps: Schema.optionalKey(Schema.Array(Schema.Union([Ended, Legacy]))),
+  answer: Ending,
+  steps: Schema.optionalKey(Schema.Array(Ended)),
   took: Schema.optionalKey(Schema.DurationFromMillis),
-  shown: Schema.optionalKey(Schema.Union([Shown, ShownOne])),
+  shown: Schema.optionalKey(Shown),
 })
 
 export interface Turn extends Schema.Schema.Type<typeof Turn> {}

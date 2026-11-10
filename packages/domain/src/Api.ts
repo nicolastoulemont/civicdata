@@ -3,9 +3,9 @@ import { HttpApi, HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/ht
 
 import { CatalogEntry, SearchText } from "./Catalog.ts"
 import {
-  Chart,
   ChartIndex,
   ConversationId,
+  Explanation,
   Question,
   Step,
   TurnIndex,
@@ -41,13 +41,13 @@ class Views extends HttpApiGroup.make("views")
       error: [IndicatorNotFound, SourceUnavailable, TransformNotApplicable, DimensionsMissing],
     }),
   )
-  // The agent's takeaway for a chart, e.g. one edited since the agent showed
-  // it. Each request costs a model call, so it counts against the same limit
+  // What the agent says a chart shows, e.g. one edited since the agent
+  // showed it. Each request costs a model call, so it counts against the same limit
   // as questions.
   .add(
     HttpApiEndpoint.post("explain", "/explain", {
       payload: View,
-      success: Chart,
+      success: Explanation,
       error: [
         AgentUnavailable,
         TooManyQuestions,

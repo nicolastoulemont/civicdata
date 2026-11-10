@@ -1,13 +1,12 @@
 import {
   AgentUnavailable,
-  type Chart,
-  Drawn,
+  type Explanation,
   type View,
   SourceUnavailable,
   TooManyQuestions,
 } from "@civicdata/domain"
 import { useMutation } from "@tanstack/react-query"
-import { Data, Match, Schema, Struct } from "effect"
+import { Data, Match } from "effect"
 import { use } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -16,8 +15,8 @@ import { Spinner } from "@/components/ui/spinner"
 import { Hold } from "@/hold"
 
 import { explain } from "./api.ts"
-import { Cited } from "./Cited.tsx"
 import { named } from "./format.ts"
+import { Paragraphs } from "./Paragraphs.tsx"
 import { toQuery } from "./search.ts"
 
 const problemOf = (error: Error) =>
@@ -29,81 +28,22 @@ const problemOf = (error: Error) =>
         ? `${named(error.source)} is not responding`
         : "The chart could not be explained"
 
-type Explained = Chart
-
-// The chart the agent drew in a conversation: one of its answer's charts,
-// or one still being drawn, whose takeaway may not be written yet.
-export type Agent = Chart | typeof Drawn.Type
-
-const isDrawn = Schema.is(Drawn)
-
-// What the agent has said about the chart on screen: nothing yet, a takeaway
-// it is writing, its takeaway, a takeaway withheld because it failed the
-// check against the data and the political records, or a takeaway for the
-// chart before the person's changes. A takeaway comes with the chart it was
-// written for, whose countries name who an event concerns.
+// What the agent said about the chart on screen when asked: nothing yet, an
+// explanation of it, or one of the chart before the person's changes.
 type Said = Data.TaggedEnum<{
   Nothing: {}
-  Writing: {}
-  Current: { readonly explained: Written }
-  Withheld: {}
-  Earlier: { readonly explained: Written }
+  Current: { readonly text: string }
+  Earlier: { readonly text: string }
 }>
-
-// A chart with the takeaway the agent kept for it.
-interface Written extends Explained {
-  readonly takeaway: string
-}
-
-const isWritten = (explained: Explained): explained is Written => explained.takeaway !== undefined
 
 const Said = Data.taggedEnum<Said>()
 
-// The agent's chart with the takeaway it kept, if any, once it has written
-// one or stopped.
-const keptOf = (agent: Agent): Explained | undefined =>
-  isDrawn(agent)
-    ? Match.valueTags(agent.state, {
-        Running: () => undefined,
-        Done: (done) => ({ view: agent.view, ...Struct.omit(done, ["_tag"]) }),
-        Stopped: () => ({ view: agent.view }),
-      })
-    : agent
+const saidOf = (view: View, explained: Explanation | undefined): Said => {
+  if (explained === undefined) return Said.Nothing()
 
-// Prefers a takeaway for the chart on screen, then the latest one.
-const saidOf = (view: View, known: ReadonlyArray<Explained>): Said => {
-  const current = known.find((explained) => toQuery(explained.view) === toQuery(view))
-
-  if (current !== undefined)
-    return isWritten(current) ? Said.Current({ explained: current }) : Said.Withheld()
-
-  const earlier = known.find(isWritten)
-
-  return earlier === undefined ? Said.Nothing() : Said.Earlier({ explained: earlier })
-}
-
-// What the agent has said about the chart on screen, given its own chart and
-// the takeaway asked for on demand, if any. While it writes the takeaway of
-// the chart on screen, it has said nothing else.
-const saidFor = (
-  view: View,
-  { agent, explained }: { agent: Agent | undefined; explained: Explained | undefined },
-): Said => {
-  const kept = agent === undefined ? undefined : keptOf(agent)
-
-  if (
-    agent !== undefined &&
-    kept === undefined &&
-    explained === undefined &&
-    toQuery(agent.view) === toQuery(view)
-  ) {
-    return Said.Writing()
-  }
-
-  return saidOf(view, [
-    ...(explained === undefined ? [] : [explained]),
-    ...(kept?.takeaway === undefined ? [] : [kept]),
-  ])
+  return toQuery(explained.view) === toQuery(view)
+    ? Said.Current({ text: explained.text })
+    : Said.Earlier({ text: explained.text })
 }
 
 interface TextProps {
@@ -113,23 +53,10 @@ interface TextProps {
 const Text = ({ said }: TextProps) =>
   Match.valueTags(said, {
     Nothing: () => null,
-    Writing: () => <p className="shimmer text-sm text-muted-foreground">Writing the takeaway…</p>,
-    Current: ({ explained }) => (
-      <p>
-        <Cited explained={explained} />
-      </p>
-    ),
-    Withheld: () => (
-      <p className="text-sm text-muted-foreground">
-        The assistant's explanation did not match the data and records behind the chart, so it is
-        not shown.
-      </p>
-    ),
-    Earlier: ({ explained }) => (
+    Current: ({ text }) => <Paragraphs text={text} />,
+    Earlier: ({ text }) => (
       <>
-        <p className="text-muted-foreground">
-          <Cited explained={explained} />
-        </p>
+        <Paragraphs text={text} className="text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
           This describes the chart before your changes.
         </p>
@@ -139,28 +66,29 @@ const Text = ({ said }: TextProps) =>
 
 interface TakeawayProps {
   view: View
-  // The chart the agent answered a question with, and its takeaway.
-  agent: Agent | undefined
+  // The chart the agent answered a question with, in a conversation.
+  agent: View | undefined
   onChange: (view: View) => void
 }
 
-// The agent's takeaway for the chart on screen: the one it answered with,
-// the one it is writing, or one asked for on demand. Changes never ask the
-// agent, so after one the takeaway describes an earlier chart: it greys out
-// and the button asks again. Changing back to a chart already explained
-// shows its takeaway, and a changed chart in a conversation can go back to
-// the agent's.
+// What the agent says the chart on screen shows, asked for on demand.
+// Changes never ask the agent, so after one the explanation describes an
+// earlier chart: it greys out and the button asks again. In a conversation,
+// the agent's own chart needs none: its answer says what the chart shows. A
+// chart changed from it can go back to it.
 export const Takeaway = ({ view, agent, onChange }: TakeawayProps) => {
   const hold = use(Hold)
   const explaining = useMutation({ mutationFn: explain })
 
-  const said = saidFor(view, { agent, explained: explaining.data })
+  if (agent !== undefined && toQuery(agent) === toQuery(view)) return null
+
+  const said = saidOf(view, explaining.data)
 
   return (
     <section aria-label="Takeaway" className="flex flex-col items-start gap-2">
       <Text said={said} />
       <div className="flex flex-wrap gap-2 empty:hidden">
-        {Said.$is("Current")(said) || Said.$is("Writing")(said) ? null : (
+        {Said.$is("Current")(said) ? null : (
           <Button
             variant="outline"
             size="sm"
@@ -174,8 +102,8 @@ export const Takeaway = ({ view, agent, onChange }: TakeawayProps) => {
             Explain this chart
           </Button>
         )}
-        {agent === undefined || toQuery(agent.view) === toQuery(view) ? null : (
-          <Button variant="outline" size="sm" onClick={() => onChange(agent.view)}>
+        {agent === undefined ? null : (
+          <Button variant="outline" size="sm" onClick={() => onChange(agent)}>
             Back to the agent's chart
           </Button>
         )}

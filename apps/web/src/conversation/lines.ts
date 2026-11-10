@@ -1,4 +1,5 @@
 import {
+  chartsOf,
   type Country,
   type Definition,
   type Failed,
@@ -11,11 +12,9 @@ import {
   type Source,
   sourceOf,
   type Step,
-  type Takeaway,
   type Thinking,
   type Turn,
   transformOf,
-  type Unchecked,
   type View,
 } from "@civicdata/domain"
 import { Match, Predicate } from "effect"
@@ -28,7 +27,6 @@ import {
   type LucideIcon,
   MapPin,
   MessageCircleQuestion,
-  PenLine,
   Search as SearchIcon,
   SearchX,
 } from "lucide-react"
@@ -258,52 +256,6 @@ const fetch = ({ view, state }: typeof Fetch.Type) => {
   })
 }
 
-// Why the summary was left out. Summaries dropped before the check said why
-// were dropped for a number.
-const unchecked: Record<typeof Unchecked.Type, string> = {
-  number: "it had a number that isn't in the data",
-  name: "it named a government, party or event without citing its record",
-  record: "it cited a record the assistant didn't look up",
-  cause: "it said what caused a change in the data",
-  empty: "the assistant wrote none",
-}
-
-const takeaway = ({ state }: typeof Takeaway.Type) => {
-  const icon = PenLine
-
-  return Match.valueTags(state, {
-    Running: () => line("Running", { icon, text: "Writing the summary…" }),
-    Done: ({ numbers }) =>
-      line("Done", {
-        icon,
-        text:
-          numbers === 0
-            ? "Wrote the summary"
-            : `Checked ${plural(numbers, ["number", "numbers"])} against the data`,
-      }),
-    Dropped: ({ reason = "number" }) =>
-      line("Done", { icon, text: `Left out the summary: ${unchecked[reason]}` }),
-    Failed: ({ reason }) => failed(reason, { icon, text: "Couldn't write the summary" }),
-    Stopped: () => line("Stopped", { icon, text: "Stopped writing the summary" }),
-  })
-}
-
-// "Searched Eurostat for “housing”: Eurostat", as searches saved before steps
-// had states read. Older ones say only what was searched.
-const searchedBefore = (
-  text: string,
-  {
-    source,
-    found: sources,
-  }: { source?: Source | undefined; found?: ReadonlyArray<Source> | undefined },
-) => {
-  const asked = `Searched${source === undefined ? "" : ` ${source}`} for “${text}”`
-
-  if (sources === undefined) return asked
-
-  return `${asked}: ${sources.length === 0 ? "none found" : sources.join(", ")}`
-}
-
 // The line of a step, or none when it has nothing to say, as Thinking once
 // the model decided.
 export const lineOf = (step: Step | Saved): Line | undefined =>
@@ -314,20 +266,20 @@ export const lineOf = (step: Step | Saved): Line | undefined =>
     Lookup: lookup,
     Records: records,
     Fetch: fetch,
-    Takeaway: takeaway,
-    // A chart shows in the answer, not in the log.
-    Drawn: () => undefined,
-    Searched: ({ text, source, found: sources }) =>
-      line("Done", { icon: SearchIcon, text: searchedBefore(text, { source, found: sources }) }),
-    Described: ({ indicator }) =>
-      line("Done", { icon: BookOpen, text: `Read the definition of ${indicator}` }),
-    Located: ({ names }) => line("Done", { icon: MapPin, text: `Looked up ${names.join(", ")}` }),
-    Rejected: ({ problem }) => line("Done", { icon: ChartLine, text: retried, more: [problem] }),
-    Answered: ({ charts }) =>
-      line("Done", {
+    // A block shows in the answer, not in the log.
+    Rendered: () => undefined,
+    Answered: (answered) => {
+      const count = chartsOf(answered).length
+
+      return line("Done", {
         icon: ChartLine,
-        text: charts.length === 1 ? "Found a chart" : `Found ${charts.length} charts`,
-      }),
+        text: Match.value(count).pipe(
+          Match.when(0, () => "Answered in words"),
+          Match.when(1, () => "Found a chart"),
+          Match.orElse(() => `Found ${count} charts`),
+        ),
+      })
+    },
     Asked: () => line("Done", { icon: MessageCircleQuestion, text: "Asked which you mean" }),
     Unanswered: () => line("Done", { icon: SearchX, text: "Found no indicator" }),
     Stopped: () => line("Stopped", { icon: CircleStop, text: "Stopped" }),
@@ -338,22 +290,16 @@ const searches: Noun = ["search", "searches"]
 const definitions: Noun = ["definition", "definitions"]
 const lookups: Noun = ["lookup", "lookups"]
 const charts: Noun = ["chart", "charts"]
-const summaries: Noun = ["summary", "summaries"]
 
 // The kind of work a step did. Only a chart the data could show counts as
 // one: a chart tried and rejected, or cut off, is none.
 const kindOf = (step: Saved): Noun | undefined =>
   Match.valueTags(step, {
     Search: () => searches,
-    Searched: () => searches,
     Definition: () => definitions,
-    Described: () => definitions,
     Lookup: () => lookups,
-    Located: () => lookups,
     Records: () => lookups,
     Fetch: ({ state }) => (Predicate.isTagged(state, "Done") ? charts : undefined),
-    Rejected: () => undefined,
-    Takeaway: () => summaries,
   })
 
 // The two kinds of work the agent did most, most first, a tie going to the

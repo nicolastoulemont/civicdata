@@ -371,9 +371,9 @@ const ballotNames: Record<Ballot, string> = {
   "president-indirect": "indirect presidential election",
 }
 
-// The name a takeaway shows for a record it cites: a government by its head,
-// an election by its year and ballot ("2017 presidential election"), an
-// event or a reform by its own name.
+// The name the agent's words show for a record they cite: a government by
+// its head, an election by its year and ballot ("2017 presidential
+// election"), an event or a reform by its own name.
 export const nameOf = (cited: Cited) =>
   Cited.match(cited, {
     Government: ({ government }) => government.head,

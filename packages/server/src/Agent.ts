@@ -2,20 +2,18 @@ import {
   AgentUnavailable,
   Answered,
   Asked,
+  type Block,
   CatalogUnavailable,
   Change,
   Chart,
   type ChartIndex,
-  Checked,
   Cited,
   Country,
   Definition,
   type Dimension,
   type DimensionsMissing,
-  Drawn,
-  Dropped,
   End,
-  Explained,
+  type Explanation,
   Failed,
   Fetch,
   Fetched,
@@ -26,7 +24,6 @@ import {
   Located,
   locate,
   Lookup,
-  maxCharts,
   members,
   Overlay,
   type Overlays,
@@ -40,6 +37,7 @@ import {
   Rejected,
   Rejection,
   Relation,
+  Rendered,
   type ResolvedView,
   Running,
   Search,
@@ -49,7 +47,7 @@ import {
   sourceOf,
   type Step,
   StepId,
-  Takeaway,
+  Text,
   Thinking,
   Thought,
   transformOf,
@@ -84,11 +82,12 @@ import { Chat, LanguageModel, Prompt, Tool, Toolkit } from "effect/ai"
 import { FetchHttpClient } from "effect/http"
 
 import { Catalog } from "./Catalog.ts"
+import { cite } from "./Citations.ts"
 import { Politics } from "./Politics.ts"
 import { Form, limits, unreadable, type Unreadable } from "./readable.ts"
 import { Resolver } from "./Resolver.ts"
 import { Sdmx } from "./Sdmx.ts"
-import { check, namesIn, rules, Summary, summarize } from "./Takeaway.ts"
+import { Summary, summarize } from "./Summary.ts"
 import { WorldBank } from "./WorldBank.ts"
 
 // Why an answer could not be given at all.
@@ -122,20 +121,18 @@ interface Interface {
   // stream ends with Answered, Asked or Unanswered, and the chat then holds
   // the question and the answer, so a follow-up can build on them.
   readonly ask: (chat: Chat.Chat, asked: Asking) => Stream.Stream<Step, Failure>
-  // A takeaway for a chart on its own, outside a chat, e.g. after someone
-  // edited the chart the agent showed. It has none when the model's text
-  // fails the check.
-  readonly explain: (view: View) => Effect.Effect<Chart, Unexplained>
+  // What a chart on its own shows, outside a chat, e.g. after someone edited
+  // the chart the agent showed.
+  readonly explain: (view: View) => Effect.Effect<Explanation, Unexplained>
 }
 
 // Used when the deployment does not name a model in OPENAI_MODEL.
 export const defaultModel = "gpt-6.1-terra"
 
 // Model turns before the agent gives up on a question: enough for each of
-// three charts to search, read a definition, look up places and be fixed
-// once. Each turn is one model request, and each chart's takeaway one more,
-// so a question costs at most rounds + maxCharts requests.
-const rounds = 12
+// three charts to search, read a definition, look up places, be fixed once
+// and be written about. Each turn is one model request.
+const rounds = 15
 
 // Earlier questions the model is sent again with a new one. Older questions,
 // with everything the agent did to answer them, leave the chat, so a long
@@ -165,14 +162,8 @@ class Report extends Context.Service<Report, (step: Work) => Effect.Effect<void>
   "@civicdata/server/Agent/Report",
 ) {}
 
-// Whether the answer's current round has drawn a chart. A round draws one at
-// most, so the model writes each chart's takeaway before it draws the next.
-class Drawing extends Context.Service<Drawing, Ref.Ref<boolean>>()(
-  "@civicdata/server/Agent/Drawing",
-) {}
-
 // The political records the answer's lookups found, by id: the only ones
-// its takeaways can cite.
+// its words can cite.
 class Known extends Context.Service<Known, Ref.Ref<ReadonlyMap<string, Cited>>>()(
   "@civicdata/server/Agent/Known",
 ) {}
@@ -317,7 +308,7 @@ const Found = Schema.TaggedStruct("Records", {
 
 const FindPolitics = Tool.make("find_politics", {
   description:
-    "Look up the elections, governments, major events and pension reforms of countries over a range of years, from stored records with their sources. Records cover EU and OECD members; `uncovered` lists the countries without any. Each record has an id, which a takeaway cites it by.",
+    "Look up the elections, governments, major events and pension reforms of countries over a range of years, from stored records with their sources. Records cover EU and OECD members; `uncovered` lists the countries without any. Each record has an id, which your words cite it by.",
   parameters: Schema.Struct({
     countries: Schema.Array(Schema.String).annotate({
       description: "ISO 3166-1 alpha-3 codes, e.g. FRA, DEU",
@@ -343,7 +334,7 @@ const AskUser = Tool.make("ask_user", {
 
 const ShowChart = Tool.make("show_chart", {
   description:
-    "Show one chart of a World Bank, Eurostat or OECD indicator. The chart is checked against the data; when it is rejected, fix what the problem names and call again. Call it once at a time: write each chart's takeaway before you show the next.",
+    "Show one chart of a World Bank, Eurostat or OECD indicator in the answer, after what you wrote so far. The chart is checked against the data; when it is rejected, fix what the problem names and call again. Returns a summary of the charted values to write about.",
   parameters: Schema.Struct({
     chart: Form.annotate({
       description: `trend: one line per country over a range of years, at most ${limits.trend.most} countries. ranking: countries compared in one year, as bars, at most ${limits.ranking.most}. map: a ranking drawn as a world map, at least ${limits.map.least} countries. change: each country's value in two years, from and to, at most ${limits.change.most}. relation: one dot per country in one year, the indicator against another, at least ${limits.relation.least} countries.`,
@@ -388,7 +379,7 @@ const ShowChart = Tool.make("show_chart", {
   }),
   success: Schema.Union([Shown, Refused]),
   failure: SourceUnavailable,
-  dependencies: [Report, Drawing],
+  dependencies: [Report],
 })
 
 const Tools = Toolkit.make(
@@ -534,13 +525,6 @@ const crowded = (form: Form, { countries, reason }: { countries: number; reason:
     TooMany: ({ most }) => `Too many countries for a ${form}: ${countries}, at most ${most}.`,
     TooFew: ({ least }) => `Too few countries for a ${form}: ${countries}, at least ${least}.`,
   })} Instead, ${instead[form]}.`
-
-// The takeaway written for a chart, if it passed the check, and how its
-// step ended.
-interface Written {
-  readonly takeaway?: Pick<Chart, "takeaway" | "cites">
-  readonly state: typeof Takeaway.Type.state
-}
 
 // A chart the data cannot show: why, for people, and what to fix, for the model.
 interface Refusal {
@@ -874,25 +858,9 @@ const ToolsLayer = Tools.toLayer(
       // Accepts only a View that decodes, that people can read, and that
       // resolves to at least one value. Mistakes go back to the model to
       // fix; an unreachable source fails the question. A View that does not
-      // decode, or a second chart in one round, is the model's mistake, told
-      // to it alone; one the data cannot show is reported with why. A chart
-      // refused frees the round for another.
-      show_chart: (draft, { toolCallId }) =>
-        Effect.gen(function* () {
-          const drawing = yield* Drawing
-
-          if (yield* Ref.getAndSet(drawing, true)) {
-            return rejected(
-              "Show one chart at a time. Write the takeaway of the chart shown, then call show_chart for the next one.",
-            )
-          }
-
-          const result = yield* draw(draft, toolCallId)
-
-          if (!isShown(result)) yield* Ref.set(drawing, false)
-
-          return result
-        }),
+      // decode is the model's mistake, told to it alone; one the data cannot
+      // show is reported with why.
+      show_chart: (draft, { toolCallId }) => draw(draft, toolCallId),
     })
   }),
 )
@@ -914,19 +882,40 @@ const askedIn = (round: Round) =>
     })[0],
   )
 
-// The chart the agent drew in this round, if any: a round draws one at most.
-const shownIn = (round: Round) =>
-  Option.fromUndefinedOr(
-    round.toolResults.flatMap((result) =>
-      result.name === "show_chart" && !result.isFailure && isShown(result.result)
-        ? [result.result]
-        : [],
-    )[0],
+// What the model wrote as a block, with the names of the records it cites.
+// The answer shows plain text, so Markdown bold, which models write anyway,
+// is removed. Words that cite a record the agent did not look up are none.
+const textOf = (written: string, known: ReadonlyMap<string, Cited>) =>
+  Option.map(cite(written.replaceAll("**", "").trim(), known), ({ text, cites }) =>
+    Arr.isReadonlyArrayNonEmpty(cites) ? Text.make({ text, cites }) : Text.make({ text }),
   )
+
+// The blocks of this round, in order: what the model wrote, then each chart
+// the data showed. A model writes before its tool calls, and their results
+// follow them. Words that cannot be shown are none.
+const blocksIn = (
+  round: Round,
+  known: ReadonlyMap<string, Cited>,
+): ReadonlyArray<Option.Option<Block>> =>
+  round.content.flatMap((part): ReadonlyArray<Option.Option<Block>> => {
+    if (part.type === "text") return part.text.trim() === "" ? [] : [textOf(part.text, known)]
+
+    if (part.type === "tool-result" && part.name === "show_chart" && !part.isFailure) {
+      return isShown(part.result)
+        ? [Option.some(Chart.make(Struct.omit(part.result, ["_tag", "data"])))]
+        : []
+    }
+
+    return []
+  })
+
+// How the agent writes about a chart, in an answer and on its own.
+const writing =
+  "Write plain text without Markdown, in short paragraphs separated by a blank line. Say what the data shows: which way each country moves, which is highest or lowest, or how two indicators go together. Take numbers and years from the data, rounded if you like."
 
 const instructions = (
   year: number,
-) => `You turn a question about countries into charts of data from the World Bank, Eurostat or the OECD: one chart, unless one chart cannot show what the question asks.
+) => `You answer a question about countries with data from the World Bank, Eurostat or the OECD. The answer is what you write and the charts you show, in that order: everything you write outside a tool call is shown to the person, between the charts. Write only what they should read, never what you are about to do.
 
 Pick the source that fits the question when several measure the same thing:
 - Eurostat when every country in the question is in the European Union.
@@ -944,8 +933,8 @@ A measure only one source publishes comes from that source.
    - A Eurostat or OECD dataflow holds several series, e.g. by sex or age. show_chart's rejection lists its dimensions and their codes: pick the series the question asks for, else the total.
    - Use a transform only when the question asks for one.
 3. If show_chart rejects the chart, fix what it names and call it again.
-4. Once show_chart shows a chart, write that chart's takeaway from the data show_chart returned for it: ${rules} When you picked one source over others that measure the same thing, name it, e.g. "Eurostat's figures show".
-5. If the question needs another chart, as the section on several charts below says, call show_chart for it after the takeaway. Otherwise stop calling tools: the answer is complete.
+4. Once show_chart shows a chart, write about it from the data show_chart returned for it, never before. ${writing} When you picked one source over others that measure the same thing, name it, e.g. "Eurostat's figures show". Write as much as the question needs: most charts need two to four sentences.
+5. If the question needs another chart, as the section on several charts below says, call show_chart for it. Otherwise stop calling tools: the answer is complete.
 
 Chart types: each does one job. Pick the one that fits what the question asks, not the words it uses.
 - trend: how a measure moved over time, for at most ${limits.trend.most} countries. "Has India caught up with China?" and "How did Poland's wages move in the 2010s?" are trends.
@@ -955,57 +944,29 @@ Chart types: each does one job. Pick the one that fits what the question asks, n
 - relation: how one measure goes with another across at least ${limits.relation.least} countries, e.g. "Does more schooling go with higher incomes?". Search for the second indicator too.
 show_chart rejects a chart with too many or too few countries to read, and names the type to use instead.
 
-Several charts: an answer holds up to ${maxCharts} charts, drawn one at a time, each with its own takeaway. Draw more than one only when one chart cannot show what the question asks:
+Several charts: most answers need one chart. Show more only when one chart cannot show what the question asks:
 - The question asks about measures with different units, e.g. "How have inflation and unemployment moved in Portugal?" is a trend of each.
 - The question asks both how countries compare at one point and how they changed over time, e.g. "Which EU country has the highest debt, and how has that changed since 2010?" is a ranking, then a change.
-One indicator for several countries is one chart, whatever the number of countries. "How does X go with Y?" is one relation chart, not a chart of each.
+One indicator for several countries is one chart, whatever the number of countries. "How does X go with Y?" is one relation chart, not a chart of each. You may write a sentence that ties the charts together after the last one.
 
 Political context: a trend of EU and OECD members can show their elections, their governments, shaded by head of government, and major events, with pension reforms on pension charts. Use it only when the question asks about them, e.g. "under each president" or "since the last election" asks for governments or elections, "around the 2010 bailout" or "since the financial crisis" asks for events. Then call find_politics for the chart's countries and years, and pass the overlays the question asks for to show_chart. Never add context the question does not ask for.
-In a takeaway, cite a record find_politics returned by its id in double brackets, e.g. "Unemployment rose from 2008, the year the [[event:financial-crisis]] began." The record's name takes the id's place: a government's is its head's name, an election's its year and ballot, e.g. "2017 presidential election". Never write the name of a head of government, party, election or event yourself. Cite only records the question asks about, in the chart's years. Say what the data did beside a record, never that the record caused it: "rose from 2008", not "rose because of the crisis".
+To name a record find_politics returned, cite it by its id in double brackets, e.g. "Unemployment rose from 2008, the year the [[event:financial-crisis]] began." The record's name takes the id's place and links to its source: a government's is its head's name, an election's its year and ballot, e.g. "2017 presidential election". Never write the name of a head of government, party, election or event yourself, and cite only records find_politics returned.
 
-If no indicator of any source measures what the question asks, stop without calling show_chart. A question only about politics, with no data to chart, e.g. "Who governed Spain in 2008?", is one of those: you answer with charts.
+If no indicator of any source measures what the question asks, say so in one sentence and stop without calling show_chart. A question only about politics, with no data to chart, e.g. "Who governed Spain in 2008?", is one of those: you answer with charts.
 
 If the question can be read in ways that give different charts and none is a safe default, call ask_user instead of show_chart, with two to four short choices. Prefer a sensible default to asking: ask at most once per question.
 
-A later question can follow up on your last answer, e.g. "add Chile" or "now per person". Apply it to the charts it names, or else to every chart it fits: "add Italy" adds Italy to each chart, "only since 2015" changes the years of every trend. Show each changed chart again, in the same order, and keep the rest of each chart. When a question starts with charts on screen, the person changed them since your last answer: follow up on those charts instead, by their place in the answer.`
+A later question can follow up on your last answer, e.g. "add Chile" or "now per person". Apply it to the charts it names, or else to every chart it fits: "add Italy" adds Italy to each chart, "only since 2015" changes the years of every trend. Show each changed chart again, in the same order, keep the rest of each chart, and write about each one again. When a question starts with charts on screen, the person changed them since your last answer: follow up on those charts instead, by their place in the answer.`
 
 export class Agent extends Context.Service<Agent, Interface>()("@civicdata/server/Agent") {
-  // Needs a LanguageModel, a Catalog, a Resolver, a WorldBank and an Sdmx.
+  // Needs a LanguageModel, a Catalog, a Resolver, a WorldBank, an Sdmx and
+  // the political records.
   static readonly layer = Layer.effect(
     Agent,
     Effect.gen(function* () {
       const model = yield* LanguageModel.LanguageModel
       const toolkit = yield* Tools
       const resolver = yield* Resolver
-      const politics = yield* Politics
-
-      // The names in the political records of a chart's countries, over
-      // every year a chart can show, which a takeaway must not write. Without
-      // records there are none to find.
-      const namesFor = (countries: View["countries"]) =>
-        politics.records({ countries, from: Year.make(1960), to: Year.make(2100) }).pipe(
-          Effect.map(namesIn),
-          Effect.catchTag("PoliticsUnavailable", () => Effect.succeed([])),
-        )
-
-      // The takeaway the model wrote, if it passes the check against the
-      // data and the political records, and how its step ends.
-      const review = Effect.fnUntraced(function* (
-        text: string,
-        { view, data, records }: { view: View; data: Summary; records: ReadonlyMap<string, Cited> },
-      ) {
-        const names = yield* namesFor(view.countries)
-
-        return Result.match(check(text, { summary: data, names, records }), {
-          onFailure: (reason): Written => ({ state: Dropped.make({ reason }) }),
-          onSuccess: ({ text: kept, numbers, cites }): Written => ({
-            takeaway: Arr.isReadonlyArrayNonEmpty(cites)
-              ? { takeaway: kept, cites }
-              : { takeaway: kept },
-            state: Checked.make({ numbers }),
-          }),
-        })
-      })
 
       const start = Effect.gen(function* () {
         const now = yield* DateTime.now
@@ -1015,29 +976,11 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
         ])
       })
 
-      // The chart's takeaway, written by the model from the data show_chart
-      // returned, and how its step ended. A model that fails or writes one
-      // that fails the check leaves the chart without one.
-      const takeaway = Effect.fn("Agent.takeaway")(
-        function* (chat: Chat.Chat, shown: typeof Shown.Type) {
-          const response = yield* chat.generateText({ prompt: [], toolkit, toolChoice: "none" })
-          const records = yield* Ref.get(yield* Known)
-
-          return yield* review(response.text, { ...shown, records })
-        },
-        Effect.provideService(LanguageModel.LanguageModel, model),
-        Effect.catchTag("AiError", (error) =>
-          Effect.logWarning("Language model failed on a takeaway", error.reason).pipe(
-            Effect.as<Written>({ state: Failed.make({ reason: new AgentUnavailable() }) }),
-          ),
-        ),
-      )
-
       // Each round is one model request and the tools it calls. The round's
       // Thinking step runs while the model decides, and ends when a tool
       // reports its step or the model answers. Each tool reports its step as
-      // it starts and as it ends. A round that draws a chart gets the chart's
-      // takeaway before the next round.
+      // it starts and as it ends, and each block of the round is sent once
+      // the round ends.
       const answer = Effect.fn("Agent.answer")(function* (
         chat: Chat.Chat,
         { asked, queue }: { asked: Asking; queue: Queue.Queue<Step, Failure | Cause.Done> },
@@ -1045,7 +988,6 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
         const send = (step: Step) => Effect.sync(() => Queue.offerUnsafe(queue, step))
 
         const thinking = yield* Ref.make(Option.none<StepId>())
-        const drawing = yield* Ref.make(false)
         const known = yield* Ref.make<ReadonlyMap<string, Cited>>(new Map())
 
         // Ends the Thinking step, if one runs, in `state`.
@@ -1061,48 +1003,31 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
 
         const report = Report.of((step) => think(Thought.make({})).pipe(Effect.andThen(send(step))))
 
-        // The chart at `place` in the answer, sent as soon as it is drawn,
-        // then again with the takeaway it kept. Writing the takeaway is a
-        // step of its own.
-        const explained = Effect.fnUntraced(function* (shown: typeof Shown.Type, place: number) {
-          const chart: Chart = Struct.omit(shown, ["_tag", "data"])
+        // The blocks of a round the answer can show. Words that cite a
+        // record the agent did not look up are left out.
+        const shown = Effect.fnUntraced(function* (response: Round) {
+          const found = blocksIn(response, yield* Ref.get(known))
 
-          const drawn = (state: typeof Drawn.Type.state) =>
-            send(Drawn.make(Struct.assign(chart, { id: StepId.make(`drawn-${place}`), state })))
-
-          const id = StepId.make(`takeaway-${place}`)
-
-          yield* drawn(Running.make({}))
-          yield* send(Takeaway.make({ id, state: Running.make({}) }))
-
-          const written = yield* takeaway(chat, shown)
-
-          yield* send(Takeaway.make({ id, state: written.state }))
-
-          if (written.takeaway === undefined) {
-            yield* drawn(Explained.make({}))
-
-            return chart
+          if (found.some(Option.isNone)) {
+            yield* Effect.logWarning("The model cited a record it did not look up")
           }
 
-          yield* drawn(Explained.make(written.takeaway))
-
-          return Struct.assign(chart, written.takeaway)
+          return Arr.getSomes(found)
         })
 
-        // The answer ends when the model stops calling tools, asks the
-        // person which reading they mean, or has drawn its last chart. A
-        // question asked after a chart is dropped: the charts answer.
+        // The answer ends when the model stops calling tools or asks the
+        // person which reading they mean. A question asked after the answer
+        // has blocks is dropped, with what the model wrote beside it: the
+        // blocks answer.
         const decided = Effect.gen(function* () {
           yield* Ref.update(chat.history, forget)
 
-          const charts: Array<Chart> = []
+          const blocks: Array<Block> = []
 
-          for (let round = 0; round < rounds && charts.length < maxCharts; round += 1) {
+          for (let round = 0; round < rounds; round += 1) {
             const id = StepId.make(`thinking-${round}`)
 
             yield* Ref.set(thinking, Option.some(id))
-            yield* Ref.set(drawing, false)
             yield* send(Thinking.make({ id, state: Running.make({}) }))
 
             const response = yield* chat.generateText({
@@ -1112,28 +1037,30 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
 
             yield* think(Thought.make({}))
 
-            const shown = shownIn(response)
             const question = askedIn(response)
 
-            if (Option.isSome(shown)) {
-              charts.push(yield* explained(shown.value, charts.length))
-            } else if (Option.isSome(question)) {
-              if (charts.length === 0) return question.value
+            if (Option.isSome(question)) {
+              if (blocks.length === 0) return question.value
 
-              break
-            } else if (response.toolCalls.length === 0) {
-              // The model answered in words: it has no more charts to draw.
               break
             }
+
+            for (const block of yield* shown(response)) {
+              yield* send(Rendered.make({ id: StepId.make(`block-${blocks.length}`), block }))
+
+              blocks.push(block)
+            }
+
+            // The model answered in words alone: the answer is complete.
+            if (response.toolCalls.length === 0) break
           }
 
-          return Arr.isArrayNonEmpty(charts) ? Answered.make({ charts }) : Unanswered.make({})
+          return Arr.isArrayNonEmpty(blocks) ? Answered.make({ blocks }) : Unanswered.make({})
         })
 
         yield* decided.pipe(
           Effect.flatMap(send),
           Effect.provideService(Report, report),
-          Effect.provideService(Drawing, drawing),
           Effect.provideService(Known, known),
           Effect.provideService(LanguageModel.LanguageModel, model),
           Effect.catchTag("AiError", (error) =>
@@ -1150,6 +1077,7 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
           answer(chat, { asked, queue }).pipe(Effect.andThen(Queue.end(queue))),
         )
 
+      // A model that writes nothing has not answered.
       const explain = Effect.fn("Agent.explain")(
         function* (view: View) {
           const data = summarize(yield* resolver.resolve(view))
@@ -1158,21 +1086,24 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
             prompt: [
               {
                 role: "system",
-                content: `You write the takeaway for a chart of public data, given the chart and its data: ${rules}`,
+                content: `You say in two to four sentences what a chart of public data shows, given the chart and its data. ${writing}`,
               },
               { role: "user", content: JSON.stringify({ view, data }) },
             ],
           })
 
-          // A chart explained on its own looked up no records to cite.
-          const written = yield* review(response.text, { view, data, records: new Map() })
+          const text = response.text.trim()
 
-          return written.takeaway === undefined
-            ? { view }
-            : Struct.assign({ view }, written.takeaway)
+          if (text === "") {
+            yield* Effect.logWarning("Language model explained a chart with no text")
+
+            return yield* new AgentUnavailable()
+          }
+
+          return { view, text }
         },
         Effect.catchTag("AiError", (error) =>
-          Effect.logWarning("Language model failed on a takeaway", error.reason).pipe(
+          Effect.logWarning("Language model failed to explain a chart", error.reason).pipe(
             Effect.andThen(Effect.fail(new AgentUnavailable())),
           ),
         ),

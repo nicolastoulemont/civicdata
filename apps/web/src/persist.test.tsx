@@ -1,11 +1,13 @@
 import {
   Answered,
+  Chart,
   ConversationId,
   Ended,
   IndicatorId,
   ResolvedView,
   Searched,
   StepId,
+  Text,
   Trend,
   type Turn,
   Turns,
@@ -45,7 +47,7 @@ const brazil = Trend.make({
 const charted: Turn = {
   question: "How has life expectancy changed in Brazil?",
   answer: Answered.make({
-    charts: [{ view: brazil, takeaway: "Life expectancy in Brazil rose." }],
+    blocks: [Chart.make({ view: brazil }), Text.make({ text: "Life expectancy in Brazil rose." })],
   }),
   steps: [
     Ended.cases.Search.make({
@@ -226,53 +228,6 @@ describe("persist", () => {
     show(store)
 
     expect(await screen.findByText("Brazil and Argentina · 2000–2001")).toBeDefined()
-  })
-
-  it("restores a conversation saved before steps had states", async () => {
-    const { store, values } = memory()
-
-    const answer = JSON.stringify(
-      Schema.encodeSync(Schema.toCodecJson(Answered))(
-        Answered.make({ charts: [{ view: brazil }] }),
-      ),
-    )
-
-    const saved = `{
-      "answered": [
-        {
-          "question": "How has life expectancy changed in Brazil?",
-          "answer": ${answer},
-          "steps": [{ "_tag": "Searched", "text": "life expectancy", "found": ["World Bank"] }],
-          "took": 8000
-        }
-      ]
-    }`
-
-    network.use(
-      http.get(
-        `/api/conversations/${id}`,
-        () => new HttpResponse(saved, { headers: { "content-type": "application/json" } }),
-      ),
-      resolve,
-    )
-    show(store)
-    await findChart()
-    await waitFor(() => expect(values.size).toBe(2))
-    cleanup()
-
-    const reload = hanging()
-
-    network.use(reload.handler)
-    show(store)
-
-    await userEvent
-      .setup()
-      .click(await screen.findByRole("button", { name: "Worked for 8s · 1 search" }))
-    expect(
-      within(screen.getByRole("list", { name: "Steps" })).getByText(
-        "Searched for “life expectancy”: World Bank",
-      ),
-    ).toBeDefined()
   })
 
   it("loads from the network when a saved conversation has an older shape", async () => {

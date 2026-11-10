@@ -1,13 +1,13 @@
 # civicdata
 
-civicdata makes data about the economy and public policy easier to read and understand. You ask a question in your own words, such as "How has unemployment in Spain changed since 2000?", and get a chart of official figures from the World Bank, Eurostat or the OECD, two sentences on what it shows, and the source of every number. It is for people who want to follow how a country is doing without being statisticians.
+civicdata makes data about the economy and public policy easier to read and understand. You ask a question in your own words, such as "How has unemployment in Spain changed since 2000?", and get charts of official figures from the World Bank, Eurostat or the OECD, the assistant's account of what they show, and the source of every charted number. It is for people who want to follow how a country is doing without being statisticians.
 
 ![An answer: the question, a line chart of Spain's unemployment rate from 2009 to 2025, a two-sentence takeaway, and the line "Source: Eurostat, Unemployment rate - annual data. Retrieved 9 November 2026."](docs/answer.webp)
 
 ## What you can do
 
 - Ask about one country or several. The answer is a line over the years, a ranking of countries in one year as bars or a world map, the change between two years, or one indicator plotted against another.
-- Read the takeaway: two sentences on what the chart shows. If a number in it doesn't match the chart's data, the answer shows none, and "Explain this chart" asks for another.
+- Read what the assistant writes before, between and after the charts, as much as the question needs. Once you change a chart, the answer's words grey out, and "Explain this chart" asks what the changed chart shows.
 - Change the chart where it is: add countries, pick the years, switch the chart type, or show the values per person, as yearly growth, as an index or as a ratio of another indicator. None of these changes calls the assistant.
 - Follow up in the same conversation, such as "add Portugal" or "now per person". A follow-up starts from the chart as you last changed it.
 - Open About for what the indicator measures, why it matters, its limits, and related indicators to chart instead. Open Data for every value in a table, a CSV download, and a link to the request made to the source.
@@ -20,11 +20,11 @@ civicdata makes data about the economy and public policy easier to read and unde
 
 - Every value on a chart comes from a request to the World Bank, Eurostat or the OECD. A fetched series is reused for a day, or until Eurostat's next twice-daily update.
 - The assistant chooses an indicator, countries and years; it never supplies a value. It may only use an indicator code that the catalog search returned, and the server checks the chart it asks for and sends any problem back for it to fix.
-- The takeaway is checked number by number. Each number must be a value or a year in the chart's data, rounded the way it is written, or a number in the indicator's name. A takeaway with any other number, such as a difference the model worked out, is not shown.
+- The assistant's words are not checked against the data. They may round a value or work out a difference; the chart beside them shows the published values.
 - A chart's plain title may reword the source's name for the indicator but may not add a number to it, and the official name stays on the chart.
 - Every chart, shared link and preview card carries a source line: the publisher, the dataset and the day the data was retrieved.
 - An eval asks the assistant 63 questions and checks each chart's type, indicator, countries, transform and years against the answers the case accepts. Maintainers run it by hand before changing the prompt, the tools or the model.
-- Elections, governments, events and reforms are dated records, each with its source. The chart shows when they happened beside the data and never says they caused a change: no winner or coalition is read into an election, and the events were ported without the notes on how each may move a chart. The assistant does not see these records, so a takeaway cannot link them to the data.
+- Elections, governments, events and reforms are dated records, each with its source. The chart shows when they happened beside the data and never says they caused a change: no winner or coalition is read into an election, and the events were ported without the notes on how each may move a chart. The assistant reads these records through a tool, and its instructions tell it to name only records it looked up.
 
 ## Sources and licences
 
