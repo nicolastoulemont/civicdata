@@ -37,8 +37,8 @@ export type Agent = Chart | typeof Drawn.Type
 const isDrawn = Schema.is(Drawn)
 
 // What the agent has said about the chart on screen: nothing yet, a takeaway
-// it is writing, its takeaway, a takeaway withheld because it cited numbers
-// not in the data, or a takeaway for the chart before the person's changes.
+// it is writing, its takeaway, a takeaway withheld because it failed the
+// check against the data and the political records, or a takeaway for the chart before the person's changes.
 type Said = Data.TaggedEnum<{
   Nothing: {}
   Writing: {}
@@ -109,7 +109,8 @@ const Text = ({ said }: TextProps) =>
     Current: ({ takeaway }) => <p>{takeaway}</p>,
     Withheld: () => (
       <p className="text-sm text-muted-foreground">
-        The assistant cited numbers that are not in the data, so its explanation is not shown.
+        The assistant's explanation did not match the data and records behind the chart, so it is
+        not shown.
       </p>
     ),
     Earlier: ({ takeaway }) => (

@@ -6,6 +6,7 @@ import {
   type Politics,
   type IndicatorId,
   IndicatorNotFound,
+  Overlay,
   Ranking,
   Relation,
   type ResolvedView,
@@ -60,7 +61,7 @@ import {
 } from "./format.ts"
 import { Indicator } from "./Indicator.tsx"
 import type { Paired } from "./points.ts"
-import { archives, cited, officialPages, Overlay, terms, tints } from "./politics.ts"
+import { archives, cited, officialPages, terms, tints } from "./politics.ts"
 import { places } from "./preview.ts"
 import { RankingChart } from "./RankingChart.tsx"
 import { RelationChart } from "./RelationChart.tsx"

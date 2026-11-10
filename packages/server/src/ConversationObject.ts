@@ -8,6 +8,7 @@ import { Agent } from "./Agent.ts"
 import { AskLimit } from "./AskLimit.ts"
 import { Catalog } from "./Catalog.ts"
 import { Conversation } from "./Conversation.ts"
+import { Politics } from "./Politics.ts"
 import { Resolver } from "./Resolver.ts"
 import { Sdmx } from "./Sdmx.ts"
 import { Transcript } from "./Transcript.ts"
@@ -71,6 +72,7 @@ export class ConversationObject implements DurableObject {
         Layer.provide(Agent.live.pipe(Layer.provide(Resolver.layer))),
         Layer.provide(AskLimit.live),
         Layer.provide(Catalog.live),
+        Layer.provide(Politics.live),
         Layer.provide(WorldBank.live),
         Layer.provide(Sdmx.live),
       ),

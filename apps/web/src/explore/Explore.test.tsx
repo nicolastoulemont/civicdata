@@ -6,6 +6,7 @@ import {
   DimensionsMissing,
   IndicatorId,
   IndicatorNotes,
+  type Overlay,
   type ResolvedView,
   ResolvedView as ResolvedViewSchema,
   SourceUnavailable,
@@ -25,7 +26,6 @@ import { describe, expect, it, vi } from "vitest"
 
 import { network } from "../../test/network.ts"
 import { Explore } from "./Explore.tsx"
-import type { Overlay } from "./politics.ts"
 
 const population = IndicatorId.make("SP.POP.TOTL")
 

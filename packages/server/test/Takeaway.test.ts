@@ -1,5 +1,8 @@
 import {
+  Day,
+  End,
   IndicatorId,
+  Politics,
   Ranking,
   type Relation,
   Relation as RelationView,
@@ -7,10 +10,11 @@ import {
   Trend,
   Year,
 } from "@civicdata/domain"
-import { DateTime, Option } from "effect"
+import { DateTime, Result, Schema } from "effect"
 import { describe, expect, it } from "vitest"
 
-import { check, summarize } from "../src/Takeaway.ts"
+import events from "../src/official/events.json"
+import { causal, check, namesIn, type Summary, summarize } from "../src/Takeaway.ts"
 
 const youthUnemployment = IndicatorId.make("SL.UEM.1524.ZS")
 
@@ -63,7 +67,10 @@ const trend = summarize(
   ),
 )
 
-const shows = (text: string) => Option.isSome(check(text, trend))
+// The check against a chart's data alone, with no political records.
+const alone = (summary: Summary) => ({ summary, names: [] })
+
+const shows = (text: string) => Result.isSuccess(check(text, alone(trend)))
 
 describe("summarize", () => {
   it("gives each line's first, last, lowest and highest point", () => {
@@ -152,18 +159,25 @@ describe("summarize a relation", () => {
 
   it("lets a takeaway cite either value", () => {
     expect(
-      Option.isSome(check("Spain, at $35,327 a person, had 26.5% youth unemployment.", relation)),
+      Result.isSuccess(
+        check("Spain, at $35,327 a person, had 26.5% youth unemployment.", alone(relation)),
+      ),
     ).toBe(true)
-    expect(Option.isSome(check("Italy was $4,899 richer per person.", relation))).toBe(false)
+    expect(Result.isSuccess(check("Italy was $4,899 richer per person.", alone(relation)))).toBe(
+      false,
+    )
   })
 })
 
 describe("check", () => {
   it("shows a takeaway whose numbers are values and years from the data, rounded", () => {
     expect(
-      check("  Youth unemployment in Spain peaked at 55.5% in 2013, then fell to 26.  ", trend),
+      check(
+        "  Youth unemployment in Spain peaked at 55.5% in 2013, then fell to 26.  ",
+        alone(trend),
+      ),
     ).toEqual(
-      Option.some({
+      Result.succeed({
         text: "Youth unemployment in Spain peaked at 55.5% in 2013, then fell to 26.",
         numbers: 3,
       }),
@@ -187,13 +201,13 @@ describe("check", () => {
   })
 
   it("removes Markdown bold, which the answer would show as asterisks", () => {
-    expect(check("**Spain** peaked in 2013.", trend)).toEqual(
-      Option.some({ text: "Spain peaked in 2013.", numbers: 1 }),
+    expect(check("**Spain** peaked in 2013.", alone(trend))).toEqual(
+      Result.succeed({ text: "Spain peaked in 2013.", numbers: 1 }),
     )
   })
 
   it("hides an empty takeaway", () => {
-    expect(check("   ", trend)).toEqual(Option.none())
+    expect(check("   ", alone(trend))).toEqual(Result.fail("empty"))
   })
 })
 
@@ -217,8 +231,79 @@ describe("check with scaled numbers", () => {
   )
 
   it("reads thousands separators and scale words", () => {
-    expect(Option.isSome(check("India's economy reached $3.6 trillion.", gdp))).toBe(true)
-    expect(Option.isSome(check("India's economy reached $3,568 billion.", gdp))).toBe(true)
-    expect(Option.isSome(check("India's economy reached $3.5 trillion.", gdp))).toBe(false)
+    expect(Result.isSuccess(check("India's economy reached $3.6 trillion.", alone(gdp)))).toBe(true)
+    expect(Result.isSuccess(check("India's economy reached $3,568 billion.", alone(gdp)))).toBe(
+      true,
+    )
+    expect(Result.isSuccess(check("India's economy reached $3.5 trillion.", alone(gdp)))).toBe(
+      false,
+    )
+  })
+})
+
+describe("check against the political records", () => {
+  // Spain's records: Mariano Rajoy's government of the People's Party, and
+  // the financial crisis as events.json records it.
+  const spain: Politics = {
+    governments: [
+      {
+        country: "ESP",
+        head: "Mariano Rajoy",
+        parties: [{ name: "People's Party", abbreviation: "PP" }],
+        color: null,
+        start: Day.make("2011-12-21"),
+        end: End.cases.Next.make({ day: Day.make("2018-06-07") }),
+        citation: {
+          publisher: "PPEG",
+          url: "https://ppeg.wzb.eu/www/ppeg_gov_2025v1.zip",
+          retrievedAt: DateTime.makeUnsafe("2026-11-01T00:00:00Z"),
+        },
+      },
+    ],
+    elections: [],
+    events: Schema.decodeUnknownSync(Politics.fields.events)(
+      events.filter((event) => event.id === "financial-crisis"),
+    ),
+    reforms: [],
+  }
+
+  const against = { summary: trend, names: namesIn(spain) }
+
+  it("hides a takeaway that names a head of government, a party or an event", () => {
+    for (const text of [
+      "Youth unemployment in Spain peaked in 2013 under Mariano Rajoy.",
+      "Youth unemployment in Spain peaked in 2013 under Rajoy.",
+      "Youth unemployment in Spain peaked in 2013, with the PP in government.",
+      "Youth unemployment in Spain peaked in 2013, after the global financial crisis and Great Recession.",
+    ]) {
+      expect(check(text, against)).toEqual(Result.fail("name"))
+    }
+  })
+
+  it("shows a takeaway that names none, even with a name inside a longer word", () => {
+    expect(check("Youth unemployment in Spain peaked in 2013. PPP rates aside.", against)).toEqual(
+      Result.succeed({
+        text: "Youth unemployment in Spain peaked in 2013. PPP rates aside.",
+        numbers: 1,
+      }),
+    )
+  })
+
+  it("hides a takeaway that says what caused a movement in the data", () => {
+    for (const words of causal) {
+      expect(check(`Spain's rate peaked in 2013, ${words} the recession.`, against)).toEqual(
+        Result.fail("cause"),
+      )
+    }
+
+    expect(check("Because of the recession, Spain's rate peaked in 2013.", against)).toEqual(
+      Result.fail("cause"),
+    )
+  })
+
+  it("shows a takeaway that places a movement in time without a cause", () => {
+    expect(
+      Result.isSuccess(check("Spain's rate rose from 2010 and peaked in 2013.", against)),
+    ).toBe(true)
   })
 })

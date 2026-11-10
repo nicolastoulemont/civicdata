@@ -5,15 +5,20 @@ import {
   CatalogUnavailable,
   ConversationBusy,
   ConversationId,
+  Day,
   Definition,
   Drawn,
+  End,
   Ended,
   Explained,
   Failed,
   Fetch,
   Fetched,
   IndicatorId,
+  Politics,
   Read,
+  Recorded,
+  Records,
   Rejected,
   Rejection,
   ResolvedView,
@@ -335,6 +340,16 @@ const findRail = () => screen.findByRole("toolbar", { name: "Questions" })
 const ticksOf = (rail: HTMLElement) =>
   within(rail).getAllByRole("button", { name: /^Jump to question: / })
 
+// The agent looking up France's political records, 2000 to 2024.
+const looking = (state: typeof Records.Type.state) =>
+  Records.make({
+    id: StepId.make("records-1"),
+    countries: ["FRA"],
+    from: Year.make(2000),
+    to: Year.make(2024),
+    state,
+  })
+
 describe("Conversation", () => {
   it("asks the question from the home page, shows each step, then the chart", async () => {
     const reply = answer()
@@ -485,6 +500,23 @@ describe("Conversation", () => {
     )
 
     expect(await findStep("Too many countries for a trend: 7, at most 6.")).toBeDefined()
+  })
+
+  it("says which political records the agent looked up, and how many it found", async () => {
+    const reply = answer()
+
+    network.use(turns([]), reply.handler)
+    show("Unemployment in France under each president")
+
+    reply.send(message(looking(Running.make({}))))
+    expect(await findStep("Looking up the political record of France, 2000 to 2024…")).toBeDefined()
+
+    reply.send(
+      message(looking(Recorded.make({ governments: 4, elections: 2, events: 0, reforms: 0 }))),
+    )
+    expect(
+      await findStep("Found 4 governments and 2 elections for France, 2000 to 2024"),
+    ).toBeDefined()
   })
 
   it("says in plain words why a step failed", async () => {
@@ -1001,6 +1033,53 @@ describe("Conversation", () => {
     await user.click(await screen.findByRole("button", { name: "Governments" }))
 
     expect(await screen.findByText("No government records for Brazil")).toBeDefined()
+  })
+
+  it("opens an answer's chart with the political context the agent turned on", async () => {
+    const spain = Trend.make({ ...brazil, countries: ["ESP"] })
+
+    network.use(
+      ...kept([
+        {
+          question: "Life expectancy in Spain under each prime minister",
+          answer: Answered.make({ charts: [{ view: spain, overlays: ["governments"] }] }),
+        },
+      ]).handlers,
+      resolve,
+      http.get("/api/politics", () =>
+        HttpResponse.json(
+          Schema.encodeSync(Schema.toCodecJson(Politics))({
+            governments: [
+              {
+                country: "ESP",
+                head: "José María Aznar",
+                parties: [{ name: "People's Party", abbreviation: "PP" }],
+                color: null,
+                start: Day.make("1996-05-05"),
+                end: End.cases.Next.make({ day: Day.make("2004-04-17") }),
+                citation: {
+                  publisher: "PPEG",
+                  url: "https://ppeg.wzb.eu/www/ppeg_gov_2025v1.zip",
+                  retrievedAt: DateTime.makeUnsafe("2026-11-09T04:00:00Z"),
+                },
+              },
+            ],
+            elections: [],
+            events: [],
+            reforms: [],
+          }),
+        ),
+      ),
+    )
+    show()
+
+    expect(await screen.findByRole("button", { name: "Governments", pressed: true })).toBeDefined()
+    expect(
+      await screen.findByText(
+        "Line chart of Life expectancy at birth (years) for Spain, shaded by head of government",
+      ),
+    ).toBeDefined()
+    expect(screen.getByRole("button", { name: "Elections", pressed: false })).toBeDefined()
   })
 
   it("keeps a changed chart after a reload", async () => {

@@ -328,6 +328,52 @@ const Reform = Schema.Struct({
 
 export interface Reform extends Schema.Schema.Type<typeof Reform> {}
 
+// A political record's id, as the agent reads it in a lookup:
+// "government:FRA:2017-05-15", "election:FRA:president:2017-04-23",
+// "event:financial-crisis", "reform:fr-pensions-2010-woerth".
+export const RecordId = Schema.String.check(
+  Schema.isPattern(/^(?:government|election|event|reform):\S+$/),
+).pipe(Schema.brand("RecordId"))
+
+export type RecordId = typeof RecordId.Type
+
+// One political record of any kind.
+export const Cited = Schema.TaggedUnion({
+  Government: { government: Government },
+  Election: { election: Election },
+  Event: { event: Event },
+  Reform: { reform: Reform },
+})
+
+export type Cited = typeof Cited.Type
+
+// A record's id. A country has one government starting on a day, and one
+// election of a ballot on a polling day; events and reforms have ids of
+// their own.
+export const idOf = (cited: Cited): RecordId =>
+  RecordId.make(
+    Cited.match(cited, {
+      Government: ({ government }) => `government:${government.country}:${government.start}`,
+      Election: ({ election }) =>
+        `election:${election.country}:${election.ballot}:${election.date}`,
+      Event: ({ event }) => `event:${event.id}`,
+      Reform: ({ reform }) => `reform:${reform.id}`,
+    }),
+  )
+
+// What a trend chart can draw over its lines besides the data: elections,
+// governments, and events with reforms. Kept beside a chart, never in its
+// View: the explorer keeps it in the card and its link, an answer with each
+// of its charts.
+export const Overlay = Schema.Literals(["elections", "governments", "events"])
+
+export type Overlay = typeof Overlay.Type
+
+// The overlays a chart draws, each once.
+export const Overlays = Schema.NonEmptyArray(Overlay).check(Schema.isUnique())
+
+export type Overlays = typeof Overlays.Type
+
 // The political records of some countries over some years: their
 // governments and elections, the events that concern them, and their reforms.
 export const Politics = Schema.Struct({

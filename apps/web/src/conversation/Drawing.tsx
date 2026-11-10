@@ -1,8 +1,7 @@
-import type { Drawn } from "@civicdata/domain"
+import type { Drawn, Overlay } from "@civicdata/domain"
 import { useState } from "react"
 
 import { Explore } from "@/explore/Explore"
-import type { Overlay } from "@/explore/politics"
 
 interface DrawingProps {
   step: typeof Drawn.Type
@@ -13,7 +12,7 @@ interface DrawingProps {
 // ends, so a change made before then shows here and is not kept.
 export const Drawing = ({ step }: DrawingProps) => {
   const [view, setView] = useState(step.view)
-  const [overlays, setOverlays] = useState<ReadonlyArray<Overlay>>([])
+  const [overlays, setOverlays] = useState<ReadonlyArray<Overlay>>(step.overlays ?? [])
 
   return (
     <Explore
