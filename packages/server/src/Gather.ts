@@ -56,6 +56,13 @@ const largest = 25_000_000
 // Series of one dataset stored at once.
 const writing = 16
 
+// Datasets of one step read at once. Most datasets hold a few thousand
+// values, and reading one alone spends its time on its paced download and
+// its listing and D1 writes, about five seconds. A step's datasets add up to
+// five million values at most, so reading several at once stays well inside
+// a Worker's memory.
+const reading = 4
+
 // How long a run gathers Eurostat at most. A first pass stores millions of
 // series, at about 40 a second, and takes more than a day: a run stops
 // before the next day's run starts and leaves the remaining datasets, whose
@@ -553,15 +560,20 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
           const batch = batchOf(waiting)
           const totals = { stored: 0, unchanged: 0, held: 0, skipped: 0, failed: 0 }
 
-          for (const found of batch) {
-            const counts = yield* dataset(found).pipe(
-              Effect.catchTag("SqlError", Effect.die),
-              Effect.tapError((error) =>
-                Effect.logWarning("Could not gather", found.indicator, error),
+          const each = yield* Effect.forEach(
+            batch,
+            (found) =>
+              dataset(found).pipe(
+                Effect.catchTag("SqlError", Effect.die),
+                Effect.tapError((error) =>
+                  Effect.logWarning("Could not gather", found.indicator, error),
+                ),
+                Effect.orElseSucceed(() => ({ ...none, failed: 1 })),
               ),
-              Effect.orElseSucceed(() => ({ ...none, failed: 1 })),
-            )
+            { concurrency: reading },
+          )
 
+          for (const counts of each) {
             totals.stored += counts.stored
             totals.unchanged += counts.unchanged
             totals.held += counts.held
