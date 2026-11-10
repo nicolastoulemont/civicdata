@@ -1,5 +1,7 @@
 import {
   type Ballot,
+  Cited,
+  type Citation,
   type Country,
   type Election,
   End,
@@ -350,3 +352,50 @@ export const reformed = (
         ]
       : [],
   )
+
+// A page a record's card links to.
+interface Page {
+  readonly title: string
+  readonly url: string
+}
+
+// The file or page an archived or official record was read from.
+const read = ({ publisher, url }: Citation): Page => ({
+  title: publisher === "Official" ? "Official record" : archives[publisher].name,
+  url,
+})
+
+// What the card of a record a takeaway cites shows, as the chart's tooltip
+// says it for the year the record starts: its line, the pages it cites,
+// numbered as its line refers to them, and the page its name links to.
+export const card = (record: Cited, countries: ReadonlyArray<Country>) =>
+  Cited.match(record, {
+    Government: ({ government }) => ({
+      lines: governing(terms([government]), government.country, year(government.start)),
+      pages: [read(government.citation)],
+      link: government.citation.url,
+    }),
+    Election: ({ election }) => ({
+      lines: voting([election], election.country, year(election.date)),
+      pages: [read(election.citation)],
+      link: election.citation.url,
+    }),
+    Event: ({ event }) => {
+      const pages = cited([event])
+
+      return {
+        lines: happening([event], { countries, shown: yearsOf(event.when).from, pages }),
+        pages,
+        link: event.sources[0].url,
+      }
+    },
+    Reform: ({ reform }) => {
+      const pages = cited([reform])
+
+      return {
+        lines: reformed([reform], { country: reform.country, shown: yearOf(reform.date), pages }),
+        pages,
+        link: reform.sources[0].url,
+      }
+    },
+  })

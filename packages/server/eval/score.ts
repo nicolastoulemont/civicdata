@@ -4,6 +4,7 @@ import {
   type Chart as Drawing,
   type Country,
   type Ending,
+  idOf,
   type Overlay,
   type Transform,
   transformOf,
@@ -26,13 +27,16 @@ interface Series {
 // `transform` means values as published. Years left out are not scored:
 // without years in the question, the default range moves with the calendar.
 // `overlays`, the political context the chart draws, must match as a set,
-// none being []; left out, it is not scored.
+// none being []; left out, it is not scored. The chart's takeaway must cite
+// each record id in `cites`, and with [] cite none; left out, citations are
+// not scored. A takeaway the check dropped cites nothing.
 interface Chart {
   readonly indicators?: ReadonlyArray<string>
   readonly series?: ReadonlyArray<Series>
   readonly countries: ReadonlyArray<Country>
   readonly transform?: Transform
   readonly overlays?: ReadonlyArray<Overlay>
+  readonly cites?: ReadonlyArray<string>
 }
 
 // The chart types a case can expect. A relation plots its indicator against
@@ -143,8 +147,19 @@ const overlaysDiffer = (
     ? []
     : [`overlays ${named(drawn)}, want ${named(want)}`]
 
+// How the records a chart's takeaway cites differ from those a case names.
+const citesDiffer = (drawing: Drawing, want: ReadonlyArray<string> | undefined) => {
+  const got: ReadonlyArray<string> = (drawing.cites ?? []).map(({ record }) => idOf(record))
+  const missing = (want ?? []).filter((id) => !got.includes(id))
+
+  if (want === undefined || (want.length === 0 ? got.length === 0 : missing.length === 0)) return []
+
+  return [`cites ${got.length === 0 ? "none" : got.join(", ")}, want ${want.join(", ") || "none"}`]
+}
+
 // How the chart differs from the one expected, one line per difference.
-const compare = ({ view, overlays }: Drawing, want: Wanted): ReadonlyArray<string> => {
+const compare = (drawing: Drawing, want: Wanted): ReadonlyArray<string> => {
+  const { view, overlays } = drawing
   const got = partsOf(view)
 
   if (got.chart !== want.chart) return [`a ${got.chart}, want a ${want.chart}`]
@@ -175,6 +190,7 @@ const compare = ({ view, overlays }: Drawing, want: Wanted): ReadonlyArray<strin
   return [
     ...checks.flatMap(([right, difference]) => (right ? [] : [difference])),
     ...overlaysDiffer(overlays, want.overlays),
+    ...citesDiffer(drawing, want.cites),
     ...(wanted === undefined ? [] : seriesDifferences(view, wanted)),
   ]
 }

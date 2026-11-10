@@ -171,6 +171,12 @@ class Drawing extends Context.Service<Drawing, Ref.Ref<boolean>>()(
   "@civicdata/server/Agent/Drawing",
 ) {}
 
+// The political records the answer's lookups found, by id: the only ones
+// its takeaways can cite.
+class Known extends Context.Service<Known, Ref.Ref<ReadonlyMap<string, Cited>>>()(
+  "@civicdata/server/Agent/Known",
+) {}
+
 // Why a step failed.
 type Reason = typeof Failed.Type.reason
 
@@ -311,7 +317,7 @@ const Found = Schema.TaggedStruct("Records", {
 
 const FindPolitics = Tool.make("find_politics", {
   description:
-    "Look up the elections, governments, major events and pension reforms of countries over a range of years, from stored records with their sources. Records cover EU and OECD members; `uncovered` lists the countries without any. Each record has an id.",
+    "Look up the elections, governments, major events and pension reforms of countries over a range of years, from stored records with their sources. Records cover EU and OECD members; `uncovered` lists the countries without any. Each record has an id, which a takeaway cites it by.",
   parameters: Schema.Struct({
     countries: Schema.Array(Schema.String).annotate({
       description: "ISO 3166-1 alpha-3 codes, e.g. FRA, DEU",
@@ -320,7 +326,7 @@ const FindPolitics = Tool.make("find_politics", {
     to: Schema.Int.annotate({ description: "Last year" }),
   }),
   success: Schema.Union([Found, Schema.TaggedStruct("Rejected", { problem: Schema.String })]),
-  dependencies: [Report],
+  dependencies: [Report, Known],
 })
 
 const AskUser = Tool.make("ask_user", {
@@ -532,7 +538,7 @@ const crowded = (form: Form, { countries, reason }: { countries: number; reason:
 // The takeaway written for a chart, if it passed the check, and how its
 // step ended.
 interface Written {
-  readonly takeaway?: string
+  readonly takeaway?: Pick<Chart, "takeaway" | "cites">
   readonly state: typeof Takeaway.Type.state
 }
 
@@ -588,6 +594,14 @@ const overlaysOf = (draft: Draft): Overlays | undefined => {
 
   return Arr.isArrayNonEmpty(on) ? on : undefined
 }
+
+// Every record of a lookup.
+const citedIn = (records: PoliticalRecords): ReadonlyArray<Cited> => [
+  ...records.governments.map((government) => Cited.cases.Government.make({ government })),
+  ...records.elections.map((election) => Cited.cases.Election.make({ election })),
+  ...records.events.map((event) => Cited.cases.Event.make({ event })),
+  ...records.reforms.map((reform) => Cited.cases.Reform.make({ reform })),
+]
 
 // The records as find_politics tells them to the model.
 const told = (records: PoliticalRecords, countries: ReadonlyArray<Country>) =>
@@ -830,7 +844,21 @@ const ToolsLayer = Tools.toLayer(
                     reforms: reforms.length,
                   }),
                 ),
-            }).pipe(Effect.map((records) => told(records, countries)))
+            }).pipe(
+              Effect.tap((records) =>
+                Effect.flatMap(Known, (known) =>
+                  Ref.update(
+                    known,
+                    (before) =>
+                      new Map([
+                        ...before,
+                        ...citedIn(records).map((cited) => [idOf(cited), cited] as const),
+                      ]),
+                  ),
+                ),
+              ),
+              Effect.map((records) => told(records, countries)),
+            )
           }),
           Effect.catchTags({
             SchemaError: (error) => Effect.succeed(rejected(error.message)),
@@ -933,6 +961,7 @@ Several charts: an answer holds up to ${maxCharts} charts, drawn one at a time, 
 One indicator for several countries is one chart, whatever the number of countries. "How does X go with Y?" is one relation chart, not a chart of each.
 
 Political context: a trend of EU and OECD members can show their elections, their governments, shaded by head of government, and major events, with pension reforms on pension charts. Use it only when the question asks about them, e.g. "under each president" or "since the last election" asks for governments or elections, "around the 2010 bailout" or "since the financial crisis" asks for events. Then call find_politics for the chart's countries and years, and pass the overlays the question asks for to show_chart. Never add context the question does not ask for.
+In a takeaway, cite a record find_politics returned by its id in double brackets, e.g. "Unemployment rose from 2008, the year the [[event:financial-crisis]] began." The record's name takes the id's place: a government's is its head's name, an election's its year and ballot, e.g. "2017 presidential election". Never write the name of a head of government, party, election or event yourself. Cite only records the question asks about, in the chart's years. Say what the data did beside a record, never that the record caused it: "rose from 2008", not "rose because of the crisis".
 
 If no indicator of any source measures what the question asks, stop without calling show_chart. A question only about politics, with no data to chart, e.g. "Who governed Spain in 2008?", is one of those: you answer with charts.
 
@@ -963,14 +992,16 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
       // data and the political records, and how its step ends.
       const review = Effect.fnUntraced(function* (
         text: string,
-        { view, data }: { view: View; data: Summary },
+        { view, data, records }: { view: View; data: Summary; records: ReadonlyMap<string, Cited> },
       ) {
         const names = yield* namesFor(view.countries)
 
-        return Result.match(check(text, { summary: data, names }), {
+        return Result.match(check(text, { summary: data, names, records }), {
           onFailure: (reason): Written => ({ state: Dropped.make({ reason }) }),
-          onSuccess: ({ text: kept, numbers }): Written => ({
-            takeaway: kept,
+          onSuccess: ({ text: kept, numbers, cites }): Written => ({
+            takeaway: Arr.isReadonlyArrayNonEmpty(cites)
+              ? { takeaway: kept, cites }
+              : { takeaway: kept },
             state: Checked.make({ numbers }),
           }),
         })
@@ -990,8 +1021,9 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
       const takeaway = Effect.fn("Agent.takeaway")(
         function* (chat: Chat.Chat, shown: typeof Shown.Type) {
           const response = yield* chat.generateText({ prompt: [], toolkit, toolChoice: "none" })
+          const records = yield* Ref.get(yield* Known)
 
-          return yield* review(response.text, shown)
+          return yield* review(response.text, { ...shown, records })
         },
         Effect.provideService(LanguageModel.LanguageModel, model),
         Effect.catchTag("AiError", (error) =>
@@ -1014,6 +1046,7 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
 
         const thinking = yield* Ref.make(Option.none<StepId>())
         const drawing = yield* Ref.make(false)
+        const known = yield* Ref.make<ReadonlyMap<string, Cited>>(new Map())
 
         // Ends the Thinking step, if one runs, in `state`.
         const think = (state: typeof Thinking.Type.state) =>
@@ -1052,9 +1085,9 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
             return chart
           }
 
-          yield* drawn(Explained.make({ takeaway: written.takeaway }))
+          yield* drawn(Explained.make(written.takeaway))
 
-          return Struct.assign(chart, { takeaway: written.takeaway })
+          return Struct.assign(chart, written.takeaway)
         })
 
         // The answer ends when the model stops calling tools, asks the
@@ -1101,6 +1134,7 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
           Effect.flatMap(send),
           Effect.provideService(Report, report),
           Effect.provideService(Drawing, drawing),
+          Effect.provideService(Known, known),
           Effect.provideService(LanguageModel.LanguageModel, model),
           Effect.catchTag("AiError", (error) =>
             Effect.logWarning("Language model failed", error.reason).pipe(
@@ -1130,9 +1164,12 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
             ],
           })
 
-          const written = yield* review(response.text, { view, data })
+          // A chart explained on its own looked up no records to cite.
+          const written = yield* review(response.text, { view, data, records: new Map() })
 
-          return written.takeaway === undefined ? { view } : { view, takeaway: written.takeaway }
+          return written.takeaway === undefined
+            ? { view }
+            : Struct.assign({ view }, written.takeaway)
         },
         Effect.catchTag("AiError", (error) =>
           Effect.logWarning("Language model failed on a takeaway", error.reason).pipe(

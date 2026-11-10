@@ -2206,6 +2206,35 @@ describe("political context", () => {
     }).pipe(Effect.provide(serveApi(model.layer, { politics })))
   })
 
+  it.effect("streams a takeaway with the name of the record it cites, and keeps the record", () => {
+    const model = scripted([
+      Effect.succeed(records(["ESP"], { step: "spain" })),
+      Effect.succeed(call("show_chart", { ...spain, overlays: ["governments"] })),
+      Effect.succeed(
+        words("Life expectancy rose in Spain before [[government:ESP:2011-12-21]] governed."),
+      ),
+      done,
+    ])
+
+    const said = "Life expectancy rose in Spain before Mariano Rajoy governed."
+
+    return Effect.gen(function* () {
+      yield* built
+
+      const steps = yield* answer("Life expectancy in Spain under each prime minister")
+      const drawn = steps.findLast(isDrawn)
+
+      expect(drawn?.state).toMatchObject({ takeaway: said, cites: [{ at: 37 }] })
+      expect(drawn?.state).toMatchObject({
+        cites: [{ record: { government: { head: "Mariano Rajoy", start: "2011-12-21" } } }],
+      })
+
+      const kept = (yield* turns).answered[0]?.answer
+
+      expect(kept).toMatchObject({ charts: [{ takeaway: said, overlays: ["governments"] }] })
+    }).pipe(Effect.provide(serveApi(model.layer, { politics })))
+  })
+
   it.effect("drops a takeaway that names a head of government from the records", () => {
     const model = scripted([
       Effect.succeed(call("show_chart", spain)),

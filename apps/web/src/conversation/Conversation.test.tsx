@@ -5,6 +5,7 @@ import {
   CatalogUnavailable,
   ConversationBusy,
   ConversationId,
+  Cited,
   Day,
   Definition,
   Drawn,
@@ -14,6 +15,7 @@ import {
   Failed,
   Fetch,
   Fetched,
+  type Government,
   IndicatorId,
   Politics,
   Read,
@@ -339,6 +341,21 @@ const findRail = () => screen.findByRole("toolbar", { name: "Questions" })
 
 const ticksOf = (rail: HTMLElement) =>
   within(rail).getAllByRole("button", { name: /^Jump to question: / })
+
+// José María Aznar's government of Spain, as PPEG records it.
+const aznar: Government = {
+  country: "ESP",
+  head: "José María Aznar",
+  parties: [{ name: "People's Party", abbreviation: "PP" }],
+  color: null,
+  start: Day.make("1996-05-05"),
+  end: End.cases.Next.make({ day: Day.make("2004-04-17") }),
+  citation: {
+    publisher: "PPEG",
+    url: "https://ppeg.wzb.eu/www/ppeg_gov_2025v1.zip",
+    retrievedAt: DateTime.makeUnsafe("2026-11-09T04:00:00Z"),
+  },
+}
 
 // The agent looking up France's political records, 2000 to 2024.
 const looking = (state: typeof Records.Type.state) =>
@@ -1049,21 +1066,7 @@ describe("Conversation", () => {
       http.get("/api/politics", () =>
         HttpResponse.json(
           Schema.encodeSync(Schema.toCodecJson(Politics))({
-            governments: [
-              {
-                country: "ESP",
-                head: "José María Aznar",
-                parties: [{ name: "People's Party", abbreviation: "PP" }],
-                color: null,
-                start: Day.make("1996-05-05"),
-                end: End.cases.Next.make({ day: Day.make("2004-04-17") }),
-                citation: {
-                  publisher: "PPEG",
-                  url: "https://ppeg.wzb.eu/www/ppeg_gov_2025v1.zip",
-                  retrievedAt: DateTime.makeUnsafe("2026-11-09T04:00:00Z"),
-                },
-              },
-            ],
+            governments: [aznar],
             elections: [],
             events: [],
             reforms: [],
@@ -1080,6 +1083,47 @@ describe("Conversation", () => {
       ),
     ).toBeDefined()
     expect(screen.getByRole("button", { name: "Elections", pressed: false })).toBeDefined()
+  })
+
+  it("links each record a takeaway cites, and shows its card on hover", async () => {
+    const user = userEvent.setup()
+    const spain = Trend.make({ ...brazil, countries: ["ESP"] })
+    const takeaway = "Life expectancy in Spain rose under José María Aznar."
+
+    network.use(
+      ...kept([
+        {
+          question: "Life expectancy in Spain under each prime minister",
+          answer: Answered.make({
+            charts: [
+              {
+                view: spain,
+                takeaway,
+                cites: [
+                  {
+                    at: takeaway.indexOf("José"),
+                    record: Cited.cases.Government.make({ government: aznar }),
+                  },
+                ],
+              },
+            ],
+          }),
+        },
+      ]).handlers,
+      resolve,
+    )
+    show()
+
+    const link = await screen.findByRole("link", { name: "José María Aznar" })
+
+    expect(link.getAttribute("href")).toBe("https://ppeg.wzb.eu/www/ppeg_gov_2025v1.zip")
+
+    await user.hover(link)
+
+    expect(await screen.findByText("José María Aznar · PP · 1996 to 2004")).toBeDefined()
+    expect(
+      screen.getByRole("link", { name: "PPEG (Krause, Döring, Stoppe, WZB Berlin, 2025)" }),
+    ).toBeDefined()
   })
 
   it("keeps a changed chart after a reload", async () => {

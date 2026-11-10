@@ -896,4 +896,27 @@ export const cases: ReadonlyArray<Case> = [
       }),
     ],
   },
+  {
+    questions: ["How did Greece's debt move around the 2010 bailout?"],
+    accepts: [
+      Trend({
+        indicators: ["GC.DOD.TOTL.GD.ZS"],
+        // Government debt as a share of GDP. Greece is in the EU, so Eurostat
+        // answers first. Not yet scored by a run: the series were picked
+        // from Eurostat's catalogue, not from an answer.
+        series: [
+          {
+            indicator: "ESTAT,GOV_10DD_EDPT1,1.0",
+            dimensions: { na_item: ["GD"], unit: ["PC_GDP"] },
+          },
+          { indicator: "ESTAT,SDG_17_40,1.0", dimensions: { unit: ["PC_GDP"] } },
+        ],
+        countries: ["GRC"],
+        overlays: ["events"],
+        // The takeaway cites the assistance programmes; the check drops one
+        // that says they caused the movement.
+        cites: ["event:greece-assistance"],
+      }),
+    ],
+  },
 ]
