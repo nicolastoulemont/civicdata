@@ -7,6 +7,8 @@ import {
   Chart,
   ConversationBusy,
   ConversationId,
+  Coverage,
+  Covered,
   Cited,
   Day,
   Definition,
@@ -470,6 +472,15 @@ const looking = (state: typeof Records.Type.state) =>
     state,
   })
 
+// The agent looking up labour force participation in seven countries.
+const lookingUp = (state: typeof Coverage.Type.state) =>
+  Coverage.make({
+    id: StepId.make("years-1"),
+    indicator: IndicatorId.make("ESTAT,LFSI_EMP_A,1.0"),
+    countries: ["DEU", "FRA", "ITA", "ESP", "POL", "NLD", "SWE"],
+    state,
+  })
+
 describe("Conversation", () => {
   it("asks the question from the home page, shows each step, then the chart", async () => {
     const reply = answer()
@@ -633,6 +644,43 @@ describe("Conversation", () => {
     expect(
       await findStep("Found 4 governments and 2 elections for France, 2000 to 2024"),
     ).toBeDefined()
+  })
+
+  it("says which years each country has data for, opening to each country's years", async () => {
+    const reply = answer()
+
+    network.use(turns([]), reply.handler)
+    show("Add data for Sweden please")
+
+    reply.send(message(lookingUp(Running.make({}))))
+    expect(await findStep("Looking up which years Eurostat has for 7 countries…")).toBeDefined()
+
+    reply.send(
+      message(
+        lookingUp(
+          Covered.make({
+            countries: [
+              { country: "DEU", first: Year.make(2009), last: Year.make(2025) },
+              { country: "FRA", first: Year.make(2003), last: Year.make(2025) },
+              { country: "ITA", first: Year.make(2009), last: Year.make(2025) },
+              { country: "ESP", first: Year.make(2009), last: Year.make(2025) },
+              { country: "POL", first: Year.make(2009), last: Year.make(2025) },
+              { country: "NLD", first: Year.make(2009), last: Year.make(2025) },
+              { country: "SWE", first: Year.make(2005), last: Year.make(2025) },
+            ],
+            shared: [{ from: Year.make(2009), to: Year.make(2025) }],
+            missing: [],
+          }),
+        ),
+      ),
+    )
+    await userEvent.setup().click(
+      await screen.findByRole("button", {
+        name: "Found values for 7 countries: all have 2009 to 2025, France from 2003, Sweden from 2005",
+      }),
+    )
+
+    expect(await findStep("Sweden: 2005 to 2025")).toBeDefined()
   })
 
   it("says in plain words why a step failed", async () => {

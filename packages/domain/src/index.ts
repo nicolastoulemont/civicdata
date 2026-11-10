@@ -12,6 +12,8 @@ export {
   chartsOf,
   citeLink,
   ConversationId,
+  Coverage,
+  Covered,
   Definition,
   Ended,
   Ending,
@@ -44,6 +46,7 @@ export {
   TurnIndex,
   Turns,
   Unanswered,
+  Unresolved,
   type Work,
 } from "./Conversation.ts"
 

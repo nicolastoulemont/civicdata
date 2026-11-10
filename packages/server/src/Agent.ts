@@ -9,6 +9,8 @@ import {
   type ChartIndex,
   Cited,
   Country,
+  Coverage,
+  Covered,
   Definition,
   type Dimension,
   type DimensionsMissing,
@@ -54,6 +56,7 @@ import {
   type TransformNotApplicable,
   Trend,
   Unanswered,
+  Unresolved,
   View,
   When,
   type Work,
@@ -87,7 +90,8 @@ import { Politics } from "./Politics.ts"
 import { Form, limits, unreadable, type Unreadable } from "./readable.ts"
 import { Resolver } from "./Resolver.ts"
 import { Sdmx } from "./Sdmx.ts"
-import { Summary, summarize } from "./Summary.ts"
+import { recent } from "./Series.ts"
+import { coverage, Summary, summarize } from "./Summary.ts"
 import { WorldBank } from "./WorldBank.ts"
 
 // Why an answer could not be given at all.
@@ -130,9 +134,9 @@ interface Interface {
 export const defaultModel = "gpt-6.1-terra"
 
 // Model turns before the agent gives up on a question: enough for each of
-// three charts to search, read a definition, look up places, be fixed once
-// and be written about. Each turn is one model request.
-const rounds = 15
+// three charts to search, read a definition, look up places, look up years,
+// be fixed once and be written about. Each turn is one model request.
+const rounds = 18
 
 // Earlier questions the model is sent again with a new one. Older questions,
 // with everything the agent did to answer them, leave the chat, so a long
@@ -332,6 +336,44 @@ const AskUser = Tool.make("ask_user", {
   success: Schema.String,
 })
 
+// What a chart is about, as find_years and show_chart take it: an
+// indicator, its countries and, for Eurostat and OECD, its series.
+const subject = {
+  indicator: Schema.String.annotate({
+    description: "An indicator code returned by search_indicators, e.g. SP.DYN.LE00.IN",
+  }),
+  countries: Schema.Array(Schema.String).annotate({
+    description:
+      "ISO 3166-1 alpha-3 codes of single economies, e.g. FRA, BRA. No regions or groups.",
+  }),
+  dimensions: Schema.NullOr(
+    Schema.Array(Schema.Struct({ dimension: Schema.String, code: Schema.String })),
+  ).annotate({
+    description:
+      "For a Eurostat or OECD indicator, the code of each dimension its series differ by, e.g. [{ dimension: 'sex', code: 'T' }]. A rejection lists the dimensions and their codes. null for World Bank indicators.",
+  }),
+}
+
+// What find_years tells the model: the indicator's name, the years it looked
+// at, and which of them have values for each country.
+const Years = Schema.TaggedStruct("Years", {
+  name: Schema.String,
+  from: Year,
+  to: Year,
+  countries: Covered.fields.countries,
+  shared: Covered.fields.shared,
+  missing: Covered.fields.missing,
+})
+
+const FindYears = Tool.make("find_years", {
+  description:
+    "Look up which years an indicator has values for in each country, over the last 30 years, to pick a chart's years before show_chart. Returns each country's first and last year with a value, the runs of years every country with values has one in (`shared`), and the countries with no value at all (`missing`).",
+  parameters: Schema.Struct(subject),
+  success: Schema.Union([Years, Refused]),
+  failure: SourceUnavailable,
+  dependencies: [Report],
+})
+
 const ShowChart = Tool.make("show_chart", {
   description:
     "Show one chart of a World Bank, Eurostat or OECD indicator in the answer, after what you wrote so far. The chart is checked against the data; when it is rejected, fix what the problem names and call again. Returns a summary of the charted values to write about.",
@@ -339,17 +381,12 @@ const ShowChart = Tool.make("show_chart", {
     chart: Form.annotate({
       description: `trend: one line per country over a range of years, at most ${limits.trend.most} countries. ranking: countries compared in one year, as bars, at most ${limits.ranking.most}. map: a ranking drawn as a world map, at least ${limits.map.least} countries. change: each country's value in two years, from and to, at most ${limits.change.most}. relation: one dot per country in one year, the indicator against another, at least ${limits.relation.least} countries.`,
     }),
-    indicator: Schema.String.annotate({
-      description: "An indicator code returned by search_indicators, e.g. SP.DYN.LE00.IN",
-    }),
+    indicator: subject.indicator,
     against: Schema.NullOr(Schema.String).annotate({
       description:
         "The indicator code a relation plots the indicator against, e.g. NY.GDP.PCAP.CD; null for other charts",
     }),
-    countries: Schema.Array(Schema.String).annotate({
-      description:
-        "ISO 3166-1 alpha-3 codes of single economies, e.g. FRA, BRA. No regions or groups.",
-    }),
+    countries: subject.countries,
     from: Schema.NullOr(Schema.Int).annotate({
       description: "First year of a trend or a change; null otherwise",
     }),
@@ -366,12 +403,7 @@ const ShowChart = Tool.make("show_chart", {
     per: Schema.NullOr(Schema.String).annotate({
       description: "The indicator code a Ratio divides by, e.g. NY.GDP.MKTP.CD; null otherwise",
     }),
-    dimensions: Schema.NullOr(
-      Schema.Array(Schema.Struct({ dimension: Schema.String, code: Schema.String })),
-    ).annotate({
-      description:
-        "For a Eurostat or OECD indicator, the code of each dimension its series differ by, e.g. [{ dimension: 'sex', code: 'T' }]. A rejection lists the dimensions and their codes. null for World Bank indicators.",
-    }),
+    dimensions: subject.dimensions,
     overlays: Schema.NullOr(Schema.Array(Overlay)).annotate({
       description:
         "For a trend, the political context drawn over its lines: elections, governments (shaded by head of government) and events (with pension reforms on pension charts). null for none, and for other charts.",
@@ -387,6 +419,7 @@ const Tools = Toolkit.make(
   DescribeIndicator,
   FindCountries,
   FindPolitics,
+  FindYears,
   ShowChart,
   AskUser,
 )
@@ -527,13 +560,13 @@ const crowded = (form: Form, { countries, reason }: { countries: number; reason:
   })} Instead, ${instead[form]}.`
 
 // A chart the data cannot show: why, for people, and what to fix, for the model.
-interface Refusal {
-  readonly reason: Rejection
+interface Refusal<R extends Rejection = Rejection> {
+  readonly reason: R
   readonly problem: string
 }
 
-const refuse = (reason: Rejection, problem: string): Result.Result<ResolvedView, Refusal> =>
-  Result.fail({ reason, problem })
+const refuse = <R extends Rejection>(reason: R, problem: string) =>
+  Result.fail<Refusal<R>>({ reason, problem })
 
 // A trend ends at the latest year it has values for. Told only the current
 // year, the model asks for years the World Bank has not published yet. A
@@ -637,6 +670,38 @@ const ToolsLayer = Tools.toLayer(
     const sdmx = yield* Sdmx
     const politics = yield* Politics
 
+    // A View's values, or why the data cannot give them: no source has the
+    // indicator, or its dataflow holds several series and the View has not
+    // picked one. find_years and show_chart tell the model the same problem.
+    const resolve = (
+      view: View,
+    ): Effect.Effect<
+      Result.Result<ResolvedView, Refusal<typeof Unresolved.Type.reason>>,
+      SourceUnavailable | TransformNotApplicable
+    > =>
+      resolver.resolve(view).pipe(
+        Effect.map(Result.succeed),
+        Effect.catchTags({
+          IndicatorNotFound: ({ indicator }) =>
+            Effect.succeed(
+              refuse(
+                Rejection.cases.NoIndicator.make({ indicator }),
+                `There is no indicator ${indicator}. Search for one.`,
+              ),
+            ),
+          DimensionsMissing: ({ indicator, dimensions, open }) =>
+            Effect.succeed(
+              refuse(
+                Rejection.cases.OpenDimensions.make({ open }),
+                `${indicator} holds several series. Pass one code for each of these dimensions: ${dimensions
+                  .filter((dimension) => open.includes(dimension.id))
+                  .map(listed)
+                  .join("; ")}.`,
+              ),
+            ),
+        }),
+      )
+
     // Draws the chart the model described, once it decodes, people can read
     // it and the data has values for it. Only a trend draws political context.
     const draw = (draft: Draft, toolCallId: string | undefined) =>
@@ -658,38 +723,22 @@ const ToolsLayer = Tools.toLayer(
           const resolving: Effect.Effect<
             Result.Result<ResolvedView, Refusal>,
             SourceUnavailable
-          > = resolver.resolve(view).pipe(
-            Effect.map((resolved) =>
-              resolved.observations.length === 0
-                ? refuse(Rejection.cases.NoValues.make({}), noValues(sourceOf(view.indicator)))
-                : Result.succeed(resolved),
+          > = resolve(view).pipe(
+            Effect.map(
+              Result.flatMap((values) =>
+                values.observations.length === 0
+                  ? refuse(Rejection.cases.NoValues.make({}), noValues(sourceOf(view.indicator)))
+                  : Result.succeed(values),
+              ),
             ),
-            Effect.catchTags({
-              IndicatorNotFound: ({ indicator }) =>
-                Effect.succeed(
-                  refuse(
-                    Rejection.cases.NoIndicator.make({ indicator }),
-                    `There is no indicator ${indicator}. Search for one.`,
-                  ),
+            Effect.catchTag("TransformNotApplicable", ({ indicator, transform }) =>
+              Effect.succeed(
+                refuse(
+                  Rejection.cases.NotApplicable.make({}),
+                  `${indicator} is a percentage or rate; ${kindOf(transform)} does not apply to it.`,
                 ),
-              TransformNotApplicable: ({ indicator, transform }) =>
-                Effect.succeed(
-                  refuse(
-                    Rejection.cases.NotApplicable.make({}),
-                    `${indicator} is a percentage or rate; ${kindOf(transform)} does not apply to it.`,
-                  ),
-                ),
-              DimensionsMissing: ({ indicator, dimensions, open }) =>
-                Effect.succeed(
-                  refuse(
-                    Rejection.cases.OpenDimensions.make({ open }),
-                    `${indicator} holds several series. Pass one code for each of these dimensions: ${dimensions
-                      .filter((dimension) => open.includes(dimension.id))
-                      .map(listed)
-                      .join("; ")}.`,
-                  ),
-                ),
-            }),
+              ),
+            ),
           )
 
           // A chart nobody could read is refused before any data is fetched.
@@ -852,6 +901,65 @@ const ToolsLayer = Tools.toLayer(
               ),
           }),
         ),
+      // Reads the recent years of the data the model named, the years a
+      // cached source asks for at once (see `recent`), so show_chart, given
+      // the same countries and series, reads its values from the cache.
+      // Arguments that do not decode, and data the source cannot give, are
+      // the model's mistakes, told to it as show_chart tells them. A country
+      // without values is part of the answer.
+      find_years: ({ indicator, countries, dimensions }, { toolCallId }) =>
+        Effect.flatMap(recent, ({ from, to }) =>
+          toView({
+            chart: "trend",
+            indicator,
+            against: null,
+            countries,
+            from,
+            to,
+            year: null,
+            transform: null,
+            per: null,
+            dimensions,
+            overlays: null,
+          }).pipe(
+            Effect.flatMap((view) => {
+              const at = (state: typeof Coverage.Type.state) =>
+                Coverage.make({
+                  id: stepOf(toolCallId, "find_years"),
+                  indicator: view.indicator,
+                  countries: view.countries,
+                  state,
+                })
+
+              const covering = resolve(view).pipe(
+                Effect.map(
+                  Result.map(({ indicator: { name }, observations }) => ({
+                    name,
+                    ...coverage(observations, view.countries),
+                  })),
+                ),
+                // find_years asks for no transform.
+                Effect.catchTag("TransformNotApplicable", Effect.die),
+              )
+
+              return reported(covering, {
+                at,
+                done: Result.match({
+                  onSuccess: (found) => at(Covered.make(Struct.omit(found, ["name"]))),
+                  onFailure: ({ reason }) => at(Unresolved.make({ reason })),
+                }),
+              }).pipe(
+                Effect.map(
+                  Result.match({
+                    onSuccess: (found) => Years.make({ ...found, from, to }),
+                    onFailure: ({ problem }) => rejected(problem),
+                  }),
+                ),
+              )
+            }),
+            Effect.catchTag("SchemaError", (error) => Effect.succeed(rejected(error.message))),
+          ),
+        ),
       // The question is shown when the round ends; see `answer`.
       ask_user: () =>
         Effect.succeed("The question is shown to the person. Their reply is the next message."),
@@ -924,16 +1032,18 @@ Pick the source that fits the question when several measure the same thing:
 A measure only one source publishes comes from that source.
 
 1. Call search_indicators to find the indicator that measures what the question asks. Use only codes it returns; never write a code from memory. Pass a source to look in that source only, e.g. when its first results are another source's. When two results are close, call describe_indicator to read their definitions.
-2. Call show_chart with that indicator, the countries and the years.
+2. Pick the chart type as the section on chart types below says, and the countries.
    - Countries are ISO 3166-1 alpha-3 codes for every source. When a place name is not plainly one country, call find_countries. List the members of a group yourself, e.g. the G7 or the Nordic countries.
-   - Pick the chart type as the section on chart types below says.
-   - Without years in the question, a trend covers the last 20 years and a ranking the latest year with data. It is ${year} now; most indicators have values up to ${year - 2}.
+   - A Eurostat or OECD dataflow holds several series, e.g. by sex or age. find_years' and show_chart's rejections list its dimensions and their codes: pick the series the question asks for, else the total.
    - Charts show annual values. Prefer a Eurostat or OECD dataflow whose name does not say quarterly or monthly.
-   - A Eurostat or OECD dataflow holds several series, e.g. by sex or age. show_chart's rejection lists its dimensions and their codes: pick the series the question asks for, else the total.
-   - Use a transform only when the question asks for one.
-3. If show_chart rejects the chart, fix what it names and call it again.
-4. Once show_chart shows a chart, write about it from the data show_chart returned for it, never before. ${writing} When you picked one source over others that measure the same thing, name it, e.g. "Eurostat's figures show". Write as much as the question needs: most charts need two to four sentences.
-5. If the question needs another chart, as the section on several charts below says, call show_chart for it. Otherwise stop calling tools: the answer is complete.
+3. Unless the question names the years, call find_years with the indicator, the countries and the series before show_chart, and pick the years from what it returns. For a relation, call it for both indicators.
+   - "shared" holds the years every country has a value in. A ranking, map or relation shows the latest of them. A change runs from the first year it would show, or the first shared year after it, to the latest shared year.
+   - A trend covers the last 20 years unless the question asks for others, and keeps them when a country's values start later: its line shows where data exists. It is ${year} now; most indicators have values up to ${year - 2}.
+   - Years carried over from a chart you drew before are not named by the question.
+4. Call show_chart with the chart type, the indicator, the countries, the series and the years. Pass the same countries and series as find_years, so the chart reads the values find_years fetched. Use a transform only when the question asks for one.
+5. If find_years or show_chart rejects what you asked, fix what it names and call it again.
+6. Once show_chart shows a chart, write about it from the data show_chart returned for it, never before. ${writing} When you picked one source over others that measure the same thing, name it, e.g. "Eurostat's figures show". When you picked years other than those on screen or in the question, say why in one sentence, e.g. "Eurostat has data for all seven countries from 2009." Write as much as the question needs: most charts need two to four sentences.
+7. If the question needs another chart, as the section on several charts below says, call find_years and show_chart for it. Otherwise stop calling tools: the answer is complete.
 
 Chart types: each does one job. Pick the one that fits what the question asks, not the words it uses.
 - trend: how a measure moved over time, for at most ${limits.trend.most} countries. "Has India caught up with China?" and "How did Poland's wages move in the 2010s?" are trends.

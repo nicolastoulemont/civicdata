@@ -1,6 +1,8 @@
 import {
   chartsOf,
   type Country,
+  type Coverage,
+  type Covered,
   type Definition,
   type Failed,
   type Fetch,
@@ -15,12 +17,14 @@ import {
   type Thinking,
   type Turn,
   transformOf,
+  type Unresolved,
   type View,
 } from "@civicdata/domain"
 import { Match, Predicate } from "effect"
 import {
   BookOpen,
   Brain,
+  CalendarRange,
   ChartLine,
   CircleStop,
   Landmark,
@@ -188,6 +192,87 @@ const records = ({ countries, from, to, state }: typeof Records.Type) => {
   })
 }
 
+// Years as a sentence names them: "2009", "2009 to 2025".
+const span = ({ from, to }: { from: number; to: number }) =>
+  from === to ? `${from}` : `${from} to ${to}`
+
+// The countries whose values start before the years they all have, earliest
+// first: "France from 2003, Sweden from 2005".
+const earlier = ({ countries, shared }: typeof Covered.Type) => {
+  const start = shared[0]?.from
+
+  const firsts = Map.groupBy(
+    countries.filter(({ first }) => start !== undefined && first < start),
+    ({ first }) => first,
+  )
+
+  return [...firsts]
+    .toSorted(([a], [b]) => a - b)
+    .map(
+      ([first, each]) => `${joined(each.map(({ country }) => countryName(country)))} from ${first}`,
+    )
+}
+
+// What a lookup found: "Found values for 7 countries: all have 2009 to
+// 2025, France from 2003", "Found values for Brazil: 2000 to 2002; none for
+// Argentina".
+const covering = (covered: typeof Covered.Type) => {
+  const { countries, shared, missing } = covered
+  const [only, ...rest] = countries
+
+  if (only === undefined) return `Found no values for ${countriesNamed(missing)}`
+
+  const text =
+    rest.length === 0
+      ? `Found values for ${countryName(only.country)}: ${span({ from: only.first, to: only.last })}`
+      : [
+          `Found values for ${plural(countries.length, ["country", "countries"])}: ${
+            shared.length === 0 ? "no year they all have" : `all have ${joined(shared.map(span))}`
+          }`,
+          ...earlier(covered),
+        ].join(", ")
+
+  return missing.length === 0 ? text : `${text}; none for ${countriesNamed(missing)}`
+}
+
+// Why the agent cannot look up the years, in plain words.
+const unresolved = (reason: typeof Unresolved.Type.reason) =>
+  Match.valueTags(reason, {
+    NoIndicator: ({ indicator }) => `No source has the indicator ${indicator}.`,
+    OpenDimensions: ({ open }) =>
+      `The data holds several series, and the lookup has to pick one by ${open.join(", ")}.`,
+  })
+
+const coverage = ({ indicator, countries, state }: typeof Coverage.Type) => {
+  const icon = CalendarRange
+  const asked = `which years ${of(sourceOf(indicator))} has for ${countriesNamed(countries)}`
+
+  return Match.valueTags(state, {
+    Running: () => line("Running", { icon, text: `Looking up ${asked}…` }),
+    // Opens to each country's years.
+    Done: (covered) =>
+      line("Done", {
+        icon,
+        text: covering(covered),
+        more: [
+          ...covered.countries.map(
+            ({ country, first, last }) =>
+              `${countryName(country)}: ${span({ from: first, to: last })}`,
+          ),
+          ...covered.missing.map((country) => `${countryName(country)}: no values`),
+        ],
+      }),
+    Rejected: ({ reason }) =>
+      line("Done", {
+        icon,
+        text: "Couldn't look up the years, trying again",
+        more: [unresolved(reason)],
+      }),
+    Failed: ({ reason }) => failed(reason, { icon, text: `Couldn't look up ${asked}` }),
+    Stopped: () => line("Stopped", { icon, text: `Stopped looking up ${asked}` }),
+  })
+}
+
 // The chart type of a View, as a sentence names it: "a trend", "a map".
 const typeOf = (view: View) =>
   Match.valueTags(view, {
@@ -265,6 +350,7 @@ export const lineOf = (step: Step | Saved): Line | undefined =>
     Definition: definition,
     Lookup: lookup,
     Records: records,
+    Coverage: coverage,
     Fetch: fetch,
     // A block shows in the answer, not in the log.
     Rendered: () => undefined,
@@ -299,6 +385,7 @@ const kindOf = (step: Saved): Noun | undefined =>
     Definition: () => definitions,
     Lookup: () => lookups,
     Records: () => lookups,
+    Coverage: () => lookups,
     Fetch: ({ state }) => (Predicate.isTagged(state, "Done") ? charts : undefined),
   })
 

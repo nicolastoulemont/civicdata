@@ -10,6 +10,8 @@ import {
   ConversationBusy,
   type Country,
   ConversationId,
+  Coverage,
+  Covered,
   Definition,
   DimensionId,
   Dimensions,
@@ -46,6 +48,7 @@ import {
   TurnIndex,
   TurnNotFound,
   Unanswered,
+  Unresolved,
   View,
   Year,
 } from "@civicdata/domain"
@@ -62,6 +65,7 @@ import {
   Option,
   Schema,
   Stream,
+  Struct,
 } from "effect"
 import { AiError, LanguageModel, type Response } from "effect/ai"
 import { HttpRouter, HttpServer } from "effect/http"
@@ -80,7 +84,10 @@ import { Resolver } from "../src/Resolver.ts"
 import { Sdmx } from "../src/Sdmx.ts"
 import { type Storage, Transcript } from "../src/Transcript.ts"
 import { WorldBank } from "../src/WorldBank.ts"
-import { http, memoryStorage } from "./fakes.ts"
+import { http, memory, memoryStorage } from "./fakes.ts"
+import participationFlow from "./fixtures/eurostat/participation-flow.json"
+import participationOptions from "./fixtures/eurostat/participation-options.csv?raw"
+import participation from "./fixtures/eurostat/participation.csv?raw"
 import unemploymentFlow from "./fixtures/eurostat/unemployment-flow.json"
 import unemploymentOptions from "./fixtures/eurostat/unemployment-options.csv?raw"
 import unemploymentRates from "./fixtures/eurostat/unemployment-total.csv?raw"
@@ -174,6 +181,7 @@ type Name =
   | "describe_indicator"
   | "find_countries"
   | "find_politics"
+  | "find_years"
   | "show_chart"
   | "ask_user"
 
@@ -1674,17 +1682,17 @@ describe("several charts", () => {
 
   it.effect("ends the answer after its last round, keeping what it showed", () => {
     const model = scripted([
-      ...Array.from({ length: 15 }, (_, round) =>
+      ...Array.from({ length: 18 }, (_, round) =>
         Effect.succeed(call("show_chart", brazil, { step: `chart-${round}` })),
       ),
-      Effect.die("the model must not be asked a sixteenth time"),
+      Effect.die("the model must not be asked a nineteenth time"),
     ])
 
     return Effect.gen(function* () {
       const ending = (yield* answer("Life expectancy in Brazil, again and again")).at(-1)
 
-      expect(ending).toEqual(Answered.make({ blocks: Arr.makeBy(15, () => chart(brazilTrend)) }))
-      expect(model.prompts).toHaveLength(15)
+      expect(ending).toEqual(Answered.make({ blocks: Arr.makeBy(18, () => chart(brazilTrend)) }))
+      expect(model.prompts).toHaveLength(18)
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
@@ -2054,5 +2062,205 @@ describe("political context", () => {
         charted(chart(spainTrend)),
       )
     }).pipe(Effect.provide(serveApi(model.layer, { politics })))
+  })
+})
+
+// The day the participation rates were recorded: the recent years run from
+// 1996 to 2026.
+const recordedDay = TestClock.setTime(
+  DateTime.toEpochMillis(DateTime.makeUnsafe("2026-11-10T11:00:00Z")),
+)
+
+const labourForce = IndicatorId.make("ESTAT,LFSI_EMP_A,1.0")
+
+// The six countries of the trend, with Sweden added.
+const withSweden = ["DEU", "FRA", "ITA", "ESP", "POL", "NLD", "SWE"] as const
+
+// The share of 15 to 64 year-olds in the labour force, as the model picks
+// it and as a View keeps it.
+const activityRate = [
+  { dimension: "indic_em", code: "ACT" },
+  { dimension: "sex", code: "T" },
+  { dimension: "age", code: "Y15-64" },
+  { dimension: "unit", code: "PC_POP" },
+]
+
+const participationData = `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/LFSI_EMP_A/1.0/*?c[geo]=DE,FR,IT,ES,PL,NL,SE&c[freq]=A&c[indic_em]=ACT&c[sex]=T&c[age]=Y15-64&c[unit]=PC_POP&c[TIME_PERIOD]=ge:1996+le:2026&compress=false`
+
+// Eurostat as recorded on 2026-11-10, behind the cache: labour force
+// participation for the seven countries over the recent years, with the URL
+// of each request that reached Eurostat.
+const cachedEurostat = () => {
+  const asked: Array<string> = []
+
+  const layer = Sdmx.cached.pipe(
+    Layer.provide(
+      http((url) => {
+        asked.push(url)
+
+        return (
+          new Map([
+            [
+              `${eurostat}/sdmx/2.1/dataflow/ESTAT/LFSI_EMP_A/1.0?format=JSON`,
+              globalThis.Response.json(participationFlow),
+            ],
+            [
+              `${eurostat}/sdmx/3.0/data/dataflow/ESTAT/LFSI_EMP_A/1.0/*?c[geo]=DE,FR,IT,ES,PL,NL,SE&c[freq]=A&lastNObservations=1&compress=false`,
+              new globalThis.Response(participationOptions),
+            ],
+            [participationData, new globalThis.Response(participation)],
+          ]).get(url) ?? new globalThis.Response("no recording", { status: 404 })
+        )
+      }),
+    ),
+    Layer.provide(memory().layer),
+  )
+
+  return { layer, asked }
+}
+
+const isCoverage = Schema.is(Coverage)
+
+// The year lookups of an answer, as each last was.
+const coverages = (steps: ReadonlyArray<Step>) => log(steps).filter(isCoverage)
+
+describe("finding years", () => {
+  it.effect(
+    "tells the model which years each country has, then draws the chart without asking the source again",
+    () => {
+      const source = cachedEurostat()
+
+      const lookup = {
+        indicator: labourForce,
+        countries: withSweden,
+        dimensions: activityRate,
+      }
+
+      const model = scripted([
+        Effect.succeed(call("find_years", lookup)),
+        Effect.succeed(
+          call("show_chart", { ...brazil, ...lookup, chart: "change", from: 2009, to: 2025 }),
+        ),
+      ])
+
+      const found = Covered.make({
+        countries: [
+          { country: "DEU", first: Year.make(2009), last: Year.make(2025) },
+          { country: "FRA", first: Year.make(2003), last: Year.make(2025) },
+          { country: "ITA", first: Year.make(2009), last: Year.make(2025) },
+          { country: "ESP", first: Year.make(2009), last: Year.make(2025) },
+          { country: "POL", first: Year.make(2009), last: Year.make(2025) },
+          { country: "NLD", first: Year.make(2009), last: Year.make(2025) },
+          { country: "SWE", first: Year.make(2005), last: Year.make(2025) },
+        ],
+        shared: [{ from: Year.make(2009), to: Year.make(2025) }],
+        missing: [],
+      })
+
+      return Effect.gen(function* () {
+        yield* recordedDay
+
+        const steps = yield* answer("Add data for Sweden please")
+
+        expect(coverages(steps)).toEqual([
+          Coverage.make({
+            id: StepId.make("call-find_years"),
+            indicator: labourForce,
+            countries: ["DEU", "FRA", "ITA", "ESP", "POL", "NLD", "SWE"],
+            state: found,
+          }),
+        ])
+        expect(model.prompts[1]).toContain(
+          JSON.stringify({ from: 1996, to: 2026, ...Struct.omit(found, ["_tag"]) }).slice(1, -1),
+        )
+        expect(steps.at(-1)).toEqual(
+          charted(
+            chart(
+              Change.make({
+                indicator: labourForce,
+                countries: withSweden,
+                from: Year.make(2009),
+                to: Year.make(2025),
+                dimensions: Schema.decodeSync(Dimensions)({
+                  indic_em: "ACT",
+                  sex: "T",
+                  age: "Y15-64",
+                  unit: "PC_POP",
+                }),
+              }),
+            ),
+            said(),
+          ),
+        )
+        // The chart's values came from the request find_years made.
+        expect(source.asked.filter((url) => url.includes("TIME_PERIOD"))).toEqual([
+          participationData,
+        ])
+      }).pipe(Effect.provide(serveApi(model.layer, { sdmx: source.layer })))
+    },
+  )
+
+  it.effect("lists a country without any value as missing", () => {
+    const model = scripted([
+      Effect.succeed(
+        call("find_years", {
+          indicator: lifeExpectancy,
+          countries: ["BRA", "ARG"],
+          dimensions: null,
+        }),
+      ),
+    ])
+
+    return Effect.gen(function* () {
+      yield* recordedDay
+
+      const steps = yield* answer("Life expectancy in Brazil and Argentina")
+
+      expect(coverages(steps).map(({ state }) => state)).toEqual([
+        Covered.make({
+          countries: [{ country: "BRA", first: Year.make(2000), last: Year.make(2002) }],
+          shared: [{ from: Year.make(2000), to: Year.make(2002) }],
+          missing: ["ARG"],
+        }),
+      ])
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("rejects an unknown indicator and a series left open as show_chart does", () => {
+    const model = scripted([
+      Effect.succeed(
+        call(
+          "find_years",
+          { indicator: "SP.NOPE", countries: ["BRA"], dimensions: null },
+          { step: "years-1" },
+        ),
+      ),
+      Effect.succeed(
+        call(
+          "find_years",
+          { indicator: "ESTAT,UNE_RT_A,1.0", countries: ["FRA"], dimensions: null },
+          { step: "years-2" },
+        ),
+      ),
+    ])
+
+    return Effect.gen(function* () {
+      yield* recordedDay
+
+      const steps = yield* answer("Unemployment in France")
+
+      expect(coverages(steps).map(({ state }) => state)).toEqual([
+        Unresolved.make({
+          reason: Rejection.cases.NoIndicator.make({ indicator: IndicatorId.make("SP.NOPE") }),
+        }),
+        Unresolved.make({
+          reason: Rejection.cases.OpenDimensions.make({
+            open: [DimensionId.make("age"), DimensionId.make("unit"), DimensionId.make("sex")],
+          }),
+        }),
+      ])
+      expect(model.prompts[1]).toContain("There is no indicator SP.NOPE. Search for one.")
+      expect(model.prompts[2]).toContain("sex (F Females, M Males, T Total)")
+    }).pipe(Effect.provide(serveApi(model.layer)))
   })
 })

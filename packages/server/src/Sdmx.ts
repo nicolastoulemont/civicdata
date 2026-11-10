@@ -29,7 +29,7 @@ import * as Csv from "./Csv.ts"
 import { geo } from "./geo.ts"
 import { Pace } from "./Pace.ts"
 import type { Described, Query } from "./Series.ts"
-import { Series } from "./Series.ts"
+import { Series, widen } from "./Series.ts"
 import { plain } from "./text.ts"
 
 // A query for an SDMX dataflow also says which value of each dimension to
@@ -583,9 +583,12 @@ export class Sdmx extends Context.Service<Sdmx, Interface>()("@civicdata/server/
 
   // Serves a stored dataflow, list of dimensions or series while its source
   // has not published since, otherwise asks the source and stores the answer.
+  // Asks for the recent years at once (`widen`).
   static readonly cached = Layer.effect(
     Sdmx,
-    Effect.flatMap(Cache.remember, (remember) => make(remember)),
+    Effect.flatMap(Cache.remember, make).pipe(
+      Effect.map((sdmx) => Sdmx.of({ ...sdmx, observations: widen(sdmx.observations) })),
+    ),
   )
 
   static readonly live = Sdmx.cached.pipe(Layer.provide(Pace.http), Layer.provide(Cache.layer))
