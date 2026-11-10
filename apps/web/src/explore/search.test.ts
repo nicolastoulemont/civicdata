@@ -36,6 +36,23 @@ describe("explore URL", () => {
     expect(toSearch(toView(map))).toEqual(map)
   })
 
+  it("round-trips a map over time, and refuses a year outside its span or one end alone", () => {
+    const oneEnd: Search = {
+      chart: "ranking",
+      indicator: "SP.DYN.LE00.IN",
+      countries: "NGA,KEN",
+      year: 2000,
+      to: 2022,
+      as: "map",
+    }
+
+    const map: Search = { ...oneEnd, from: 1990 }
+
+    expect(toSearch(toView(map))).toEqual(map)
+    expect(() => toView({ ...map, year: 1980 })).toThrow("Schema validation failed")
+    expect(() => toView(oneEnd)).toThrow("from goes with to")
+  })
+
   it("round-trips a ratio with the indicator it divides by", () => {
     const ratio: Search = { ...trend, transform: "ratio", per: "NY.GDP.MKTP.CD" }
 

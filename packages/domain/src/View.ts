@@ -19,6 +19,20 @@ const forwards = Schema.makeFilter(
     years.from <= years.to || "from must not be after to",
 )
 
+// The years a chart over time moves through, both included. A chart that
+// carries one shows its year with a slider over them; one without is static.
+const Span = Schema.Struct({ from: Year, to: Year }).check(forwards)
+
+export interface Span extends Schema.Schema.Type<typeof Span> {}
+
+// A chart over time shows a year of its span.
+const within = Schema.makeFilter(
+  (view: { readonly year: Year; readonly span?: Span }) =>
+    view.span === undefined ||
+    (view.year >= view.span.from && view.year <= view.span.to) ||
+    "year must lie inside span",
+)
+
 // A ratio of an indicator to itself is 1 everywhere.
 const divides = Schema.makeFilter(
   (view: { readonly indicator: IndicatorId; readonly transform?: Transform }) =>
@@ -43,17 +57,19 @@ export const Trend = Schema.TaggedStruct("Trend", {
 export interface Trend extends Schema.Schema.Type<typeof Trend> {}
 
 // One indicator for some countries in a single year, drawn as ranked bars,
-// or as a map shaded by rank when `as` is "Map": of the first region in
-// `regions` that holds every country, else of the world. A single year has no
-// first year to index to.
+// or as a map when `as` is "Map": of the first region in `regions` that holds
+// every country, else of the world. A ranking with a span moves through its
+// years, showing `year`; a map of one year is shaded by rank, one over time by
+// value. A ranking has no first year to index to.
 export const Ranking = Schema.TaggedStruct("Ranking", {
   indicator: IndicatorId,
   countries: Countries,
   year: Year,
+  span: Schema.optionalKey(Span),
   as: Schema.optionalKey(Schema.Literal("Map")),
   transform: Schema.optionalKey(Schema.Union([Schema.Literals(["PerPerson", "Growth"]), Ratio])),
   dimensions: Schema.optionalKey(Dimensions),
-}).check(divides)
+}).check(divides, within)
 
 // One indicator for some countries in two years, drawn as a dot for each year
 // joined by a line. Growth and an index describe a change already, so only

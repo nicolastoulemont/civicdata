@@ -22,3 +22,12 @@ export const around = (values: ReadonlyArray<number>) => {
 
   return { ticks: marks, low: marks[0] ?? low, high: marks.at(-1) ?? high + 1 }
 }
+
+// Round ticks from zero to the values, for bars that grow from zero, e.g.
+// across every year of a ranking over time. No values, or only zeros, give
+// 0 to 1.
+export const fromZero = (values: ReadonlyArray<number>) => {
+  const marks = ticks(Math.min(0, ...values), Math.max(0, ...values))
+
+  return [marks[0] ?? 0, marks.at(-1) ?? 1] as const
+}

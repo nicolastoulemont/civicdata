@@ -103,10 +103,18 @@ export {
 
 export { type Region, regionOf, regions } from "./Region.ts"
 
-export { type Break, type Flag, Observation, ResolvedView } from "./ResolvedView.ts"
+export {
+  type Break,
+  type Flag,
+  inYear,
+  isRanked,
+  Observation,
+  type Ranked,
+  ResolvedView,
+} from "./ResolvedView.ts"
 
 export { Source, sourceOf } from "./Source.ts"
 
 export { applies, kindOf, Ratio, Transform } from "./Transform.ts"
 
-export { Change, Ranking, Relation, transformOf, Trend, View, Year } from "./View.ts"
+export { Change, Ranking, Relation, type Span, transformOf, Trend, View, Year } from "./View.ts"

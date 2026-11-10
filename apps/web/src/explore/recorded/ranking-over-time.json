@@ -1,0 +1,2333 @@
+{
+  "view": {
+    "_tag": "Ranking",
+    "indicator": "NY.GDP.PCAP.CD",
+    "countries": [
+      "ARG",
+      "AUS",
+      "BRA",
+      "CAN",
+      "CHN",
+      "FRA",
+      "DEU",
+      "IND",
+      "IDN",
+      "ITA",
+      "JPN",
+      "KOR",
+      "MEX",
+      "RUS",
+      "SAU",
+      "ZAF",
+      "TUR",
+      "GBR",
+      "USA"
+    ],
+    "year": 2023,
+    "span": {
+      "from": 2000,
+      "to": 2023
+    }
+  },
+  "title": "GDP per person (current US$)",
+  "indicator": {
+    "id": "NY.GDP.PCAP.CD",
+    "name": "GDP per capita (current US$)",
+    "definition": "Gross domestic product is the total income earned through the production of goods and services in an economic territory during an accounting period. It can be measured in three different ways: using either the expenditure approach, the income approach, or the production approach. The core indicator has been divided by the general population to achieve a per capita estimate.This indicator is expressed in current prices, meaning no adjustment has been made to account for price changes over time. This indicator is expressed in United States dollars."
+  },
+  "observations": [
+    {
+      "country": "ARG",
+      "year": 2000,
+      "value": 7637.01489203628
+    },
+    {
+      "country": "ARG",
+      "year": 2001,
+      "value": 7141.47507662826
+    },
+    {
+      "country": "ARG",
+      "year": 2002,
+      "value": 2569.69963519124
+    },
+    {
+      "country": "ARG",
+      "year": 2003,
+      "value": 3320.47775133903
+    },
+    {
+      "country": "ARG",
+      "year": 2004,
+      "value": 4242.02099089422
+    },
+    {
+      "country": "ARG",
+      "year": 2005,
+      "value": 5067.65342293276
+    },
+    {
+      "country": "ARG",
+      "year": 2006,
+      "value": 5869.38028970204
+    },
+    {
+      "country": "ARG",
+      "year": 2007,
+      "value": 7185.25155147027
+    },
+    {
+      "country": "ARG",
+      "year": 2008,
+      "value": 8944.1102657357
+    },
+    {
+      "country": "ARG",
+      "year": 2009,
+      "value": 8150.23527028221
+    },
+    {
+      "country": "ARG",
+      "year": 2010,
+      "value": 10260.1313108254
+    },
+    {
+      "country": "ARG",
+      "year": 2011,
+      "value": 12704.2831819684
+    },
+    {
+      "country": "ARG",
+      "year": 2012,
+      "value": 12949.717486654
+    },
+    {
+      "country": "ARG",
+      "year": 2013,
+      "value": 12963.675773326
+    },
+    {
+      "country": "ARG",
+      "year": 2014,
+      "value": 12233.1444119186
+    },
+    {
+      "country": "ARG",
+      "year": 2015,
+      "value": 13679.6264980954
+    },
+    {
+      "country": "ARG",
+      "year": 2016,
+      "value": 12699.9623137756
+    },
+    {
+      "country": "ARG",
+      "year": 2017,
+      "value": 14532.5009308511
+    },
+    {
+      "country": "ARG",
+      "year": 2018,
+      "value": 11752.7998922979
+    },
+    {
+      "country": "ARG",
+      "year": 2019,
+      "value": 9955.97478680428
+    },
+    {
+      "country": "ARG",
+      "year": 2020,
+      "value": 8535.59938004389
+    },
+    {
+      "country": "ARG",
+      "year": 2021,
+      "value": 10738.0179223384
+    },
+    {
+      "country": "ARG",
+      "year": 2022,
+      "value": 13962.1894087223
+    },
+    {
+      "country": "ARG",
+      "year": 2023,
+      "value": 14261.8465667948
+    },
+    {
+      "country": "AUS",
+      "year": 2000,
+      "value": 21908.9968019784
+    },
+    {
+      "country": "AUS",
+      "year": 2001,
+      "value": 19733.6510102645
+    },
+    {
+      "country": "AUS",
+      "year": 2002,
+      "value": 20335.0960191023
+    },
+    {
+      "country": "AUS",
+      "year": 2003,
+      "value": 23757.5898471684
+    },
+    {
+      "country": "AUS",
+      "year": 2004,
+      "value": 30886.0500949401
+    },
+    {
+      "country": "AUS",
+      "year": 2005,
+      "value": 34535.20727091
+    },
+    {
+      "country": "AUS",
+      "year": 2006,
+      "value": 36658.8243476122
+    },
+    {
+      "country": "AUS",
+      "year": 2007,
+      "value": 41128.2476618402
+    },
+    {
+      "country": "AUS",
+      "year": 2008,
+      "value": 49811.2067218988
+    },
+    {
+      "country": "AUS",
+      "year": 2009,
+      "value": 42954.8494884573
+    },
+    {
+      "country": "AUS",
+      "year": 2010,
+      "value": 52313.8939041213
+    },
+    {
+      "country": "AUS",
+      "year": 2011,
+      "value": 62799.3895017032
+    },
+    {
+      "country": "AUS",
+      "year": 2012,
+      "value": 68301.4402512587
+    },
+    {
+      "country": "AUS",
+      "year": 2013,
+      "value": 68476.6788496118
+    },
+    {
+      "country": "AUS",
+      "year": 2014,
+      "value": 62817.2061751737
+    },
+    {
+      "country": "AUS",
+      "year": 2015,
+      "value": 56970.3613028094
+    },
+    {
+      "country": "AUS",
+      "year": 2016,
+      "value": 50084.4440606385
+    },
+    {
+      "country": "AUS",
+      "year": 2017,
+      "value": 54117.547718609
+    },
+    {
+      "country": "AUS",
+      "year": 2018,
+      "value": 57410.1737346009
+    },
+    {
+      "country": "AUS",
+      "year": 2019,
+      "value": 55194.7585097428
+    },
+    {
+      "country": "AUS",
+      "year": 2020,
+      "value": 51983.4523666382
+    },
+    {
+      "country": "AUS",
+      "year": 2021,
+      "value": 60758.9044397144
+    },
+    {
+      "country": "AUS",
+      "year": 2022,
+      "value": 65169.5191118657
+    },
+    {
+      "country": "AUS",
+      "year": 2023,
+      "value": 65058.3773146674
+    },
+    {
+      "country": "BRA",
+      "year": 2000,
+      "value": 3766.54811466032
+    },
+    {
+      "country": "BRA",
+      "year": 2001,
+      "value": 3176.28935747524
+    },
+    {
+      "country": "BRA",
+      "year": 2002,
+      "value": 2855.94018885769
+    },
+    {
+      "country": "BRA",
+      "year": 2003,
+      "value": 3090.6070097455
+    },
+    {
+      "country": "BRA",
+      "year": 2004,
+      "value": 3663.823188064
+    },
+    {
+      "country": "BRA",
+      "year": 2005,
+      "value": 4827.78173074714
+    },
+    {
+      "country": "BRA",
+      "year": 2006,
+      "value": 5934.14470924968
+    },
+    {
+      "country": "BRA",
+      "year": 2007,
+      "value": 7409.69130673473
+    },
+    {
+      "country": "BRA",
+      "year": 2008,
+      "value": 8908.33176538648
+    },
+    {
+      "country": "BRA",
+      "year": 2009,
+      "value": 8678.6592244676
+    },
+    {
+      "country": "BRA",
+      "year": 2010,
+      "value": 11403.2821278747
+    },
+    {
+      "country": "BRA",
+      "year": 2011,
+      "value": 13396.6243562986
+    },
+    {
+      "country": "BRA",
+      "year": 2012,
+      "value": 12521.7213519966
+    },
+    {
+      "country": "BRA",
+      "year": 2013,
+      "value": 12458.8912138813
+    },
+    {
+      "country": "BRA",
+      "year": 2014,
+      "value": 12274.9939689363
+    },
+    {
+      "country": "BRA",
+      "year": 2015,
+      "value": 8936.19661712113
+    },
+    {
+      "country": "BRA",
+      "year": 2016,
+      "value": 8836.28652735657
+    },
+    {
+      "country": "BRA",
+      "year": 2017,
+      "value": 10080.5092819305
+    },
+    {
+      "country": "BRA",
+      "year": 2018,
+      "value": 9300.66164923219
+    },
+    {
+      "country": "BRA",
+      "year": 2019,
+      "value": 9029.83326681073
+    },
+    {
+      "country": "BRA",
+      "year": 2020,
+      "value": 7074.19378337644
+    },
+    {
+      "country": "BRA",
+      "year": 2021,
+      "value": 7972.5366498646
+    },
+    {
+      "country": "BRA",
+      "year": 2022,
+      "value": 9281.33334441234
+    },
+    {
+      "country": "BRA",
+      "year": 2023,
+      "value": 10377.5892792557
+    },
+    {
+      "country": "CAN",
+      "year": 2000,
+      "value": 24271.0020563821
+    },
+    {
+      "country": "CAN",
+      "year": 2001,
+      "value": 23822.096210932
+    },
+    {
+      "country": "CAN",
+      "year": 2002,
+      "value": 24256.0598742201
+    },
+    {
+      "country": "CAN",
+      "year": 2003,
+      "value": 28301.9097055898
+    },
+    {
+      "country": "CAN",
+      "year": 2004,
+      "value": 32145.5653280273
+    },
+    {
+      "country": "CAN",
+      "year": 2005,
+      "value": 36383.9671341396
+    },
+    {
+      "country": "CAN",
+      "year": 2006,
+      "value": 40504.8490329826
+    },
+    {
+      "country": "CAN",
+      "year": 2007,
+      "value": 44660.0838892281
+    },
+    {
+      "country": "CAN",
+      "year": 2008,
+      "value": 46710.3654423328
+    },
+    {
+      "country": "CAN",
+      "year": 2009,
+      "value": 40874.9612318547
+    },
+    {
+      "country": "CAN",
+      "year": 2010,
+      "value": 47560.8378831258
+    },
+    {
+      "country": "CAN",
+      "year": 2011,
+      "value": 52224.1237767406
+    },
+    {
+      "country": "CAN",
+      "year": 2012,
+      "value": 52670.1429540952
+    },
+    {
+      "country": "CAN",
+      "year": 2013,
+      "value": 52637.7313222622
+    },
+    {
+      "country": "CAN",
+      "year": 2014,
+      "value": 50960.8942086685
+    },
+    {
+      "country": "CAN",
+      "year": 2015,
+      "value": 43594.2379080706
+    },
+    {
+      "country": "CAN",
+      "year": 2016,
+      "value": 42314.1033623905
+    },
+    {
+      "country": "CAN",
+      "year": 2017,
+      "value": 45129.7335281051
+    },
+    {
+      "country": "CAN",
+      "year": 2018,
+      "value": 46539.2177903178
+    },
+    {
+      "country": "CAN",
+      "year": 2019,
+      "value": 46352.9695208927
+    },
+    {
+      "country": "CAN",
+      "year": 2020,
+      "value": 43537.8981198851
+    },
+    {
+      "country": "CAN",
+      "year": 2021,
+      "value": 52886.6407813788
+    },
+    {
+      "country": "CAN",
+      "year": 2022,
+      "value": 56496.9275340663
+    },
+    {
+      "country": "CAN",
+      "year": 2023,
+      "value": 54847.5370112652
+    },
+    {
+      "country": "CHN",
+      "year": 2000,
+      "value": 969.199513696287
+    },
+    {
+      "country": "CHN",
+      "year": 2001,
+      "value": 1065.40597574519
+    },
+    {
+      "country": "CHN",
+      "year": 2002,
+      "value": 1163.55957673426
+    },
+    {
+      "country": "CHN",
+      "year": 2003,
+      "value": 1306.97245408557
+    },
+    {
+      "country": "CHN",
+      "year": 2004,
+      "value": 1530.92726215723
+    },
+    {
+      "country": "CHN",
+      "year": 2005,
+      "value": 1777.64496828464
+    },
+    {
+      "country": "CHN",
+      "year": 2006,
+      "value": 2129.25696999613
+    },
+    {
+      "country": "CHN",
+      "year": 2007,
+      "value": 2734.72709877693
+    },
+    {
+      "country": "CHN",
+      "year": 2008,
+      "value": 3523.44302065213
+    },
+    {
+      "country": "CHN",
+      "year": 2009,
+      "value": 3898.24459158811
+    },
+    {
+      "country": "CHN",
+      "year": 2010,
+      "value": 4629.24551710077
+    },
+    {
+      "country": "CHN",
+      "year": 2011,
+      "value": 5703.76027973346
+    },
+    {
+      "country": "CHN",
+      "year": 2012,
+      "value": 6405.0574241349
+    },
+    {
+      "country": "CHN",
+      "year": 2013,
+      "value": 7147.03518622344
+    },
+    {
+      "country": "CHN",
+      "year": 2014,
+      "value": 7781.06597484974
+    },
+    {
+      "country": "CHN",
+      "year": 2015,
+      "value": 8175.33285077393
+    },
+    {
+      "country": "CHN",
+      "year": 2016,
+      "value": 8254.86859320357
+    },
+    {
+      "country": "CHN",
+      "year": 2017,
+      "value": 8979.67652709856
+    },
+    {
+      "country": "CHN",
+      "year": 2018,
+      "value": 10085.6638148819
+    },
+    {
+      "country": "CHN",
+      "year": 2019,
+      "value": 10342.9009524335
+    },
+    {
+      "country": "CHN",
+      "year": 2020,
+      "value": 10627.4637989619
+    },
+    {
+      "country": "CHN",
+      "year": 2021,
+      "value": 12887.4357242941
+    },
+    {
+      "country": "CHN",
+      "year": 2022,
+      "value": 12970.6056414327
+    },
+    {
+      "country": "CHN",
+      "year": 2023,
+      "value": 12951.1782397043
+    },
+    {
+      "country": "FRA",
+      "year": 2000,
+      "value": 22340.5939516217
+    },
+    {
+      "country": "FRA",
+      "year": 2001,
+      "value": 22331.7948343036
+    },
+    {
+      "country": "FRA",
+      "year": 2002,
+      "value": 24144.5727019529
+    },
+    {
+      "country": "FRA",
+      "year": 2003,
+      "value": 29479.5222101175
+    },
+    {
+      "country": "FRA",
+      "year": 2004,
+      "value": 33644.9282220364
+    },
+    {
+      "country": "FRA",
+      "year": 2005,
+      "value": 34696.3718316971
+    },
+    {
+      "country": "FRA",
+      "year": 2006,
+      "value": 36431.5658906555
+    },
+    {
+      "country": "FRA",
+      "year": 2007,
+      "value": 41486.1907828787
+    },
+    {
+      "country": "FRA",
+      "year": 2008,
+      "value": 45464.8181385158
+    },
+    {
+      "country": "FRA",
+      "year": 2009,
+      "value": 41728.0884164132
+    },
+    {
+      "country": "FRA",
+      "year": 2010,
+      "value": 40694.8211697025
+    },
+    {
+      "country": "FRA",
+      "year": 2011,
+      "value": 43929.7840873812
+    },
+    {
+      "country": "FRA",
+      "year": 2012,
+      "value": 40863.5814412333
+    },
+    {
+      "country": "FRA",
+      "year": 2013,
+      "value": 42669.1795111893
+    },
+    {
+      "country": "FRA",
+      "year": 2014,
+      "value": 43148.0459288416
+    },
+    {
+      "country": "FRA",
+      "year": 2015,
+      "value": 36702.4323733379
+    },
+    {
+      "country": "FRA",
+      "year": 2016,
+      "value": 37024.2157133669
+    },
+    {
+      "country": "FRA",
+      "year": 2017,
+      "value": 38687.1626407164
+    },
+    {
+      "country": "FRA",
+      "year": 2018,
+      "value": 41418.1766484844
+    },
+    {
+      "country": "FRA",
+      "year": 2019,
+      "value": 40408.2848574751
+    },
+    {
+      "country": "FRA",
+      "year": 2020,
+      "value": 39169.8606000707
+    },
+    {
+      "country": "FRA",
+      "year": 2021,
+      "value": 43725.0999521245
+    },
+    {
+      "country": "FRA",
+      "year": 2022,
+      "value": 40988.6396406579
+    },
+    {
+      "country": "FRA",
+      "year": 2023,
+      "value": 44700.1384177544
+    },
+    {
+      "country": "DEU",
+      "year": 2000,
+      "value": 23925.8559901991
+    },
+    {
+      "country": "DEU",
+      "year": 2001,
+      "value": 23878.3641471651
+    },
+    {
+      "country": "DEU",
+      "year": 2002,
+      "value": 25486.5942008748
+    },
+    {
+      "country": "DEU",
+      "year": 2003,
+      "value": 30711.1022511331
+    },
+    {
+      "country": "DEU",
+      "year": 2004,
+      "value": 34566.7359143735
+    },
+    {
+      "country": "DEU",
+      "year": 2005,
+      "value": 35084.4363546269
+    },
+    {
+      "country": "DEU",
+      "year": 2006,
+      "value": 36980.3349948954
+    },
+    {
+      "country": "DEU",
+      "year": 2007,
+      "value": 42350.9217211489
+    },
+    {
+      "country": "DEU",
+      "year": 2008,
+      "value": 46379.1647953479
+    },
+    {
+      "country": "DEU",
+      "year": 2009,
+      "value": 42471.8868625226
+    },
+    {
+      "country": "DEU",
+      "year": 2010,
+      "value": 42396.9665976293
+    },
+    {
+      "country": "DEU",
+      "year": 2011,
+      "value": 47630.9761883572
+    },
+    {
+      "country": "DEU",
+      "year": 2012,
+      "value": 44718.0159214069
+    },
+    {
+      "country": "DEU",
+      "year": 2013,
+      "value": 47206.8353514242
+    },
+    {
+      "country": "DEU",
+      "year": 2014,
+      "value": 48959.5991203133
+    },
+    {
+      "country": "DEU",
+      "year": 2015,
+      "value": 41929.7549110722
+    },
+    {
+      "country": "DEU",
+      "year": 2016,
+      "value": 42948.9381932694
+    },
+    {
+      "country": "DEU",
+      "year": 2017,
+      "value": 45553.9341495339
+    },
+    {
+      "country": "DEU",
+      "year": 2018,
+      "value": 48916.1686612154
+    },
+    {
+      "country": "DEU",
+      "year": 2019,
+      "value": 47656.199739747
+    },
+    {
+      "country": "DEU",
+      "year": 2020,
+      "value": 47394.8734504469
+    },
+    {
+      "country": "DEU",
+      "year": 2021,
+      "value": 52349.2459994422
+    },
+    {
+      "country": "DEU",
+      "year": 2022,
+      "value": 50506.5179638543
+    },
+    {
+      "country": "DEU",
+      "year": 2023,
+      "value": 54776.7668235491
+    },
+    {
+      "country": "IND",
+      "year": 2000,
+      "value": 442.750218937263
+    },
+    {
+      "country": "IND",
+      "year": 2001,
+      "value": 450.357900514128
+    },
+    {
+      "country": "IND",
+      "year": 2002,
+      "value": 469.149928973927
+    },
+    {
+      "country": "IND",
+      "year": 2003,
+      "value": 544.143133545002
+    },
+    {
+      "country": "IND",
+      "year": 2004,
+      "value": 624.258826510066
+    },
+    {
+      "country": "IND",
+      "year": 2005,
+      "value": 710.488080408949
+    },
+    {
+      "country": "IND",
+      "year": 2006,
+      "value": 801.668353659022
+    },
+    {
+      "country": "IND",
+      "year": 2007,
+      "value": 1021.88707706826
+    },
+    {
+      "country": "IND",
+      "year": 2008,
+      "value": 992.519584923828
+    },
+    {
+      "country": "IND",
+      "year": 2009,
+      "value": 1094.94974598436
+    },
+    {
+      "country": "IND",
+      "year": 2010,
+      "value": 1347.51939071367
+    },
+    {
+      "country": "IND",
+      "year": 2011,
+      "value": 1445.46127486037
+    },
+    {
+      "country": "IND",
+      "year": 2012,
+      "value": 1429.32199520032
+    },
+    {
+      "country": "IND",
+      "year": 2013,
+      "value": 1432.84397512195
+    },
+    {
+      "country": "IND",
+      "year": 2014,
+      "value": 1553.88396075118
+    },
+    {
+      "country": "IND",
+      "year": 2015,
+      "value": 1583.99815907985
+    },
+    {
+      "country": "IND",
+      "year": 2016,
+      "value": 1707.50892912243
+    },
+    {
+      "country": "IND",
+      "year": 2017,
+      "value": 1950.10468280866
+    },
+    {
+      "country": "IND",
+      "year": 2018,
+      "value": 1966.25455171679
+    },
+    {
+      "country": "IND",
+      "year": 2019,
+      "value": 2041.42863698585
+    },
+    {
+      "country": "IND",
+      "year": 2020,
+      "value": 1907.04251637669
+    },
+    {
+      "country": "IND",
+      "year": 2021,
+      "value": 2239.61384367482
+    },
+    {
+      "country": "IND",
+      "year": 2022,
+      "value": 2279.98145719369
+    },
+    {
+      "country": "IND",
+      "year": 2023,
+      "value": 2434.44826340989
+    },
+    {
+      "country": "IDN",
+      "year": 2000,
+      "value": 763.711124950924
+    },
+    {
+      "country": "IDN",
+      "year": 2001,
+      "value": 732.307093405708
+    },
+    {
+      "country": "IDN",
+      "year": 2002,
+      "value": 881.002913569131
+    },
+    {
+      "country": "IDN",
+      "year": 2003,
+      "value": 1043.2105838671
+    },
+    {
+      "country": "IDN",
+      "year": 2004,
+      "value": 1126.84004447173
+    },
+    {
+      "country": "IDN",
+      "year": 2005,
+      "value": 1238.21447629488
+    },
+    {
+      "country": "IDN",
+      "year": 2006,
+      "value": 1558.31562847163
+    },
+    {
+      "country": "IDN",
+      "year": 2007,
+      "value": 1823.21976255073
+    },
+    {
+      "country": "IDN",
+      "year": 2008,
+      "value": 2124.55483920618
+    },
+    {
+      "country": "IDN",
+      "year": 2009,
+      "value": 2218.48541852977
+    },
+    {
+      "country": "IDN",
+      "year": 2010,
+      "value": 3065.68348377765
+    },
+    {
+      "country": "IDN",
+      "year": 2011,
+      "value": 3579.46442466152
+    },
+    {
+      "country": "IDN",
+      "year": 2012,
+      "value": 3632.27254030331
+    },
+    {
+      "country": "IDN",
+      "year": 2013,
+      "value": 3566.60284506078
+    },
+    {
+      "country": "IDN",
+      "year": 2014,
+      "value": 3441.06808464008
+    },
+    {
+      "country": "IDN",
+      "year": 2015,
+      "value": 3288.22269725538
+    },
+    {
+      "country": "IDN",
+      "year": 2016,
+      "value": 3521.46943457574
+    },
+    {
+      "country": "IDN",
+      "year": 2017,
+      "value": 3798.88326174526
+    },
+    {
+      "country": "IDN",
+      "year": 2018,
+      "value": 3860.95353090726
+    },
+    {
+      "country": "IDN",
+      "year": 2019,
+      "value": 4106.94856160358
+    },
+    {
+      "country": "IDN",
+      "year": 2020,
+      "value": 3853.70288774146
+    },
+    {
+      "country": "IDN",
+      "year": 2021,
+      "value": 4287.17313995098
+    },
+    {
+      "country": "IDN",
+      "year": 2022,
+      "value": 4730.83484836107
+    },
+    {
+      "country": "IDN",
+      "year": 2023,
+      "value": 4876.2992959843
+    },
+    {
+      "country": "ITA",
+      "year": 2000,
+      "value": 20190.0035636084
+    },
+    {
+      "country": "ITA",
+      "year": 2001,
+      "value": 20570.4385917862
+    },
+    {
+      "country": "ITA",
+      "year": 2002,
+      "value": 22451.3964379368
+    },
+    {
+      "country": "ITA",
+      "year": 2003,
+      "value": 27577.5700319855
+    },
+    {
+      "country": "ITA",
+      "year": 2004,
+      "value": 31348.1901841445
+    },
+    {
+      "country": "ITA",
+      "year": 2005,
+      "value": 32062.723833669
+    },
+    {
+      "country": "ITA",
+      "year": 2006,
+      "value": 33537.1286994269
+    },
+    {
+      "country": "ITA",
+      "year": 2007,
+      "value": 37826.1754554823
+    },
+    {
+      "country": "ITA",
+      "year": 2008,
+      "value": 40828.5795580937
+    },
+    {
+      "country": "ITA",
+      "year": 2009,
+      "value": 37099.6133958219
+    },
+    {
+      "country": "ITA",
+      "year": 2010,
+      "value": 35856.8625485539
+    },
+    {
+      "country": "ITA",
+      "year": 2011,
+      "value": 38432.3742820019
+    },
+    {
+      "country": "ITA",
+      "year": 2012,
+      "value": 34854.3949441965
+    },
+    {
+      "country": "ITA",
+      "year": 2013,
+      "value": 35701.6746002376
+    },
+    {
+      "country": "ITA",
+      "year": 2014,
+      "value": 36028.3494022349
+    },
+    {
+      "country": "ITA",
+      "year": 2015,
+      "value": 30639.8829751432
+    },
+    {
+      "country": "ITA",
+      "year": 2016,
+      "value": 31391.5692898108
+    },
+    {
+      "country": "ITA",
+      "year": 2017,
+      "value": 32844.115660604
+    },
+    {
+      "country": "ITA",
+      "year": 2018,
+      "value": 35062.3364176949
+    },
+    {
+      "country": "ITA",
+      "year": 2019,
+      "value": 33812.788724868
+    },
+    {
+      "country": "ITA",
+      "year": 2020,
+      "value": 32091.4866621366
+    },
+    {
+      "country": "ITA",
+      "year": 2021,
+      "value": 36852.5425414951
+    },
+    {
+      "country": "ITA",
+      "year": 2022,
+      "value": 35653.9042103495
+    },
+    {
+      "country": "ITA",
+      "year": 2023,
+      "value": 39279.699782164
+    },
+    {
+      "country": "JPN",
+      "year": 2000,
+      "value": 39752.937397755
+    },
+    {
+      "country": "JPN",
+      "year": 2001,
+      "value": 34910.166403687
+    },
+    {
+      "country": "JPN",
+      "year": 2002,
+      "value": 33315.9165174962
+    },
+    {
+      "country": "JPN",
+      "year": 2003,
+      "value": 35808.6816792388
+    },
+    {
+      "country": "JPN",
+      "year": 2004,
+      "value": 38677.5708064787
+    },
+    {
+      "country": "JPN",
+      "year": 2005,
+      "value": 38158.6758263963
+    },
+    {
+      "country": "JPN",
+      "year": 2006,
+      "value": 36354.4271646349
+    },
+    {
+      "country": "JPN",
+      "year": 2007,
+      "value": 36129.9535132925
+    },
+    {
+      "country": "JPN",
+      "year": 2008,
+      "value": 40294.2081309702
+    },
+    {
+      "country": "JPN",
+      "year": 2009,
+      "value": 41678.1783063195
+    },
+    {
+      "country": "JPN",
+      "year": 2010,
+      "value": 45378.1378109399
+    },
+    {
+      "country": "JPN",
+      "year": 2011,
+      "value": 49122.077634247
+    },
+    {
+      "country": "JPN",
+      "year": 2012,
+      "value": 49626.6830327571
+    },
+    {
+      "country": "JPN",
+      "year": 2013,
+      "value": 41369.1948479498
+    },
+    {
+      "country": "JPN",
+      "year": 2014,
+      "value": 39172.8471161948
+    },
+    {
+      "country": "JPN",
+      "year": 2015,
+      "value": 35664.6446110613
+    },
+    {
+      "country": "JPN",
+      "year": 2016,
+      "value": 40214.9688631562
+    },
+    {
+      "country": "JPN",
+      "year": 2017,
+      "value": 39679.8635262948
+    },
+    {
+      "country": "JPN",
+      "year": 2018,
+      "value": 40645.478086519
+    },
+    {
+      "country": "JPN",
+      "year": 2019,
+      "value": 41424.8655601543
+    },
+    {
+      "country": "JPN",
+      "year": 2020,
+      "value": 41098.9739004553
+    },
+    {
+      "country": "JPN",
+      "year": 2021,
+      "value": 41580.739040705
+    },
+    {
+      "country": "JPN",
+      "year": 2022,
+      "value": 35548.2645222433
+    },
+    {
+      "country": "JPN",
+      "year": 2023,
+      "value": 35215.003535366
+    },
+    {
+      "country": "KOR",
+      "year": 2000,
+      "value": 12710.2995795579
+    },
+    {
+      "country": "KOR",
+      "year": 2001,
+      "value": 11981.4828218758
+    },
+    {
+      "country": "KOR",
+      "year": 2002,
+      "value": 13642.9424537101
+    },
+    {
+      "country": "KOR",
+      "year": 2003,
+      "value": 15211.5483770422
+    },
+    {
+      "country": "KOR",
+      "year": 2004,
+      "value": 17121.6301633201
+    },
+    {
+      "country": "KOR",
+      "year": 2005,
+      "value": 20167.0474902506
+    },
+    {
+      "country": "KOR",
+      "year": 2006,
+      "value": 22609.7059431449
+    },
+    {
+      "country": "KOR",
+      "year": 2007,
+      "value": 25078.4853957105
+    },
+    {
+      "country": "KOR",
+      "year": 2008,
+      "value": 22252.3125108061
+    },
+    {
+      "country": "KOR",
+      "year": 2009,
+      "value": 19937.3029137734
+    },
+    {
+      "country": "KOR",
+      "year": 2010,
+      "value": 24071.2620526362
+    },
+    {
+      "country": "KOR",
+      "year": 2011,
+      "value": 26175.2398553363
+    },
+    {
+      "country": "KOR",
+      "year": 2012,
+      "value": 26600.5477433903
+    },
+    {
+      "country": "KOR",
+      "year": 2013,
+      "value": 28449.3591104972
+    },
+    {
+      "country": "KOR",
+      "year": 2014,
+      "value": 30667.0912467447
+    },
+    {
+      "country": "KOR",
+      "year": 2015,
+      "value": 30171.7906545222
+    },
+    {
+      "country": "KOR",
+      "year": 2016,
+      "value": 30832.0628072516
+    },
+    {
+      "country": "KOR",
+      "year": 2017,
+      "value": 33296.9845439195
+    },
+    {
+      "country": "KOR",
+      "year": 2018,
+      "value": 35363.9508228687
+    },
+    {
+      "country": "KOR",
+      "year": 2019,
+      "value": 33826.9443301597
+    },
+    {
+      "country": "KOR",
+      "year": 2020,
+      "value": 33645.7719545073
+    },
+    {
+      "country": "KOR",
+      "year": 2021,
+      "value": 37518.4635305697
+    },
+    {
+      "country": "KOR",
+      "year": 2022,
+      "value": 34822.4048404971
+    },
+    {
+      "country": "KOR",
+      "year": 2023,
+      "value": 35674.095995632
+    },
+    {
+      "country": "MEX",
+      "year": 2000,
+      "value": 7524.0271380091
+    },
+    {
+      "country": "MEX",
+      "year": 2001,
+      "value": 7952.76479510706
+    },
+    {
+      "country": "MEX",
+      "year": 2002,
+      "value": 7983.03398381759
+    },
+    {
+      "country": "MEX",
+      "year": 2003,
+      "value": 7434.07465031562
+    },
+    {
+      "country": "MEX",
+      "year": 2004,
+      "value": 7849.66759649565
+    },
+    {
+      "country": "MEX",
+      "year": 2005,
+      "value": 8671.75891798441
+    },
+    {
+      "country": "MEX",
+      "year": 2006,
+      "value": 9512.63575346699
+    },
+    {
+      "country": "MEX",
+      "year": 2007,
+      "value": 10134.3327129706
+    },
+    {
+      "country": "MEX",
+      "year": 2008,
+      "value": 10523.7685427665
+    },
+    {
+      "country": "MEX",
+      "year": 2009,
+      "value": 8423.56933148639
+    },
+    {
+      "country": "MEX",
+      "year": 2010,
+      "value": 9728.80078307432
+    },
+    {
+      "country": "MEX",
+      "year": 2011,
+      "value": 10664.4944032313
+    },
+    {
+      "country": "MEX",
+      "year": 2012,
+      "value": 10744.1335236186
+    },
+    {
+      "country": "MEX",
+      "year": 2013,
+      "value": 11216.800851866
+    },
+    {
+      "country": "MEX",
+      "year": 2014,
+      "value": 11391.3773503964
+    },
+    {
+      "country": "MEX",
+      "year": 2015,
+      "value": 10021.2386113616
+    },
+    {
+      "country": "MEX",
+      "year": 2016,
+      "value": 9097.92397674769
+    },
+    {
+      "country": "MEX",
+      "year": 2017,
+      "value": 9649.27816729586
+    },
+    {
+      "country": "MEX",
+      "year": 2018,
+      "value": 10084.7937570364
+    },
+    {
+      "country": "MEX",
+      "year": 2019,
+      "value": 10369.5553593527
+    },
+    {
+      "country": "MEX",
+      "year": 2020,
+      "value": 8841.27074929751
+    },
+    {
+      "country": "MEX",
+      "year": 2021,
+      "value": 10314.0506733708
+    },
+    {
+      "country": "MEX",
+      "year": 2022,
+      "value": 11405.7940469896
+    },
+    {
+      "country": "MEX",
+      "year": 2023,
+      "value": 13830.843848864
+    },
+    {
+      "country": "RUS",
+      "year": 2000,
+      "value": 1771.59411621094
+    },
+    {
+      "country": "RUS",
+      "year": 2001,
+      "value": 2100.3525390625
+    },
+    {
+      "country": "RUS",
+      "year": 2002,
+      "value": 2377.52954101563
+    },
+    {
+      "country": "RUS",
+      "year": 2003,
+      "value": 2975.123046875
+    },
+    {
+      "country": "RUS",
+      "year": 2004,
+      "value": 4102.36474609375
+    },
+    {
+      "country": "RUS",
+      "year": 2005,
+      "value": 5323.455078125
+    },
+    {
+      "country": "RUS",
+      "year": 2006,
+      "value": 6920.19970703125
+    },
+    {
+      "country": "RUS",
+      "year": 2007,
+      "value": 9101.2392578125
+    },
+    {
+      "country": "RUS",
+      "year": 2008,
+      "value": 11635.2841796875
+    },
+    {
+      "country": "RUS",
+      "year": 2009,
+      "value": 8562.82421875
+    },
+    {
+      "country": "RUS",
+      "year": 2010,
+      "value": 10674.990234375
+    },
+    {
+      "country": "RUS",
+      "year": 2011,
+      "value": 14305.33203125
+    },
+    {
+      "country": "RUS",
+      "year": 2012,
+      "value": 15401.8515625
+    },
+    {
+      "country": "RUS",
+      "year": 2013,
+      "value": 15941.4482421875
+    },
+    {
+      "country": "RUS",
+      "year": 2014,
+      "value": 14055.47265625
+    },
+    {
+      "country": "RUS",
+      "year": 2015,
+      "value": 9277.7138671875
+    },
+    {
+      "country": "RUS",
+      "year": 2016,
+      "value": 8663.158203125
+    },
+    {
+      "country": "RUS",
+      "year": 2017,
+      "value": 10658.9130859375
+    },
+    {
+      "country": "RUS",
+      "year": 2018,
+      "value": 11211.8876953125
+    },
+    {
+      "country": "RUS",
+      "year": 2019,
+      "value": 11447.701171875
+    },
+    {
+      "country": "RUS",
+      "year": 2020,
+      "value": 10108.3271484375
+    },
+    {
+      "country": "RUS",
+      "year": 2021,
+      "value": 12425.029296875
+    },
+    {
+      "country": "RUS",
+      "year": 2022,
+      "value": 15625.6328125
+    },
+    {
+      "country": "RUS",
+      "year": 2023,
+      "value": 13986.9951171875
+    },
+    {
+      "country": "SAU",
+      "year": 2000,
+      "value": 11714.5623675159
+    },
+    {
+      "country": "SAU",
+      "year": 2001,
+      "value": 10805.311325122
+    },
+    {
+      "country": "SAU",
+      "year": 2002,
+      "value": 10586.0543471363
+    },
+    {
+      "country": "SAU",
+      "year": 2003,
+      "value": 11487.220410693
+    },
+    {
+      "country": "SAU",
+      "year": 2004,
+      "value": 13154.4978989446
+    },
+    {
+      "country": "SAU",
+      "year": 2005,
+      "value": 15975.7473782258
+    },
+    {
+      "country": "SAU",
+      "year": 2006,
+      "value": 17563.6145370639
+    },
+    {
+      "country": "SAU",
+      "year": 2007,
+      "value": 18596.1502627898
+    },
+    {
+      "country": "SAU",
+      "year": 2008,
+      "value": 22320.4888964331
+    },
+    {
+      "country": "SAU",
+      "year": 2009,
+      "value": 17718.3911648365
+    },
+    {
+      "country": "SAU",
+      "year": 2010,
+      "value": 22028.3901426586
+    },
+    {
+      "country": "SAU",
+      "year": 2011,
+      "value": 27126.7498747702
+    },
+    {
+      "country": "SAU",
+      "year": 2012,
+      "value": 28733.4375513452
+    },
+    {
+      "country": "SAU",
+      "year": 2013,
+      "value": 27865.465604962
+    },
+    {
+      "country": "SAU",
+      "year": 2014,
+      "value": 27805.4850319422
+    },
+    {
+      "country": "SAU",
+      "year": 2015,
+      "value": 23256.1549553531
+    },
+    {
+      "country": "SAU",
+      "year": 2016,
+      "value": 22267.7217050387
+    },
+    {
+      "country": "SAU",
+      "year": 2017,
+      "value": 23929.2907135982
+    },
+    {
+      "country": "SAU",
+      "year": 2018,
+      "value": 29360.0658968566
+    },
+    {
+      "country": "SAU",
+      "year": 2019,
+      "value": 29566.7933827436
+    },
+    {
+      "country": "SAU",
+      "year": 2020,
+      "value": 24338.8307301067
+    },
+    {
+      "country": "SAU",
+      "year": 2021,
+      "value": 31920.7653655643
+    },
+    {
+      "country": "SAU",
+      "year": 2022,
+      "value": 38510.2276211037
+    },
+    {
+      "country": "SAU",
+      "year": 2023,
+      "value": 36156.8562500172
+    },
+    {
+      "country": "ZAF",
+      "year": 2000,
+      "value": 3217.84693448467
+    },
+    {
+      "country": "ZAF",
+      "year": 2001,
+      "value": 2847.15191945908
+    },
+    {
+      "country": "ZAF",
+      "year": 2002,
+      "value": 2688.23676032806
+    },
+    {
+      "country": "ZAF",
+      "year": 2003,
+      "value": 4062.21755993786
+    },
+    {
+      "country": "ZAF",
+      "year": 2004,
+      "value": 5221.46333731721
+    },
+    {
+      "country": "ZAF",
+      "year": 2005,
+      "value": 5836.87663325127
+    },
+    {
+      "country": "ZAF",
+      "year": 2006,
+      "value": 6077.38293388876
+    },
+    {
+      "country": "ZAF",
+      "year": 2007,
+      "value": 6591.85535960564
+    },
+    {
+      "country": "ZAF",
+      "year": 2008,
+      "value": 6184.75474328399
+    },
+    {
+      "country": "ZAF",
+      "year": 2009,
+      "value": 6374.70560042992
+    },
+    {
+      "country": "ZAF",
+      "year": 2010,
+      "value": 7973.47195771517
+    },
+    {
+      "country": "ZAF",
+      "year": 2011,
+      "value": 8646.05571071635
+    },
+    {
+      "country": "ZAF",
+      "year": 2012,
+      "value": 8076.97678479741
+    },
+    {
+      "country": "ZAF",
+      "year": 2013,
+      "value": 7331.65467384919
+    },
+    {
+      "country": "ZAF",
+      "year": 2014,
+      "value": 6856.73137092522
+    },
+    {
+      "country": "ZAF",
+      "year": 2015,
+      "value": 6112.27382485974
+    },
+    {
+      "country": "ZAF",
+      "year": 2016,
+      "value": 5651.20585165749
+    },
+    {
+      "country": "ZAF",
+      "year": 2017,
+      "value": 6618.33508255701
+    },
+    {
+      "country": "ZAF",
+      "year": 2018,
+      "value": 6914.1780318076
+    },
+    {
+      "country": "ZAF",
+      "year": 2019,
+      "value": 6533.71121032856
+    },
+    {
+      "country": "ZAF",
+      "year": 2020,
+      "value": 5580.60383075189
+    },
+    {
+      "country": "ZAF",
+      "year": 2021,
+      "value": 6828.75624590017
+    },
+    {
+      "country": "ZAF",
+      "year": 2022,
+      "value": 6534.24867783397
+    },
+    {
+      "country": "ZAF",
+      "year": 2023,
+      "value": 6034.27208964673
+    },
+    {
+      "country": "TUR",
+      "year": 2000,
+      "value": 4199.3798635759
+    },
+    {
+      "country": "TUR",
+      "year": 2001,
+      "value": 3052.2256706793
+    },
+    {
+      "country": "TUR",
+      "year": 2002,
+      "value": 3591.08628982587
+    },
+    {
+      "country": "TUR",
+      "year": 2003,
+      "value": 4649.63668068586
+    },
+    {
+      "country": "TUR",
+      "year": 2004,
+      "value": 5979.6054216148
+    },
+    {
+      "country": "TUR",
+      "year": 2005,
+      "value": 7331.85429430255
+    },
+    {
+      "country": "TUR",
+      "year": 2006,
+      "value": 7990.08251407245
+    },
+    {
+      "country": "TUR",
+      "year": 2007,
+      "value": 9766.91734545294
+    },
+    {
+      "country": "TUR",
+      "year": 2008,
+      "value": 10913.4079047769
+    },
+    {
+      "country": "TUR",
+      "year": 2009,
+      "value": 9076.92472236977
+    },
+    {
+      "country": "TUR",
+      "year": 2010,
+      "value": 10698.9699409757
+    },
+    {
+      "country": "TUR",
+      "year": 2011,
+      "value": 11373.6355760885
+    },
+    {
+      "country": "TUR",
+      "year": 2012,
+      "value": 11776.7593362033
+    },
+    {
+      "country": "TUR",
+      "year": 2013,
+      "value": 12635.5570016068
+    },
+    {
+      "country": "TUR",
+      "year": 2014,
+      "value": 12209.3862327674
+    },
+    {
+      "country": "TUR",
+      "year": 2015,
+      "value": 11064.6494504662
+    },
+    {
+      "country": "TUR",
+      "year": 2016,
+      "value": 10984.3643169061
+    },
+    {
+      "country": "TUR",
+      "year": 2017,
+      "value": 10756.3877677883
+    },
+    {
+      "country": "TUR",
+      "year": 2018,
+      "value": 9684.11819884721
+    },
+    {
+      "country": "TUR",
+      "year": 2019,
+      "value": 9395.23378001368
+    },
+    {
+      "country": "TUR",
+      "year": 2020,
+      "value": 8798.11791709313
+    },
+    {
+      "country": "TUR",
+      "year": 2021,
+      "value": 9981.76398411336
+    },
+    {
+      "country": "TUR",
+      "year": 2022,
+      "value": 10897.8397861365
+    },
+    {
+      "country": "TUR",
+      "year": 2023,
+      "value": 13375.0947282864
+    },
+    {
+      "country": "GBR",
+      "year": 2000,
+      "value": 28383.8761094996
+    },
+    {
+      "country": "GBR",
+      "year": 2001,
+      "value": 28013.8729635508
+    },
+    {
+      "country": "GBR",
+      "year": 2002,
+      "value": 30158.7017807858
+    },
+    {
+      "country": "GBR",
+      "year": 2003,
+      "value": 34556.7726095905
+    },
+    {
+      "country": "GBR",
+      "year": 2004,
+      "value": 40504.4118103928
+    },
+    {
+      "country": "GBR",
+      "year": 2005,
+      "value": 42240.2462987547
+    },
+    {
+      "country": "GBR",
+      "year": 2006,
+      "value": 44695.161023424
+    },
+    {
+      "country": "GBR",
+      "year": 2007,
+      "value": 50629.0799172887
+    },
+    {
+      "country": "GBR",
+      "year": 2008,
+      "value": 47652.4030691881
+    },
+    {
+      "country": "GBR",
+      "year": 2009,
+      "value": 39009.3715547821
+    },
+    {
+      "country": "GBR",
+      "year": 2010,
+      "value": 39778.3220528565
+    },
+    {
+      "country": "GBR",
+      "year": 2011,
+      "value": 42295.9273835322
+    },
+    {
+      "country": "GBR",
+      "year": 2012,
+      "value": 42688.3263728372
+    },
+    {
+      "country": "GBR",
+      "year": 2013,
+      "value": 43607.6636827371
+    },
+    {
+      "country": "GBR",
+      "year": 2014,
+      "value": 47746.9810645521
+    },
+    {
+      "country": "GBR",
+      "year": 2015,
+      "value": 45256.040227057
+    },
+    {
+      "country": "GBR",
+      "year": 2016,
+      "value": 41258.5374285695
+    },
+    {
+      "country": "GBR",
+      "year": 2017,
+      "value": 40918.0520870944
+    },
+    {
+      "country": "GBR",
+      "year": 2018,
+      "value": 43704.3162296687
+    },
+    {
+      "country": "GBR",
+      "year": 2019,
+      "value": 43160.6843971799
+    },
+    {
+      "country": "GBR",
+      "year": 2020,
+      "value": 40815.1255364787
+    },
+    {
+      "country": "GBR",
+      "year": 2021,
+      "value": 47695.6491523474
+    },
+    {
+      "country": "GBR",
+      "year": 2022,
+      "value": 47034.7795621476
+    },
+    {
+      "country": "GBR",
+      "year": 2023,
+      "value": 49919.6896621586
+    },
+    {
+      "country": "USA",
+      "year": 2000,
+      "value": 36329.9702595751
+    },
+    {
+      "country": "USA",
+      "year": 2001,
+      "value": 37133.6203973517
+    },
+    {
+      "country": "USA",
+      "year": 2002,
+      "value": 37997.7424300242
+    },
+    {
+      "country": "USA",
+      "year": 2003,
+      "value": 39490.3023903176
+    },
+    {
+      "country": "USA",
+      "year": 2004,
+      "value": 41724.6411982614
+    },
+    {
+      "country": "USA",
+      "year": 2005,
+      "value": 44123.3996470026
+    },
+    {
+      "country": "USA",
+      "year": 2006,
+      "value": 46301.9876485519
+    },
+    {
+      "country": "USA",
+      "year": 2007,
+      "value": 48050.227412195
+    },
+    {
+      "country": "USA",
+      "year": 2008,
+      "value": 48570.0594269601
+    },
+    {
+      "country": "USA",
+      "year": 2009,
+      "value": 47194.9500893872
+    },
+    {
+      "country": "USA",
+      "year": 2010,
+      "value": 48642.6312088213
+    },
+    {
+      "country": "USA",
+      "year": 2011,
+      "value": 50024.8812320773
+    },
+    {
+      "country": "USA",
+      "year": 2012,
+      "value": 51708.3940614082
+    },
+    {
+      "country": "USA",
+      "year": 2013,
+      "value": 53297.3862901595
+    },
+    {
+      "country": "USA",
+      "year": 2014,
+      "value": 55153.3940182967
+    },
+    {
+      "country": "USA",
+      "year": 2015,
+      "value": 56849.4697923159
+    },
+    {
+      "country": "USA",
+      "year": 2016,
+      "value": 57976.628204291
+    },
+    {
+      "country": "USA",
+      "year": 2017,
+      "value": 60047.7190728307
+    },
+    {
+      "country": "USA",
+      "year": 2018,
+      "value": 62875.6661382728
+    },
+    {
+      "country": "USA",
+      "year": 2019,
+      "value": 65227.9565911038
+    },
+    {
+      "country": "USA",
+      "year": 2020,
+      "value": 64465.2971415748
+    },
+    {
+      "country": "USA",
+      "year": 2021,
+      "value": 71441.2319805947
+    },
+    {
+      "country": "USA",
+      "year": 2022,
+      "value": 78008.6895811877
+    },
+    {
+      "country": "USA",
+      "year": 2023,
+      "value": 82586.7847707894
+    }
+  ],
+  "missing": [],
+  "dimensions": [],
+  "disagreements": [],
+  "sources": [
+    {
+      "indicator": "NY.GDP.PCAP.CD",
+      "name": "GDP per capita (current US$)",
+      "source": "World Bank",
+      "dataset": "World Development Indicators",
+      "url": "https://api.worldbank.org/v2/country/ARG;AUS;BRA;CAN;CHN;FRA;DEU;IND;IDN;ITA;JPN;KOR;MEX;RUS;SAU;ZAF;TUR;GBR;USA/indicator/NY.GDP.PCAP.CD?format=json&date=2000:2023&per_page=456",
+      "retrievedAt": "2026-11-10T16:23:32.681Z"
+    }
+  ]
+}

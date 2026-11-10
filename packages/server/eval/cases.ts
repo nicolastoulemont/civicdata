@@ -1,4 +1,4 @@
-import { IndicatorId, Trend as TrendView, Year } from "@civicdata/domain"
+import { IndicatorId, regions, Trend as TrendView, Year } from "@civicdata/domain"
 import type { View } from "@civicdata/domain"
 import { Array as Arr } from "effect"
 
@@ -127,7 +127,23 @@ const gdpPerPerson = {
   ],
 } as const
 
+// Government debt as a share of GDP. Eurostat answers first for EU members.
+// The series were picked from Eurostat's catalogue, not from an answer.
+const governmentDebt = {
+  worldBank: ["GC.DOD.TOTL.GD.ZS"],
+  eurostat: [
+    {
+      indicator: "ESTAT,GOV_10DD_EDPT1,1.0",
+      dimensions: { na_item: ["GD"], unit: ["PC_GDP"] },
+    },
+    { indicator: "ESTAT,SDG_17_40,1.0", dimensions: { unit: ["PC_GDP"] } },
+  ],
+} as const
+
 const g7 = ["USA", "JPN", "DEU", "GBR", "FRA", "ITA", "CAN"] as const
+
+// The region lists Angola in both Central and Southern Africa.
+const africa = [...new Set(regions.find(({ id }) => id === "africa")?.countries)]
 
 const eu = [
   "AUT",
@@ -496,6 +512,50 @@ export const cases: ReadonlyArray<Case> = [
   {
     questions: ["Has India caught up with China on life expectancy?"],
     accepts: [Trend({ indicators: lifeExpectancy.worldBank, countries: ["IND", "CHN"] })],
+  },
+  // How a comparison across countries evolved: a ranking or map over time,
+  // with a slider through the years. Close questions about one point, a few
+  // lines or two years keep their static chart. Not yet scored by a run.
+  {
+    questions: ["How has the map of life expectancy in Africa changed since 1990?"],
+    accepts: [Map({ indicators: lifeExpectancy.worldBank, countries: africa, overTime: true })],
+  },
+  {
+    questions: ["How has the EU's ranking on debt evolved since 2010?"],
+    accepts: [
+      Ranking({
+        indicators: governmentDebt.worldBank,
+        series: governmentDebt.eurostat,
+        countries: eu,
+        overTime: true,
+      }),
+    ],
+  },
+  {
+    questions: ["Which G7 country has the most doctors?"],
+    accepts: [Ranking({ indicators: ["SH.MED.PHYS.ZS"], countries: g7 })],
+  },
+  {
+    questions: ["How did unemployment move in Spain and Italy?"],
+    accepts: [
+      Trend({
+        indicators: unemployment.worldBank,
+        series: [...unemployment.eurostat, ...unemployment.oecd],
+        countries: ["ESP", "ITA"],
+      }),
+    ],
+  },
+  {
+    questions: ["Which EU country grew fastest since 2000?"],
+    accepts: [
+      Change({ indicators: gdp.worldBank, series: gdp.eurostat, countries: eu, from: 2000 }),
+      Change({
+        indicators: gdpPerPerson.worldBank,
+        series: gdpPerPerson.eurostat,
+        countries: eu,
+        from: 2000,
+      }),
+    ],
   },
   // A trend of seven lines or the change of each answers it.
   {
@@ -901,17 +961,8 @@ export const cases: ReadonlyArray<Case> = [
     questions: ["How did Greece's debt move around the 2010 bailout?"],
     accepts: [
       Trend({
-        indicators: ["GC.DOD.TOTL.GD.ZS"],
-        // Government debt as a share of GDP. Greece is in the EU, so Eurostat
-        // answers first. Not yet scored by a run: the series were picked
-        // from Eurostat's catalogue, not from an answer.
-        series: [
-          {
-            indicator: "ESTAT,GOV_10DD_EDPT1,1.0",
-            dimensions: { na_item: ["GD"], unit: ["PC_GDP"] },
-          },
-          { indicator: "ESTAT,SDG_17_40,1.0", dimensions: { unit: ["PC_GDP"] } },
-        ],
+        indicators: governmentDebt.worldBank,
+        series: governmentDebt.eurostat,
         countries: ["GRC"],
         overlays: ["events"],
         // The answer cites the assistance programmes.

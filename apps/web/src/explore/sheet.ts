@@ -92,6 +92,34 @@ export const shades = (observations: ResolvedView["observations"]) => {
   return { byCountry, key }
 }
 
+// One shade's range of values, as a map's key shows it.
+export interface Band {
+  readonly shade: number
+  readonly low: number
+  readonly high: number
+}
+
+// Shades fixed across a span of years: every value of every year, split into
+// five groups of about the same size, lowest first. A shade then means the
+// same values in each year, so a country that darkens has grown past others'
+// earlier values, not only overtaken its neighbours.
+export const bands = (observations: ResolvedView["observations"]): ReadonlyArray<Band> =>
+  shades(observations).key
+
+// Each country's shade on bands fixed across a span: the first band its
+// value does not exceed.
+export const banded = (
+  observations: ResolvedView["observations"],
+  key: ReadonlyArray<Band>,
+): ReadonlyMap<Country, number> =>
+  new Map(
+    observations.flatMap(({ country, value }) => {
+      const band = key.find(({ high }) => value <= high)
+
+      return band === undefined ? [] : [[country, band.shade] as const]
+    }),
+  )
+
 // The countries too small to draw on a sheet, e.g. Singapore on the world.
 export const offMap = (sheet: Sheet, countries: ReadonlyArray<Country>) =>
   countries.filter((country) => sheet.outlines[country] === undefined)

@@ -3,22 +3,31 @@ import { use, useId } from "react"
 
 import { countryName, formatCompact, formatValue } from "./format.ts"
 import { blend } from "./palette.ts"
-import { load, offMap, path, shades } from "./sheet.ts"
+import { banded, type Band, load, offMap, path, shades } from "./sheet.ts"
 
 interface RankingMapProps {
+  // One year's values.
   resolved: ResolvedView
+  // The shades of a map over time, fixed across its span.
+  bands?: ReadonlyArray<Band> | undefined
 }
 
-// A map shaded by rank, with a key of each shade's values: of the first
-// region holding every country asked for, else of the world. It suspends
-// while that map's outlines load. A country without a value, or not asked
-// for, stays blank; the land around a region is fainter still. A note names
-// the countries too small to draw; the data table lists every value.
-export const RankingMap = ({ resolved }: RankingMapProps) => {
+// A map shaded by rank, or for a map over time by value on bands fixed across
+// its span, with a key of each shade's values: of the first region holding
+// every country asked for, else of the world. It suspends while that map's
+// outlines load. A country without a value, or not asked for, stays blank;
+// the land around a region is fainter still. A note names the countries too
+// small to draw; the data table lists every value.
+export const RankingMap = ({ resolved, bands }: RankingMapProps) => {
   const caption = useId()
   const region = regionOf(resolved.view.countries)
   const sheet = use(load(region))
-  const { byCountry, key } = shades(resolved.observations)
+
+  const { byCountry, key } =
+    bands === undefined
+      ? shades(resolved.observations)
+      : { byCountry: banded(resolved.observations, bands), key: bands }
+
   const values = new Map(resolved.observations.map((each) => [each.country, each.value]))
 
   const hidden = offMap(
@@ -43,7 +52,7 @@ export const RankingMap = ({ resolved }: RankingMapProps) => {
       <figcaption
         id={caption}
         className="sr-only"
-      >{`${region === undefined ? "World map" : `Map of ${region.name}`} ranking countries by ${resolved.title}`}</figcaption>
+      >{`${region === undefined ? "World map" : `Map of ${region.name}`} ${bands === undefined ? "ranking" : "shading"} countries by ${resolved.title}`}</figcaption>
       <svg
         viewBox={`0 0 ${sheet.width} ${sheet.height}`}
         className="h-auto max-h-[70svh] w-full"

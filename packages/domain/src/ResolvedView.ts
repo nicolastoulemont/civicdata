@@ -1,4 +1,4 @@
-import { Schema } from "effect"
+import { Array as Arr, Predicate, Schema, Struct } from "effect"
 
 import { Country } from "./Country.ts"
 import { Dimension } from "./Dimension.ts"
@@ -67,6 +67,37 @@ const fields = {
 
 // A Trend or Ranking, with the data behind it.
 const Single = Schema.Struct({ view: Schema.Union([Trend, Ranking]), ...fields })
+
+export interface Ranked extends Schema.Schema.Type<typeof Single> {
+  readonly view: typeof Ranking.Type
+}
+
+export const isRanked = (resolved: ResolvedView): resolved is Ranked =>
+  Predicate.isTagged(resolved.view, "Ranking")
+
+// A ranking over time as the static ranking of one year of its span: that
+// year's values and other sources' disagreements, with the countries that
+// have no value that year missing.
+export const inYear = (resolved: Ranked, year: Year): Ranked => {
+  const at = <O extends { readonly year: Year }>(observations: ReadonlyArray<O>) =>
+    observations.filter((observation) => observation.year === year)
+
+  const observations = at(resolved.observations)
+
+  return {
+    ...resolved,
+    view: Ranking.make({ ...Struct.omit(resolved.view, ["span"]), year }),
+    observations,
+    missing: resolved.view.countries.filter(
+      (country) => !observations.some((observation) => observation.country === country),
+    ),
+    disagreements: resolved.disagreements.flatMap((disagreement) => {
+      const kept = at(disagreement.observations)
+
+      return Arr.isArrayNonEmpty(kept) ? [{ ...disagreement, observations: kept }] : []
+    }),
+  }
+}
 
 // A Change shows its two years only. `breaks` keeps each break in series in
 // the years it spans, which its observations drop.
