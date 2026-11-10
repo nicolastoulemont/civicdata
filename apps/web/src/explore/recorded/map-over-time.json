@@ -9265,5 +9265,6 @@
       "url": "https://api.worldbank.org/v2/country/DZA;EGY;LBY;MAR;SDN;TUN;BEN;BFA;CIV;CPV;GHA;GIN;GMB;GNB;LBR;MLI;MRT;NER;NGA;SEN;SLE;TGO;AGO;CAF;CMR;COD;COG;GAB;GNQ;STP;TCD;BDI;COM;DJI;ERI;ETH;KEN;RWA;SOM;SSD;SYC;TZA;UGA;AGO;BWA;LSO;MDG;MOZ;MUS;MWI;NAM;SWZ;ZAF;ZMB;ZWE/indicator/SP.DYN.LE00.IN?format=json&date=1990:2023&per_page=1870",
       "retrievedAt": "2026-11-10T16:23:32.148Z"
     }
-  ]
+  ],
+  "direction": "Higher"
 }

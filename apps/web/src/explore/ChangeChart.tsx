@@ -11,12 +11,16 @@ import {
 } from "@/components/ui/chart"
 
 import { countryName, formatCompact } from "./format.ts"
-import { fill } from "./palette.ts"
-import { changes } from "./points.ts"
+import { fill, phrase } from "./palette.ts"
+import { changes, moved } from "./points.ts"
 import { around } from "./scale.ts"
 import { ShowAll } from "./ShowAll.tsx"
 
 const row = 36
+
+// The second year's dot: one colour for a neutral indicator, else coloured
+// by the way each country moved.
+type Mark = "to" | ReturnType<typeof moved>
 
 interface ChangeChartProps {
   resolved: ResolvedView
@@ -24,20 +28,49 @@ interface ChangeChartProps {
 }
 
 // One row per country, the largest rise first: a dot for each year, joined by
-// a thin bar from the lower value to the higher. The scale fits every row;
-// past 25 countries, a button shows the rest.
+// a thin bar from the lower value to the higher. For an indicator with a
+// direction, the second dot is green where the country moved the better way
+// and red where it moved the worse way, and the chart says which way is
+// better. The scale fits every row; past 25 countries, a button shows the
+// rest.
 export const ChangeChart = ({ resolved, change }: ChangeChartProps) => {
-  const config = {
-    from: { label: `${change.from}`, color: fill("other") },
-    to: { label: `${change.to}`, color: fill(1) },
-  } satisfies ChartConfig
+  const { direction } = resolved
+  const better = phrase(direction)
 
-  const rows = changes(resolved, change).map(({ country, from, to }) => ({
-    name: countryName(country),
-    from,
-    to,
-    span: [Math.min(from, to), Math.max(from, to)],
-  }))
+  const labels: Record<Mark, ChartConfig[string]> = {
+    to: { label: `${change.to}`, color: fill(1) },
+    better: { label: `${change.to}, better`, color: fill("better") },
+    worse: { label: `${change.to}, worse`, color: fill("worse") },
+    same: { label: `${change.to}, unchanged`, color: fill("even") },
+  }
+
+  // A directed row holds its second value under the way it moved too, so
+  // that series draws its dot.
+  const rows = changes(resolved, change).map(({ country, from, to }) => {
+    const mark: Mark = direction === "Neutral" ? "to" : moved(direction, { from, to })
+    const under = (way: Mark) => (mark === way ? to : undefined)
+
+    return {
+      name: countryName(country),
+      from,
+      to,
+      mark,
+      better: under("better"),
+      worse: under("worse"),
+      same: under("same"),
+      span: [Math.min(from, to), Math.max(from, to)],
+    }
+  })
+
+  // Only the marks some country takes, in the order of the legend.
+  const marks = (["to", "better", "worse", "same"] as const).filter((mark) =>
+    rows.some((each) => each.mark === mark),
+  )
+
+  const config: ChartConfig = {
+    from: { label: `${change.from}`, color: fill("other") },
+    ...Object.fromEntries(marks.map((mark) => [mark, labels[mark]])),
+  }
 
   // Dots mark values, not lengths, so the scale fits them rather than start
   // at zero.
@@ -45,7 +78,8 @@ export const ChangeChart = ({ resolved, change }: ChangeChartProps) => {
 
   return (
     <figure>
-      <figcaption className="sr-only">{`Change in ${resolved.title} between ${change.from} and ${change.to}, by country`}</figcaption>
+      <figcaption className="sr-only">{`Change in ${resolved.title} between ${change.from} and ${change.to}, by country${better === undefined ? "" : `, ${better.toLowerCase()}`}`}</figcaption>
+      {better === undefined ? null : <p className="mb-2 text-sm">{better}</p>}
       <ShowAll rows={rows}>
         {(shown) => (
           <ChartContainer
@@ -65,7 +99,8 @@ export const ChangeChart = ({ resolved, change }: ChangeChartProps) => {
               />
               <YAxis type="category" dataKey="name" tickLine={false} axisLine={false} width={120} />
               <ChartTooltip content={<ChartTooltipContent />} />
-              <ChartLegend content={<ChartLegendContent />} />
+              {/* In the order drawn: the first year, then the second. */}
+              <ChartLegend content={<ChartLegendContent />} itemSorter={null} />
               <Bar
                 dataKey="span"
                 barSize={2}
@@ -74,7 +109,9 @@ export const ChangeChart = ({ resolved, change }: ChangeChartProps) => {
                 legendType="none"
               />
               <Scatter dataKey="from" fill="var(--color-from)" />
-              <Scatter dataKey="to" fill="var(--color-to)" />
+              {marks.map((mark) => (
+                <Scatter key={mark} dataKey={mark} fill={`var(--color-${mark})`} />
+              ))}
             </ComposedChart>
           </ChartContainer>
         )}

@@ -49,6 +49,7 @@ const resolved = (
       retrievedAt: DateTime.makeUnsafe("2026-11-01T00:00:00Z"),
     },
   ],
+  direction: "Lower",
 })
 
 // Spain and Italy, 2010 to 2024: Spain peaks at 55.48 in 2013.

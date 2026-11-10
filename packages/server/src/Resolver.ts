@@ -10,12 +10,14 @@ import {
   sourceOf,
   type Transform,
   TransformNotApplicable,
+  directionAfter,
   type View,
   Year,
 } from "@civicdata/domain"
 import { Array as Arr, Context, Effect, Layer, Match, Option } from "effect"
 
 import { counterparts, disagreeing } from "./Counterparts.ts"
+import { Directions } from "./Directions.ts"
 import { Sdmx } from "./Sdmx.ts"
 import type { Query } from "./Series.ts"
 import { titleOf } from "./Titles.ts"
@@ -47,6 +49,7 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
     Effect.gen(function* () {
       const worldBank = yield* WorldBank
       const sdmx = yield* Sdmx
+      const directions = yield* Directions
 
       const series = Effect.fn("Resolver.series")(function* (
         query: Query & { readonly dimensions?: Dimensions | undefined },
@@ -99,7 +102,7 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
         // Growth needs the year before the first one shown. Other sources'
         // series for the same figure are fetched with it; they check the chart
         // and never fail it: one that fails is left out.
-        const [main, others] = yield* Effect.all(
+        const [main, others, direction] = yield* Effect.all(
           [
             series({
               ...query,
@@ -117,8 +120,9 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
                 ),
               { concurrency: "unbounded" },
             ),
+            directions.of(query.indicator),
           ],
-          { concurrency: 2 },
+          { concurrency: 3 },
         )
 
         if (transform !== undefined && !applies(transform, main.described.indicator.name)) {
@@ -163,6 +167,7 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
           dimensions: main.dimensions,
           disagreements,
           sources,
+          direction: directionAfter(direction, transform),
         }
       })
 
@@ -255,6 +260,7 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
                 dimensions: main.dimensions,
                 disagreements: main.disagreements,
                 sources: Arr.appendAll(main.sources, against.sources),
+                direction: main.direction,
               })),
             ),
         })
@@ -262,5 +268,5 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
 
       return Resolver.of({ resolve })
     }),
-  )
+  ).pipe(Layer.provide(Directions.layer))
 }

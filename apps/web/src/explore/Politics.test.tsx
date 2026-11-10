@@ -284,6 +284,7 @@ const resolve = http.post("/api/views/resolve", async ({ request }) => {
       missing: [],
       dimensions: [],
       disagreements: [],
+      direction: "Lower",
       sources: [
         {
           indicator: unemployment,

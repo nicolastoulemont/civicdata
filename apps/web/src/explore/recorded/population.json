@@ -1,0 +1,330 @@
+{
+  "view": {
+    "_tag": "Change",
+    "indicator": "SP.POP.TOTL",
+    "countries": [
+      "AUT",
+      "BEL",
+      "BGR",
+      "HRV",
+      "CYP",
+      "CZE",
+      "DNK",
+      "EST",
+      "FIN",
+      "FRA",
+      "DEU",
+      "GRC",
+      "HUN",
+      "IRL",
+      "ITA",
+      "LVA",
+      "LTU",
+      "LUX",
+      "MLT",
+      "NLD",
+      "POL",
+      "PRT",
+      "ROU",
+      "SVK",
+      "SVN",
+      "ESP",
+      "SWE"
+    ],
+    "from": 2013,
+    "to": 2023
+  },
+  "title": "Total population",
+  "indicator": {
+    "id": "SP.POP.TOTL",
+    "name": "Population, total",
+    "definition": "Total population is based on the de facto definition of population, which counts all residents regardless of legal status or citizenship. The values shown are midyear estimates."
+  },
+  "observations": [
+    {
+      "country": "AUT",
+      "year": 2013,
+      "value": 8479823
+    },
+    {
+      "country": "AUT",
+      "year": 2023,
+      "value": 9131761
+    },
+    {
+      "country": "BEL",
+      "year": 2013,
+      "value": 11159407
+    },
+    {
+      "country": "BEL",
+      "year": 2023,
+      "value": 11779946
+    },
+    {
+      "country": "BGR",
+      "year": 2013,
+      "value": 7160005
+    },
+    {
+      "country": "BGR",
+      "year": 2023,
+      "value": 6446596
+    },
+    {
+      "country": "HRV",
+      "year": 2013,
+      "value": 4233922
+    },
+    {
+      "country": "HRV",
+      "year": 2023,
+      "value": 3859686
+    },
+    {
+      "country": "CYP",
+      "year": 2013,
+      "value": 1183895
+    },
+    {
+      "country": "CYP",
+      "year": 2023,
+      "value": 1344976
+    },
+    {
+      "country": "CZE",
+      "year": 2013,
+      "value": 10514272
+    },
+    {
+      "country": "CZE",
+      "year": 2023,
+      "value": 10864042
+    },
+    {
+      "country": "DNK",
+      "year": 2013,
+      "value": 5614932
+    },
+    {
+      "country": "DNK",
+      "year": 2023,
+      "value": 5946952
+    },
+    {
+      "country": "EST",
+      "year": 2013,
+      "value": 1317997
+    },
+    {
+      "country": "EST",
+      "year": 2023,
+      "value": 1370286
+    },
+    {
+      "country": "FIN",
+      "year": 2013,
+      "value": 5438972
+    },
+    {
+      "country": "FIN",
+      "year": 2023,
+      "value": 5583911
+    },
+    {
+      "country": "FRA",
+      "year": 2013,
+      "value": 65997932
+    },
+    {
+      "country": "FRA",
+      "year": 2023,
+      "value": 68372286
+    },
+    {
+      "country": "DEU",
+      "year": 2013,
+      "value": 80645605
+    },
+    {
+      "country": "DEU",
+      "year": 2023,
+      "value": 83287273
+    },
+    {
+      "country": "GRC",
+      "year": 2013,
+      "value": 10965211
+    },
+    {
+      "country": "GRC",
+      "year": 2023,
+      "value": 10407351
+    },
+    {
+      "country": "HUN",
+      "year": 2013,
+      "value": 9872734
+    },
+    {
+      "country": "HUN",
+      "year": 2023,
+      "value": 9592186
+    },
+    {
+      "country": "IRL",
+      "year": 2013,
+      "value": 4623816
+    },
+    {
+      "country": "IRL",
+      "year": 2023,
+      "value": 5311538
+    },
+    {
+      "country": "ITA",
+      "year": 2013,
+      "value": 60311613
+    },
+    {
+      "country": "ITA",
+      "year": 2023,
+      "value": 58984216
+    },
+    {
+      "country": "LVA",
+      "year": 2013,
+      "value": 2012647
+    },
+    {
+      "country": "LVA",
+      "year": 2023,
+      "value": 1883710
+    },
+    {
+      "country": "LTU",
+      "year": 2013,
+      "value": 2961250
+    },
+    {
+      "country": "LTU",
+      "year": 2023,
+      "value": 2871585
+    },
+    {
+      "country": "LUX",
+      "year": 2013,
+      "value": 543360
+    },
+    {
+      "country": "LUX",
+      "year": 2023,
+      "value": 666430
+    },
+    {
+      "country": "MLT",
+      "year": 2013,
+      "value": 424810
+    },
+    {
+      "country": "MLT",
+      "year": 2023,
+      "value": 552747
+    },
+    {
+      "country": "NLD",
+      "year": 2013,
+      "value": 16804432
+    },
+    {
+      "country": "NLD",
+      "year": 2023,
+      "value": 17877117
+    },
+    {
+      "country": "POL",
+      "year": 2013,
+      "value": 38040196
+    },
+    {
+      "country": "POL",
+      "year": 2023,
+      "value": 36687353
+    },
+    {
+      "country": "PRT",
+      "year": 2013,
+      "value": 10457295
+    },
+    {
+      "country": "PRT",
+      "year": 2023,
+      "value": 10578174
+    },
+    {
+      "country": "ROU",
+      "year": 2013,
+      "value": 19983693
+    },
+    {
+      "country": "ROU",
+      "year": 2023,
+      "value": 19061062
+    },
+    {
+      "country": "SVK",
+      "year": 2013,
+      "value": 5413393
+    },
+    {
+      "country": "SVK",
+      "year": 2023,
+      "value": 5426740
+    },
+    {
+      "country": "SVN",
+      "year": 2013,
+      "value": 2059953
+    },
+    {
+      "country": "SVN",
+      "year": 2023,
+      "value": 2120461
+    },
+    {
+      "country": "ESP",
+      "year": 2013,
+      "value": 46604197
+    },
+    {
+      "country": "ESP",
+      "year": 2023,
+      "value": 48352528
+    },
+    {
+      "country": "SWE",
+      "year": 2013,
+      "value": 9600379
+    },
+    {
+      "country": "SWE",
+      "year": 2023,
+      "value": 10536632
+    }
+  ],
+  "missing": [],
+  "dimensions": [],
+  "disagreements": [],
+  "sources": [
+    {
+      "indicator": "SP.POP.TOTL",
+      "name": "Population, total",
+      "source": "World Bank",
+      "dataset": "World Development Indicators",
+      "url": "https://api.worldbank.org/v2/country/AUT;BEL;BGR;HRV;CYP;CZE;DNK;EST;FIN;FRA;DEU;GRC;HUN;IRL;ITA;LVA;LTU;LUX;MLT;NLD;POL;PRT;ROU;SVK;SVN;ESP;SWE/indicator/SP.POP.TOTL?format=json&date=2013:2023&per_page=297",
+      "retrievedAt": "2026-11-10T18:21:36.410Z"
+    }
+  ],
+  "direction": "Neutral",
+  "breaks": []
+}

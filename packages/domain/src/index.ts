@@ -58,6 +58,8 @@ export { Country, countries, locate } from "./Country.ts"
 
 export { type Code, Dimension, DimensionId, DimensionList, Dimensions } from "./Dimension.ts"
 
+export { Direction, directionAfter } from "./Direction.ts"
+
 export {
   AgentUnavailable,
   CatalogUnavailable,
