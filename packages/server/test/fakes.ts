@@ -49,22 +49,49 @@ export const memoryStorage = (values = new Map<string, string>()) => {
 }
 
 // Runs each step at once, as Workflows does when a step succeeds, after
-// `before` (a test's look at the catalog mid-build). A failing step fails
-// for good: the test stands for a step whose retries all failed.
+// `before` (a test's look at the catalog mid-build), and saves its result. A
+// step that completed in an earlier run answers its saved result without
+// running, as when Workflows resumes a build. A failing step fails for good:
+// the test stands for a step whose retries all failed. The first run of the
+// step named `lose` runs, then fails without saving, as when the Worker stops
+// before Workflows saves the result.
 export const steps = (
   before: (name: string) => Effect.Effect<void, unknown> = () => Effect.void,
+  { lose }: { lose?: string } = {},
 ) => {
   const ran: Array<string> = []
+  const saved = new Map<string, unknown>()
+  let lost = false
 
   const layer = Layer.succeed(
     Step,
     Step.of({
-      run: (name, effect) =>
-        before(name).pipe(
-          Effect.andThen(Effect.sync(() => ran.push(name))),
-          Effect.andThen(effect),
-          Effect.mapError((cause) => new StepFailed({ step: name, cause })),
-        ),
+      run: <A, E>(name: string, effect: Effect.Effect<A, E>) =>
+        Effect.suspend(() => {
+          if (saved.has(name)) {
+            // SAFETY: a step's name fixes what it answers, so a saved result
+            // has the type of the step that saved it, as in Workflows.
+            // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- see SAFETY
+            return Effect.succeed(saved.get(name) as A)
+          }
+
+          return before(name).pipe(
+            Effect.andThen(Effect.sync(() => ran.push(name))),
+            Effect.andThen(effect),
+            Effect.flatMap((result) => {
+              if (name === lose && !lost) {
+                lost = true
+
+                return Effect.fail(`The Worker stopped before saving ${name}`)
+              }
+
+              saved.set(name, result)
+
+              return Effect.succeed(result)
+            }),
+            Effect.mapError((cause) => new StepFailed({ step: name, cause })),
+          )
+        }),
     }),
   )
 

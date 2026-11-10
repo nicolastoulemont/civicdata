@@ -118,10 +118,12 @@ const cosine = (a: ReadonlyArray<number>, b: ReadonlyArray<number>) => {
   return norms === 0 ? 0 : dot / norms
 }
 
-// A Vectorize index in memory, recording how many vectors each upsert stored.
+// A Vectorize index in memory, recording how many vectors each upsert stored
+// and the ids each delete named.
 export const vectorize = () => {
   const stored = new Map<string, ReadonlyArray<number>>()
   const upserts: Array<number> = []
+  const deletes: Array<ReadonlyArray<string>> = []
 
   const index: Index = {
     upsert: (vectors) => {
@@ -130,6 +132,13 @@ export const vectorize = () => {
       for (const { id, values } of vectors) stored.set(id, values)
 
       return Promise.resolve({ mutationId: String(upserts.length) })
+    },
+    deleteByIds: (ids) => {
+      deletes.push(ids)
+
+      for (const id of ids) stored.delete(id)
+
+      return Promise.resolve({ mutationId: `delete ${deletes.length}` })
     },
     query: (vector, { topK }) =>
       Promise.resolve({
@@ -141,7 +150,7 @@ export const vectorize = () => {
       }),
   }
 
-  return { index, upserts: () => upserts }
+  return { index, upserts: () => upserts, deletes: () => deletes }
 }
 
 const db = env.DB
@@ -151,11 +160,12 @@ if (db === undefined) throw new Error("vitest.config.ts must bind a D1 database 
 // The test Worker's D1 database is shared by every test that uses it.
 export const emptyCatalog = () =>
   db.exec(
-    "DROP TABLE IF EXISTS catalog; DROP TABLE IF EXISTS catalog_current; DROP TABLE IF EXISTS catalog_fingerprint;",
+    "DROP TABLE IF EXISTS catalog; DROP TABLE IF EXISTS catalog_current; DROP TABLE IF EXISTS catalog_fingerprint; DROP TABLE IF EXISTS catalog_vector;",
   )
 
-// The catalog as the version before fingerprints left it.
-export const dropFingerprints = Effect.promise(() => db.exec("DROP TABLE catalog_fingerprint"))
+// Drops tables, leaving the catalog as an earlier version made it.
+export const drop = (...tables: ReadonlyArray<string>) =>
+  Effect.promise(() => db.exec(tables.map((table) => `DROP TABLE ${table};`).join(" ")))
 
 // The published generation of each source.
 export const published = () =>
