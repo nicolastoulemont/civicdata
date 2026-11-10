@@ -1,13 +1,14 @@
 import { Turn, TurnIndex } from "@civicdata/domain"
-import { Clock, Context, Effect, Layer, Option, Ref, Schema } from "effect"
+import { Clock, Context, type DateTime, Effect, Layer, Option, Ref, Schema, Struct } from "effect"
 
 // What a conversation keeps: the model's chat history as Effect AI exports it,
-// the turns shown to people, and the turn whose chart a person changed last
-// since the agent's last answer, if any.
+// the turns shown to people, the turn whose chart a person changed last since
+// the agent's last answer, if any, and the question being answered, if any.
 export interface Saved {
   readonly chat: string
   readonly turns: ReadonlyArray<Turn>
   readonly changed?: TurnIndex
+  readonly answering?: { readonly question: string; readonly started: DateTime.Utc }
 }
 
 // The writes a save makes in one storage transaction.
@@ -20,6 +21,7 @@ export interface Writes {
 // commits all its writes or, when its closure rejects, none of them.
 export interface Storage {
   readonly get: (key: string) => Promise<string | undefined>
+  readonly put: (key: string, value: string) => Promise<void>
   readonly getAlarm: () => Promise<number | null>
   readonly transaction: (closure: (txn: Writes) => Promise<void>) => Promise<void>
   readonly deleteAll: () => Promise<void>
@@ -28,6 +30,9 @@ export interface Storage {
 interface Interface {
   readonly load: Effect.Effect<Option.Option<Saved>>
   readonly save: (saved: Saved) => Effect.Effect<void>
+  // Drops the question being answered, leaving the alarm where it is: an
+  // answer that kept no turn does not keep the conversation either.
+  readonly forget: Effect.Effect<void>
   // Deletes the conversation once its time is up: a load after it finds
   // nothing. A save since the alarm fired moved the time on, and keeps it.
   readonly expire: Effect.Effect<void>
@@ -38,6 +43,9 @@ const Stored = Schema.fromJsonString(
     chat: Schema.String,
     turns: Schema.Array(Turn),
     changed: Schema.optionalKey(TurnIndex),
+    answering: Schema.optionalKey(
+      Schema.Struct({ question: Schema.String, started: Schema.DateTimeUtcFromString }),
+    ),
   }),
 )
 
@@ -60,6 +68,7 @@ export class Transcript extends Context.Service<Transcript, Interface>()(
       return Transcript.of({
         load: Ref.get(saved),
         save: (next) => Ref.set(saved, Option.some(next)),
+        forget: Ref.update(saved, Option.map(Struct.omit(["answering"]))),
         expire: Ref.set(saved, Option.none()),
       })
     }),
@@ -68,20 +77,24 @@ export class Transcript extends Context.Service<Transcript, Interface>()(
   // A Durable Object's storage. Each save moves the object's alarm to `keep`
   // from now in the same transaction, so a conversation is never kept without
   // an alarm to delete it. The object deletes everything when it fires, unless
-  // a save set a later alarm after Cloudflare sent this one. Storage failures
-  // are defects: there is nothing a caller can do about them.
-  static readonly durable = (storage: Storage) =>
-    Layer.succeed(
+  // a save set a later alarm after Cloudflare sent this one. The question
+  // being answered is saved with the rest, so a restart that ends its answer
+  // leaves a trace of it. Storage failures are defects: there is nothing a
+  // caller can do about them.
+  static readonly durable = (storage: Storage) => {
+    const load = Effect.tryPromise(() => storage.get(key)).pipe(
+      Effect.flatMap((json) =>
+        json === undefined
+          ? Effect.succeedNone
+          : Schema.decodeEffect(Stored)(json).pipe(Effect.asSome),
+      ),
+      Effect.orDie,
+    )
+
+    return Layer.succeed(
       Transcript,
       Transcript.of({
-        load: Effect.tryPromise(() => storage.get(key)).pipe(
-          Effect.flatMap((json) =>
-            json === undefined
-              ? Effect.succeedNone
-              : Schema.decodeEffect(Stored)(json).pipe(Effect.asSome),
-          ),
-          Effect.orDie,
-        ),
+        load,
         save: Effect.fn("Transcript.save")(function* (saved: Saved) {
           const json = yield* Schema.encodeEffect(Stored)(saved)
           const now = yield* Clock.currentTimeMillis
@@ -93,6 +106,15 @@ export class Transcript extends Context.Service<Transcript, Interface>()(
             }),
           )
         }, Effect.orDie),
+        forget: Effect.gen(function* () {
+          const saved = yield* load
+
+          if (Option.isNone(saved) || saved.value.answering === undefined) return
+
+          const json = yield* Schema.encodeEffect(Stored)(Struct.omit(saved.value, ["answering"]))
+
+          yield* Effect.tryPromise(() => storage.put(key, json))
+        }).pipe(Effect.orDie, Effect.withSpan("Transcript.forget")),
         expire: Effect.gen(function* () {
           const alarm = yield* Effect.tryPromise(() => storage.getAlarm())
           const now = yield* Clock.currentTimeMillis
@@ -103,4 +125,5 @@ export class Transcript extends Context.Service<Transcript, Interface>()(
         }).pipe(Effect.orDie, Effect.withSpan("Transcript.expire")),
       }),
     )
+  }
 }

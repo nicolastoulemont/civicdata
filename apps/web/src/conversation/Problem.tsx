@@ -12,32 +12,50 @@ import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/u
 import { Button } from "@/components/ui/button"
 import { named } from "@/explore/format"
 
-import type { Failure } from "./useConversation.ts"
+import { AnswerLost, type Failure } from "./useConversation.ts"
 
-export const explain = (error: Error | Failure["error"]) =>
-  error instanceof AgentUnavailable
-    ? {
-        title: "The assistant is not available",
-        description: "Try again in a moment, or open one of the examples.",
-      }
-    : error instanceof SourceUnavailable
-      ? { title: `${named(error.source)} is not responding`, description: "Try again in a moment." }
-      : error instanceof TooManyQuestions
-        ? {
-            title: "Too many questions in a minute",
-            description: "You can ask this question again now.",
-          }
-        : error instanceof ConversationBusy
-          ? {
-              title: "Still answering an earlier question",
-              description: "This conversation is open elsewhere. Ask again once it has answered.",
-            }
-          : error instanceof CatalogUnavailable
-            ? {
-                title: "Indicator search is not available",
-                description: "Try again in a moment.",
-              }
-            : { title: "The question could not be sent", description: "Try again in a moment." }
+export const explain = (error: Error | Failure["error"]) => {
+  if (error instanceof AgentUnavailable) {
+    return {
+      title: "The assistant is not available",
+      description: "Try again in a moment, or open one of the examples.",
+    }
+  }
+
+  if (error instanceof SourceUnavailable) {
+    return {
+      title: `${named(error.source)} is not responding`,
+      description: "Try again in a moment.",
+    }
+  }
+
+  if (error instanceof TooManyQuestions) {
+    return {
+      title: "Too many questions in a minute",
+      description: "You can ask this question again now.",
+    }
+  }
+
+  if (error instanceof ConversationBusy) {
+    return {
+      title: "Still answering an earlier question",
+      description: "This conversation is open elsewhere. Ask again once it has answered.",
+    }
+  }
+
+  if (error instanceof CatalogUnavailable) {
+    return { title: "Indicator search is not available", description: "Try again in a moment." }
+  }
+
+  if (error instanceof AnswerLost) {
+    return {
+      title: "The answer was cut off",
+      description: "The server restarted before it finished answering.",
+    }
+  }
+
+  return { title: "The question could not be sent", description: "Try again in a moment." }
+}
 
 interface ProblemProps {
   error: Error

@@ -2185,6 +2185,38 @@ describe("Conversation", () => {
     expect(await screen.findAllByText(question, { selector: "p" })).toHaveLength(1)
   })
 
+  it("shows a question the server lost as failed, and asks it again", async () => {
+    const question = "Life expectancy in Brazil"
+    const sent: unknown[] = []
+    let lost = true
+    network.use(
+      http.get(`/api/conversations/${id}`, () =>
+        HttpResponse.json(
+          encodeTurns(
+            lost
+              ? { answered: [], lost: { question, started } }
+              : { answered: [{ question, answer: charted(plot(brazil)) }] },
+          ),
+        ),
+      ),
+      resolve,
+      http.post(`/api/conversations/${id}/questions`, async ({ request }) => {
+        sent.push(await request.json())
+        lost = false
+
+        return events(message(charted(plot(brazil))))
+      }),
+    )
+    show()
+    expect(await screen.findByText("The answer was cut off")).toBeDefined()
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Ask again" }))
+    expect(
+      await screen.findByRole("heading", { name: "Life expectancy at birth (years)" }),
+    ).toBeDefined()
+    expect(sent).toEqual([{ question }])
+    expect(screen.queryByRole("alert")).toBeNull()
+  })
+
   it("keeps earlier failed questions when another question is asked", async () => {
     network.use(
       turns([]),

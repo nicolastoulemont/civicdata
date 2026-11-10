@@ -388,14 +388,16 @@ export const TurnIndex = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)).pipe
 
 export type TurnIndex = typeof TurnIndex.Type
 
-// The question being answered now, and when the server started answering it.
+// A question being answered, and when the server started answering it.
 const Answering = Schema.Struct({ question: Question, started: Schema.DateTimeUtc })
 
 // A conversation as its page shows it: the questions answered so far, oldest
-// first, and the question being answered now, if any.
+// first, and the question being answered now, if any. `lost` is a question
+// whose answer the server lost when it restarted, until the next question.
 export const Turns = Schema.Struct({
   answered: Schema.Array(Turn),
   answering: Schema.optionalKey(Answering),
+  lost: Schema.optionalKey(Answering),
 })
 
 export interface Turns extends Schema.Schema.Type<typeof Turns> {}
