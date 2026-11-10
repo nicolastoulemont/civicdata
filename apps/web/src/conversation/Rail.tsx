@@ -47,24 +47,26 @@ interface StepProps {
 }
 
 // The button to the previous or next question, shown while the rail is
-// pointed at or holds focus.
+// pointed at or holds keyboard focus. The wrapper hides it, so a disabled
+// button keeps its own dimmed look once shown.
 const Step = ({ label, to, jump, children }: StepProps) => (
-  <Toolbar.Button
-    render={
-      <Button
-        variant="ghost"
-        size="icon-xs"
-        className="opacity-0 group-focus-within/rail:opacity-100 group-hover/rail:opacity-100"
-        aria-label={label}
-        disabled={to === undefined}
-        onClick={() => {
-          if (to !== undefined) jump(to)
-        }}
-      />
-    }
-  >
-    {children}
-  </Toolbar.Button>
+  <div className="flex opacity-0 group-hover/rail:opacity-100 group-has-[:focus-visible]/rail:opacity-100">
+    <Toolbar.Button
+      render={
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          aria-label={label}
+          disabled={to === undefined}
+          onClick={() => {
+            if (to !== undefined) jump(to)
+          }}
+        />
+      }
+    >
+      {children}
+    </Toolbar.Button>
+  </div>
 )
 
 interface RailProps {
