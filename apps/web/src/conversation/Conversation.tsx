@@ -5,7 +5,9 @@ import { FollowUp } from "./FollowUp.tsx"
 import { Header } from "./Header.tsx"
 import { Lane } from "./Lane.tsx"
 import { Problem } from "./Problem.tsx"
+import { preview } from "./rail.ts"
 import { Scroll } from "./Scroll.tsx"
+import { entries } from "./timeline.ts"
 import { Timeline } from "./Timeline.tsx"
 import { useConversation } from "./useConversation.ts"
 
@@ -29,6 +31,7 @@ export const Conversation = ({ id, first }: ConversationProps) => {
   }, [first, ask])
 
   const all = turns.data ?? []
+  const questions = entries({ turns: all, failures, pending })
 
   const empty =
     all.length === 0 && pending === undefined && failures.length === 0 && first === undefined
@@ -40,6 +43,7 @@ export const Conversation = ({ id, first }: ConversationProps) => {
         <Scroll
           key={id}
           anchor={pending?.steps.length === 0 ? pending.question : undefined}
+          previews={questions.map(preview)}
           composer={
             <FollowUp
               pending={pending !== undefined}
@@ -59,14 +63,7 @@ export const Conversation = ({ id, first }: ConversationProps) => {
                   No questions yet. A conversation is deleted 30 days after its last question.
                 </p>
               ) : null}
-              <Timeline
-                id={id}
-                turns={all}
-                pending={pending}
-                failures={failures}
-                retry={retry}
-                answering={answering}
-              />
+              <Timeline id={id} entries={questions} retry={retry} answering={answering} />
             </div>
           </Lane>
         </Scroll>

@@ -1,6 +1,5 @@
-import { type ConversationId, Drawn, type Turn, TurnIndex } from "@civicdata/domain"
-import { Schema } from "effect"
-import { Fragment } from "react"
+import { type ConversationId, Drawn } from "@civicdata/domain"
+import { Match, Schema } from "effect"
 
 import { Charts } from "./Charts.tsx"
 import { Drawing } from "./Drawing.tsx"
@@ -8,55 +7,45 @@ import { FailedQuestion } from "./Problem.tsx"
 import { Question } from "./Question.tsx"
 import { Reply } from "./Reply.tsx"
 import { Agent } from "./Row.tsx"
+import type { Entry } from "./timeline.ts"
 import type { useConversation } from "./useConversation.ts"
 import { Steps, Worked, Working } from "./Work.tsx"
 
-interface TimelineProps {
+interface ItemProps {
   id: ConversationId
-  turns: ReadonlyArray<Turn>
-  pending: ReturnType<typeof useConversation>["pending"]
-  failures: ReturnType<typeof useConversation>["failures"]
+  entry: Entry
   retry: ReturnType<typeof useConversation>["retry"]
   answering: boolean
 }
 
 const isDrawn = Schema.is(Drawn)
 
-// The turns of a conversation, oldest first, then the one being answered.
-// An answered turn folds the agent's steps under its answer; a failed one
-// keeps them open above the problem. The one being answered shows each chart
-// under the running steps as soon as the agent draws it.
-export const Timeline = ({ id, turns, pending, failures, retry, answering }: TimelineProps) => (
-  <ol aria-label="Questions and answers" className="flex flex-col gap-8">
-    {Array.from({ length: turns.length + 1 }, (_, index) => (
-      // oxlint-disable-next-line react/no-array-index-key -- positions track append-only answered turns
-      <Fragment key={index}>
-        {failures
-          .filter((failure) => Math.min(failure.before, turns.length) === index)
-          .map((failure) => (
-            <li key={failure.retryAt} className="flex flex-col gap-4">
-              <Question text={failure.question} />
-              <Agent>
-                {failure.steps.length === 0 ? null : <Steps steps={failure.steps} />}
-                <FailedQuestion failure={failure} answering={answering} retry={retry} />
-              </Agent>
-            </li>
-          ))}
-        {turns[index] === undefined ? null : (
-          <li className="flex flex-col gap-4">
-            <Question text={turns[index].question} />
-            <Agent>
-              {turns[index].steps === undefined ? null : (
-                <Worked steps={turns[index].steps} took={turns[index].took} />
-              )}
-              <Reply id={id} index={TurnIndex.make(index)} turn={turns[index]} />
-            </Agent>
-          </li>
-        )}
-      </Fragment>
-    ))}
-    {pending === undefined ? null : (
-      <li data-scroll-anchor className="flex flex-col gap-4">
+// One question and its answer. An answered turn folds the agent's steps under
+// its answer; a failed one keeps them open above the problem. The one being
+// answered shows each chart under the running steps as soon as the agent
+// draws it. Each is marked as a question, for the rail to find.
+const Item = ({ id, entry, retry, answering }: ItemProps) =>
+  Match.valueTags(entry, {
+    Failed: ({ failure }) => (
+      <li data-question className="flex flex-col gap-4">
+        <Question text={failure.question} />
+        <Agent>
+          {failure.steps.length === 0 ? null : <Steps steps={failure.steps} />}
+          <FailedQuestion failure={failure} answering={answering} retry={retry} />
+        </Agent>
+      </li>
+    ),
+    Turn: ({ turn, index }) => (
+      <li data-question className="flex flex-col gap-4">
+        <Question text={turn.question} />
+        <Agent>
+          {turn.steps === undefined ? null : <Worked steps={turn.steps} took={turn.took} />}
+          <Reply id={id} index={index} turn={turn} />
+        </Agent>
+      </li>
+    ),
+    Pending: ({ pending }) => (
+      <li data-question data-scroll-anchor className="flex flex-col gap-4">
         <Question text={pending.question} />
         <Agent>
           <Working steps={pending.steps} started={pending.started} />
@@ -69,6 +58,29 @@ export const Timeline = ({ id, turns, pending, failures, retry, answering }: Tim
           ) : null}
         </Agent>
       </li>
-    )}
+    ),
+  })
+
+// A question keeps its key while it stays the same kind of row.
+const key = (entry: Entry) =>
+  Match.valueTags(entry, {
+    Failed: ({ failure }) => `failed-${failure.retryAt}`,
+    Turn: ({ index }) => `turn-${index}`,
+    Pending: () => "pending",
+  })
+
+interface TimelineProps {
+  id: ConversationId
+  entries: ReadonlyArray<Entry>
+  retry: ReturnType<typeof useConversation>["retry"]
+  answering: boolean
+}
+
+// The questions of a conversation, oldest first, then the one being answered.
+export const Timeline = ({ id, entries, retry, answering }: TimelineProps) => (
+  <ol aria-label="Questions and answers" className="flex flex-col gap-8">
+    {entries.map((entry) => (
+      <Item key={key(entry)} id={id} entry={entry} retry={retry} answering={answering} />
+    ))}
   </ol>
 )

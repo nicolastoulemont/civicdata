@@ -14,7 +14,7 @@ import { named } from "@/explore/format"
 
 import type { Failure } from "./useConversation.ts"
 
-const explain = (error: Error | Failure["error"]) =>
+export const explain = (error: Error | Failure["error"]) =>
   error instanceof AgentUnavailable
     ? {
         title: "The assistant is not available",
