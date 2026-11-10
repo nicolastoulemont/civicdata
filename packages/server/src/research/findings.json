@@ -1,0 +1,780 @@
+[
+  {
+    "id": "euro-crisis-multipliers",
+    "name": "larger fiscal multipliers than forecasters assumed",
+    "claim": "Early in the euro-area crisis, European countries that planned bigger fiscal consolidations saw growth fall further below forecasts, which suggests fiscal multipliers were larger than forecasters assumed. Countries that cut government purchases more lost more output through 2014.",
+    "indicators": [
+      "NY.GDP.MKTP.KD.ZG",
+      "NY.GDP.PCAP.KD.ZG",
+      "ESTAT,TEC00115,1.0",
+      "ESTAT,NAMA_10_GDP,1.0",
+      "NY.GDP.MKTP.KD",
+      "NY.GDP.MKTP.CD",
+      "NY.GDP.PCAP.KD",
+      "ESTAT,NAMA_10_PC,1.0",
+      "OECD.SDD.NAD,DSD_NAMAIN10@DF_TABLE1_EXPENDITURE,2.0"
+    ],
+    "scope": {
+      "_tag": "Countries",
+      "countries": [
+        "AUT",
+        "BEL",
+        "BGR",
+        "CHE",
+        "CYP",
+        "CZE",
+        "DEU",
+        "DNK",
+        "ESP",
+        "EST",
+        "FIN",
+        "FRA",
+        "GBR",
+        "GRC",
+        "HUN",
+        "IRL",
+        "ISL",
+        "ITA",
+        "LTU",
+        "LUX",
+        "LVA",
+        "MLT",
+        "NLD",
+        "NOR",
+        "POL",
+        "PRT",
+        "ROU",
+        "SVK",
+        "SVN",
+        "SWE"
+      ]
+    },
+    "from": 2010,
+    "to": 2014,
+    "evidence": {
+      "_tag": "Agreed",
+      "studies": [
+        {
+          "authors": ["Blanchard, Olivier J.", "Leigh, Daniel"],
+          "year": 2013,
+          "title": "Growth Forecast Errors and Fiscal Multipliers",
+          "publisher": "NBER Working Paper 18779",
+          "doi": "10.3386/w18779",
+          "url": "https://www.nber.org/papers/w18779.pdf"
+        },
+        {
+          "authors": ["House, Christopher L.", "Proebsting, Christian", "Tesar, Linda L."],
+          "year": 2017,
+          "title": "Austerity in the Aftermath of the Great Recession",
+          "publisher": "NBER Working Paper 23147",
+          "doi": "10.3386/w23147",
+          "url": "https://www.nber.org/system/files/working_papers/w23147/w23147.pdf"
+        }
+      ]
+    }
+  },
+  {
+    "id": "hartz-reforms",
+    "name": "a large effect of the Hartz reforms on unemployment",
+    "claim": "The Hartz labour-market reforms of 2003 to 2005 caused a large part of the fall in German unemployment after 2005. Model estimates put their total effect at about 2.5 to 3.5 percentage points.",
+    "indicators": [
+      "SL.UEM.TOTL.ZS",
+      "SL.UEM.TOTL.NE.ZS",
+      "ESTAT,UNE_RT_A,1.0",
+      "ESTAT,TIPSUN20,1.0",
+      "OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M,1.0",
+      "OECD.ELS.SAE,DSD_LFS@DF_LFS_INDIC,1.1"
+    ],
+    "scope": {
+      "_tag": "Countries",
+      "countries": ["DEU"]
+    },
+    "from": 2005,
+    "to": 2012,
+    "evidence": {
+      "_tag": "Disputed",
+      "supporting": [
+        {
+          "authors": ["Krebs, Tom", "Scheffel, Martin"],
+          "year": 2013,
+          "title": "Macroeconomic Evaluation of Labor Market Reform in Germany",
+          "publisher": "IMF Economic Review 61(4)",
+          "doi": "10.1057/imfer.2013.19",
+          "url": "https://www.vwl.uni-mannheim.de/media/Lehrstuehle/vwl/Krebs/Krebs_Scheffel_IMF_ER_2013.pdf"
+        },
+        {
+          "authors": ["Krause, Michael U.", "Uhlig, Harald"],
+          "year": 2011,
+          "title": "Transitions in the German labor market: structure and crisis",
+          "publisher": "Deutsche Bundesbank Discussion Paper 34/2011",
+          "doi": null,
+          "url": "https://www.bundesbank.de/resource/blob/703648/98108378cf78e0d72979e02820e6cf0c/mL/2011-12-30-dkp-34-data.pdf"
+        }
+      ],
+      "disputing": [
+        {
+          "authors": ["Launov, Andrey", "Wälde, Klaus"],
+          "year": 2010,
+          "title": "Estimating Incentive and Welfare Effects of Non-Stationary Unemployment Benefits",
+          "publisher": "IZA Discussion Paper 4958",
+          "doi": null,
+          "url": "https://docs.iza.org/dp4958.pdf"
+        },
+        {
+          "authors": [
+            "Dustmann, Christian",
+            "Fitzenberger, Bernd",
+            "Schönberg, Uta",
+            "Spitz-Oener, Alexandra"
+          ],
+          "year": 2014,
+          "title": "From Sick Man of Europe to Economic Superstar: Germany's Resurgent Economy",
+          "publisher": "Journal of Economic Perspectives 28(1)",
+          "doi": "10.1257/jep.28.1.167",
+          "url": "https://www.christiandustmann.com/content/5-media/392-germanys-economic-resurgence-due-to-decentralised-wage-bargaining-rather-than-hartz-reforms-new-research-report/cdp_06_14.pdf"
+        }
+      ],
+      "objection": "Other studies find a much smaller effect, about 0.3 percentage points for Hartz IV, or credit wage restraint and firm-level wage setting since the mid-1990s instead."
+    }
+  },
+  {
+    "id": "euro-changeover-inflation",
+    "name": "a small effect of the euro changeover on inflation",
+    "claim": "The euro cash changeover in January 2002 added little to measured consumer-price inflation in the euro area: Eurostat put it at 0.12 to 0.29 percentage points over 2002. Prices of some services, restaurants and cafés above all, jumped.",
+    "indicators": [
+      "FP.CPI.TOTL.ZG",
+      "ESTAT,PRC_HICP_AIND,1.0",
+      "ESTAT,TEC00118,1.0",
+      "OECD.SDD.TPS,DSD_PRICES@DF_PRICES_ALL,1.0"
+    ],
+    "scope": {
+      "_tag": "Countries",
+      "countries": [
+        "AUT",
+        "BEL",
+        "FIN",
+        "FRA",
+        "DEU",
+        "GRC",
+        "IRL",
+        "ITA",
+        "LUX",
+        "NLD",
+        "PRT",
+        "ESP"
+      ]
+    },
+    "from": 2002,
+    "to": 2002,
+    "evidence": {
+      "_tag": "Agreed",
+      "studies": [
+        {
+          "authors": ["Eurostat"],
+          "year": 2002,
+          "title": "January 2002: Euro-zone annual inflation up to 2.7%. Euro changeover effect likely to be within the 0.0% to 0.16% range",
+          "publisher": "Eurostat news release 23/2002",
+          "doi": null,
+          "url": "https://ec.europa.eu/eurostat/documents/2995521/5220982/2-28022002-AP-EN.PDF.pdf/1b1efd26-6fee-4a65-832c-9e5c270ea375?t=1414686869000"
+        },
+        {
+          "authors": ["European Central Bank"],
+          "year": 2007,
+          "title": "Measured inflation and inflation perceptions in the euro area",
+          "publisher": "ECB Monthly Bulletin, May 2007",
+          "doi": null,
+          "url": "https://www.ecb.europa.eu/pub/pdf/other/pp63-72_mb200705en.pdf"
+        },
+        {
+          "authors": ["Hobijn, Bart", "Ravenna, Federico", "Tambalotti, Andrea"],
+          "year": 2004,
+          "title": "Menu Costs at Work: Restaurant Prices and the Introduction of the Euro",
+          "publisher": "Federal Reserve Bank of New York Staff Report 195",
+          "doi": null,
+          "url": "https://www.newyorkfed.org/medialibrary/media/research/staff_reports/sr195.pdf"
+        }
+      ]
+    }
+  },
+  {
+    "id": "oil-shocks-1970s-inflation",
+    "name": "oil and food price shocks behind the 1970s inflation spikes",
+    "claim": "In the United States, jumps in oil and food prices, with the end of price controls, drove the inflation spikes of 1973-74 and 1978-80.",
+    "indicators": [
+      "FP.CPI.TOTL.ZG",
+      "ESTAT,PRC_HICP_AIND,1.0",
+      "ESTAT,TEC00118,1.0",
+      "OECD.SDD.TPS,DSD_PRICES@DF_PRICES_ALL,1.0"
+    ],
+    "scope": {
+      "_tag": "Countries",
+      "countries": ["USA"]
+    },
+    "from": 1972,
+    "to": 1983,
+    "evidence": {
+      "_tag": "Disputed",
+      "supporting": [
+        {
+          "authors": ["Blinder, Alan S.", "Rudd, Jeremy B."],
+          "year": 2008,
+          "title": "The Supply-Shock Explanation of the Great Stagflation Revisited",
+          "publisher": "NBER Working Paper 14563",
+          "doi": "10.3386/w14563",
+          "url": "https://www.nber.org/system/files/working_papers/w14563/w14563.pdf"
+        }
+      ],
+      "disputing": [
+        {
+          "authors": ["Barsky, Robert B.", "Kilian, Lutz"],
+          "year": 2002,
+          "title": "Do We Really Know that Oil Caused the Great Stagflation? A Monetary Alternative",
+          "publisher": "NBER Macroeconomics Annual 2001, Volume 16",
+          "doi": "10.1086/654439",
+          "url": "https://www.nber.org/system/files/chapters/c11065/c11065.pdf"
+        }
+      ],
+      "objection": "Another study argues the decade's sustained inflation came from loose monetary policy, and that oil prices rose largely in response to it."
+    }
+  },
+  {
+    "id": "pandemic-inflation",
+    "name": "price shocks behind the 2021-2023 inflation surge",
+    "claim": "The inflation surge of 2021 to 2023 came mostly from jumps in energy and food prices and from shortages of goods. Tight labour markets added little at first; their share grew later, more in the United States than in the euro area.",
+    "indicators": [
+      "FP.CPI.TOTL.ZG",
+      "ESTAT,PRC_HICP_AIND,1.0",
+      "ESTAT,TEC00118,1.0",
+      "OECD.SDD.TPS,DSD_PRICES@DF_PRICES_ALL,1.0"
+    ],
+    "scope": {
+      "_tag": "Countries",
+      "countries": [
+        "USA",
+        "GBR",
+        "JPN",
+        "CAN",
+        "AUT",
+        "BEL",
+        "HRV",
+        "CYP",
+        "EST",
+        "FIN",
+        "FRA",
+        "DEU",
+        "GRC",
+        "IRL",
+        "ITA",
+        "LVA",
+        "LTU",
+        "LUX",
+        "MLT",
+        "NLD",
+        "PRT",
+        "SVK",
+        "SVN",
+        "ESP"
+      ]
+    },
+    "from": 2021,
+    "to": 2023,
+    "evidence": {
+      "_tag": "Agreed",
+      "studies": [
+        {
+          "authors": ["Blanchard, Olivier J.", "Bernanke, Ben S."],
+          "year": 2023,
+          "title": "What Caused the US Pandemic-Era Inflation?",
+          "publisher": "NBER Working Paper 31417",
+          "doi": "10.3386/w31417",
+          "url": "https://www.nber.org/system/files/working_papers/w31417/w31417.pdf"
+        },
+        {
+          "authors": ["Blanchard, Olivier J.", "Bernanke, Ben S."],
+          "year": 2024,
+          "title": "An Analysis of Pandemic-Era Inflation in 11 Economies",
+          "publisher": "NBER Working Paper 32532",
+          "doi": "10.3386/w32532",
+          "url": "https://www.nber.org/system/files/working_papers/w32532/w32532.pdf"
+        },
+        {
+          "authors": [
+            "Arce, Óscar",
+            "Ciccarelli, Matteo",
+            "Kornprobst, Antoine",
+            "Montes-Galdón, Carlos"
+          ],
+          "year": 2024,
+          "title": "What caused the euro area post-pandemic inflation? An application of Bernanke and Blanchard (2023)",
+          "publisher": "ECB Occasional Paper 343",
+          "doi": "10.2866/361869",
+          "url": "https://www.ecb.europa.eu/pub/pdf/scpops/ecb.op343~ab3e870d21.en.pdf"
+        }
+      ]
+    }
+  },
+  {
+    "id": "us-minimum-wage-employment",
+    "name": "no loss of low-wage jobs from US minimum wage increases",
+    "claim": "Raising US state minimum wages did not reduce the number of low-wage jobs: the jobs lost below the new minimum were matched by new jobs at or just above it.",
+    "indicators": [
+      "SL.UEM.TOTL.ZS",
+      "SL.UEM.TOTL.NE.ZS",
+      "ESTAT,UNE_RT_A,1.0",
+      "ESTAT,TIPSUN20,1.0",
+      "OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M,1.0",
+      "OECD.ELS.SAE,DSD_LFS@DF_LFS_INDIC,1.1",
+      "SL.UEM.1524.ZS",
+      "SL.UEM.1524.NE.ZS",
+      "ESTAT,TESEM140,1.0",
+      "SL.EMP.TOTL.SP.ZS",
+      "ESTAT,TESEM010,1.0",
+      "ESTAT,LFSI_EMP_A,1.0"
+    ],
+    "scope": {
+      "_tag": "Countries",
+      "countries": ["USA"]
+    },
+    "from": 1979,
+    "to": 2016,
+    "evidence": {
+      "_tag": "Disputed",
+      "supporting": [
+        {
+          "authors": ["Cengiz, Doruk", "Dube, Arindrajit", "Lindner, Attila", "Zipperer, Ben"],
+          "year": 2019,
+          "title": "The Effect of Minimum Wages on Low-Wage Jobs: Evidence from the United States Using a Bunching Estimator",
+          "publisher": "NBER Working Paper 25434",
+          "doi": "10.3386/w25434",
+          "url": "https://www.nber.org/system/files/working_papers/w25434/w25434.pdf"
+        }
+      ],
+      "disputing": [
+        {
+          "authors": ["Neumark, David", "Shirley, Peter"],
+          "year": 2022,
+          "title": "Myth or Measurement: What Does the New Minimum Wage Research Say about Minimum Wages and Job Loss in the United States?",
+          "publisher": "NBER Working Paper 28388",
+          "doi": "10.3386/w28388",
+          "url": "https://www.nber.org/system/files/working_papers/w28388/w28388.pdf"
+        }
+      ],
+      "objection": "A review of published US studies finds most of them report job losses, especially for teenagers and less-educated workers."
+    }
+  },
+  {
+    "id": "german-minimum-wage",
+    "name": "no measurable job loss from Germany's minimum wage",
+    "claim": "Germany's national minimum wage, introduced in 2015, raised low wages without a measurable loss of regular jobs in its first years.",
+    "indicators": [
+      "SL.UEM.TOTL.ZS",
+      "SL.UEM.TOTL.NE.ZS",
+      "ESTAT,UNE_RT_A,1.0",
+      "ESTAT,TIPSUN20,1.0",
+      "OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M,1.0",
+      "OECD.ELS.SAE,DSD_LFS@DF_LFS_INDIC,1.1",
+      "SL.EMP.TOTL.SP.ZS",
+      "ESTAT,TESEM010,1.0",
+      "ESTAT,LFSI_EMP_A,1.0"
+    ],
+    "scope": {
+      "_tag": "Countries",
+      "countries": ["DEU"]
+    },
+    "from": 2015,
+    "to": 2016,
+    "evidence": {
+      "_tag": "Agreed",
+      "studies": [
+        {
+          "authors": [
+            "Dustmann, Christian",
+            "Lindner, Attila",
+            "Schönberg, Uta",
+            "Umkehrer, Matthias",
+            "vom Berge, Philipp"
+          ],
+          "year": 2020,
+          "title": "Reallocation Effects of the Minimum Wage",
+          "publisher": "CReAM Discussion Paper 07/20",
+          "doi": null,
+          "url": "https://www.cream-migration.org/publ_uploads/CDP_07_20.pdf"
+        },
+        {
+          "authors": [
+            "Caliendo, Marco",
+            "Fedorets, Alexandra",
+            "Preuss, Malte",
+            "Schröder, Carsten",
+            "Wittbrodt, Linda"
+          ],
+          "year": 2017,
+          "title": "The Short-Run Employment Effects of the German Minimum Wage Reform",
+          "publisher": "IZA Discussion Paper 11190",
+          "doi": null,
+          "url": "https://docs.iza.org/dp11190.pdf"
+        }
+      ]
+    }
+  },
+  {
+    "id": "short-time-work-recession",
+    "name": "jobs saved by short-time work in the 2008-2009 recession",
+    "claim": "Short-time work schemes saved jobs in the 2008-2009 recession, mostly in the firms hit hardest. In Italy the jobs saved lasted only as long as the subsidy, and in Germany the extra loosening of the scheme during the recession saved none.",
+    "indicators": [
+      "SL.UEM.TOTL.ZS",
+      "SL.UEM.TOTL.NE.ZS",
+      "ESTAT,UNE_RT_A,1.0",
+      "ESTAT,TIPSUN20,1.0",
+      "OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M,1.0",
+      "OECD.ELS.SAE,DSD_LFS@DF_LFS_INDIC,1.1"
+    ],
+    "scope": {
+      "_tag": "Countries",
+      "countries": ["DEU", "FRA", "ITA"]
+    },
+    "from": 2008,
+    "to": 2013,
+    "evidence": {
+      "_tag": "Agreed",
+      "studies": [
+        {
+          "authors": [
+            "Balleer, Almut",
+            "Gehrke, Britta",
+            "Lechthaler, Wolfgang",
+            "Merkl, Christian"
+          ],
+          "year": 2013,
+          "title": "Does Short-Time Work Save Jobs? A Business Cycle Analysis",
+          "publisher": "IZA Discussion Paper 7475",
+          "doi": null,
+          "url": "https://docs.iza.org/dp7475.pdf"
+        },
+        {
+          "authors": ["Giupponi, Giulia", "Landais, Camille"],
+          "year": 2018,
+          "title": "Subsidizing Labor Hoarding in Recessions: The Employment & Welfare Effects of Short Time Work",
+          "publisher": "CEP Discussion Paper 1585",
+          "doi": null,
+          "url": "https://cep.lse.ac.uk/pubs/download/dp1585.pdf"
+        },
+        {
+          "authors": ["Cahuc, Pierre", "Kramarz, Francis", "Nevoux, Sandra"],
+          "year": 2021,
+          "title": "The Heterogeneous Impact of Short-Time Work: From Saved Jobs to Windfall Effects",
+          "publisher": "IZA Discussion Paper 14381",
+          "doi": null,
+          "url": "https://docs.iza.org/dp14381.pdf"
+        }
+      ]
+    }
+  },
+  {
+    "id": "retirement-age-employment",
+    "name": "more older people in work after pension ages rose",
+    "claim": "Raising the age at which people can first draw a pension kept more older people in work. Part of the drop in retirement turned into unemployment instead, mostly among people who were already out of work.",
+    "indicators": [
+      "ESTAT,TESEM050,1.0",
+      "ESTAT,LFSA_ERGAN,1.0",
+      "ESTAT,LFSI_EMP_A,1.0",
+      "OECD.ELS.SAE,DSD_LFS@DF_LFS_INDIC,1.1"
+    ],
+    "scope": {
+      "_tag": "Countries",
+      "countries": ["AUT", "DEU", "GBR", "FRA", "ITA"]
+    },
+    "from": 2000,
+    "to": 2014,
+    "evidence": {
+      "_tag": "Agreed",
+      "studies": [
+        {
+          "authors": ["Staubli, Stefan", "Zweimüller, Josef"],
+          "year": 2011,
+          "title": "Does Raising the Retirement Age Increase Employment of Older Workers?",
+          "publisher": "IZA Discussion Paper 5863",
+          "doi": null,
+          "url": "https://docs.iza.org/dp5863.pdf"
+        },
+        {
+          "authors": ["Geyer, Johannes", "Welteke, Clara"],
+          "year": 2017,
+          "title": "Closing Routes to Retirement: How Do People Respond?",
+          "publisher": "IZA Discussion Paper 10681",
+          "doi": null,
+          "url": "https://docs.iza.org/dp10681.pdf"
+        },
+        {
+          "authors": ["Cribb, Jonathan", "Emmerson, Carl", "Tetlow, Gemma"],
+          "year": 2014,
+          "title": "Incentives, shocks or signals: labour supply effects of increasing the female state pension age in the UK",
+          "publisher": "IFS Working Paper W13/03",
+          "doi": null,
+          "url": "https://ifs.org.uk/sites/default/files/output_url_files/wp1303revised2.pdf"
+        },
+        {
+          "authors": ["Rabaté, Simon", "Rochut, Julie"],
+          "year": 2017,
+          "title": "Employment and Substitution Effects of Raising the Statutory Eligibility Age in France",
+          "publisher": "PSE Working Paper 2017-46",
+          "doi": null,
+          "url": "https://shs.hal.science/halshs-01622346/document"
+        },
+        {
+          "authors": ["Carta, Francesca", "D'Amuri, Francesco", "von Wachter, Till M."],
+          "year": 2021,
+          "title": "Workforce Aging, Pension Reforms, and Firm Outcomes",
+          "publisher": "NBER Working Paper 28407",
+          "doi": "10.3386/w28407",
+          "url": "https://www.nber.org/system/files/working_papers/w28407/w28407.pdf"
+        }
+      ]
+    }
+  },
+  {
+    "id": "spain-labour-reform-2012",
+    "name": "more permanent hiring after Spain's 2012 labour reform",
+    "claim": "Spain's 2012 labour-market reform raised hiring on permanent contracts, though the effect was small next to the hiring on temporary contracts.",
+    "indicators": [
+      "ESTAT,TESEM110,1.0",
+      "SL.UEM.TOTL.ZS",
+      "SL.UEM.TOTL.NE.ZS",
+      "ESTAT,UNE_RT_A,1.0",
+      "ESTAT,TIPSUN20,1.0",
+      "OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M,1.0",
+      "OECD.ELS.SAE,DSD_LFS@DF_LFS_INDIC,1.1"
+    ],
+    "scope": {
+      "_tag": "Countries",
+      "countries": ["ESP"]
+    },
+    "from": 2012,
+    "to": 2014,
+    "evidence": {
+      "_tag": "Agreed",
+      "studies": [
+        {
+          "authors": ["OECD"],
+          "year": 2013,
+          "title": "The 2012 Labour Market Reform in Spain: A Preliminary Assessment",
+          "publisher": "OECD",
+          "doi": null,
+          "url": "https://web.archive.org/web/20220901042427/https://www.oecd.org/els/emp/SpainLabourMarketReform-Report.pdf"
+        },
+        {
+          "authors": ["García Pérez, J. Ignacio", "Mestres Domènech, Josep"],
+          "year": 2016,
+          "title": "The Impact of the 2012 Spanish Labour Market Reform on Unemployment Inflows and Outflows: a Regression Discontinuity Analysis using Duration Models",
+          "publisher": "Fedea Policy Paper 2016/27",
+          "doi": null,
+          "url": "https://documentos.fedea.net/pubs/fpp/2016/12/FPP2016-27.pdf"
+        }
+      ]
+    }
+  },
+  {
+    "id": "spain-temporary-contracts",
+    "name": "Spain's two-tier labour market in the Great Recession",
+    "claim": "A calibrated model finds Spain's unemployment would have risen about 45% less in 2008-09 had Spain had France's employment protection rules: a smaller gap in firing costs between permanent and temporary contracts, and tighter limits on temporary contracts.",
+    "indicators": [
+      "SL.UEM.TOTL.ZS",
+      "SL.UEM.TOTL.NE.ZS",
+      "ESTAT,UNE_RT_A,1.0",
+      "ESTAT,TIPSUN20,1.0",
+      "OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M,1.0",
+      "OECD.ELS.SAE,DSD_LFS@DF_LFS_INDIC,1.1"
+    ],
+    "scope": {
+      "_tag": "Countries",
+      "countries": ["ESP", "FRA"]
+    },
+    "from": 2008,
+    "to": 2009,
+    "evidence": {
+      "_tag": "Single",
+      "study": {
+        "authors": [
+          "Bentolila, Samuel",
+          "Cahuc, Pierre",
+          "Dolado, Juan J.",
+          "Le Barbanchon, Thomas"
+        ],
+        "year": 2010,
+        "title": "Two-Tier Labor Markets in the Great Recession: France vs. Spain",
+        "publisher": "IZA Discussion Paper 5340",
+        "doi": null,
+        "url": "https://docs.iza.org/dp5340.pdf"
+      }
+    }
+  },
+  {
+    "id": "greek-depression",
+    "name": "fiscal consolidation and funding costs behind Greece's slump",
+    "claim": "Greece's output fell deeper and for longer after 2008 than in typical crises since 1980, even those where a sovereign default, a lending bust and a sudden stop of capital struck together. One model puts about half of the fall on fiscal consolidation and about 40% on higher funding costs for firms and the state, and ties the extra depth to Greece's high debt at the start.",
+    "indicators": [
+      "NY.GDP.MKTP.KD.ZG",
+      "NY.GDP.PCAP.KD.ZG",
+      "ESTAT,TEC00115,1.0",
+      "ESTAT,NAMA_10_GDP,1.0",
+      "NY.GDP.MKTP.KD",
+      "NY.GDP.MKTP.CD",
+      "NY.GDP.PCAP.KD",
+      "ESTAT,NAMA_10_PC,1.0",
+      "OECD.SDD.NAD,DSD_NAMAIN10@DF_TABLE1_EXPENDITURE,2.0"
+    ],
+    "scope": {
+      "_tag": "Countries",
+      "countries": ["GRC"]
+    },
+    "from": 2008,
+    "to": 2015,
+    "evidence": {
+      "_tag": "Single",
+      "study": {
+        "authors": ["Gourinchas, Pierre-Olivier", "Philippon, Thomas", "Vayanos, Dimitri"],
+        "year": 2016,
+        "title": "The Analytics of the Greek Crisis",
+        "publisher": "NBER Working Paper 22370",
+        "doi": "10.3386/w22370",
+        "url": "https://www.nber.org/system/files/working_papers/w22370/w22370.pdf"
+      }
+    }
+  },
+  {
+    "id": "ireland-gdp-2015",
+    "name": "multinationals moving their assets to Ireland",
+    "claim": "Most of Ireland's 26% jump in GDP in 2015 came from a few multinational firms moving their balance sheets, mostly intellectual property, to Ireland, rather than from growth in the domestic economy.",
+    "indicators": [
+      "NY.GDP.MKTP.KD.ZG",
+      "NY.GDP.PCAP.KD.ZG",
+      "ESTAT,TEC00115,1.0",
+      "ESTAT,NAMA_10_GDP,1.0",
+      "NY.GDP.MKTP.KD",
+      "NY.GDP.MKTP.CD",
+      "NY.GDP.PCAP.KD",
+      "ESTAT,NAMA_10_PC,1.0",
+      "OECD.SDD.NAD,DSD_NAMAIN10@DF_TABLE1_EXPENDITURE,2.0"
+    ],
+    "scope": {
+      "_tag": "Countries",
+      "countries": ["IRL"]
+    },
+    "from": 2015,
+    "to": 2015,
+    "evidence": {
+      "_tag": "Agreed",
+      "studies": [
+        {
+          "authors": ["FitzGerald, John"],
+          "year": 2018,
+          "title": "National Accounts for a Global Economy: the Case of Ireland",
+          "publisher": "Trinity Economics Papers 0418",
+          "doi": null,
+          "url": "https://www.tcd.ie/Economics/TEP/2018/TEP0418.pdf"
+        },
+        {
+          "authors": ["Economic Statistics Review Group"],
+          "year": 2016,
+          "title": "Report of the Economic Statistics Review Group (ESRG)",
+          "publisher": "Central Statistics Office, Ireland",
+          "doi": null,
+          "url": "https://www.cso.ie/en/media/csoie/newsevents/documents/reportoftheeconomicstatisticsreviewgroup/Economic_Statistics_Review_(ESRG)_Report_Dec_2016.pdf"
+        }
+      ]
+    }
+  },
+  {
+    "id": "covid-voluntary-distancing",
+    "name": "people's own distancing as well as lockdowns",
+    "claim": "Much of the fall in economic activity in 2020 came from people cutting back on their own as the virus spread, not only from lockdown orders.",
+    "indicators": [
+      "NY.GDP.MKTP.KD.ZG",
+      "NY.GDP.PCAP.KD.ZG",
+      "ESTAT,TEC00115,1.0",
+      "ESTAT,NAMA_10_GDP,1.0",
+      "NY.GDP.MKTP.KD",
+      "NY.GDP.MKTP.CD",
+      "NY.GDP.PCAP.KD",
+      "ESTAT,NAMA_10_PC,1.0",
+      "OECD.SDD.NAD,DSD_NAMAIN10@DF_TABLE1_EXPENDITURE,2.0"
+    ],
+    "scope": {
+      "_tag": "World"
+    },
+    "from": 2020,
+    "to": 2020,
+    "evidence": {
+      "_tag": "Agreed",
+      "studies": [
+        {
+          "authors": ["Goolsbee, Austan", "Syverson, Chad"],
+          "year": 2020,
+          "title": "Fear, Lockdown, and Diversion: Comparing Drivers of Pandemic Economic Decline 2020",
+          "publisher": "NBER Working Paper 27432",
+          "doi": "10.3386/w27432",
+          "url": "https://www.nber.org/system/files/working_papers/w27432/w27432.pdf"
+        },
+        {
+          "authors": [
+            "Caselli, Francesca",
+            "Grigoli, Francesco",
+            "Lian, Weicheng",
+            "Sandri, Damiano"
+          ],
+          "year": 2020,
+          "title": "The Great Lockdown: Dissecting the Economic Effects",
+          "publisher": "IMF World Economic Outlook, October 2020, Chapter 2",
+          "doi": null,
+          "url": "https://digitallibrary.un.org/record/4064808/files/1418639-EN.pdf"
+        }
+      ]
+    }
+  },
+  {
+    "id": "finland-1990s-depression",
+    "name": "the collapse of Soviet trade behind Finland's depression",
+    "claim": "The collapse of trade with the Soviet Union in 1991 caused a large part of Finland's deep recession of the early 1990s, through lost export markets and dearer energy.",
+    "indicators": [
+      "NY.GDP.MKTP.KD.ZG",
+      "NY.GDP.PCAP.KD.ZG",
+      "ESTAT,TEC00115,1.0",
+      "ESTAT,NAMA_10_GDP,1.0",
+      "NY.GDP.MKTP.KD",
+      "NY.GDP.MKTP.CD",
+      "NY.GDP.PCAP.KD",
+      "ESTAT,NAMA_10_PC,1.0",
+      "OECD.SDD.NAD,DSD_NAMAIN10@DF_TABLE1_EXPENDITURE,2.0"
+    ],
+    "scope": {
+      "_tag": "Countries",
+      "countries": ["FIN"]
+    },
+    "from": 1990,
+    "to": 1993,
+    "evidence": {
+      "_tag": "Disputed",
+      "supporting": [
+        {
+          "authors": ["Gorodnichenko, Yuriy", "Mendoza, Enrique G.", "Tesar, Linda L."],
+          "year": 2009,
+          "title": "The Finnish Great Depression: From Russia with Love",
+          "publisher": "NBER Working Paper 14874",
+          "doi": "10.3386/w14874",
+          "url": "https://www.nber.org/system/files/working_papers/w14874/w14874.pdf"
+        }
+      ],
+      "disputing": [
+        {
+          "authors": ["Honkapohja, Seppo", "Koskela, Erkki"],
+          "year": 1999,
+          "title": "The Economic Crisis of the 1990s in Finland",
+          "publisher": "ETLA Discussion Paper 683",
+          "doi": null,
+          "url": "https://www.etla.fi/wp-content/uploads/2012/09/dp683.pdf"
+        }
+      ],
+      "objection": "Another study puts the main cause on a financial crisis that followed badly designed deregulation, and estimates the Soviet trade collapse cost about 2 of the nearly 7 points GDP fell in 1991."
+    }
+  }
+]

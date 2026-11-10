@@ -15,6 +15,8 @@ import {
   Covered,
   Definition,
   DimensionId,
+  Evidence,
+  Finding,
   Dimensions,
   Failed,
   Fetch,
@@ -28,19 +30,24 @@ import {
   put,
   Ranking,
   Read,
+  RecordId,
   Relation,
   Recorded,
   Records,
   Rejected,
   Rejection,
   Rendered,
+  Research,
+  Researched,
   Running,
+  Scope,
   Search,
   Searched,
   sourceOf,
   SourceUnavailable,
   type Step,
   StepId,
+  type Study,
   Stopped,
   Text,
   Thinking,
@@ -79,6 +86,7 @@ import { AskLimit } from "../src/AskLimit.ts"
 import { Catalog } from "../src/Catalog.ts"
 import { serve } from "../src/ConversationObject.ts"
 import { Conversations } from "../src/Conversations.ts"
+import { Findings } from "../src/Findings.ts"
 import { Handlers } from "../src/Handlers.ts"
 import { Notes } from "../src/Notes.ts"
 import { Politics } from "../src/Politics.ts"
@@ -193,6 +201,7 @@ type Name =
   | "describe_indicator"
   | "find_countries"
   | "find_politics"
+  | "find_research"
   | "find_years"
   | "show_chart"
   | "ask_user"
@@ -300,6 +309,8 @@ interface ServeOptions {
   readonly sdmx?: Layer.Layer<Sdmx>
   // The political records. Without them, none are available.
   readonly politics?: Layer.Layer<Politics>
+  // The research findings. Without them, there are none.
+  readonly findings?: Layer.Layer<Findings>
   // The conversations' Durable Object storage. Without it, each conversation
   // keeps its transcript in memory.
   readonly storage?: Storage
@@ -315,10 +326,12 @@ const serveApi = (
     worldBank = recordedWorldBank,
     sdmx = recordedSdmx,
     politics = Politics.unavailable,
+    findings = Findings.holding([]),
   }: ServeOptions = {},
 ) => {
   const agent = Agent.layer.pipe(
     Layer.provide(model),
+    Layer.provide(findings),
     Layer.provide(Resolver.layer),
     Layer.provide(catalog),
     Layer.provide(politics),
@@ -2078,6 +2091,154 @@ describe("political context", () => {
         charted(chart(spainTrend)),
       )
     }).pipe(Effect.provide(serveApi(model.layer, { politics })))
+  })
+})
+
+const unemployment = IndicatorId.make("SL.UEM.TOTL.ZS")
+
+const krebs: Study = {
+  authors: ["Krebs, Tom", "Scheffel, Martin"],
+  year: 2013,
+  title: "Macroeconomic Evaluation of Labor Market Reform in Germany",
+  publisher: "IMF Working Paper 13/42",
+  doi: null,
+  url: "https://www.imf.org/external/pubs/ft/wp/2013/wp1342.pdf",
+}
+
+const launov: Study = {
+  authors: ["Launov, Andrey", "Wälde, Klaus"],
+  year: 2010,
+  title: "Estimating Incentive and Welfare Effects of Non-Stationary Unemployment Benefits",
+  publisher: "IZA Discussion Paper 4740",
+  doi: null,
+  url: "https://docs.iza.org/dp4740.pdf",
+}
+
+// A finding valid as it stands: one study's result on German unemployment,
+// 2003 to 2010. A test changes what it asserts on.
+const finding = (changes: Partial<Finding> = {}) =>
+  Finding.make({
+    id: "hartz-reforms",
+    name: "the Hartz reforms' effect on unemployment",
+    claim: "Germany's labour-market reforms lowered unemployment.",
+    indicators: [unemployment],
+    scope: Scope.cases.Countries.make({ countries: ["DEU"] }),
+    from: Year.make(2003),
+    to: Year.make(2010),
+    evidence: Evidence.cases.Single.make({ study: krebs }),
+    ...changes,
+  })
+
+// The model looks up the findings on unemployment in Germany and Spain,
+// 2005 to 2012, unless a test asks for others.
+const research = (asked: Arguments = {}) =>
+  call("find_research", {
+    indicator: unemployment,
+    countries: ["DEU", "ESP"],
+    from: 2005,
+    to: 2012,
+    ...asked,
+  })
+
+describe("research findings", () => {
+  it.effect("tells the model the findings that cover the indicator, countries and years", () => {
+    const model = scripted([Effect.succeed(research()), silent])
+
+    const findings = Findings.holding([
+      finding(),
+      finding({ id: "worldwide", scope: Scope.cases.World.make({}) }),
+      finding({ id: "life-expectancy", indicators: [lifeExpectancy] }),
+      finding({ id: "france", scope: Scope.cases.Countries.make({ countries: ["FRA"] }) }),
+      finding({ id: "nineties", from: Year.make(1991), to: Year.make(1995) }),
+    ])
+
+    return Effect.gen(function* () {
+      const steps = yield* answer("Why did unemployment fall in Germany after 2005?")
+
+      expect(log(steps)).toEqual([
+        Research.make({
+          id: StepId.make("call-find_research"),
+          indicator: unemployment,
+          countries: ["DEU", "ESP"],
+          from: Year.make(2005),
+          to: Year.make(2012),
+          state: Researched.make({
+            findings: [
+              {
+                id: RecordId.make("finding:hartz-reforms"),
+                name: "the Hartz reforms' effect on unemployment",
+              },
+              {
+                id: RecordId.make("finding:worldwide"),
+                name: "the Hartz reforms' effect on unemployment",
+              },
+            ],
+          }),
+        }),
+        Unanswered.make({}),
+      ])
+      expect(model.prompts[1]).toContain(
+        '"id":"finding:hartz-reforms","name":"the Hartz reforms\' effect on unemployment","claim":"Germany\'s labour-market reforms lowered unemployment.","countries":["DEU"]',
+      )
+      expect(model.prompts[1]).toContain('"settled":"one study"')
+      expect(model.prompts[1]).toContain('"supporting":["Krebs and Scheffel (2013)"]')
+
+      for (const other of ["life-expectancy", "france", "nineties"]) {
+        expect(model.prompts[1]).not.toContain(`finding:${other}`)
+      }
+    }).pipe(Effect.provide(serveApi(model.layer, { findings })))
+  })
+
+  it.effect("tells the model both sides of a disputed finding", () => {
+    const model = scripted([Effect.succeed(research()), silent])
+
+    const disputed = finding({
+      evidence: Evidence.cases.Disputed.make({
+        supporting: [krebs],
+        disputing: [launov],
+        objection: "Other studies find the reforms lowered unemployment only a little.",
+      }),
+    })
+
+    return Effect.gen(function* () {
+      yield* answer("Why did unemployment fall in Germany after 2005?")
+
+      expect(model.prompts[1]).toContain(
+        '"settled":"disputed","objection":"Other studies find the reforms lowered unemployment only a little.","supporting":["Krebs and Scheffel (2013)"],"disputing":["Launov and Wälde (2010)"]',
+      )
+    }).pipe(Effect.provide(serveApi(model.layer, { findings: Findings.holding([disputed]) })))
+  })
+
+  it.effect("tells the model when years do not decode, and looks nothing up", () => {
+    const model = scripted([Effect.succeed(research({ from: 2012, to: 2005 })), silent])
+
+    return Effect.gen(function* () {
+      expect(log(yield* answer("Why did unemployment fall in Germany?"))).toEqual([
+        Unanswered.make({}),
+      ])
+      expect(model.prompts[1]).toContain("from must not be after to")
+    }).pipe(Effect.provide(serveApi(model.layer, { findings: Findings.holding([finding()]) })))
+  })
+
+  it.effect("streams words citing a finding by its name, and keeps the finding", () => {
+    const model = scripted([
+      Effect.succeed(research()),
+      Effect.succeed(words("Studies found [[finding:hartz-reforms]].")),
+    ])
+
+    const text = "Studies found [the Hartz reforms' effect on unemployment](cite:0)."
+
+    return Effect.gen(function* () {
+      const steps = yield* answer("Why did unemployment fall in Germany after 2005?")
+
+      expect(steps.findLast(isRendered)?.block).toMatchObject({
+        text,
+        cites: [{ finding: { id: "hartz-reforms" } }],
+      })
+      expect((yield* turns).answered[0]?.answer).toMatchObject({
+        blocks: [{ text, cites: [{ finding: { id: "hartz-reforms" } }] }],
+      })
+    }).pipe(Effect.provide(serveApi(model.layer, { findings: Findings.holding([finding()]) })))
   })
 })
 

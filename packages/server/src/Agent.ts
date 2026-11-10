@@ -16,9 +16,12 @@ import {
   type DimensionsMissing,
   End,
   type Explanation,
+  Evidence,
   Failed,
   Fetch,
   Fetched,
+  type Finding,
+  bylineOf,
   idOf,
   IndicatorId,
   type IndicatorNotFound,
@@ -40,8 +43,11 @@ import {
   Rejection,
   Relation,
   Rendered,
+  Research,
+  Researched,
   type ResolvedView,
   Running,
+  Scope,
   Search,
   Searched,
   Source,
@@ -86,6 +92,7 @@ import { FetchHttpClient } from "effect/http"
 
 import { Catalog } from "./Catalog.ts"
 import { cite } from "./Citations.ts"
+import { Findings } from "./Findings.ts"
 import { Politics } from "./Politics.ts"
 import { Resolver } from "./Resolver.ts"
 import { Sdmx } from "./Sdmx.ts"
@@ -309,17 +316,54 @@ const Found = Schema.TaggedStruct("Records", {
   uncovered: Schema.Array(Country),
 })
 
+// The countries and years find_politics and find_research look up, as the
+// model passes them.
+const range = {
+  countries: Schema.Array(Schema.String).annotate({
+    description: "ISO 3166-1 alpha-3 codes, e.g. FRA, DEU",
+  }),
+  from: Schema.Int.annotate({ description: "First year" }),
+  to: Schema.Int.annotate({ description: "Last year" }),
+}
+
 const FindPolitics = Tool.make("find_politics", {
   description:
     "Look up the elections, governments, major events and pension reforms of countries over a range of years, from stored records with their sources. Records cover EU and OECD members; `uncovered` lists the countries without any. Each record has an id, which your words cite it by.",
-  parameters: Schema.Struct({
-    countries: Schema.Array(Schema.String).annotate({
-      description: "ISO 3166-1 alpha-3 codes, e.g. FRA, DEU",
-    }),
-    from: Schema.Int.annotate({ description: "First year" }),
-    to: Schema.Int.annotate({ description: "Last year" }),
-  }),
+  parameters: Schema.Struct(range),
   success: Schema.Union([Found, Schema.TaggedStruct("Rejected", { problem: Schema.String })]),
+  dependencies: [Report, Known],
+})
+
+// What find_research tells the model of each finding: its id, its name and
+// claim, where and when it holds, how settled it is, and its studies by
+// author and year, on either side of a dispute.
+const Explained = Schema.TaggedStruct("Findings", {
+  findings: Schema.Array(
+    Schema.Struct({
+      id: RecordId,
+      name: Schema.String,
+      claim: Schema.String,
+      countries: Schema.Union([Schema.Literal("world"), Schema.Array(Country)]),
+      from: Year,
+      to: Year,
+      settled: Schema.Literals(["agreed", "one study", "disputed"]),
+      objection: Schema.NullOr(Schema.String),
+      supporting: Schema.Array(Schema.String),
+      disputing: Schema.Array(Schema.String),
+    }),
+  ),
+})
+
+const FindResearch = Tool.make("find_research", {
+  description:
+    "Look up the research findings that explain why an indicator moved in some countries over some years. Each finding is one result of reviewed studies, in our words, with how settled it is: agreed, one study, or disputed with an objection. Returns only findings that cover the indicator, at least one of the countries and some of the years; none means the research we have does not cover the question. Each finding has an id, which your words cite it by.",
+  parameters: Schema.Struct({
+    indicator: Schema.String.annotate({
+      description: "The indicator code of the chart, as search_indicators returned it",
+    }),
+    ...range,
+  }),
+  success: Schema.Union([Explained, Schema.TaggedStruct("Rejected", { problem: Schema.String })]),
   dependencies: [Report, Known],
 })
 
@@ -422,6 +466,7 @@ const Tools = Toolkit.make(
   DescribeIndicator,
   FindCountries,
   FindPolitics,
+  FindResearch,
   FindYears,
   ShowChart,
   AskUser,
@@ -584,12 +629,22 @@ const noValues = (source: Source) =>
     ? "The World Bank has no values for these countries and years. Try other years."
     : `${source} has no annual values for these countries and years. Try other years, or another dataflow if this one is quarterly or monthly only.`
 
-// The countries and years find_politics reads the records of.
-const Span = Schema.Struct({
+const forwards = Schema.makeFilter(
+  ({ from, to }: { readonly from: Year; readonly to: Year }) =>
+    from <= to || "from must not be after to",
+)
+
+const spanned = {
   countries: Schema.NonEmptyArray(Country).check(Schema.isUnique()),
   from: Year,
   to: Year,
-}).check(Schema.makeFilter(({ from, to }) => from <= to || "from must not be after to"))
+}
+
+// The countries and years find_politics reads the records of.
+const Span = Schema.Struct(spanned).check(forwards)
+
+// The indicator, countries and years find_research reads the findings of.
+const Explaining = Schema.Struct({ indicator: IndicatorId, ...spanned }).check(forwards)
 
 // The overlays a chart drew, each once and in their usual order, or none.
 const overlaysOf = (draft: Draft): Overlays | undefined => {
@@ -648,6 +703,51 @@ const told = (records: PoliticalRecords, countries: ReadonlyArray<Country>) =>
     uncovered: countries.filter((country) => !members.has(country)),
   })
 
+// The findings as find_research tells them to the model.
+const explained = (findings: ReadonlyArray<Finding>) =>
+  Explained.make({
+    findings: findings.map((finding) => ({
+      id: idOf(Cited.cases.Finding.make({ finding })),
+      name: finding.name,
+      claim: finding.claim,
+      countries: Scope.match(finding.scope, {
+        World: () => "world" as const,
+        Countries: ({ countries }) => countries,
+      }),
+      from: finding.from,
+      to: finding.to,
+      ...Evidence.match(finding.evidence, {
+        Agreed: ({ studies }) => ({
+          settled: "agreed" as const,
+          objection: null,
+          supporting: studies.map(bylineOf),
+          disputing: [],
+        }),
+        Single: ({ study }) => ({
+          settled: "one study" as const,
+          objection: null,
+          supporting: [bylineOf(study)],
+          disputing: [],
+        }),
+        Disputed: ({ supporting, disputing, objection }) => ({
+          settled: "disputed" as const,
+          objection,
+          supporting: supporting.map(bylineOf),
+          disputing: disputing.map(bylineOf),
+        }),
+      }),
+    })),
+  })
+
+// Adds the records a lookup found to those the answer's words can cite.
+const know = (records: ReadonlyArray<Cited>) =>
+  Effect.flatMap(Known, (known) =>
+    Ref.update(
+      known,
+      (before) => new Map([...before, ...records.map((cited) => [idOf(cited), cited] as const)]),
+    ),
+  )
+
 const ToolsLayer = Tools.toLayer(
   Effect.gen(function* () {
     const catalog = yield* Catalog
@@ -655,6 +755,7 @@ const ToolsLayer = Tools.toLayer(
     const worldBank = yield* WorldBank
     const sdmx = yield* Sdmx
     const politics = yield* Politics
+    const research = yield* Findings
 
     // A View's values, or why the data cannot give them: no source has the
     // indicator, or its dataflow holds several series and the View has not
@@ -855,18 +956,7 @@ const ToolsLayer = Tools.toLayer(
                   }),
                 ),
             }).pipe(
-              Effect.tap((records) =>
-                Effect.flatMap(Known, (known) =>
-                  Ref.update(
-                    known,
-                    (before) =>
-                      new Map([
-                        ...before,
-                        ...citedIn(records).map((cited) => [idOf(cited), cited] as const),
-                      ]),
-                  ),
-                ),
-              ),
+              Effect.tap((records) => know(citedIn(records))),
               Effect.map((records) => told(records, countries)),
             )
           }),
@@ -877,6 +967,34 @@ const ToolsLayer = Tools.toLayer(
                 rejected("Political records are unavailable now. Answer without them."),
               ),
           }),
+        ),
+      // Arguments that do not decode are the model's mistake, told to it
+      // alone. No finding is an answer too: the research does not cover it.
+      find_research: (asked, { toolCallId }) =>
+        Schema.decodeUnknownEffect(Explaining)(asked).pipe(
+          Effect.flatMap((query) => {
+            const at = (state: typeof Research.Type.state) =>
+              Research.make({ id: stepOf(toolCallId, "find_research"), ...query, state })
+
+            return reported(research.covering(query), {
+              at,
+              done: (found) =>
+                at(
+                  Researched.make({
+                    findings: found.map((finding) => ({
+                      id: idOf(Cited.cases.Finding.make({ finding })),
+                      name: finding.name,
+                    })),
+                  }),
+                ),
+            }).pipe(
+              Effect.tap((found) =>
+                know(found.map((finding) => Cited.cases.Finding.make({ finding }))),
+              ),
+              Effect.map(explained),
+            )
+          }),
+          Effect.catchTag("SchemaError", (error) => Effect.succeed(rejected(error.message))),
         ),
       // Reads the recent years of the data the model named, the years a
       // cached source asks for at once (see `recent`), so show_chart, given
@@ -1038,6 +1156,8 @@ One indicator for several countries is one chart, whatever the number of countri
 Political context: a trend of EU and OECD members can show their elections, their governments, shaded by head of government, and major events, with pension reforms on pension charts. Use it only when the question asks about them, e.g. "under each president" or "since the last election" asks for governments or elections, "around the 2010 bailout" or "since the financial crisis" asks for events. Then call find_politics for the chart's countries and years, and pass the overlays the question asks for to show_chart. Never add context the question does not ask for.
 To name a record find_politics returned, cite it by its id in double brackets, e.g. "Unemployment rose from 2008, the year the [[event:financial-crisis]] began." The record's name takes the id's place and links to its source: a government's is its head's name, an election's its year and ballot, e.g. "2017 presidential election". Never write the name of a head of government, party, election or event yourself, and cite only records find_politics returned.
 
+Why a figure moved: give a cause only from a research finding find_research returned, never from what you know. When the question asks why, or your words would say what made a figure rise or fall, call find_research with the chart's indicator, countries and years before you write about the chart. Cite a finding by its id in double brackets, as you cite records, and write it as what research found, never as what the chart shows: "Studies of the euro crisis found [[finding:euro-crisis-multipliers]]." The finding's name takes the id's place and its card lists the studies. For a disputed finding, give both sides: its claim and its objection. For a finding of one study, say it rests on one study. When find_research returns no finding, say the research you have does not cover why. You may still describe the chart and cite events from find_politics, but state no cause.
+
 If no indicator of any source measures what the question asks, say so in one sentence and stop without calling show_chart. A question only about politics, with no data to chart, e.g. "Who governed Spain in 2008?", is one of those: you answer with charts.
 
 If the question can be read in ways that give different charts and none is a safe default, call ask_user instead of show_chart, with two to four short choices. Prefer a sensible default to asking: ask at most once per question.
@@ -1045,8 +1165,8 @@ If the question can be read in ways that give different charts and none is a saf
 A later question can follow up on your last answer, e.g. "add Chile" or "now per person". Apply it to the charts it names, or else to every chart it fits: "add Italy" adds Italy to each chart, "only since 2015" changes the years of every trend. Show each changed chart again, in the same order, keep the rest of each chart, and write about each one again. When a question starts with charts on screen, the person changed them since your last answer: follow up on those charts instead, by their place in the answer.`
 
 export class Agent extends Context.Service<Agent, Interface>()("@civicdata/server/Agent") {
-  // Needs a LanguageModel, a Catalog, a Resolver, a WorldBank, an Sdmx and
-  // the political records.
+  // Needs a LanguageModel, a Catalog, a Resolver, a WorldBank, an Sdmx, the
+  // political records and the research findings.
   static readonly layer = Layer.effect(
     Agent,
     Effect.gen(function* () {
@@ -1208,8 +1328,9 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
     }),
   )
 
-  // OpenAI, when the deployment has an OPENAI_API_KEY binding. Without one
-  // (plain `pnpm dev`, or a stage nobody gave a key) every question fails with
+  // OpenAI, when the deployment has an OPENAI_API_KEY binding, with the
+  // findings shipped in research/findings.json. Without a key (plain
+  // `pnpm dev`, or a stage nobody gave a key) every question fails with
   // AgentUnavailable.
   static readonly live = Layer.unwrap(
     Effect.tryPromise(() => import("cloudflare:workers")).pipe(
@@ -1217,6 +1338,7 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
         env.OPENAI_API_KEY === undefined
           ? Agent.unavailable
           : Agent.layer.pipe(
+              Layer.provide(Findings.layer),
               Layer.provide(OpenAiLanguageModel.model(env.OPENAI_MODEL ?? defaultModel)),
               Layer.provide(OpenAiClient.layer({ apiKey: Redacted.make(env.OPENAI_API_KEY) })),
               Layer.provide(FetchHttpClient.layer),
