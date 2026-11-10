@@ -1159,6 +1159,7 @@ describe("Explore", () => {
     [["SAU", "ARE"], "Map of the Gulf states", []],
     [["EGY", "MAR"], "Map of North Africa", []],
     [["RUS", "CHN"], "Map of Northeast Asia", []],
+    [["RUS", "UKR"], "Map of the post-Soviet states", []],
     [["FRA", "USA"], "World map", []],
   ] as const)("draws %j on the %s", async (countries, title, insets) => {
     network.use(everywhere)
@@ -1170,6 +1171,26 @@ describe("Explore", () => {
     ).toBeDefined()
     expect(screen.queryByText("French Guiana")).toBeNull()
     expect(insets.filter((name) => screen.queryByText(name) === null)).toEqual([])
+  })
+
+  it("draws European countries with Russia on a map of Europe and Russia, with the outermost regions", async () => {
+    network.use(everywhere)
+
+    show(
+      Ranking.make({
+        indicator: population,
+        countries: ["FRA", "DEU", "TUR", "RUS"],
+        year: Year.make(2020),
+        as: "Map",
+      }),
+    )
+
+    expect(
+      await screen.findByRole("figure", {
+        name: "Map of Europe and Russia ranking countries by Total population",
+      }),
+    ).toBeDefined()
+    expect(screen.getByText("French Guiana")).toBeDefined()
   })
 
   // France, Germany and Italy from 2017 to 2020: Germany and Italy have

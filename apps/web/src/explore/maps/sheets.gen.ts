@@ -36,6 +36,8 @@ export const sheets: Record<Region["id"] | "world", () => Promise<Sheet>> = {
   africa: () => import("./africa.gen.ts").then((module) => module.africa),
   "northeast-asia": () => import("./northeast-asia.gen.ts").then((module) => module.northeastAsia),
   "post-soviet": () => import("./post-soviet.gen.ts").then((module) => module.postSoviet),
+  "extended-europe": () =>
+    import("./extended-europe.gen.ts").then((module) => module.extendedEurope),
   oceania: () => import("./oceania.gen.ts").then((module) => module.oceania),
   americas: () => import("./americas.gen.ts").then((module) => module.americas),
 }

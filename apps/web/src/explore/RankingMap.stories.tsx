@@ -51,6 +51,9 @@ export const EuropeDark: Story = {
   globals: { theme: "dark" },
 }
 
+// Europe with Russia, cut at the Urals.
+export const ExtendedEurope: Story = { args: { resolved: within("extended-europe") } }
+
 // North America with Hawaii in an inset.
 export const NorthAmerica: Story = { args: { resolved: within("north-america") } }
 
