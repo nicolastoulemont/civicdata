@@ -44,6 +44,17 @@ const lifetime = 7 * 24 * 60 * 60 * 1000
 
 const unavailable = () => new SourceUnavailable({ source: "World Bank" })
 
+// The first producer a "Source" field credits, when it links their page:
+// "World Population Prospects, United Nations (UN), uri: https://population.un.org/wpp/,
+// publisher: ...; ..." → World Population Prospects, United Nations (UN).
+const producerOf = (source: string | null) => {
+  const found = source?.match(/^([^;]+?), uri: (https:\/\/[^\s,;]+)/)
+
+  return found?.[1] === undefined || found[2] === undefined
+    ? null
+    : { name: found[1], url: found[2] }
+}
+
 const make = Effect.gen(function* () {
   const client = (yield* HttpClient.HttpClient).pipe(
     HttpClient.filterStatusOk,
@@ -84,6 +95,7 @@ const make = Effect.gen(function* () {
       indicator,
       relevance: field("Developmentrelevance"),
       limitations: field("Limitationsandexceptions"),
+      producer: producerOf(field("Source")),
       url,
       retrievedAt: yield* DateTime.now,
     })
@@ -94,7 +106,7 @@ const make = Effect.gen(function* () {
   const get = Effect.fn("Notes.get")(function* (indicator: IndicatorId) {
     if (sourceOf(indicator) !== "World Bank") return yield* new IndicatorNotFound({ indicator })
 
-    const key = `worldbank/v1/notes/${indicator}`
+    const key = `worldbank/v2/notes/${indicator}`
     const stored = Option.flatMap(yield* cache.get(key), Schema.decodeOption(NotesJson))
     const now = yield* DateTime.now
 

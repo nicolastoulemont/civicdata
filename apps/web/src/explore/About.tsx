@@ -19,7 +19,8 @@ const relatedShown = 8
 // NY.GDP.PCAP.PP.KD (PPP, constant dollars).
 const stemOf = (indicator: IndicatorId) => indicator.split(".").slice(0, 3).join(".")
 
-// Why the indicator matters and its limitations, in the World Bank's words.
+// Why the indicator matters, its limitations and who produced it, in the
+// World Bank's words.
 // Loaded when About opens; left out when the World Bank cannot be reached.
 interface NotesProps {
   indicator: IndicatorId
@@ -47,6 +48,16 @@ const Notes = ({ indicator, heading: Heading }: NotesProps) => {
             Limitations
           </Heading>
           <p>{query.data.limitations}</p>
+        </section>
+      )}
+      {query.data.producer === null ? null : (
+        <section aria-labelledby="producer" className="space-y-1">
+          <Heading id="producer" className="font-medium">
+            Produced by
+          </Heading>
+          <a className="underline underline-offset-4" href={query.data.producer.url}>
+            {query.data.producer.name}
+          </a>
         </section>
       )}
     </>

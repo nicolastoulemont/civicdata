@@ -9,6 +9,8 @@ import catalog from "./fixtures/worldbank/catalog.json"
 import gaps from "./fixtures/worldbank/gaps.json"
 import unknownIndicator from "./fixtures/worldbank/indicator-unknown.json"
 import population from "./fixtures/worldbank/indicator.json"
+import wgiGaps from "./fixtures/worldbank/wgi-gaps.json"
+import corruption from "./fixtures/worldbank/wgi-indicator.json"
 
 const base = "https://api.worldbank.org/v2"
 
@@ -18,6 +20,8 @@ const recorded = [
   [`${base}/indicator/NOT.A.REAL?format=json`, unknownIndicator],
   [`${base}/country/FRA;SSD/indicator/NY.GDP.PCAP.CD?format=json&date=2015:2016&per_page=4`, gaps],
   [`${base}/indicator?format=json&source=2&per_page=20000`, catalog],
+  [`${base}/indicator/GOV_WGI_CC_EST?format=json`, corruption],
+  [`${base}/country/HUN/indicator/GOV_WGI_CC_EST?format=json&date=1996:2002&per_page=7`, wgiGaps],
 ] as const
 
 const replay = (respond: (url: string) => Response) =>
@@ -79,6 +83,28 @@ describe("WorldBank", () => {
       expect(series.url).toBe(
         `${base}/country/FRA;SSD/indicator/NY.GDP.PCAP.CD?format=json&date=2015:2016&per_page=4`,
       )
+    }).pipe(Effect.provide(recording)),
+  )
+
+  it.effect("credits a governance series to the Worldwide Governance Indicators", () =>
+    Effect.gen(function* () {
+      const described = yield* (yield* WorldBank).describe(IndicatorId.make("GOV_WGI_CC_EST"))
+
+      expect(described.dataset).toBe("Worldwide Governance Indicators")
+      expect(described.indicator.definition).toMatch(/ranging from approximately -2\.5 to 2\.5/)
+    }).pipe(Effect.provide(recording)),
+  )
+
+  it.effect("leaves out the years the Worldwide Governance Indicators skip", () =>
+    Effect.gen(function* () {
+      const series = yield* (yield* WorldBank).observations({
+        indicator: IndicatorId.make("GOV_WGI_CC_EST"),
+        countries: ["HUN"],
+        from: Year.make(1996),
+        to: Year.make(2002),
+      })
+
+      expect(series.observations.map(({ year }) => year)).toEqual([2002, 2000, 1998, 1996])
     }).pipe(Effect.provide(recording)),
   )
 

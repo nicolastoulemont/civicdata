@@ -50,8 +50,11 @@ import { type Years, YearWindow } from "./YearWindow.tsx"
 
 type Point = { readonly year: number } & Partial<Record<Country, number>>
 
-// One row per year with a column per country. A year a country has no value
-// for stays empty, so its line shows a gap instead of joining across it.
+// One row per year from the first year with a value to the last, with a
+// column per country. A year a country has no value for stays empty, so its
+// line shows a gap instead of joining across it, and a year no country has
+// a value for keeps its place on the axis: the Worldwide Governance
+// Indicators skip 1997, 1999 and 2001.
 const byYear = (observations: ResolvedView["observations"]) => {
   const rows = new Map<number, Point>()
 
@@ -59,30 +62,65 @@ const byYear = (observations: ResolvedView["observations"]) => {
     rows.set(year, { ...rows.get(year), year, [country]: value })
   }
 
-  return [...rows.values()].toSorted((left, right) => left.year - right.year)
+  const years = [...rows.keys()]
+
+  if (years.length === 0) return []
+
+  const first = Math.min(...years)
+
+  return Array.from(
+    { length: Math.max(...years) - first + 1 },
+    (_, offset) => rows.get(first + offset) ?? { year: first + offset },
+  )
 }
 
 interface MarkedProps {
   country: Country
   flagged: ReadonlySet<string>
+  alone: ReadonlySet<string>
   cx?: number
   cy?: number
   payload?: Point
 }
 
-// A dot on a point its source flags, and nothing on the others. Recharts
+// A ring on a point its source flags, a dot on a point with no value on
+// either side, which no line reaches, and nothing on the others. Recharts
 // passes each point's position and row.
-const Marked = ({ country, flagged, cx, cy, payload }: MarkedProps) =>
-  payload !== undefined && flagged.has(`${country}:${payload.year}`) ? (
-    <circle
-      cx={cx}
-      cy={cy}
-      r={4}
-      fill="var(--background)"
-      stroke={`var(--color-${country})`}
-      strokeWidth={2}
-    />
+const Marked = ({ country, flagged, alone, cx, cy, payload }: MarkedProps) => {
+  const key = payload === undefined ? undefined : `${country}:${payload.year}`
+
+  if (key !== undefined && flagged.has(key)) {
+    return (
+      <circle
+        cx={cx}
+        cy={cy}
+        r={4}
+        fill="var(--background)"
+        stroke={`var(--color-${country})`}
+        strokeWidth={2}
+      />
+    )
+  }
+
+  return key !== undefined && alone.has(key) ? (
+    <circle cx={cx} cy={cy} r={3} fill={`var(--color-${country})`} />
   ) : null
+}
+
+// The points of each country with no value the year before or after, as
+// "FRA:1998".
+const aloneIn = (rows: ReadonlyArray<Point>, countries: ReadonlyArray<Country>) =>
+  new Set(
+    countries.flatMap((country) =>
+      rows.flatMap((row, index) =>
+        row[country] !== undefined &&
+        rows[index - 1]?.[country] === undefined &&
+        rows[index + 1]?.[country] === undefined
+          ? [`${country}:${row.year}`]
+          : [],
+      ),
+    ),
+  )
 
 interface BandProps {
   x?: number
@@ -335,6 +373,7 @@ export const TrendChart = ({
   )
 
   const rows = byYear(observations)
+  const alone = aloneIn(rows, trend.countries)
   const heads = governments === undefined ? [] : terms(governments)
 
   const { bands, markers, periods, moments, reforming } = overlays({
@@ -463,7 +502,7 @@ export const TrendChart = ({
               type="monotone"
               stroke={`var(--color-${country})`}
               strokeWidth={2}
-              dot={<Marked country={country} flagged={flagged} />}
+              dot={<Marked country={country} flagged={flagged} alone={alone} />}
               connectNulls={false}
               isAnimationActive={dragged === null}
             />
