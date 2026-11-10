@@ -148,6 +148,8 @@ const research = <S extends Schema.Top>(state: S) => ({
 //   person to a percentage.
 // - OpenDimensions: the dataflow holds several series, and the chart has not
 //   picked one of these dimensions, or picked a value they do not take.
+// - Short: a trend's values cover under half its years, running only from
+//   `from` to `to`; another indicator may cover more.
 // - TooMany, TooFew: the chart had more countries than `most`, or fewer than
 //   `least`, for its type. No longer produced: charts take any number of
 //   countries since NTO-167. Conversations stored before it keep these steps
@@ -157,6 +159,7 @@ export const Rejection = Schema.TaggedUnion({
   NoIndicator: { indicator: IndicatorId },
   NotApplicable: {},
   OpenDimensions: { open: Schema.NonEmptyArray(DimensionId) },
+  Short: { from: Year, to: Year },
   TooMany: { most: Count },
   TooFew: { least: Count },
 })

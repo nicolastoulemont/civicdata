@@ -716,6 +716,45 @@ describe("conversations", () => {
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
+  // "Over the last 25 years": the World Bank has values from 2000 only, so
+  // the chart's title names the years its line covers.
+  it.effect("starts a trend at the earliest year with data", () => {
+    const model = scripted([Effect.succeed(call("show_chart", { ...brazil, from: 1998 }))])
+
+    return Effect.gen(function* () {
+      expect((yield* answer("Life expectancy in Brazil over the last 25 years")).at(-1)).toEqual(
+        charted(chart(brazilTrend), said()),
+      )
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  // A chart once shown stays in the answer, so a series far shorter than the
+  // question's years is turned down before it is drawn, not replaced after.
+  it.effect("rejects a trend whose values cover under half its years", () => {
+    const model = scripted([
+      Effect.succeed(call("show_chart", { ...brazil, from: 1990 }, { step: "chart-1" })),
+      Effect.succeed(call("show_chart", brazil, { step: "chart-2" })),
+    ])
+
+    return Effect.gen(function* () {
+      const steps = yield* answer("Life expectancy in Brazil since 1990")
+
+      expect(log(steps)[0]).toEqual(
+        Fetch.make({
+          id: StepId.make("chart-1"),
+          view: Trend.make({ ...brazilTrend, from: Year.make(1990) }),
+          state: Rejected.make({
+            reason: Rejection.cases.Short.make({ from: Year.make(2000), to: Year.make(2002) }),
+          }),
+        }),
+      )
+      expect(model.prompts[1]).toContain(
+        "Life expectancy at birth, total (years) has values for these countries from 2000 to 2002 only, under half the years from 1990.",
+      )
+      expect(steps.at(-1)).toEqual(charted(chart(brazilTrend), said()))
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
   it.effect(
     "answers with a change between two years, rejecting a transform it does not take",
     () => {
@@ -2554,7 +2593,7 @@ describe("finding years", () => {
       }
 
       const model = scripted([
-        Effect.succeed(call("find_years", lookup)),
+        Effect.succeed(call("find_years", { ...lookup, from: null })),
         Effect.succeed(
           call("show_chart", { ...brazil, ...lookup, chart: "change", from: 2009, to: 2025 }),
         ),
@@ -2617,6 +2656,27 @@ describe("finding years", () => {
     },
   )
 
+  // "The last 50 years" reaches back past the 30 the lookup reads otherwise.
+  it.effect("looks back to the first year the question asks for", () => {
+    const model = scripted([
+      Effect.succeed(
+        call("find_years", {
+          indicator: lifeExpectancy,
+          countries: ["BRA"],
+          dimensions: null,
+          from: 1976,
+        }),
+      ),
+    ])
+
+    return Effect.gen(function* () {
+      yield* recordedDay
+      yield* answer("Life expectancy in Brazil over the last 50 years")
+
+      expect(model.prompts[1]).toContain('"from":1976,"to":2026')
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
   it.effect("lists a country without any value as missing", () => {
     const model = scripted([
       Effect.succeed(
@@ -2624,6 +2684,7 @@ describe("finding years", () => {
           indicator: lifeExpectancy,
           countries: ["BRA", "ARG"],
           dimensions: null,
+          from: null,
         }),
       ),
     ])
@@ -2648,14 +2709,14 @@ describe("finding years", () => {
       Effect.succeed(
         call(
           "find_years",
-          { indicator: "SP.NOPE", countries: ["BRA"], dimensions: null },
+          { indicator: "SP.NOPE", countries: ["BRA"], dimensions: null, from: null },
           { step: "years-1" },
         ),
       ),
       Effect.succeed(
         call(
           "find_years",
-          { indicator: "ESTAT,UNE_RT_A,1.0", countries: ["FRA"], dimensions: null },
+          { indicator: "ESTAT,UNE_RT_A,1.0", countries: ["FRA"], dimensions: null, from: null },
           { step: "years-2" },
         ),
       ),

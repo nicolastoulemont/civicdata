@@ -101,6 +101,11 @@ const recorded = new Map<string, () => Response>([
     eurostatData("TPS00001", { geo: "FR,EL", years: "ge:1996+le:2026" }),
     () => new Response(populations),
   ],
+  // From an earlier year to the latest of the recent ones.
+  [
+    eurostatData("TPS00001", { geo: "FR,EL", years: "ge:1990+le:2026" }),
+    () => new Response(populations),
+  ],
   [
     eurostatData("TPS00001", { geo: "FR,EL", years: "ge:2024+le:2026" }),
     () => new Response(recent),
@@ -149,6 +154,13 @@ const recording = (cache = memory()) => {
 
   return { layer, asked }
 }
+
+// The adapter over the recordings, without the cache.
+const uncached = Sdmx.layer.pipe(
+  Layer.provide(
+    http((url) => recorded.get(url)?.() ?? new Response("no recording", { status: 404 })),
+  ),
+)
 
 interface Query {
   readonly indicator: IndicatorId
@@ -269,16 +281,15 @@ describe("Sdmx with Eurostat", () => {
     }).pipe(Effect.provide(source.layer))
   })
 
+  // Without the cache, which asks for the recent years too.
   it.effect("finds no values for years the dataflow does not have", () =>
     Effect.gen(function* () {
-      yield* TestClock.setTime(DateTime.toEpochMillis(DateTime.makeUnsafe("2026-11-09T09:00:00Z")))
-
       const series = yield* (yield* Sdmx).observations(
         query({ countries: ["FRA"], from: Year.make(1960), to: Year.make(1961) }),
       )
 
       expect(series.observations).toEqual([])
-    }).pipe(Effect.provide(recording().layer)),
+    }).pipe(Effect.provide(uncached)),
   )
 
   it.effect(
@@ -374,6 +385,31 @@ describe("Sdmx with Eurostat", () => {
         "FRA 2021",
       ])
       expect(later.url).toBe(eurostatData("TPS00001", { geo: "FR,EL", years: "ge:1996+le:2026" }))
+    }).pipe(Effect.provide(source.layer))
+  })
+
+  // find_years reads from the question's first year to this one, and the
+  // trend drawn after it ends at its latest value.
+  it.effect("serves years from before the recent ones from one request up to this year", () => {
+    const source = recording()
+
+    return Effect.gen(function* () {
+      const sdmx = yield* Sdmx
+
+      yield* TestClock.setTime(DateTime.toEpochMillis(DateTime.makeUnsafe("2026-11-09T09:00:00Z")))
+      yield* sdmx.observations(query({ from: Year.make(1990), to: Year.make(2026) }))
+      const later = yield* sdmx.observations(query({ from: Year.make(1990), to: Year.make(2020) }))
+
+      expect(source.asked).toEqual([
+        eurostatOptions("TPS00001", "FR,EL"),
+        eurostatData("TPS00001", { geo: "FR,EL", years: "ge:1990+le:2026" }),
+      ])
+      expect(later.observations.map(({ country, year }) => `${country} ${year}`)).toEqual([
+        "GRC 2019",
+        "GRC 2020",
+        "FRA 2019",
+        "FRA 2020",
+      ])
     }).pipe(Effect.provide(source.layer))
   })
 

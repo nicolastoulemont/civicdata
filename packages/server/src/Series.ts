@@ -41,8 +41,10 @@ export const recent = Effect.map(DateTime.now, (now) => {
   return { from: Year.make(Math.max(1960, year - depth)), to: Year.make(year) }
 })
 
-// Asks `ask` for the recent years when the query falls inside them, and
-// answers with the query's years only. A query outside them is asked as is.
+// Asks `ask` for the recent years when the query ends inside them, from the
+// query's first year when it starts before them, and answers with the query's
+// years only. find_years and the chart drawn after it then share one stored
+// answer over 50 years too. A query past this year is asked as is.
 export const widen =
   <Q extends Query, A extends { readonly observations: ReadonlyArray<Observation> }, E, R>(
     ask: (query: Q) => Effect.Effect<A, E, R>,
@@ -51,9 +53,13 @@ export const widen =
     Effect.gen(function* () {
       const years = yield* recent
 
-      if (query.from < years.from || query.to > years.to) return yield* ask(query)
+      if (query.to > years.to) return yield* ask(query)
 
-      const answer = yield* ask({ ...query, ...years })
+      const answer = yield* ask({
+        ...query,
+        from: query.from < years.from ? query.from : years.from,
+        to: years.to,
+      })
 
       return {
         ...answer,
