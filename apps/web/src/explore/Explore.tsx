@@ -66,7 +66,7 @@ import { places } from "./preview.ts"
 import { RankingChart } from "./RankingChart.tsx"
 import { RelationChart } from "./RelationChart.tsx"
 import { ShowAs } from "./ShowAs.tsx"
-import { type Agent, Takeaway } from "./Takeaway.tsx"
+import { Takeaway } from "./Takeaway.tsx"
 import { type History, TrendChart } from "./TrendChart.tsx"
 import { range, YearSelect, years } from "./Years.tsx"
 import type { Years } from "./YearWindow.tsx"
@@ -735,8 +735,8 @@ interface ExploreProps {
   heading: "h1" | "h3"
   // Whether the controls start open.
   changing?: boolean
-  // The chart the agent answered with and its takeaway, in a conversation.
-  agent?: Agent | undefined
+  // The chart the agent answered with, in a conversation.
+  agent?: View | undefined
 }
 
 // The explorer card for one View: its chart, the table behind it and what it

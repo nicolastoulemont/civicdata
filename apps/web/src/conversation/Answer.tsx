@@ -55,7 +55,7 @@ export const Answer = ({ id, turn, chart, agent, shown }: AnswerProps) => {
         overlays={overlays}
         onOverlays={setOverlays}
         heading="h3"
-        agent={agent}
+        agent={agent.view}
       />
       {showing.isError ? (
         <Alert variant="destructive">

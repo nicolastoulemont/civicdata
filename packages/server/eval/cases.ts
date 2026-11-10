@@ -913,8 +913,7 @@ export const cases: ReadonlyArray<Case> = [
         ],
         countries: ["GRC"],
         overlays: ["events"],
-        // The takeaway cites the assistance programmes; the check drops one
-        // that says they caused the movement.
+        // The answer cites the assistance programmes.
         cites: ["event:greece-assistance"],
       }),
     ],

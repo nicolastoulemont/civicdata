@@ -1,17 +1,17 @@
 import {
   type AgentUnavailable,
   Answered,
+  type Block,
   type CatalogUnavailable,
-  type Chart,
   ChartIndex,
   chartsOf,
   ConversationBusy,
   Ended,
-  Drawn,
   Ending,
   Halted,
   NoChart,
   put,
+  Rendered,
   type SourceUnavailable,
   type Step,
   Stopped,
@@ -75,27 +75,18 @@ const isEnded = Schema.is(Ended)
 
 const isStopped = Schema.is(Stopped)
 
-// A step still running when the answer stopped, as stopped.
+const isRendered = Schema.is(Rendered)
+
+// A step still running when the answer stopped, as stopped. A block has no
+// state: it is sent once written.
 const halted = (step: Work): ReadonlyArray<Work> =>
-  Predicate.isTagged(step.state, "Running") ? [{ ...step, state: Halted.make({}) }] : []
+  !isRendered(step) && Predicate.isTagged(step.state, "Running")
+    ? [{ ...step, state: Halted.make({}) }]
+    : []
 
-const isDrawn = Schema.is(Drawn)
-
-// The charts the agent drew before a stop, in order, with their context and
-// the takeaways they kept. A chart whose takeaway was being written keeps
-// none.
-const drawnIn = (work: ReadonlyArray<Work>): ReadonlyArray<Chart> =>
-  work.flatMap((step) => {
-    if (!isDrawn(step)) return []
-
-    const chart = Struct.omit(step, ["_tag", "id", "state"])
-
-    return [
-      Predicate.isTagged(step.state, "Done")
-        ? { ...chart, ...Struct.omit(step.state, ["_tag"]) }
-        : chart,
-    ]
-  })
+// The blocks the agent wrote before a stop, in order.
+const writtenIn = (work: ReadonlyArray<Work>): ReadonlyArray<Block> =>
+  work.flatMap((step) => (isRendered(step) ? [step.block] : []))
 
 const isAnswered = Schema.is(Answered)
 
@@ -264,10 +255,10 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
 
             yield* Ref.update(work, (previous) => cut.reduce(put, previous))
 
-            const charts = drawnIn(yield* Ref.get(work))
+            const blocks = writtenIn(yield* Ref.get(work))
 
-            const stopped = Arr.isReadonlyArrayNonEmpty(charts)
-              ? Stopped.make({ charts })
+            const stopped = Arr.isReadonlyArrayNonEmpty(blocks)
+              ? Stopped.make({ blocks })
               : Stopped.make({})
 
             yield* save(stopped, asked).pipe(Semaphore.withPermit(lock))

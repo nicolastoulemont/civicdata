@@ -1,14 +1,16 @@
 import {
-  Answered,
   Asked,
+  blocksOf,
   type Chart as Drawing,
+  chartsOf,
   type Country,
   type Ending,
   idOf,
   type Overlay,
   type Transform,
+  Stopped,
+  Text,
   transformOf,
-  Unanswered,
   type View,
 } from "@civicdata/domain"
 import { Array as Arr, Data, Match, Schema } from "effect"
@@ -27,9 +29,9 @@ interface Series {
 // `transform` means values as published. Years left out are not scored:
 // without years in the question, the default range moves with the calendar.
 // `overlays`, the political context the chart draws, must match as a set,
-// none being []; left out, it is not scored. The chart's takeaway must cite
+// none being []; left out, it is not scored. The answer's words must cite
 // each record id in `cites`, and with [] cite none; left out, citations are
-// not scored. A takeaway the check dropped cites nothing.
+// not scored.
 interface Chart {
   readonly indicators?: ReadonlyArray<string>
   readonly series?: ReadonlyArray<Series>
@@ -60,6 +62,7 @@ export type Expected = Data.TaggedEnum<
     // The agent asks which reading of the question is meant.
     Asked: {}
     // The agent shows no chart, because no indicator measures the question.
+    // It may say so in words.
     Unanswered: {}
   }
 >
@@ -109,15 +112,24 @@ const listed = (types: ReadonlyArray<Parts["chart"]>) =>
 
 const endingOf = (ending: Ending) =>
   Match.valueTags(ending, {
-    Answered: ({ charts }) => listed(charts.map(({ view }) => partsOf(view).chart)),
+    Answered: () => {
+      const charts = chartsOf(ending)
+
+      return charts.length === 0
+        ? "no chart"
+        : listed(charts.map(({ view }) => partsOf(view).chart))
+    },
     Asked: ({ question }) => `the question "${question}"`,
     Unanswered: () => "no chart",
     Stopped: () => "stopped",
   })
 
-const isAnswered = Schema.is(Answered)
 const isAsked = Schema.is(Asked)
-const isUnanswered = Schema.is(Unanswered)
+const isStopped = Schema.is(Stopped)
+
+// The agent answered without a chart: in words alone, or not at all.
+const uncharted = (ending: Ending) =>
+  !isAsked(ending) && !isStopped(ending) && chartsOf(ending).length === 0
 
 // How the chart's picks differ from the series wanted, one line per dimension.
 const seriesDifferences = (view: View, wanted: Series): ReadonlyArray<string> => {
@@ -147,9 +159,14 @@ const overlaysDiffer = (
     ? []
     : [`overlays ${named(drawn)}, want ${named(want)}`]
 
-// How the records a chart's takeaway cites differ from those a case names.
-const citesDiffer = (drawing: Drawing, want: ReadonlyArray<string> | undefined) => {
-  const got: ReadonlyArray<string> = (drawing.cites ?? []).map(({ record }) => idOf(record))
+const isText = Schema.is(Text)
+
+// The ids of the records an answer's words cite, in order.
+const citedIn = (ending: Ending): ReadonlyArray<string> =>
+  blocksOf(ending).flatMap((block) => (isText(block) ? (block.cites ?? []).map(idOf) : []))
+
+// How the records an answer's words cite differ from those a case names.
+const citesDiffer = (got: ReadonlyArray<string>, want: ReadonlyArray<string> | undefined) => {
   const missing = (want ?? []).filter((id) => !got.includes(id))
 
   if (want === undefined || (want.length === 0 ? got.length === 0 : missing.length === 0)) return []
@@ -157,9 +174,12 @@ const citesDiffer = (drawing: Drawing, want: ReadonlyArray<string> | undefined) 
   return [`cites ${got.length === 0 ? "none" : got.join(", ")}, want ${want.join(", ") || "none"}`]
 }
 
-// How the chart differs from the one expected, one line per difference.
-const compare = (drawing: Drawing, want: Wanted): ReadonlyArray<string> => {
-  const { view, overlays } = drawing
+// How the chart differs from the one expected, one line per difference,
+// given the records the answer's words cite.
+const compare = (
+  { view, overlays }: Drawing,
+  { want, cited }: { readonly want: Wanted; readonly cited: ReadonlyArray<string> },
+): ReadonlyArray<string> => {
   const got = partsOf(view)
 
   if (got.chart !== want.chart) return [`a ${got.chart}, want a ${want.chart}`]
@@ -190,7 +210,7 @@ const compare = (drawing: Drawing, want: Wanted): ReadonlyArray<string> => {
   return [
     ...checks.flatMap(([right, difference]) => (right ? [] : [difference])),
     ...overlaysDiffer(overlays, want.overlays),
-    ...citesDiffer(drawing, want.cites),
+    ...citesDiffer(cited, want.cites),
     ...(wanted === undefined ? [] : seriesDifferences(view, wanted)),
   ]
 }
@@ -218,11 +238,12 @@ const wantedOf = (drawn: Drawn): Wanted =>
 // How the answer's charts differ from those wanted, in order. Each chart's
 // differences name its place when either side has several.
 const chartsDiffer = (wanted: Arr.NonEmptyReadonlyArray<Wanted>, ending: Ending) => {
-  if (!isAnswered(ending)) {
+  const charts = chartsOf(ending)
+
+  if (isStopped(ending) || charts.length === 0) {
     return [`${endingOf(ending)}, want ${listed(wanted.map(({ chart }) => chart))}`]
   }
 
-  const { charts } = ending
   const several = charts.length > 1 || wanted.length > 1
 
   const count =
@@ -237,7 +258,7 @@ const chartsDiffer = (wanted: Arr.NonEmptyReadonlyArray<Wanted>, ending: Ending)
 
       if (drawn === undefined) return []
 
-      const differences = compare(drawn, want)
+      const differences = compare(drawn, { want, cited: citedIn(ending) })
 
       return several ? differences.map((line) => `chart ${place + 1}: ${line}`) : differences
     }),
@@ -253,7 +274,7 @@ const differencesFrom = (expected: Expected, ending: Ending): ReadonlyArray<stri
     Relation: (one) => chartsDiffer([wantedOf(one)], ending),
     Charts: ({ charts }) => chartsDiffer(Arr.map(charts, wantedOf), ending),
     Asked: () => (isAsked(ending) ? [] : [`${endingOf(ending)}, want a question`]),
-    Unanswered: () => (isUnanswered(ending) ? [] : [`${endingOf(ending)}, want no chart`]),
+    Unanswered: () => (uncharted(ending) ? [] : [`${endingOf(ending)}, want no chart`]),
   })
 
 // How the agent's answer differs from the closest answer a case accepts. An

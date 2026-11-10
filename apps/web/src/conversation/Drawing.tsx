@@ -1,18 +1,18 @@
-import type { Drawn, Overlay } from "@civicdata/domain"
+import type { Chart, Overlay } from "@civicdata/domain"
 import { useState } from "react"
 
 import { Explore } from "@/explore/Explore"
 
 interface DrawingProps {
-  step: typeof Drawn.Type
+  chart: Chart
 }
 
-// A chart of the answer in progress, shown as soon as the agent draws it,
-// with its takeaway once written. The turn is kept only when the answer
-// ends, so a change made before then shows here and is not kept.
-export const Drawing = ({ step }: DrawingProps) => {
-  const [view, setView] = useState(step.view)
-  const [overlays, setOverlays] = useState<ReadonlyArray<Overlay>>(step.overlays ?? [])
+// A chart of the answer in progress, shown as soon as the agent draws it.
+// The turn is kept only when the answer ends, so a change made before then
+// shows here and is not kept.
+export const Drawing = ({ chart }: DrawingProps) => {
+  const [view, setView] = useState(chart.view)
+  const [overlays, setOverlays] = useState<ReadonlyArray<Overlay>>(chart.overlays ?? [])
 
   return (
     <Explore
@@ -21,7 +21,7 @@ export const Drawing = ({ step }: DrawingProps) => {
       overlays={overlays}
       onOverlays={setOverlays}
       heading="h3"
-      agent={step}
+      agent={chart.view}
     />
   )
 }

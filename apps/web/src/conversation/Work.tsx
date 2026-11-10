@@ -1,4 +1,4 @@
-import { Drawn, Ending, type Step, type View } from "@civicdata/domain"
+import { Chart, Ending, Rendered, type Step, type View } from "@civicdata/domain"
 import { useQuery } from "@tanstack/react-query"
 import { cn } from "cn"
 import { Duration, Schema } from "effect"
@@ -15,7 +15,8 @@ import { type Line, lineOf, type Saved, tally } from "./lines.ts"
 
 const isEnding = Schema.is(Ending)
 
-const isDrawn = Schema.is(Drawn)
+const isRendered = Schema.is(Rendered)
+const isChart = Schema.is(Chart)
 
 const trigger =
   "flex w-fit items-center gap-1 rounded-md text-left transition-colors outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 motion-reduce:transition-none"
@@ -170,9 +171,12 @@ export const Working = ({ steps, started }: WorkingProps) => {
             <p key={index}>{line.text}</p>
           ),
         )}
-        {steps.filter(isDrawn).map((step, place) => (
-          <Heard key={step.id} view={step.view} place={place} />
-        ))}
+        {steps
+          .flatMap((step) => (isRendered(step) && isChart(step.block) ? [step.block] : []))
+          .map(({ view }, place) => (
+            // oxlint-disable-next-line react/no-array-index-key -- a chart keeps its place in its answer
+            <Heard key={place} view={view} place={place} />
+          ))}
       </div>
     </div>
   )

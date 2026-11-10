@@ -1,17 +1,17 @@
 import {
   AgentUnavailable,
   Answered,
+  type Block,
   Asked,
   CatalogUnavailable,
+  Chart,
   ConversationBusy,
   ConversationId,
   Cited,
   Day,
   Definition,
-  Drawn,
   End,
   Ended,
-  Explained,
   Failed,
   Fetch,
   Fetched,
@@ -23,6 +23,7 @@ import {
   Records,
   Rejected,
   Rejection,
+  Rendered,
   ResolvedView,
   Running,
   Search,
@@ -31,6 +32,7 @@ import {
   Step,
   StepId,
   Stopped,
+  Text,
   TooManyQuestions,
   Trend,
   Turn,
@@ -56,7 +58,7 @@ import {
   within,
 } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { Cause, DateTime, Duration, Schema, Struct } from "effect"
+import { type Array as Arr, Cause, DateTime, Duration, Schema, Struct } from "effect"
 import { http, HttpResponse } from "msw/http"
 import { describe, expect, it, vi } from "vitest"
 
@@ -113,9 +115,16 @@ const resolve = http.post("/api/views/resolve", async ({ request }) => {
 
 const encodeTurns = Schema.encodeSync(Schema.toCodecJson(Turns))
 
-const encodeAnswered = Schema.encodeSync(Schema.toCodecJson(Answered))
-
 const isAnswered = Schema.is(Answered)
+
+const isChart = Schema.is(Chart)
+
+// An answer of these blocks, in order.
+const charted = (...blocks: Arr.NonEmptyReadonlyArray<Block>) => Answered.make({ blocks })
+
+const plot = (view: View) => Chart.make({ view })
+
+const said = (text: string) => Text.make({ text })
 
 const sameView = (left: View, right: View) =>
   JSON.stringify(Schema.encodeSync(View)(left)) === JSON.stringify(Schema.encodeSync(View)(right))
@@ -123,7 +132,7 @@ const sameView = (left: View, right: View) =>
 // The turn showing `view` in place of its chart at `chart`, as the server
 // keeps it: changed back to the agent's chart, a place keeps no change.
 const showing = (turn: Turn, { chart, view }: { chart: number; view: View }): Turn => {
-  const charts = isAnswered(turn.answer) ? turn.answer.charts : []
+  const charts = isAnswered(turn.answer) ? turn.answer.blocks.filter(isChart) : []
 
   const shown = charts.map((agent, place) =>
     place === chart ? (sameView(agent.view, view) ? null : view) : (turn.shown?.[place] ?? null),
@@ -161,9 +170,7 @@ const kept = (answered: ReadonlyArray<Turn>) => {
 
 const brazilAnswer = {
   question: "Life expectancy in Brazil",
-  answer: Answered.make({
-    charts: [{ view: brazil, takeaway: "Life expectancy in Brazil rose." }],
-  }),
+  answer: charted(plot(brazil), said("Life expectancy in Brazil rose.")),
 }
 
 const mexico = Trend.make({ ...brazil, countries: ["MEX"] })
@@ -171,12 +178,12 @@ const mexico = Trend.make({ ...brazil, countries: ["MEX"] })
 // An answer that took two charts.
 const twoCharts = {
   question: "Life expectancy in Brazil, and in Mexico",
-  answer: Answered.make({
-    charts: [
-      { view: brazil, takeaway: "Life expectancy in Brazil rose." },
-      { view: mexico, takeaway: "Life expectancy in Mexico rose." },
-    ],
-  }),
+  answer: charted(
+    plot(brazil),
+    said("Life expectancy in Brazil rose."),
+    plot(mexico),
+    said("Life expectancy in Mexico rose."),
+  ),
 }
 
 // Opens the chart's controls and adds Argentina to it.
@@ -294,9 +301,9 @@ const findStep = async (text: string) =>
 const fetchedChart = (step: string, view: View) =>
   Ended.cases.Fetch.make({ id: StepId.make(step), view, state: Fetched.make({ values: 2 }) })
 
-// Brazil's chart as the agent draws it, first in its answer.
-const drawing = (state: typeof Drawn.Type.state) =>
-  Drawn.make({ id: StepId.make("drawn-0"), view: brazil, state })
+// A block of the answer in progress, at its place, as the agent sends it.
+const rendering = (block: Block, place: number) =>
+  Rendered.make({ id: StepId.make(`block-${place}`), block })
 
 // A search for life expectancy, running until a test gives it another state.
 const searching = (state: typeof Search.Type.state = Running.make({})) =>
@@ -399,11 +406,7 @@ describe("Conversation", () => {
       within(screen.getByRole("list", { name: "Steps" })).getAllByRole("listitem"),
     ).toHaveLength(2)
 
-    reply.send(
-      message(
-        Answered.make({ charts: [{ view: brazil, takeaway: "Life expectancy in Brazil rose." }] }),
-      ),
-    )
+    reply.send(message(charted(plot(brazil), said("Life expectancy in Brazil rose."))))
     reply.end()
 
     expect(
@@ -609,12 +612,12 @@ describe("Conversation", () => {
       answered = [
         {
           question,
-          answer: Answered.make({ charts: [{ view: brazil }] }),
+          answer: charted(plot(brazil)),
           steps: [searched],
           took: Duration.seconds(8),
         },
       ]
-      reply.send(message(Answered.make({ charts: [{ view: brazil }] })))
+      reply.send(message(charted(plot(brazil))))
       reply.end()
 
       const fold = await screen.findByRole("button", { name: "Worked for 8s · 1 search" })
@@ -638,7 +641,7 @@ describe("Conversation", () => {
       turns([
         {
           question: "Life expectancy in Brazil",
-          answer: Answered.make({ charts: [{ view: brazil }] }),
+          answer: charted(plot(brazil)),
           steps: [
             searchedFor("life expectancy"),
             Ended.cases.Definition.make({
@@ -666,29 +669,23 @@ describe("Conversation", () => {
   })
 
   it("folds the saved steps of a reopened conversation, and none for older turns", async () => {
-    const answered = JSON.stringify(encodeAnswered(Answered.make({ charts: [{ view: brazil }] })))
-
-    // Turns as the server sends them when saved before steps had states.
-    const saved = `{
-      "answered": [
-        { "question": "What about happiness?", "answer": { "_tag": "Unanswered" } },
-        {
-          "question": "Life expectancy in Brazil",
-          "answer": ${answered},
-          "steps": [
-            { "_tag": "Searched", "text": "life expectancy" },
-            { "_tag": "Rejected", "problem": "The World Bank has no values for these years." }
-          ],
-          "took": 65000
-        }
-      ]
-    }`
-
     network.use(
-      http.get(
-        `/api/conversations/${id}`,
-        () => new HttpResponse(saved, { headers: { "content-type": "application/json" } }),
-      ),
+      turns([
+        { question: "What about happiness?", answer: Unanswered.make({}) },
+        {
+          question: "Life expectancy in Brazil",
+          answer: charted(plot(brazil)),
+          steps: [
+            searchedFor("life expectancy"),
+            Ended.cases.Fetch.make({
+              id: StepId.make("chart-1"),
+              view: brazil,
+              state: Rejected.make({ reason: Rejection.cases.NoValues.make({}) }),
+            }),
+          ],
+          took: Duration.seconds(65),
+        },
+      ]),
       resolve,
     )
     show()
@@ -701,12 +698,15 @@ describe("Conversation", () => {
       within(await screen.findByRole("list", { name: "Steps" }))
         .getAllByRole("listitem")
         .map((item) => item.textContent),
-    ).toEqual(["Searched for “life expectancy”", "Tried a chart the data can't show, trying again"])
+    ).toEqual([
+      "Searched for “life expectancy”: 1 found",
+      "Tried a chart the data can't show, trying again",
+    ])
 
     await user.click(
       screen.getByRole("button", { name: "Tried a chart the data can't show, trying again" }),
     )
-    expect(await findStep("The World Bank has no values for these years.")).toBeDefined()
+    expect(await findStep("The World Bank has no values for Brazil in 2000–2001.")).toBeDefined()
     expect(screen.getAllByRole("button", { name: /^Worked/ })).toHaveLength(1)
   })
 
@@ -784,7 +784,7 @@ describe("Conversation", () => {
       turns([
         {
           question: "Life expectancy in Brazil",
-          answer: Answered.make({ charts: [{ view: brazil }] }),
+          answer: charted(plot(brazil)),
         },
         { question: "What about happiness?", answer: Unanswered.make({}) },
       ]),
@@ -856,7 +856,7 @@ describe("Conversation", () => {
     await user.hover(ticks[1]!)
     const card = await screen.findByRole("tooltip")
     expect(within(card).getByText("Life expectancy in Brazil, and in Mexico")).toBeDefined()
-    // The first chart's takeaway starts an answer of two charts.
+    // The first thing the agent wrote starts the answer.
     expect(within(card).getByText("Life expectancy in Brazil rose.")).toBeDefined()
 
     await user.click(ticks[1]!)
@@ -950,10 +950,12 @@ describe("Conversation", () => {
     await addArgentina(user)
 
     expect(await screen.findByText("Brazil and Argentina · 2000–2001")).toBeDefined()
-    expect(screen.getByText("Life expectancy in Brazil rose.").className).toContain(
+    expect(
+      await screen.findByText("This answer describes the charts before your changes."),
+    ).toBeDefined()
+    expect(screen.getByText("Life expectancy in Brazil rose.").parentElement?.className).toContain(
       "text-muted-foreground",
     )
-    expect(screen.getByText("This describes the chart before your changes.")).toBeDefined()
     expect(screen.getByRole("button", { name: "Explain this chart" })).toBeDefined()
 
     await user.click(screen.getByRole("tab", { name: "Data" }))
@@ -969,7 +971,7 @@ describe("Conversation", () => {
     expect(screen.queryByRole("link", { name: /explorer/ })).toBeNull()
   })
 
-  it("shows each chart of an answer in order, each with its takeaway, and counts them", async () => {
+  it("shows an answer's words and charts in the order the agent wrote them, and counts the charts", async () => {
     network.use(
       ...kept([
         {
@@ -997,9 +999,16 @@ describe("Conversation", () => {
     const second = screen.getByRole("region", { name: "Chart 2 of the answer" })
 
     expect(await within(first).findByText("Brazil · 2000–2001")).toBeDefined()
-    expect(within(first).getByText("Life expectancy in Brazil rose.")).toBeDefined()
     expect(await within(second).findByText("Mexico · 2000–2001")).toBeDefined()
-    expect(within(second).getByText("Life expectancy in Mexico rose.")).toBeDefined()
+
+    const brazilRose = screen.getByText("Life expectancy in Brazil rose.")
+
+    // Each chart's words come after it, before the next chart.
+    expect(first.compareDocumentPosition(brazilRose)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(brazilRose.compareDocumentPosition(second)).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
+    expect(
+      second.compareDocumentPosition(screen.getByText("Life expectancy in Mexico rose.")),
+    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING)
     // The chart the data rejected is not one of them.
     expect(
       screen.getByRole("button", { name: "Worked for 14s · 3 searches, 2 charts" }),
@@ -1020,14 +1029,10 @@ describe("Conversation", () => {
     await user.click(await screen.findByRole("option", { name: "Argentina" }))
 
     expect(await within(second).findByText("Mexico and Argentina · 2000–2001")).toBeDefined()
-    expect(within(second).getByText("This describes the chart before your changes.")).toBeDefined()
 
     const first = screen.getByRole("region", { name: "Chart 1 of the answer" })
 
     expect(within(first).getByText("Brazil · 2000–2001")).toBeDefined()
-    expect(within(first).getByText("Life expectancy in Brazil rose.").className).not.toContain(
-      "text-muted-foreground",
-    )
     await vi.waitFor(() =>
       expect(server.turns()[0]?.shown).toEqual([
         null,
@@ -1060,7 +1065,7 @@ describe("Conversation", () => {
       ...kept([
         {
           question: "Life expectancy in Spain under each prime minister",
-          answer: Answered.make({ charts: [{ view: spain, overlays: ["governments"] }] }),
+          answer: charted(Chart.make({ view: spain, overlays: ["governments"] })),
         },
       ]).handlers,
       resolve,
@@ -1086,34 +1091,54 @@ describe("Conversation", () => {
     expect(screen.getByRole("button", { name: "Elections", pressed: false })).toBeDefined()
   })
 
-  it("links each record a takeaway cites, and shows its card on hover", async () => {
+  it("renders the agent's Markdown as lists and tables, without raw HTML or images", async () => {
+    const text = [
+      "Life expectancy rose in **both** countries:",
+      "- Brazil gained the most\n- Mexico gained less",
+      "| Country | 2001 |\n| --- | --- |\n| Brazil | 70.4 |",
+      "<b>raw</b> ![chart](https://example.com/chart.png) [a link](javascript:alert(1))",
+    ].join("\n\n")
+
+    network.use(
+      ...kept([
+        { question: "Life expectancy in Brazil", answer: charted(plot(brazil), said(text)) },
+      ]).handlers,
+      resolve,
+    )
+    show()
+
+    expect(await screen.findByText("both")).toBeDefined()
+    expect(screen.getByText("both").tagName).toBe("STRONG")
+    expect(screen.getByText("Brazil gained the most").tagName).toBe("LI")
+    expect(screen.getByText("Mexico gained less").tagName).toBe("LI")
+    expect(screen.getByRole("cell", { name: "Brazil" })).toBeDefined()
+    // Raw HTML tags are dropped and their words kept as text.
+    expect(screen.queryByText("raw", { selector: "b" })).toBeNull()
+    expect(screen.queryByRole("img", { name: "chart" })).toBeNull()
+    expect(screen.getByText("a link").getAttribute("href")).toBe("")
+  })
+
+  it("links each record the agent's words cite, and shows its card on hover", async () => {
     const user = userEvent.setup()
     const spain = Trend.make({ ...brazil, countries: ["ESP"] })
-    const takeaway = "Life expectancy in Spain rose under José María Aznar."
+    // The record is cited in the second paragraph.
+    const text = "Life expectancy in Spain rose.\n\nIt rose under [José María Aznar](cite:0)."
 
     network.use(
       ...kept([
         {
           question: "Life expectancy in Spain under each prime minister",
-          answer: Answered.make({
-            charts: [
-              {
-                view: spain,
-                takeaway,
-                cites: [
-                  {
-                    at: takeaway.indexOf("José"),
-                    record: Cited.cases.Government.make({ government: aznar }),
-                  },
-                ],
-              },
-            ],
-          }),
+          answer: charted(
+            plot(spain),
+            Text.make({ text, cites: [Cited.cases.Government.make({ government: aznar })] }),
+          ),
         },
       ]).handlers,
       resolve,
     )
     show()
+
+    expect(await screen.findByText("Life expectancy in Spain rose.")).toBeDefined()
 
     const link = await screen.findByRole("link", { name: "José María Aznar" })
 
@@ -1141,10 +1166,12 @@ describe("Conversation", () => {
     show()
 
     expect(await screen.findByText("Brazil and Argentina · 2000–2001")).toBeDefined()
-    expect(await screen.findByText("This describes the chart before your changes.")).toBeDefined()
+    expect(
+      await screen.findByText("This answer describes the charts before your changes."),
+    ).toBeDefined()
   })
 
-  it("goes back to the agent's chart and its takeaway, after a reload too", async () => {
+  it("goes back to the agent's chart, after a reload too", async () => {
     const user = userEvent.setup()
     const server = kept([brazilAnswer])
 
@@ -1156,9 +1183,6 @@ describe("Conversation", () => {
     await user.click(await screen.findByRole("button", { name: "Back to the agent's chart" }))
 
     expect(await screen.findByText("Brazil · 2000–2001")).toBeDefined()
-    expect(screen.getByText("Life expectancy in Brazil rose.").className).not.toContain(
-      "text-muted-foreground",
-    )
     expect(screen.queryByRole("button", { name: "Back to the agent's chart" })).toBeNull()
     expect(screen.queryByRole("button", { name: "Explain this chart" })).toBeNull()
     await vi.waitFor(() => expect(server.turns()[0]).not.toHaveProperty("shown"))
@@ -1167,7 +1191,7 @@ describe("Conversation", () => {
     show()
 
     expect(await screen.findByText("Brazil · 2000–2001")).toBeDefined()
-    expect(screen.queryByText("This describes the chart before your changes.")).toBeNull()
+    expect(screen.queryByText("This answer describes the charts before your changes.")).toBeNull()
   })
 
   it("says why a change could not be kept, and shows the chart kept before", async () => {
@@ -1196,7 +1220,7 @@ describe("Conversation", () => {
       turns([
         {
           question: "Life expectancy in Brazil",
-          answer: Answered.make({ charts: [{ view: brazil }] }),
+          answer: charted(plot(brazil)),
         },
       ]),
       // Records the first year asked for, then lets `resolve` answer.
@@ -1221,7 +1245,7 @@ describe("Conversation", () => {
       turns([
         {
           question: "Life expectancy in Brazil",
-          answer: Answered.make({ charts: [{ view: brazil }] }),
+          answer: charted(plot(brazil)),
         },
       ]),
       resolve,
@@ -1252,7 +1276,7 @@ describe("Conversation", () => {
       turns([
         {
           question: "Life expectancy in Brazil",
-          answer: Answered.make({ charts: [{ view: brazil }] }),
+          answer: charted(plot(brazil)),
         },
       ]),
       reply.handler,
@@ -1294,7 +1318,7 @@ describe("Conversation", () => {
       turns([
         {
           question: "Life expectancy in Brazil",
-          answer: Answered.make({ charts: [{ view: brazil }] }),
+          answer: charted(plot(brazil)),
         },
       ]),
       reply.handler,
@@ -1389,7 +1413,7 @@ describe("Conversation", () => {
     )
   })
 
-  it("shows a chart as soon as the agent draws it, and keeps it when the answer stops", async () => {
+  it("shows each block as soon as the agent sends it, and keeps them when the answer stops", async () => {
     const reply = answer()
     const user = userEvent.setup()
     const rose = "Life expectancy in Brazil rose."
@@ -1400,7 +1424,7 @@ describe("Conversation", () => {
       resolve,
       // The server stops the answer, which keeps the chart drawn so far.
       http.delete(`/api/conversations/${id}/answer`, () => {
-        reply.send(message(Stopped.make({ charts: [{ view: brazil, takeaway: rose }] })))
+        reply.send(message(Stopped.make({ blocks: [plot(brazil), said(rose)] })))
         reply.end()
 
         return new HttpResponse(null, { status: 204 })
@@ -1408,19 +1432,18 @@ describe("Conversation", () => {
     )
     show("Life expectancy in Brazil, and its change")
 
-    reply.send(message(drawing(Running.make({}))))
+    reply.send(message(rendering(plot(brazil), 0)))
 
-    const chart = await screen.findByRole("region", { name: "Chart 1 of the answer" })
+    const drawn = await screen.findByRole("region", { name: "Chart 1 of the answer" })
 
-    expect(await within(chart).findByText("Brazil · 2000–2001")).toBeDefined()
-    expect(within(chart).getByText("Writing the takeaway…")).toBeDefined()
-    expect(within(chart).queryByRole("button", { name: "Explain this chart" })).toBeNull()
+    expect(await within(drawn).findByText("Brazil · 2000–2001")).toBeDefined()
+    // The agent's words say what its own chart shows.
+    expect(within(drawn).queryByRole("button", { name: "Explain this chart" })).toBeNull()
     expect(screen.getByText(/^Working for/)).toBeDefined()
 
-    reply.send(message(drawing(Explained.make({ takeaway: rose }))))
+    reply.send(message(rendering(said(rose), 1)))
 
-    expect(await within(chart).findByText(rose)).toBeDefined()
-    expect(within(chart).queryByText("Writing the takeaway…")).toBeNull()
+    expect(await screen.findByText(rose)).toBeDefined()
     // Screen readers hear the chart once, not each time it changes.
     expect(
       within(screen.getByRole("log", { name: "Finished steps" })).getAllByText(
@@ -1431,9 +1454,8 @@ describe("Conversation", () => {
     await user.click(screen.getByRole("button", { name: "Stop" }))
 
     expect(await screen.findByText("You stopped")).toBeDefined()
-    expect(
-      within(screen.getByRole("region", { name: "Chart 1 of the answer" })).getByText(rose),
-    ).toBeDefined()
+    expect(screen.getByRole("region", { name: "Chart 1 of the answer" })).toBeDefined()
+    expect(screen.getByText(rose)).toBeDefined()
   })
 
   it.each([
@@ -1537,7 +1559,7 @@ describe("Conversation", () => {
     reply.send(message(searching()))
     expect(await findStep("Searching for “life expectancy”…")).toBeDefined()
 
-    reply.send(message(Answered.make({ charts: [{ view: brazil }] })))
+    reply.send(message(charted(plot(brazil))))
     reply.end()
 
     expect(
@@ -1570,7 +1592,7 @@ describe("Conversation", () => {
     asked.cut()
 
     resumed.send(message(searching()))
-    resumed.send(message(Answered.make({ charts: [{ view: brazil }] })))
+    resumed.send(message(charted(plot(brazil))))
     resumed.end()
 
     expect(
@@ -1640,9 +1662,7 @@ describe("Conversation", () => {
         sent.push(await request.json())
 
         return events(
-          sent.length === 1
-            ? failure(new AgentUnavailable())
-            : message(Answered.make({ charts: [{ view: brazil }] })),
+          sent.length === 1 ? failure(new AgentUnavailable()) : message(charted(plot(brazil))),
         )
       }),
     )

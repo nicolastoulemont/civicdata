@@ -1,7 +1,7 @@
-import { type ConversationId, Drawn } from "@civicdata/domain"
+import { Chart, type ConversationId, Rendered, type Step } from "@civicdata/domain"
 import { Match, Schema } from "effect"
 
-import { Charts } from "./Charts.tsx"
+import { Blocks } from "./Blocks.tsx"
 import { Drawing } from "./Drawing.tsx"
 import { FailedQuestion } from "./Problem.tsx"
 import { Question } from "./Question.tsx"
@@ -18,12 +18,34 @@ interface ItemProps {
   answering: boolean
 }
 
-const isDrawn = Schema.is(Drawn)
+const isRendered = Schema.is(Rendered)
+const isChart = Schema.is(Chart)
+
+interface SentProps {
+  steps: ReadonlyArray<Step>
+}
+
+// The blocks of the answer in progress, as the agent sends them.
+const Sent = ({ steps }: SentProps) => {
+  const blocks = steps.filter(isRendered).map(({ block }) => block)
+
+  if (blocks.length === 0) return null
+
+  return (
+    <Blocks
+      blocks={blocks}
+      charts={blocks.filter(isChart).map((chart, place) => (
+        // oxlint-disable-next-line react/no-array-index-key -- a chart keeps its place in its answer
+        <Drawing key={place} chart={chart} />
+      ))}
+    />
+  )
+}
 
 // One question and its answer. An answered turn folds the agent's steps under
 // its answer; a failed one keeps them open above the problem. The one being
-// answered shows each chart under the running steps as soon as the agent
-// draws it. Each is marked as a question, for the rail to find.
+// answered shows each block under the running steps as soon as the agent
+// writes it. Each is marked as a question, for the rail to find.
 const Item = ({ id, entry, retry, answering }: ItemProps) =>
   Match.valueTags(entry, {
     Failed: ({ failure }) => (
@@ -49,13 +71,7 @@ const Item = ({ id, entry, retry, answering }: ItemProps) =>
         <Question text={pending.question} />
         <Agent>
           <Working steps={pending.steps} started={pending.started} />
-          {pending.steps.some(isDrawn) ? (
-            <Charts
-              charts={pending.steps.filter(isDrawn).map((step) => (
-                <Drawing key={step.id} step={step} />
-              ))}
-            />
-          ) : null}
+          <Sent steps={pending.steps} />
         </Agent>
       </li>
     ),

@@ -1,5 +1,5 @@
 import {
-  Chart,
+  Explanation,
   CatalogUnavailable,
   Dimension,
   Dimensions,
@@ -160,8 +160,8 @@ const search = http.get("/api/catalog/search", ({ request }) => {
   return HttpResponse.json(catalog.filter((entry) => entry.name.toLowerCase().includes(text)))
 })
 
-// The agent's takeaway names the chart it was asked about, so a test can
-// tell which chart a takeaway is for.
+// The agent's explanation names the chart it was asked about, so a test can
+// tell which chart an explanation is for.
 const explain = http.post("/api/views/explain", async ({ request }) => {
   const view = Schema.decodeUnknownSync(View)(await request.json())
 
@@ -173,7 +173,7 @@ const explain = http.post("/api/views/explain", async ({ request }) => {
   })
 
   return HttpResponse.json(
-    Schema.encodeSync(Chart)({ view, takeaway: `France grew, as a ${chart} shows.` }),
+    Schema.encodeSync(Explanation)({ view, text: `France grew, as a ${chart} shows.` }),
   )
 })
 
@@ -887,7 +887,7 @@ describe("Explore", () => {
     await user.click(screen.getByRole("button", { name: "Bar chart ranking one year" }))
 
     expect(await screen.findByText("This describes the chart before your changes.")).toBeDefined()
-    expect(screen.getByText("France grew, as a trend shows.").className).toContain(
+    expect(screen.getByText("France grew, as a trend shows.").parentElement?.className).toContain(
       "text-muted-foreground",
     )
 

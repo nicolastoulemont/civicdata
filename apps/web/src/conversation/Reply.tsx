@@ -1,6 +1,7 @@
 import {
-  type Chart,
+  type Block,
   ChartIndex,
+  chartsOf,
   type ConversationId,
   type Turn,
   type TurnIndex,
@@ -10,7 +11,7 @@ import { Match } from "effect"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 import { Answer } from "./Answer.tsx"
-import { Charts } from "./Charts.tsx"
+import { Blocks } from "./Blocks.tsx"
 
 interface ReplyProps {
   id: ConversationId
@@ -18,27 +19,29 @@ interface ReplyProps {
   turn: Turn
 }
 
-// How the agent answered: its charts in the order it drew them, a question
-// back, no indicator, or the charts drawn before the person stopped it.
+// How the agent answered: what it wrote and the charts it drew, in order, a
+// question back, nothing, or the blocks written before the person stopped it.
 export const Reply = ({ id, index, turn }: ReplyProps) => {
-  const answers = (charts: ReadonlyArray<Chart>) => (
-    <Charts
-      charts={charts.map((chart, place) => (
-        <Answer
-          // oxlint-disable-next-line react/no-array-index-key -- a chart keeps its place in its answer
-          key={place}
-          id={id}
-          turn={index}
-          chart={ChartIndex.make(place)}
-          agent={chart}
-          shown={turn.shown?.[place] ?? undefined}
-        />
-      ))}
+  const charts = chartsOf(turn.answer).map((chart, place) => (
+    <Answer
+      // oxlint-disable-next-line react/no-array-index-key -- a chart keeps its place in its answer
+      key={place}
+      id={id}
+      turn={index}
+      chart={ChartIndex.make(place)}
+      agent={chart}
+      shown={turn.shown?.[place] ?? undefined}
     />
+  ))
+
+  const changed = turn.shown?.some((view) => view !== null) ?? false
+
+  const answers = (blocks: ReadonlyArray<Block>) => (
+    <Blocks blocks={blocks} charts={charts} changed={changed} />
   )
 
   return Match.valueTags(turn.answer, {
-    Answered: ({ charts }) => answers(charts),
+    Answered: ({ blocks }) => answers(blocks),
     Asked: ({ question }) => <p>{question}</p>,
     Unanswered: () => (
       <Alert>
@@ -48,9 +51,9 @@ export const Reply = ({ id, index, turn }: ReplyProps) => {
         </AlertDescription>
       </Alert>
     ),
-    Stopped: ({ charts = [] }) => (
+    Stopped: ({ blocks = [] }) => (
       <>
-        {charts.length === 0 ? null : answers(charts)}
+        {blocks.length === 0 ? null : answers(blocks)}
         <p className="text-sm text-muted-foreground">You stopped</p>
       </>
     ),

@@ -1,13 +1,10 @@
-import { Answered, type ConversationId } from "@civicdata/domain"
+import { chartsOf, type ConversationId } from "@civicdata/domain"
 import type { QueryClient } from "@tanstack/react-query"
 import { createIsomorphicFn } from "@tanstack/react-start"
-import { Schema } from "effect"
 
 import { resolveQuery } from "@/explore/api"
 
 import { turnsQuery } from "./useConversation.ts"
-
-const isAnswered = Schema.is(Answered)
 
 export interface PreloadOptions {
   queryClient: QueryClient
@@ -22,9 +19,7 @@ const load = async ({ queryClient, id }: PreloadOptions) => {
 
   await Promise.all(
     answered.flatMap(({ answer }) =>
-      isAnswered(answer)
-        ? answer.charts.map(({ view }) => queryClient.prefetchQuery(resolveQuery(view)))
-        : [],
+      chartsOf(answer).map(({ view }) => queryClient.prefetchQuery(resolveQuery(view))),
     ),
   )
 }
