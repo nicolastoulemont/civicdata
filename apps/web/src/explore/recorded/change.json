@@ -1,0 +1,328 @@
+{
+  "view": {
+    "_tag": "Change",
+    "indicator": "SL.UEM.TOTL.ZS",
+    "countries": [
+      "AUT",
+      "BEL",
+      "BGR",
+      "HRV",
+      "CYP",
+      "CZE",
+      "DNK",
+      "EST",
+      "FIN",
+      "FRA",
+      "DEU",
+      "GRC",
+      "HUN",
+      "IRL",
+      "ITA",
+      "LVA",
+      "LTU",
+      "LUX",
+      "MLT",
+      "NLD",
+      "POL",
+      "PRT",
+      "ROU",
+      "SVK",
+      "SVN",
+      "ESP",
+      "SWE"
+    ],
+    "from": 2013,
+    "to": 2023
+  },
+  "title": "Unemployment rate (%), modeled global estimate",
+  "indicator": {
+    "id": "SL.UEM.TOTL.ZS",
+    "name": "Unemployment, total (% of total labor force) (modeled ILO estimate)",
+    "definition": "Unemployment refers to the share of the labor force that is without work but available for and seeking employment."
+  },
+  "observations": [
+    {
+      "country": "AUT",
+      "year": 2013,
+      "value": 5.367
+    },
+    {
+      "country": "AUT",
+      "year": 2023,
+      "value": 5.264
+    },
+    {
+      "country": "BEL",
+      "year": 2013,
+      "value": 8.425
+    },
+    {
+      "country": "BEL",
+      "year": 2023,
+      "value": 5.547
+    },
+    {
+      "country": "BGR",
+      "year": 2013,
+      "value": 12.941
+    },
+    {
+      "country": "BGR",
+      "year": 2023,
+      "value": 4.319
+    },
+    {
+      "country": "CYP",
+      "year": 2013,
+      "value": 16.131
+    },
+    {
+      "country": "CYP",
+      "year": 2023,
+      "value": 5.835
+    },
+    {
+      "country": "CZE",
+      "year": 2013,
+      "value": 6.953
+    },
+    {
+      "country": "CZE",
+      "year": 2023,
+      "value": 2.579
+    },
+    {
+      "country": "DEU",
+      "year": 2013,
+      "value": 5.316
+    },
+    {
+      "country": "DEU",
+      "year": 2023,
+      "value": 3.071
+    },
+    {
+      "country": "DNK",
+      "year": 2013,
+      "value": 7.384
+    },
+    {
+      "country": "DNK",
+      "year": 2023,
+      "value": 5.094
+    },
+    {
+      "country": "ESP",
+      "year": 2013,
+      "value": 26.094
+    },
+    {
+      "country": "ESP",
+      "year": 2023,
+      "value": 12.179
+    },
+    {
+      "country": "EST",
+      "year": 2013,
+      "value": 8.631
+    },
+    {
+      "country": "EST",
+      "year": 2023,
+      "value": 6.378
+    },
+    {
+      "country": "FIN",
+      "year": 2013,
+      "value": 8.193
+    },
+    {
+      "country": "FIN",
+      "year": 2023,
+      "value": 7.149
+    },
+    {
+      "country": "FRA",
+      "year": 2013,
+      "value": 9.913
+    },
+    {
+      "country": "FRA",
+      "year": 2023,
+      "value": 7.335
+    },
+    {
+      "country": "GRC",
+      "year": 2013,
+      "value": 27.686
+    },
+    {
+      "country": "GRC",
+      "year": 2023,
+      "value": 11.023
+    },
+    {
+      "country": "HRV",
+      "year": 2013,
+      "value": 17.231
+    },
+    {
+      "country": "HRV",
+      "year": 2023,
+      "value": 6.121
+    },
+    {
+      "country": "HUN",
+      "year": 2013,
+      "value": 10.177
+    },
+    {
+      "country": "HUN",
+      "year": 2023,
+      "value": 4.096
+    },
+    {
+      "country": "IRL",
+      "year": 2013,
+      "value": 13.735
+    },
+    {
+      "country": "IRL",
+      "year": 2023,
+      "value": 4.243
+    },
+    {
+      "country": "ITA",
+      "year": 2013,
+      "value": 12.149
+    },
+    {
+      "country": "ITA",
+      "year": 2023,
+      "value": 7.627
+    },
+    {
+      "country": "LTU",
+      "year": 2013,
+      "value": 11.77
+    },
+    {
+      "country": "LTU",
+      "year": 2023,
+      "value": 6.841
+    },
+    {
+      "country": "LUX",
+      "year": 2013,
+      "value": 6.045
+    },
+    {
+      "country": "LUX",
+      "year": 2023,
+      "value": 5.184
+    },
+    {
+      "country": "LVA",
+      "year": 2013,
+      "value": 11.867
+    },
+    {
+      "country": "LVA",
+      "year": 2023,
+      "value": 6.465
+    },
+    {
+      "country": "MLT",
+      "year": 2013,
+      "value": 6.115
+    },
+    {
+      "country": "MLT",
+      "year": 2023,
+      "value": 3.479
+    },
+    {
+      "country": "NLD",
+      "year": 2013,
+      "value": 7.241
+    },
+    {
+      "country": "NLD",
+      "year": 2023,
+      "value": 3.535
+    },
+    {
+      "country": "POL",
+      "year": 2013,
+      "value": 10.293
+    },
+    {
+      "country": "POL",
+      "year": 2023,
+      "value": 2.743
+    },
+    {
+      "country": "PRT",
+      "year": 2013,
+      "value": 16.237
+    },
+    {
+      "country": "PRT",
+      "year": 2023,
+      "value": 6.498
+    },
+    {
+      "country": "ROU",
+      "year": 2013,
+      "value": 7.096
+    },
+    {
+      "country": "ROU",
+      "year": 2023,
+      "value": 5.589
+    },
+    {
+      "country": "SVK",
+      "year": 2013,
+      "value": 14.226
+    },
+    {
+      "country": "SVK",
+      "year": 2023,
+      "value": 5.843
+    },
+    {
+      "country": "SVN",
+      "year": 2013,
+      "value": 10.103
+    },
+    {
+      "country": "SVN",
+      "year": 2023,
+      "value": 3.652
+    },
+    {
+      "country": "SWE",
+      "year": 2013,
+      "value": 8.052
+    },
+    {
+      "country": "SWE",
+      "year": 2023,
+      "value": 7.611
+    }
+  ],
+  "missing": [],
+  "dimensions": [],
+  "disagreements": [],
+  "sources": [
+    {
+      "indicator": "SL.UEM.TOTL.ZS",
+      "name": "Unemployment, total (% of total labor force) (modeled ILO estimate)",
+      "source": "World Bank",
+      "dataset": "World Development Indicators",
+      "url": "https://api.worldbank.org/v2/country/AUT;BEL;BGR;HRV;CYP;CZE;DNK;EST;FIN;FRA;DEU;GRC;HUN;IRL;ITA;LVA;LTU;LUX;MLT;NLD;POL;PRT;ROU;SVK;SVN;ESP;SWE/indicator/SL.UEM.TOTL.ZS?format=json&date=2013:2023&per_page=297",
+      "retrievedAt": "2026-11-10T07:27:10.378Z"
+    }
+  ]
+}

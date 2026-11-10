@@ -1,0 +1,467 @@
+{
+  "view": {
+    "_tag": "Relation",
+    "indicator": "SP.DYN.LE00.IN",
+    "against": "NY.GDP.PCAP.CD",
+    "countries": [
+      "AUS",
+      "AUT",
+      "BEL",
+      "CAN",
+      "CHL",
+      "COL",
+      "CRI",
+      "CZE",
+      "DNK",
+      "EST",
+      "FIN",
+      "FRA",
+      "DEU",
+      "GRC",
+      "HUN",
+      "ISL",
+      "IRL",
+      "ISR",
+      "ITA",
+      "JPN",
+      "KOR",
+      "LVA",
+      "LTU",
+      "LUX",
+      "MEX",
+      "NLD",
+      "NZL",
+      "NOR",
+      "POL",
+      "PRT",
+      "SVK",
+      "SVN",
+      "ESP",
+      "SWE",
+      "CHE",
+      "TUR",
+      "GBR",
+      "USA"
+    ],
+    "year": 2022
+  },
+  "title": "Life expectancy at birth (years)",
+  "indicator": {
+    "id": "SP.DYN.LE00.IN",
+    "name": "Life expectancy at birth, total (years)",
+    "definition": "Life expectancy at birth indicates the number of years a newborn infant would live if prevailing patterns of mortality at the time of its birth were to stay the same throughout its life."
+  },
+  "observations": [
+    {
+      "country": "AUS",
+      "year": 2022,
+      "value": 83.2
+    },
+    {
+      "country": "AUT",
+      "year": 2022,
+      "value": 81.2951219512195
+    },
+    {
+      "country": "BEL",
+      "year": 2022,
+      "value": 81.7487804878049
+    },
+    {
+      "country": "CAN",
+      "year": 2022,
+      "value": 81.0948780487805
+    },
+    {
+      "country": "CHE",
+      "year": 2022,
+      "value": 83.6048780487805
+    },
+    {
+      "country": "CHL",
+      "year": 2022,
+      "value": 79.176
+    },
+    {
+      "country": "COL",
+      "year": 2022,
+      "value": 76.508
+    },
+    {
+      "country": "CRI",
+      "year": 2022,
+      "value": 79.316
+    },
+    {
+      "country": "CZE",
+      "year": 2022,
+      "value": 78.9292682926829
+    },
+    {
+      "country": "DEU",
+      "year": 2022,
+      "value": 80.6080487804878
+    },
+    {
+      "country": "DNK",
+      "year": 2022,
+      "value": 81.3048780487805
+    },
+    {
+      "country": "ESP",
+      "year": 2022,
+      "value": 83.1341463414634
+    },
+    {
+      "country": "EST",
+      "year": 2022,
+      "value": 77.8439024390244
+    },
+    {
+      "country": "FIN",
+      "year": 2022,
+      "value": 81.1878048780488
+    },
+    {
+      "country": "FRA",
+      "year": 2022,
+      "value": 82.1292682926829
+    },
+    {
+      "country": "GBR",
+      "year": 2022,
+      "value": 81.0112195121951
+    },
+    {
+      "country": "GRC",
+      "year": 2022,
+      "value": 80.7878048780488
+    },
+    {
+      "country": "HUN",
+      "year": 2022,
+      "value": 75.8682926829268
+    },
+    {
+      "country": "IRL",
+      "year": 2022,
+      "value": 82.509756097561
+    },
+    {
+      "country": "ISL",
+      "year": 2022,
+      "value": 82.119512195122
+    },
+    {
+      "country": "ISR",
+      "year": 2022,
+      "value": 82.7
+    },
+    {
+      "country": "ITA",
+      "year": 2022,
+      "value": 82.7
+    },
+    {
+      "country": "JPN",
+      "year": 2022,
+      "value": 83.9963414634146
+    },
+    {
+      "country": "KOR",
+      "year": 2022,
+      "value": 82.6804878048781
+    },
+    {
+      "country": "LTU",
+      "year": 2022,
+      "value": 75.6439024390244
+    },
+    {
+      "country": "LUX",
+      "year": 2022,
+      "value": 82.9463414634147
+    },
+    {
+      "country": "LVA",
+      "year": 2022,
+      "value": 74.2780487804878
+    },
+    {
+      "country": "MEX",
+      "year": 2022,
+      "value": 73.973
+    },
+    {
+      "country": "NLD",
+      "year": 2022,
+      "value": 81.6146341463415
+    },
+    {
+      "country": "NOR",
+      "year": 2022,
+      "value": 82.509756097561
+    },
+    {
+      "country": "NZL",
+      "year": 2022,
+      "value": 81.9585365853658
+    },
+    {
+      "country": "POL",
+      "year": 2022,
+      "value": 77.1560975609756
+    },
+    {
+      "country": "PRT",
+      "year": 2022,
+      "value": 81.6317073170732
+    },
+    {
+      "country": "SVK",
+      "year": 2022,
+      "value": 76.9658536585366
+    },
+    {
+      "country": "SVN",
+      "year": 2022,
+      "value": 81.2829268292683
+    },
+    {
+      "country": "SWE",
+      "year": 2022,
+      "value": 83.0585365853659
+    },
+    {
+      "country": "TUR",
+      "year": 2022,
+      "value": 77.591
+    },
+    {
+      "country": "USA",
+      "year": 2022,
+      "value": 77.4341463414634
+    }
+  ],
+  "against": {
+    "title": "GDP per person (current US$)",
+    "indicator": {
+      "id": "NY.GDP.PCAP.CD",
+      "name": "GDP per capita (current US$)",
+      "definition": "Gross domestic product is the total income earned through the production of goods and services in an economic territory during an accounting period. It can be measured in three different ways: using either the expenditure approach, the income approach, or the production approach. The core indicator has been divided by the general population to achieve a per capita estimate.This indicator is expressed in current prices, meaning no adjustment has been made to account for price changes over time. This indicator is expressed in United States dollars."
+    },
+    "observations": [
+      {
+        "country": "AUS",
+        "year": 2022,
+        "value": 65169.5191118657
+      },
+      {
+        "country": "AUT",
+        "year": 2022,
+        "value": 52336.7725223758
+      },
+      {
+        "country": "BEL",
+        "year": 2022,
+        "value": 50639.0264882739
+      },
+      {
+        "country": "CAN",
+        "year": 2022,
+        "value": 56496.9275340663
+      },
+      {
+        "country": "CHE",
+        "year": 2022,
+        "value": 97809.095567203
+      },
+      {
+        "country": "CHL",
+        "year": 2022,
+        "value": 15399.1044717559
+      },
+      {
+        "country": "COL",
+        "year": 2022,
+        "value": 6680.44506854481
+      },
+      {
+        "country": "CRI",
+        "year": 2022,
+        "value": 13971.7649991294
+      },
+      {
+        "country": "CZE",
+        "year": 2022,
+        "value": 28282.2236715857
+      },
+      {
+        "country": "DEU",
+        "year": 2022,
+        "value": 50506.5179638543
+      },
+      {
+        "country": "DNK",
+        "year": 2022,
+        "value": 67781.0940939514
+      },
+      {
+        "country": "ESP",
+        "year": 2022,
+        "value": 30319.4987196616
+      },
+      {
+        "country": "EST",
+        "year": 2022,
+        "value": 28340.3826549406
+      },
+      {
+        "country": "FIN",
+        "year": 2022,
+        "value": 50440.560224974
+      },
+      {
+        "country": "FRA",
+        "year": 2022,
+        "value": 40988.6396406579
+      },
+      {
+        "country": "GBR",
+        "year": 2022,
+        "value": 47034.7795621476
+      },
+      {
+        "country": "GRC",
+        "year": 2022,
+        "value": 20884.6773436263
+      },
+      {
+        "country": "HUN",
+        "year": 2022,
+        "value": 18428.028825614
+      },
+      {
+        "country": "IRL",
+        "year": 2022,
+        "value": 105190.685952731
+      },
+      {
+        "country": "ISL",
+        "year": 2022,
+        "value": 76376.9599334915
+      },
+      {
+        "country": "ISR",
+        "year": 2022,
+        "value": 54947.2091250715
+      },
+      {
+        "country": "ITA",
+        "year": 2022,
+        "value": 35653.9042103495
+      },
+      {
+        "country": "JPN",
+        "year": 2022,
+        "value": 35548.2645222433
+      },
+      {
+        "country": "KOR",
+        "year": 2022,
+        "value": 34822.4048404971
+      },
+      {
+        "country": "LTU",
+        "year": 2022,
+        "value": 24946.5724005188
+      },
+      {
+        "country": "LUX",
+        "year": 2022,
+        "value": 123719.658915996
+      },
+      {
+        "country": "LVA",
+        "year": 2022,
+        "value": 20221.103686109
+      },
+      {
+        "country": "MEX",
+        "year": 2022,
+        "value": 11405.7940469896
+      },
+      {
+        "country": "NLD",
+        "year": 2022,
+        "value": 59123.318556487
+      },
+      {
+        "country": "NOR",
+        "year": 2022,
+        "value": 113122.130765691
+      },
+      {
+        "country": "NZL",
+        "year": 2022,
+        "value": 49141.6316294227
+      },
+      {
+        "country": "POL",
+        "year": 2022,
+        "value": 18891.2121169279
+      },
+      {
+        "country": "PRT",
+        "year": 2022,
+        "value": 24620.5197587181
+      },
+      {
+        "country": "SVK",
+        "year": 2022,
+        "value": 21317.7943982363
+      },
+      {
+        "country": "SVN",
+        "year": 2022,
+        "value": 28360.3041467268
+      },
+      {
+        "country": "SWE",
+        "year": 2022,
+        "value": 54836.8907235124
+      },
+      {
+        "country": "TUR",
+        "year": 2022,
+        "value": 10897.8397861365
+      },
+      {
+        "country": "USA",
+        "year": 2022,
+        "value": 78008.6895811877
+      }
+    ]
+  },
+  "missing": [],
+  "dimensions": [],
+  "disagreements": [],
+  "sources": [
+    {
+      "indicator": "SP.DYN.LE00.IN",
+      "name": "Life expectancy at birth, total (years)",
+      "source": "World Bank",
+      "dataset": "World Development Indicators",
+      "url": "https://api.worldbank.org/v2/country/AUS;AUT;BEL;CAN;CHL;COL;CRI;CZE;DNK;EST;FIN;FRA;DEU;GRC;HUN;ISL;IRL;ISR;ITA;JPN;KOR;LVA;LTU;LUX;MEX;NLD;NZL;NOR;POL;PRT;SVK;SVN;ESP;SWE;CHE;TUR;GBR;USA/indicator/SP.DYN.LE00.IN?format=json&date=2022:2022&per_page=38",
+      "retrievedAt": "2026-11-10T07:27:10.741Z"
+    },
+    {
+      "indicator": "NY.GDP.PCAP.CD",
+      "name": "GDP per capita (current US$)",
+      "source": "World Bank",
+      "dataset": "World Development Indicators",
+      "url": "https://api.worldbank.org/v2/country/AUS;AUT;BEL;CAN;CHL;COL;CRI;CZE;DNK;EST;FIN;FRA;DEU;GRC;HUN;ISL;IRL;ISR;ITA;JPN;KOR;LVA;LTU;LUX;MEX;NLD;NZL;NOR;POL;PRT;SVK;SVN;ESP;SWE;CHE;TUR;GBR;USA/indicator/NY.GDP.PCAP.CD?format=json&date=2022:2022&per_page=38",
+      "retrievedAt": "2026-11-10T07:27:11.252Z"
+    }
+  ]
+}
