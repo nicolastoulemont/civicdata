@@ -48,6 +48,7 @@ import { Countries } from "./Countries.tsx"
 import { Data } from "./Data.tsx"
 import { Dimensions } from "./Dimensions.tsx"
 import { Disagreements } from "./Disagreements.tsx"
+import type { Years } from "./drag.ts"
 import {
   oneYear,
   overTime,
@@ -83,7 +84,6 @@ import { ShowAs } from "./ShowAs.tsx"
 import { Takeaway } from "./Takeaway.tsx"
 import { type History, TrendChart } from "./TrendChart.tsx"
 import { range, YearSelect, years } from "./Years.tsx"
-import type { Years } from "./YearWindow.tsx"
 
 interface SpanProps {
   from: Year

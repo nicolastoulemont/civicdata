@@ -33,7 +33,9 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { useMachine } from "@/machine"
 
+import { drag, held, type Years } from "./drag.ts"
 import { countryName, formatCompact } from "./format.ts"
 import { color } from "./palette.ts"
 import {
@@ -49,7 +51,7 @@ import {
   votedIn,
   voting,
 } from "./politics.ts"
-import { type Years, YearWindow } from "./YearWindow.tsx"
+import { YearWindow } from "./YearWindow.tsx"
 
 type Point = { readonly year: number } & Partial<Record<Country, number>>
 
@@ -471,13 +473,15 @@ export const TrendChart = ({
     ),
   )
 
-  const [dragged, setDragged] = useState<Years | null>(null)
+  // The years a drag ends on become the trend's.
+  const [dragging, gesture] = useMachine(drag, { on: (picked) => history?.onChange(picked) })
+  const dragged = held(dragging)
   const years = dragged ?? { from: trend.from, to: trend.to }
 
   // Whether `resolved` holds the years on screen: not while dragging, nor
   // while the years just picked load.
   const loaded =
-    dragged === null &&
+    dragged === undefined &&
     Match.value(resolved.view).pipe(
       Match.tag("Trend", ({ from, to }) => from === years.from && to === years.to),
       Match.orElse(() => false),
@@ -636,7 +640,7 @@ export const TrendChart = ({
                 <Marked country={country} faded={faded(country)} flagged={flagged} alone={alone} />
               }
               connectNulls={false}
-              isAnimationActive={dragged === null}
+              isAnimationActive={dragged === undefined}
             />
           ))}
           {room > 0 ? <Ends rows={rows} countries={trend.countries} forward={forward} /> : null}
@@ -648,11 +652,7 @@ export const TrendChart = ({
             history={history.observations}
             countries={trend.countries}
             years={years}
-            onChange={setDragged}
-            onCommit={(picked) => {
-              setDragged(null)
-              history.onChange(picked)
-            }}
+            onGesture={gesture}
           />
         </div>
       )}
