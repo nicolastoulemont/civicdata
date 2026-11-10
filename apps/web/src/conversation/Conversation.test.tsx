@@ -740,6 +740,22 @@ describe("Conversation", () => {
     expect(document.activeElement).toBe(viewport)
   })
 
+  it("ends the conversation above the composer, which the answers scroll under", async () => {
+    network.use(...kept([brazilAnswer]).handlers, resolve)
+    show()
+
+    const source = await screen.findByText(/^Source: World Bank/)
+    const viewport = screen.getByRole("region", { name: "Conversation" })
+    const composer = within(viewport).getByRole("textbox", { name: "Ask a follow-up" })
+
+    // happy-dom has no layout. The composer docks at the end of the scrolled
+    // content, so the last answer's source line ends above it and scrolls
+    // fully into view however tall the composer grows.
+    expect(source.compareDocumentPosition(composer) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    )
+  })
+
   it("copies a question", async () => {
     const user = userEvent.setup()
 
