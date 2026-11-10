@@ -9,7 +9,7 @@ import { Gather } from "../src/Gather.ts"
 import { Sdmx } from "../src/Sdmx.ts"
 import { type SeriesBucket, Store } from "../src/Store.ts"
 import { WorldBank } from "../src/WorldBank.ts"
-import { build, catalogOver, emptyCatalog, entry, type Listings, listings } from "./catalog.ts"
+import { build, catalogOver, entry, type Listings, listings } from "./catalog.ts"
 import { http, memory } from "./fakes.ts"
 import quarterly from "./fixtures/eurostat/bulk-ei_bpm6ca_q.tsv?raw"
 import uneRtA from "./fixtures/eurostat/bulk-une_rt_a.tsv?raw"
@@ -241,14 +241,6 @@ export const publishing = (codes: ReturnType<typeof indicators>): Published => (
     [codes.unemployment, bulk(recorded.unemployment)],
   ]),
 })
-
-// The catalog tables and the gathering run's tables, empty.
-export const emptyTables = async () => {
-  await emptyCatalog()
-  await db.exec(
-    "DROP TABLE IF EXISTS series_version; DROP TABLE IF EXISTS series_held; DROP TABLE IF EXISTS series_release; DROP TABLE IF EXISTS series_skipped;",
-  )
-}
 
 // The catalog listing `entries` for the World Bank, and `datasets` for
 // Eurostat when a test gathers it, published.

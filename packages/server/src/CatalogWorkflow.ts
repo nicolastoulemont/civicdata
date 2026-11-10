@@ -1,9 +1,19 @@
 import type { CloudflareWorkersModule } from "@cloudflare/workers-types"
-import { WorkflowEntrypoint } from "cloudflare:workers"
+import { env, WorkflowEntrypoint } from "cloudflare:workers"
 import { Effect, Layer } from "effect"
 
 import { CatalogBuild, Step } from "./CatalogBuild.ts"
+import { Classifier } from "./Classifier.ts"
+import { modelClassifier } from "./ModelClassifier.ts"
+import { openAi } from "./OpenAi.ts"
 import { PoliticsBuild } from "./PoliticsBuild.ts"
+
+// The agent's OpenAI model classifies directions, when the deployment has a
+// key; without one, the build classifies nothing.
+const classifier = () =>
+  env.OPENAI_API_KEY === undefined
+    ? Classifier.unavailable
+    : modelClassifier.pipe(Layer.provide(openAi(env.OPENAI_API_KEY, env.OPENAI_MODEL)))
 
 // The Workflow that builds the catalog and stores the political records,
 // every Monday at 04:00 UTC and once after each deploy (packages/infra). The
@@ -25,7 +35,13 @@ export class CatalogWorkflow extends WorkflowEntrypoint {
         Effect.flatMap(([catalog, politics]) =>
           Effect.all([Effect.fromResult(catalog), Effect.fromResult(politics)]),
         ),
-        Effect.provide(Layer.mergeAll(Step.workflow(step), CatalogBuild.live, PoliticsBuild.live)),
+        Effect.provide(
+          Layer.mergeAll(
+            Step.workflow(step),
+            CatalogBuild.live.pipe(Layer.provide(classifier())),
+            PoliticsBuild.live,
+          ),
+        ),
       ),
     )
   }

@@ -7,6 +7,7 @@ import { Agent } from "./Agent.ts"
 import { AskLimit } from "./AskLimit.ts"
 import { Catalog } from "./Catalog.ts"
 import { Conversations } from "./Conversations.ts"
+import { Directions } from "./Directions.ts"
 import { Handlers } from "./Handlers.ts"
 import { Notes } from "./Notes.ts"
 import { Politics } from "./Politics.ts"
@@ -28,6 +29,7 @@ const Live = HttpApiBuilder.layer(Api).pipe(
   Layer.provide(Notes.live),
   Layer.provide(WorldBank.live),
   Layer.provide(Sdmx.live),
+  Layer.provide(Directions.live),
   Layer.provide(HttpServer.layerServices),
 )
 

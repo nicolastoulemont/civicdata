@@ -1,5 +1,6 @@
 import { Dimensions, IndicatorId, Year } from "@civicdata/domain"
 import { beforeEach, describe, expect, it } from "@effect/vitest"
+import { reset } from "cloudflare:test"
 import { DateTime, Effect, Layer, Schema } from "effect"
 import { TestClock } from "effect/testing"
 
@@ -16,7 +17,6 @@ import {
   catalogue,
   charts,
   contents,
-  emptyTables,
   eurostatCharts,
   eurostatRecorded,
   file,
@@ -31,7 +31,9 @@ import {
   skipped,
 } from "./series.ts"
 
-beforeEach(emptyTables)
+// Every test starts from empty bindings: the test Worker's D1 database and
+// buckets are shared by the file's tests.
+beforeEach(() => reset())
 
 const run = Gather.run().pipe(Effect.provide(Step.immediate))
 

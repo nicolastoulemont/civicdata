@@ -1,19 +1,14 @@
 import { type CatalogEntry, CatalogUnavailable } from "@civicdata/domain"
 import { beforeEach, describe, expect, it } from "@effect/vitest"
+import { reset } from "cloudflare:test"
 import { Effect } from "effect"
 
 import { Catalog } from "../src/Catalog.ts"
-import {
-  build,
-  catalogOver,
-  emptyCatalog,
-  listings,
-  vectorize,
-  workersAi,
-  worldBankList,
-} from "./catalog.ts"
+import { build, catalogOver, listings, vectorize, workersAi, worldBankList } from "./catalog.ts"
 
-beforeEach(emptyCatalog)
+// Every test starts from empty bindings: the test Worker's D1 database and
+// buckets are shared by the file's tests.
+beforeEach(() => reset())
 
 const names = (entries: ReadonlyArray<CatalogEntry>) => entries.map((found) => found.name)
 

@@ -268,5 +268,5 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
 
       return Resolver.of({ resolve })
     }),
-  ).pipe(Layer.provide(Directions.layer))
+  )
 }

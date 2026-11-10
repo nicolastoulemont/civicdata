@@ -15,8 +15,8 @@ import { Array as Arr, Config, Effect, Layer, Schema } from "effect"
 import { LanguageModel } from "effect/ai"
 import { FetchHttpClient } from "effect/http"
 
-import { defaultModel } from "../src/Agent.ts"
 import { Cache } from "../src/Cache.ts"
+import { about, defaultModel } from "../src/model.ts"
 import { fits } from "../src/Titles.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 
@@ -43,19 +43,7 @@ const titleSome = Effect.fn("titles.titleSome")(function* (entries: ReadonlyArra
   const { value } = yield* LanguageModel.generateObject({
     objectName: "titles",
     schema: Titled,
-    prompt: [
-      { role: "system", content: instructions },
-      {
-        role: "user",
-        content: JSON.stringify(
-          entries.map(({ indicator, name, definition }) => ({
-            indicator,
-            name,
-            definition: definition.slice(0, 400),
-          })),
-        ),
-      },
-    ],
+    prompt: about(instructions, entries),
   })
 
   const names = new Map<string, string>(entries.map(({ indicator, name }) => [indicator, name]))
