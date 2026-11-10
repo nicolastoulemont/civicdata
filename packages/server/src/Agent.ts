@@ -115,14 +115,16 @@ type Unexplained =
   | TransformNotApplicable
   | DimensionsMissing
 
-// A chart a person changed since the agent's last answer: the one on screen,
-// and its place in the answer.
+// A chart a person changed since the model last heard of it: the question
+// whose answer holds it, its place in that answer, and the one on screen.
 export interface Changed {
+  readonly question: string
   readonly chart: ChartIndex
   readonly view: View
 }
 
-// A question, and the charts a person changed since the agent's last answer.
+// A question, and the charts a person changed since the model last heard of
+// them.
 interface Asking {
   readonly question: string
   readonly changed: ReadonlyArray<Changed>
@@ -619,17 +621,18 @@ const draftOf = (view: View): Draft => {
 }
 
 // The question as the model reads it. The charts the person changed since the
-// agent's last answer lead the question, each with its place in the answer
-// and as show_chart's arguments, so a follow-up changes what it asks for and
-// keeps the rest. They travel in the question's own message: `forget` cuts
-// the chat at questions, and a note of its own would count as one.
+// model last heard lead the question, each with the question its answer
+// answered, its place in that answer and as show_chart's arguments, so a
+// follow-up changes what it asks for and keeps the rest. They travel in the
+// question's own message: `forget` cuts the chat at questions, and a note of
+// its own would count as one.
 const prompted = ({ question, changed }: Asking) =>
   changed.length === 0
     ? question
     : `The person changed charts on screen since your last answer. ${changed
         .map(
-          ({ chart, view }) =>
-            `Chart ${chart + 1} is now show_chart ${JSON.stringify(draftOf(view))}.`,
+          (each) =>
+            `Chart ${each.chart + 1} of your answer to ${JSON.stringify(each.question)} is now show_chart ${JSON.stringify(draftOf(each.view))}.`,
         )
         .join(" ")}\n\n${question}`
 
@@ -1282,7 +1285,7 @@ If no indicator of any source measures what the question asks, say so in one sen
 
 If the question can be read in ways that give different charts and none is a safe default, call ask_user instead of show_chart, with two to four short choices. Prefer a sensible default to asking: ask at most once per question.
 
-A later question can follow up on your last answer, e.g. "add Chile" or "now per person". Apply it to the charts it names, or else to every chart it fits: "add Italy" adds Italy to each chart, "only since 2015" changes the years of every trend. Show each changed chart again, in the same order, keep the rest of each chart, and write about each one again. When a question starts with charts on screen, the person changed them since your last answer: follow up on those charts instead, by their place in the answer.`
+A later question can follow up on your last answer, e.g. "add Chile" or "now per person". Apply it to the charts it names, or else to every chart it fits: "add Italy" adds Italy to each chart, "only since 2015" changes the years of every trend. Show each changed chart again, in the same order, keep the rest of each chart, and write about each one again. When a question starts with charts on screen, the person changed them since your last answer: follow up on those charts instead, each by the answer it belongs to and its place in that answer.`
 
 export class Agent extends Context.Service<Agent, Interface>()("@civicdata/server/Agent") {
   // Needs a LanguageModel, a Catalog, a Resolver, a WorldBank, an Sdmx, the

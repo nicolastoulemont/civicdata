@@ -1,9 +1,8 @@
 import {
   type AgentUnavailable,
-  Answered,
   type Block,
   type CatalogUnavailable,
-  ChartIndex,
+  type ChartIndex,
   chartsOf,
   ConversationBusy,
   Ended,
@@ -45,7 +44,7 @@ import {
 import { Chat } from "effect/ai"
 
 import { Agent, type Changed } from "./Agent.ts"
-import { type Saved, Transcript } from "./Transcript.ts"
+import { type Edit, type Saved, Transcript } from "./Transcript.ts"
 
 // Why an answer stopped short.
 type Failure = AgentUnavailable | SourceUnavailable | CatalogUnavailable
@@ -96,8 +95,6 @@ const halted = (step: Work): ReadonlyArray<Work> =>
 const writtenIn = (work: ReadonlyArray<Work>): ReadonlyArray<Block> =>
   work.flatMap((step) => (isRendered(step) ? [step.block] : []))
 
-const isAnswered = Schema.is(Answered)
-
 // The charts a turn shows, in order: the ones a person changed its charts
 // to, else the agent's. A turn that ended with no charts shows none.
 const onScreen = (turn: Turn): ReadonlyArray<View> =>
@@ -106,7 +103,10 @@ const onScreen = (turn: Turn): ReadonlyArray<View> =>
 // The turn showing `view` in place of its chart at `chart`: changed to it,
 // or back when it is the agent's chart there. A turn changed back at every
 // place keeps no changes. A turn with no chart there has none to change.
-const showing = (turn: Turn, { chart, view }: Changed): Turn | undefined => {
+const showing = (
+  turn: Turn,
+  { chart, view }: Pick<Changed, "chart" | "view">,
+): Turn | undefined => {
   const charts = chartsOf(turn.answer)
   const agent = charts[chart]
 
@@ -125,17 +125,44 @@ const showing = (turn: Turn, { chart, view }: Changed): Turn | undefined => {
     : Struct.assign(turn, { shown })
 }
 
-// The charts on screen that a person changed since the agent's last answer,
-// each with its place: those of the turn changed last that are not the last
-// answer's chart at that place. The next question builds on them.
-const changedOf = ({ turns, changed }: Saved): ReadonlyArray<Changed> => {
-  const shown = changed === undefined ? undefined : turns[changed]
-  const last = turns.findLast((turn) => isAnswered(turn.answer))
-  const answered = last === undefined ? [] : onScreen(Struct.omit(last, ["shown"]))
+// A chart a person changed that the model has not heard of, as the model reads
+// it: the question its turn answered, and the chart on screen.
+type Unheard = Edit & Changed
 
-  return (shown === undefined ? [] : onScreen(shown)).flatMap((view, place) =>
-    Equal.equals(view, answered[place]) ? [] : [{ chart: ChartIndex.make(place), view }],
-  )
+// The charts a person changed that the model has not heard of, in the order
+// they changed: each edit whose chart on screen is not the one the model
+// knows there. The next question builds on them.
+const changedOf = ({
+  turns,
+  edits = [],
+}: {
+  readonly turns: ReadonlyArray<Turn>
+  readonly edits?: ReadonlyArray<Edit>
+}): ReadonlyArray<Unheard> =>
+  edits.flatMap((edit) => {
+    const turn = turns[edit.turn]
+    const view = turn === undefined ? undefined : onScreen(turn)[edit.chart]
+
+    return turn === undefined || view === undefined || Equal.equals(view, edit.known)
+      ? []
+      : [{ ...edit, question: turn.question, view }]
+  })
+
+const samePlace = (left: Edit, right: Edit) =>
+  left.turn === right.turn && left.chart === right.chart
+
+// The edits left once the model heard of `heard`: it knows the charts it was
+// told of, so an edit it heard is none unless the chart changed again since.
+const unheardOf = (saved: Saved, heard: ReadonlyArray<Unheard>): Saved["edits"] => {
+  const known = (saved.edits ?? []).map((edit) => {
+    const told = heard.find((each) => samePlace(each, edit))
+
+    return told === undefined ? edit : Struct.assign(edit, { known: told.view })
+  })
+
+  const left = changedOf({ ...saved, edits: known }).map(Struct.pick(["turn", "chart", "known"]))
+
+  return Arr.isReadonlyArrayNonEmpty(left) ? left : undefined
 }
 
 // Steps kept for whoever follows an answer late: more than an answer has.
@@ -296,29 +323,28 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
 
           // A turn keeps the steps the agent ended and how long it took,
           // stopped or not. The turns are read again under the lock, as a
-          // chart may have been changed meanwhile. A new chart makes earlier
-          // changes old news. Otherwise a change stays for the next question
-          // unless the model heard of it with this one: a stopped answer
-          // leaves the chat as it was, and a change made while the agent
-          // answered never reached it.
+          // chart may have been changed meanwhile. A change stays for the
+          // next question unless the model heard of it with this one: a
+          // stopped answer leaves the chat as it was, and a change made while
+          // the agent answered never reached it.
           const save = Effect.fnUntraced(function* (ending: Ending, json: string) {
             const took = DateTime.distance(started, yield* DateTime.now)
             const kept = (yield* Ref.get(work)).filter(isEnded)
             const latest = Option.getOrUndefined(yield* transcript.load)
 
-            const heard =
-              isAnswered(ending) ||
-              (!isStopped(ending) &&
-                Equal.equals(latest === undefined ? [] : changedOf(latest), changed))
-
-            const unheard = heard ? undefined : latest?.changed
+            const unheard =
+              latest === undefined
+                ? undefined
+                : isStopped(ending)
+                  ? latest.edits
+                  : unheardOf(latest, changed)
 
             const next: Saved = {
               chat: json,
               turns: [...(latest?.turns ?? []), { question, answer: ending, steps: kept, took }],
             }
 
-            yield* transcript.save(unheard === undefined ? next : { ...next, changed: unheard })
+            yield* transcript.save(unheard === undefined ? next : { ...next, edits: unheard })
             yield* phase.send(PhaseEvent.Saved())
           })
 
@@ -409,20 +435,34 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
         }
       }).pipe(Effect.withSpan("Conversation.stop"))
 
-      const show = Effect.fn("Conversation.show")(function* (turn: TurnIndex, change: Changed) {
+      // A chart the model has not heard of changing yet becomes an edit,
+      // which knows the chart that was on screen before.
+      const show = Effect.fn("Conversation.show")(function* (
+        turn: TurnIndex,
+        change: Pick<Changed, "chart" | "view">,
+      ) {
         const saved = yield* transcript.load
         const found = Option.flatMap(saved, ({ turns: all }) => Arr.get(all, turn))
 
         if (Option.isNone(saved) || Option.isNone(found)) return yield* new TurnNotFound({ turn })
 
         const next = showing(found.value, change)
+        const known = onScreen(found.value)[change.chart]
 
-        if (next === undefined) return yield* new NoChart({ turn, chart: change.chart })
+        if (next === undefined || known === undefined) {
+          return yield* new NoChart({ turn, chart: change.chart })
+        }
+
+        const edit = { turn, chart: change.chart, known }
+        const { edits } = saved.value
 
         return yield* transcript.save({
           ...saved.value,
           turns: saved.value.turns.with(turn, next),
-          changed: turn,
+          edits:
+            edits !== undefined && edits.some((each) => samePlace(each, edit))
+              ? edits
+              : Arr.append(edits ?? [], edit),
         })
       }, Semaphore.withPermit(lock))
 

@@ -1,13 +1,31 @@
-import { Turn, TurnIndex } from "@civicdata/domain"
-import { Clock, Context, type DateTime, Effect, Layer, Option, Ref, Schema, Struct } from "effect"
+import { ChartIndex, chartsOf, Turn, TurnIndex, View } from "@civicdata/domain"
+import {
+  Array as Arr,
+  Clock,
+  Context,
+  type DateTime,
+  Effect,
+  Layer,
+  Option,
+  Ref,
+  Schema,
+  Struct,
+} from "effect"
+
+// A chart a person changed since the model last heard of it: its turn, its
+// place among the turn's charts, and the chart the model knows there.
+const Edit = Schema.Struct({ turn: TurnIndex, chart: ChartIndex, known: View })
+
+export interface Edit extends Schema.Schema.Type<typeof Edit> {}
 
 // What a conversation keeps: the model's chat history as Effect AI exports it,
-// the turns shown to people, the turn whose chart a person changed last since
-// the agent's last answer, if any, and the question being answered, if any.
+// the turns shown to people, the charts a person changed since the model last
+// heard of them, in the order they changed, and the question being answered,
+// if any.
 export interface Saved {
   readonly chat: string
   readonly turns: ReadonlyArray<Turn>
-  readonly changed?: TurnIndex
+  readonly edits?: Arr.NonEmptyReadonlyArray<Edit>
   readonly answering?: { readonly question: string; readonly started: DateTime.Utc }
 }
 
@@ -42,12 +60,35 @@ const Stored = Schema.fromJsonString(
   Schema.Struct({
     chat: Schema.String,
     turns: Schema.Array(Turn),
+    edits: Schema.optionalKey(Schema.NonEmptyArray(Edit)),
+    // Before edits, a transcript kept only the turn changed last.
     changed: Schema.optionalKey(TurnIndex),
     answering: Schema.optionalKey(
       Schema.Struct({ question: Schema.String, started: Schema.DateTimeUtcFromString }),
     ),
   }),
 )
+
+// A transcript as saved. One that kept only the turn changed last reads each
+// chart that turn shows in place of the agent's as an edit the model has not
+// heard of.
+const savedOf = ({ changed, ...saved }: typeof Stored.Type): Saved => {
+  const turn = changed === undefined ? undefined : saved.turns[changed]
+
+  if (changed === undefined || turn === undefined) return saved
+
+  const charts = chartsOf(turn.answer)
+
+  const edits = (turn.shown ?? []).flatMap((view, place) => {
+    const agent = charts[place]
+
+    return view === null || agent === undefined
+      ? []
+      : [{ turn: changed, chart: ChartIndex.make(place), known: agent.view }]
+  })
+
+  return Arr.isReadonlyArrayNonEmpty(edits) ? { ...saved, edits } : saved
+}
 
 // Conversations saved before turns kept how their answer ended sit under
 // "transcript"; they read as empty until their alarm deletes them.
@@ -86,7 +127,7 @@ export class Transcript extends Context.Service<Transcript, Interface>()(
       Effect.flatMap((json) =>
         json === undefined
           ? Effect.succeedNone
-          : Schema.decodeEffect(Stored)(json).pipe(Effect.asSome),
+          : Schema.decodeEffect(Stored)(json).pipe(Effect.map(savedOf), Effect.asSome),
       ),
       Effect.orDie,
     )
