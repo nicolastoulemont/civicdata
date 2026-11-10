@@ -116,7 +116,7 @@ export const End = Schema.TaggedUnion({
 // that it had no parties. Its colour is its head's party's, when its
 // publisher names exactly one party as the head's and that party has a
 // sourced colour; otherwise none.
-const Government = Schema.Struct({
+export const Government = Schema.Struct({
   country: Country,
   head: Schema.NonEmptyString,
   parties: Schema.Array(Party),
@@ -138,7 +138,7 @@ export type Ballot = typeof Ballot.Type
 // One national election, on its polling day. A presidential election held in
 // rounds has the day of its last round too. An election says nothing about
 // who won or who governed after it.
-const Election = Schema.Struct({
+export const Election = Schema.Struct({
   country: Country,
   ballot: Ballot,
   date: Day,
@@ -185,13 +185,19 @@ export const Scope = Schema.TaggedUnion({
 
 export type Scope = typeof Scope.Type
 
-const Slug = Schema.String.check(Schema.isPattern(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/))
+// A record's own id: "financial-crisis".
+export const Slug = Schema.String.check(Schema.isPattern(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/))
+
+// An https URL with a host.
+export const Https = Schema.String.check(
+  Schema.isPattern(/^https:\/\/[^\s/?#]+\.[^\s/?#]+(?:[/?#]\S*)?$/),
+)
 
 // A page that establishes a record, and who published it.
 const Reference = Schema.Struct({
   publisher: Schema.NonEmptyString,
   title: Schema.NonEmptyString,
-  url: Schema.String.check(Schema.isPattern(/^https:\/\/[^\s/?#]+\.[^\s/?#]+(?:[/?#]\S*)?$/)),
+  url: Https,
 })
 
 const Sources = Schema.NonEmptyArray(Reference)
@@ -233,7 +239,7 @@ const lastDay = (moment: Moment) => `${moment}${"-12-31".slice(moment.length - 4
 // A major event, programme or statistical break, with the countries it
 // concerns and its sources. Its summary says what happened, never what it
 // did to a line on a chart.
-const Event = Schema.Struct({
+export const Event = Schema.Struct({
   id: Slug,
   name: Schema.NonEmptyString,
   when: When,
@@ -317,7 +323,7 @@ export const areas: Record<PolicyArea, ReadonlySet<IndicatorId>> = {
 // A national policy reform, on the day it was adopted or the day its main
 // provisions took effect, as `milestone` says. Its date is a year or a day,
 // as its source gives it.
-const Reform = Schema.Struct({
+export const Reform = Schema.Struct({
   id: Slug,
   country: Country,
   area: PolicyArea,
@@ -329,58 +335,6 @@ const Reform = Schema.Struct({
 })
 
 export interface Reform extends Schema.Schema.Type<typeof Reform> {}
-
-// A political record's id, as the agent reads it in a lookup:
-// "government:FRA:2017-05-15", "election:FRA:president:2017-04-23",
-// "event:financial-crisis", "reform:fr-pensions-2010-woerth".
-export const RecordId = Schema.String.check(
-  Schema.isPattern(/^(?:government|election|event|reform):\S+$/),
-).pipe(Schema.brand("RecordId"))
-
-export type RecordId = typeof RecordId.Type
-
-// One political record of any kind.
-export const Cited = Schema.TaggedUnion({
-  Government: { government: Government },
-  Election: { election: Election },
-  Event: { event: Event },
-  Reform: { reform: Reform },
-})
-
-export type Cited = typeof Cited.Type
-
-// A record's id. A country has one government starting on a day, and one
-// election of a ballot on a polling day; events and reforms have ids of
-// their own.
-export const idOf = (cited: Cited): RecordId =>
-  RecordId.make(
-    Cited.match(cited, {
-      Government: ({ government }) => `government:${government.country}:${government.start}`,
-      Election: ({ election }) =>
-        `election:${election.country}:${election.ballot}:${election.date}`,
-      Event: ({ event }) => `event:${event.id}`,
-      Reform: ({ reform }) => `reform:${reform.id}`,
-    }),
-  )
-
-// What each election chose, inside a sentence: "the 2017 presidential
-// election".
-const ballotNames: Record<Ballot, string> = {
-  parliament: "general election",
-  president: "presidential election",
-  "president-indirect": "indirect presidential election",
-}
-
-// The name the agent's words show for a record they cite: a government by
-// its head, an election by its year and ballot ("2017 presidential
-// election"), an event or a reform by its own name.
-export const nameOf = (cited: Cited) =>
-  Cited.match(cited, {
-    Government: ({ government }) => government.head,
-    Election: ({ election }) => `${election.date.slice(0, 4)} ${ballotNames[election.ballot]}`,
-    Event: ({ event }) => event.name,
-    Reform: ({ reform }) => reform.name,
-  })
 
 // What a trend chart can draw over its lines besides the data: elections,
 // governments, and events with reforms. Kept beside a chart, never in its

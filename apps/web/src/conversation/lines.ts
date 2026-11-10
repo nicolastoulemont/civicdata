@@ -10,6 +10,7 @@ import {
   type Recorded,
   type Records,
   type Rejection,
+  type Research,
   type Search,
   type Source,
   sourceOf,
@@ -27,6 +28,7 @@ import {
   CalendarRange,
   ChartLine,
   CircleStop,
+  GraduationCap,
   Landmark,
   type LucideIcon,
   MapPin,
@@ -74,6 +76,15 @@ const failed = (
   reason: typeof Failed.Type.reason,
   { icon, text }: { icon: LucideIcon; text: string },
 ) => line("Failed", { icon, text: `${text}: ${why(reason)}` })
+
+// A lookup's lines while it runs, if it fails and if it is stopped:
+// "Looking up research on Germany, 2005 to 2012…".
+const lookingUp = (icon: LucideIcon, asked: string) => ({
+  Running: () => line("Running", { icon, text: `Looking up ${asked}…` }),
+  Failed: ({ reason }: { readonly reason: typeof Failed.Type.reason }) =>
+    failed(reason, { icon, text: `Couldn't look up ${asked}` }),
+  Stopped: () => line("Stopped", { icon, text: `Stopped looking up ${asked}` }),
+})
 
 // A noun as a count takes it: one and many.
 type Noun = readonly [one: string, many: string]
@@ -136,7 +147,7 @@ const lookup = ({ names, state }: typeof Lookup.Type) => {
   const asked = names.join(", ")
 
   return Match.valueTags(state, {
-    Running: () => line("Running", { icon, text: `Looking up ${asked}…` }),
+    ...lookingUp(icon, asked),
     // An ambiguous name opens to the places it may mean.
     Done: ({ places }) =>
       line("Done", {
@@ -146,8 +157,6 @@ const lookup = ({ names, state }: typeof Lookup.Type) => {
           .filter(({ countries }) => countries.length > 1)
           .map(({ name, countries }) => `“${name}”: ${countries.map(countryName).join(", ")}`),
       }),
-    Failed: ({ reason }) => failed(reason, { icon, text: `Couldn't look up ${asked}` }),
-    Stopped: () => line("Stopped", { icon, text: `Stopped looking up ${asked}` }),
   })
 }
 
@@ -183,18 +192,35 @@ const records = ({ countries, from, to, state }: typeof Records.Type) => {
   const asked = `${countriesNamed(countries)}, ${from} to ${to}`
 
   return Match.valueTags(state, {
-    Running: () => line("Running", { icon, text: `Looking up the political record of ${asked}…` }),
+    ...lookingUp(icon, `the political record of ${asked}`),
     Done: (counts) => line("Done", { icon, text: `Found ${counted(counts)} for ${asked}` }),
-    Failed: ({ reason }) =>
-      failed(reason, { icon, text: `Couldn't look up the political record of ${asked}` }),
-    Stopped: () =>
-      line("Stopped", { icon, text: `Stopped looking up the political record of ${asked}` }),
   })
 }
 
 // Years as a sentence names them: "2009", "2009 to 2025".
 const span = ({ from, to }: { from: number; to: number }) =>
   from === to ? `${from}` : `${from} to ${to}`
+
+// A lookup of research findings: "Found 2 research findings on Germany and
+// Spain, 2005 to 2012", opening to their names.
+const research = ({ countries, from, to, state }: typeof Research.Type) => {
+  const icon = GraduationCap
+  const asked = `${countriesNamed(countries)}, ${span({ from, to })}`
+
+  return Match.valueTags(state, {
+    ...lookingUp(icon, `research on ${asked}`),
+    Done: ({ findings }) =>
+      line("Done", {
+        icon,
+        text: `Found ${
+          findings.length === 0
+            ? "no research findings"
+            : plural(findings.length, ["research finding", "research findings"])
+        } on ${asked}`,
+        more: findings.map(({ name }) => name),
+      }),
+  })
+}
 
 // The countries whose values start before the years they all have, earliest
 // first: "France from 2003, Sweden from 2005".
@@ -248,7 +274,7 @@ const coverage = ({ indicator, countries, state }: typeof Coverage.Type) => {
   const asked = `which years ${of(sourceOf(indicator))} has for ${countriesNamed(countries)}`
 
   return Match.valueTags(state, {
-    Running: () => line("Running", { icon, text: `Looking up ${asked}…` }),
+    ...lookingUp(icon, asked),
     // Opens to each country's years.
     Done: (covered) =>
       line("Done", {
@@ -268,8 +294,6 @@ const coverage = ({ indicator, countries, state }: typeof Coverage.Type) => {
         text: "Couldn't look up the years, trying again",
         more: [unresolved(reason)],
       }),
-    Failed: ({ reason }) => failed(reason, { icon, text: `Couldn't look up ${asked}` }),
-    Stopped: () => line("Stopped", { icon, text: `Stopped looking up ${asked}` }),
   })
 }
 
@@ -350,6 +374,7 @@ export const lineOf = (step: Step | Saved): Line | undefined =>
     Definition: definition,
     Lookup: lookup,
     Records: records,
+    Research: research,
     Coverage: coverage,
     Fetch: fetch,
     // A block shows in the answer, not in the log.
@@ -385,6 +410,7 @@ const kindOf = (step: Saved): Noun | undefined =>
     Definition: () => definitions,
     Lookup: () => lookups,
     Records: () => lookups,
+    Research: () => lookups,
     Coverage: () => lookups,
     Fetch: ({ state }) => (Predicate.isTagged(state, "Done") ? charts : undefined),
   })

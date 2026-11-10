@@ -1,22 +1,26 @@
 import {
   type Ballot,
+  bylineOf,
   Cited,
   type Citation,
   type Country,
   type Election,
   End,
   type Event,
+  Evidence,
+  type Finding,
   type Government,
   type Moment,
   type PartyColor,
   type Publisher,
   type Reform,
   Scope,
+  type Study,
   When,
   yearOf,
   yearsOf,
 } from "@civicdata/domain"
-import { Match } from "effect"
+import { Array as Arr, Match } from "effect"
 
 import { countryName } from "./format.ts"
 
@@ -269,7 +273,9 @@ const concerned = (scope: Scope, shown: ReadonlyArray<Country>) =>
         countries.includes(country) ? [countryName(country)] : [],
       )
 
-      return `${countries.length} countries, including ${among.join(" and ")}`
+      return among.length === 0
+        ? `${countries.length} countries`
+        : `${countries.length} countries, including ${among.join(" and ")}`
     },
   })
 
@@ -365,6 +371,44 @@ const read = ({ publisher, url }: Citation): Page => ({
   url,
 })
 
+// How settled a finding is, as its card says it.
+const standing = (evidence: Evidence) =>
+  Evidence.match(evidence, {
+    Agreed: ({ studies }) =>
+      `Agreed: ${studies.length} studies support it, and none we hold disputes it`,
+    Single: () => "One study: not yet replicated",
+    Disputed: ({ objection }) => `Disputed: ${objection}`,
+  })
+
+// A study as its card lists it: "Blanchard and Leigh (2013), Growth
+// Forecast Errors and Fiscal Multipliers, IMF Working Paper WP/13/1".
+const studied = (study: Study, side = ""): Page => ({
+  title: `${side}${bylineOf(study)}, ${study.title}, ${study.publisher}`,
+  url: study.url,
+})
+
+// The studies of a finding, each side of a dispute named.
+const papers = (evidence: Evidence): Arr.NonEmptyReadonlyArray<Page> =>
+  Evidence.match(evidence, {
+    Agreed: ({ studies }) => Arr.map(studies, (study) => studied(study)),
+    Single: ({ study }) => Arr.of(studied(study)),
+    Disputed: ({ supporting, disputing }) =>
+      Arr.appendAll(
+        Arr.map(supporting, (study) => studied(study, "Supports: ")),
+        Arr.map(disputing, (study) => studied(study, "Disputes: ")),
+      ),
+  })
+
+// A finding's lines: its claim, where and when it holds, and how settled it
+// is.
+const explaining = (finding: Finding, countries: ReadonlyArray<Country>) => [
+  finding.claim,
+  `${concerned(finding.scope, countries)} · ${
+    finding.from === finding.to ? finding.from : `${finding.from} to ${finding.to}`
+  }`,
+  standing(finding.evidence),
+]
+
 // What the card of a record the agent's words cite shows, as the chart's
 // tooltip says it for the year the record starts: its line, the pages it
 // cites, numbered as its line refers to them, and the page its name links to.
@@ -397,5 +441,10 @@ export const card = (record: Cited, countries: ReadonlyArray<Country>) =>
         pages,
         link: reform.sources[0].url,
       }
+    },
+    Finding: ({ finding }) => {
+      const pages = papers(finding.evidence)
+
+      return { lines: explaining(finding, countries), pages, link: pages[0].url }
     },
   })

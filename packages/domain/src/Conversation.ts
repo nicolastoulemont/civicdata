@@ -1,5 +1,6 @@
 import { Match, Schema } from "effect"
 
+import { Cited, RecordId } from "./Cited.ts"
 import { Country } from "./Country.ts"
 import { DimensionId } from "./Dimension.ts"
 import {
@@ -10,7 +11,7 @@ import {
   SourceUnavailable,
 } from "./Errors.ts"
 import { IndicatorId } from "./Indicator.ts"
-import { Cited, Overlays } from "./Politics.ts"
+import { Overlays } from "./Politics.ts"
 import { Source } from "./Source.ts"
 import { View, Year } from "./View.ts"
 
@@ -122,6 +123,22 @@ const records = <S extends Schema.Top>(state: S) => ({
   state,
 })
 
+// The research findings a lookup found, each with its id and name.
+export const Researched = Schema.TaggedStruct("Done", {
+  findings: Schema.Array(Schema.Struct({ id: RecordId, name: Schema.String })),
+})
+
+// The agent looks up the research findings that explain an indicator in some
+// countries over some years.
+const research = <S extends Schema.Top>(state: S) => ({
+  id: StepId,
+  indicator: IndicatorId,
+  countries: Schema.NonEmptyArray(Country),
+  from: Year,
+  to: Year,
+  state,
+})
+
 // Why the agent cannot show a chart. The step's view says which chart type,
 // indicator, countries, years and transform it asked for.
 // - NoValues: the source has no values for those countries and years.
@@ -204,7 +221,7 @@ const linked = Schema.makeFilter(
   },
 )
 
-// What the agent wrote, in Markdown, with the political records it cites.
+// What the agent wrote, in Markdown, with the records it cites.
 // The text links each record by its place in `cites`, as
 // "[Mariano Rajoy](cite:0)".
 export const Text = Schema.TaggedStruct("Text", {
@@ -249,6 +266,7 @@ const Work = Schema.TaggedUnion({
   Definition: definition(live(Read)),
   Lookup: lookup(live(Located)),
   Records: records(live(Recorded)),
+  Research: research(live(Researched)),
   Coverage: coverage(live(Covered, Unresolved)),
   Fetch: fetch(live(Fetched, Rejected)),
   Rendered: { id: StepId, block: Block },
@@ -256,8 +274,17 @@ const Work = Schema.TaggedUnion({
 
 export type Work = typeof Work.Type
 
-export const { Thinking, Search, Definition, Lookup, Records, Coverage, Fetch, Rendered } =
-  Work.cases
+export const {
+  Thinking,
+  Search,
+  Definition,
+  Lookup,
+  Records,
+  Research,
+  Coverage,
+  Fetch,
+  Rendered,
+} = Work.cases
 
 // A step of work that ended, as a turn keeps it. Thinking is not kept: it
 // only fills the time between steps.
@@ -266,6 +293,7 @@ export const Ended = Schema.TaggedUnion({
   Definition: definition(ended(Read)),
   Lookup: lookup(ended(Located)),
   Records: records(ended(Recorded)),
+  Research: research(ended(Researched)),
   Coverage: coverage(ended(Covered, Unresolved)),
   Fetch: fetch(ended(Fetched, Rejected)),
 })

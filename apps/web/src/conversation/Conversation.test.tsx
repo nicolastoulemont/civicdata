@@ -14,26 +14,33 @@ import {
   Definition,
   End,
   Ended,
+  Evidence,
   Failed,
   Fetch,
   Fetched,
+  Finding,
   type Government,
   IndicatorId,
   Politics,
   Read,
+  RecordId,
   Recorded,
   Records,
   Rejected,
   Rejection,
   Rendered,
+  Research,
+  Researched,
   ResolvedView,
   Running,
+  Scope,
   Search,
   Searched,
   SourceUnavailable,
   Step,
   StepId,
   Stopped,
+  type Study,
   Text,
   TooManyQuestions,
   Trend,
@@ -481,6 +488,17 @@ const lookingUp = (state: typeof Coverage.Type.state) =>
     state,
   })
 
+// The agent looking up research on unemployment in Germany and Spain.
+const researching = (state: typeof Research.Type.state) =>
+  Research.make({
+    id: StepId.make("research-1"),
+    indicator: IndicatorId.make("SL.UEM.TOTL.ZS"),
+    countries: ["DEU", "ESP"],
+    from: Year.make(2005),
+    to: Year.make(2012),
+    state,
+  })
+
 describe("Conversation", () => {
   it("asks the question from the home page, shows each step, then the chart", async () => {
     const reply = answer()
@@ -644,6 +662,38 @@ describe("Conversation", () => {
     expect(
       await findStep("Found 4 governments and 2 elections for France, 2000 to 2024"),
     ).toBeDefined()
+  })
+
+  it("says which research findings the agent looked up, opening to their names", async () => {
+    const reply = answer()
+
+    network.use(turns([]), reply.handler)
+    show("Why did unemployment fall in Germany?")
+
+    reply.send(message(researching(Running.make({}))))
+    expect(await findStep("Looking up research on Germany and Spain, 2005 to 2012…")).toBeDefined()
+
+    reply.send(
+      message(
+        researching(
+          Researched.make({
+            findings: [
+              {
+                id: RecordId.make("finding:hartz-reforms"),
+                name: "a large effect of the Hartz reforms",
+              },
+            ],
+          }),
+        ),
+      ),
+    )
+    await userEvent.setup().click(
+      await screen.findByRole("button", {
+        name: "Found 1 research finding on Germany and Spain, 2005 to 2012",
+      }),
+    )
+
+    expect(await findStep("a large effect of the Hartz reforms")).toBeDefined()
   })
 
   it("says which years each country has data for, opening to each country's years", async () => {
@@ -1293,6 +1343,93 @@ describe("Conversation", () => {
     expect(
       screen.getByRole("link", { name: "PPEG (Krause, Döring, Stoppe, WZB Berlin, 2025)" }),
     ).toBeDefined()
+  })
+
+  it("links a finding the agent's words cite, and shows its studies on hover", async () => {
+    const user = userEvent.setup()
+    const germany = Trend.make({ ...brazil, countries: ["DEU"] })
+
+    const krebs: Study = {
+      authors: ["Krebs, Tom", "Scheffel, Martin"],
+      year: 2013,
+      title: "Macroeconomic Evaluation of Labor Market Reform in Germany",
+      publisher: "IMF Working Paper 13/42",
+      doi: null,
+      url: "https://www.imf.org/external/pubs/ft/wp/2013/wp1342.pdf",
+    }
+
+    const hartz = Finding.make({
+      id: "hartz-reforms",
+      name: "a large effect of the Hartz reforms",
+      claim: "The Hartz reforms caused much of the fall in German unemployment after 2005.",
+      indicators: [IndicatorId.make("SL.UEM.TOTL.ZS")],
+      scope: Scope.cases.Countries.make({ countries: ["DEU"] }),
+      from: Year.make(2005),
+      to: Year.make(2012),
+      evidence: Evidence.cases.Disputed.make({
+        supporting: [krebs],
+        disputing: [
+          {
+            authors: ["Launov, Andrey", "Wälde, Klaus"],
+            year: 2010,
+            title:
+              "Estimating Incentive and Welfare Effects of Non-Stationary Unemployment Benefits",
+            publisher: "IZA Discussion Paper 4740",
+            doi: null,
+            url: "https://docs.iza.org/dp4740.pdf",
+          },
+        ],
+        objection: "Other studies find the reforms lowered unemployment only a little.",
+      }),
+    })
+
+    const text = "Some studies found [a large effect of the Hartz reforms](cite:0)."
+
+    network.use(
+      ...kept([
+        {
+          question: "Why did unemployment fall in Germany?",
+          answer: charted(
+            plot(germany),
+            Text.make({ text, cites: [Cited.cases.Finding.make({ finding: hartz })] }),
+          ),
+        },
+      ]).handlers,
+      resolve,
+    )
+    show()
+
+    const link = await screen.findByRole("link", { name: "a large effect of the Hartz reforms" })
+
+    expect(link.getAttribute("href")).toBe(krebs.url)
+
+    await user.hover(link)
+
+    expect(
+      await screen.findByText(
+        "The Hartz reforms caused much of the fall in German unemployment after 2005.",
+      ),
+    ).toBeDefined()
+    expect(screen.getByText("Germany · 2005 to 2012")).toBeDefined()
+    expect(
+      screen.getByText(
+        "Disputed: Other studies find the reforms lowered unemployment only a little.",
+      ),
+    ).toBeDefined()
+    expect(
+      screen
+        .getByRole("link", {
+          name: "Supports: Krebs and Scheffel (2013), Macroeconomic Evaluation of Labor Market Reform in Germany, IMF Working Paper 13/42",
+        })
+        .getAttribute("href"),
+    ).toBe(krebs.url)
+    expect(
+      screen
+        .getByRole("link", {
+          name: "Disputes: Launov and Wälde (2010), Estimating Incentive and Welfare Effects of Non-Stationary Unemployment Benefits, IZA Discussion Paper 4740",
+        })
+        .getAttribute("href"),
+    ).toBe("https://docs.iza.org/dp4740.pdf")
   })
 
   it("keeps a changed chart after a reload", async () => {
