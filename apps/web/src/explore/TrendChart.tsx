@@ -20,6 +20,8 @@ import {
   ReferenceLine,
   XAxis,
   YAxis,
+  usePlotArea,
+  useYAxisScale,
 } from "recharts"
 
 import {
@@ -30,9 +32,10 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 import { countryName, formatCompact } from "./format.ts"
-import { fill, slot } from "./palette.ts"
+import { color } from "./palette.ts"
 import {
   cited,
   governing,
@@ -74,8 +77,12 @@ const byYear = (observations: ResolvedView["observations"]) => {
   )
 }
 
+// How faint the lines of other countries turn while one is brought forward.
+const faint = 0.15
+
 interface MarkedProps {
   country: Country
+  faded: boolean
   flagged: ReadonlySet<string>
   alone: ReadonlySet<string>
   cx?: number
@@ -86,7 +93,7 @@ interface MarkedProps {
 // A ring on a point its source flags, a dot on a point with no value on
 // either side, which no line reaches, and nothing on the others. Recharts
 // passes each point's position and row.
-const Marked = ({ country, flagged, alone, cx, cy, payload }: MarkedProps) => {
+const Marked = ({ country, faded, flagged, alone, cx, cy, payload }: MarkedProps) => {
   const key = payload === undefined ? undefined : `${country}:${payload.year}`
 
   if (key !== undefined && flagged.has(key)) {
@@ -96,14 +103,15 @@ const Marked = ({ country, flagged, alone, cx, cy, payload }: MarkedProps) => {
         cy={cy}
         r={4}
         fill="var(--background)"
-        stroke={`var(--color-${country})`}
+        stroke={color(country)}
         strokeWidth={2}
+        opacity={faded ? faint : 1}
       />
     )
   }
 
   return key !== undefined && alone.has(key) ? (
-    <circle cx={cx} cy={cy} r={3} fill={`var(--color-${country})`} />
+    <circle cx={cx} cy={cy} r={3} fill={color(country)} opacity={faded ? faint : 1} />
   ) : null
 }
 
@@ -135,18 +143,111 @@ interface BandProps {
 // A head of government's band as a plain SVG rectangle, which Recharts sizes
 // and clips. Its own Rectangle draws nothing outside a browser's layout, so
 // tests could not see a band's colour.
-const Band = ({ x, y, width, height, fill: color, fillOpacity, clipPath }: BandProps) => (
+const Band = ({ x, y, width, height, fill, fillOpacity, clipPath }: BandProps) => (
   <rect
     className="recharts-reference-area-rect"
     x={x}
     y={y}
     width={width}
     height={height}
-    fill={color}
+    fill={fill}
     fillOpacity={fillOpacity}
     clipPath={clipPath}
   />
 )
+
+// Recharts' own margin around the plot.
+const margin = { top: 5, right: 5, bottom: 5, left: 5 }
+
+// Up to this many countries, each line is named at its end.
+const named = 8
+
+// A country's name, cut to fit beside the plot.
+const short = (country: Country) => {
+  const name = countryName(country)
+
+  return name.length > 18 ? `${name.slice(0, 17)}…` : name
+}
+
+interface EndsProps {
+  rows: ReadonlyArray<Point>
+  countries: ReadonlyArray<Country>
+  forward: Country | null
+}
+
+// Each line's name right of the plot, level with its last value and pushed
+// apart so no two overlap, as on the share card. The legend names them too,
+// so screen readers skip these.
+const Ends = ({ rows, countries, forward }: EndsProps) => {
+  const y = useYAxisScale()
+  const plot = usePlotArea()
+
+  if (y === undefined || plot === undefined) return null
+
+  const ends = countries
+    .flatMap((country) => {
+      const last = rows.findLast((row) => row[country] !== undefined)?.[country]
+      const at = last === undefined ? undefined : y(last)
+
+      return at === undefined ? [] : [{ country, at }]
+    })
+    .toSorted((left, right) => left.at - right.at)
+
+  const placed = ends.reduce<Array<{ country: Country; at: number }>>((above, { country, at }) => {
+    above.push({ country, at: Math.max(at, (above.at(-1)?.at ?? -Infinity) + 14) })
+
+    return above
+  }, [])
+
+  return (
+    <g aria-hidden>
+      {placed.map(({ country, at }) => (
+        <text
+          key={country}
+          x={plot.x + plot.width + 6}
+          y={at}
+          dy="0.32em"
+          fontSize={12}
+          fill={country === forward ? "var(--foreground)" : "var(--muted-foreground)"}
+          opacity={forward !== null && country !== forward ? faint : 1}
+        >
+          {short(country)}
+        </text>
+      ))}
+    </g>
+  )
+}
+
+// Room right of the plot for the names at the lines' ends, on a trend of
+// few enough countries to name each. None past that, nor on a phone, which
+// has no room beside the plot: the legend names the lines.
+const useRoom = (countries: ReadonlyArray<Country>) =>
+  useIsMobile() || countries.length > named
+    ? 0
+    : Math.min(130, 8 + 6.5 * Math.max(...countries.map((country) => short(country).length)))
+
+// The country brought forward: the one pointed at in the legend, else the
+// one pressed there. A country the trend no longer shows brings none. The
+// others' lines fade.
+const useForward = (countries: ReadonlyArray<Country>) => {
+  const [pressed, setPressed] = useState<Country | null>(null)
+  const [pointed, setPointed] = useState<Country | null>(null)
+  const of = (key: string | null) => countries.find((each) => each === key) ?? null
+
+  const forward =
+    [pointed, pressed].find((each) => each !== null && countries.includes(each)) ?? null
+
+  return {
+    forward,
+    faded: (country: Country) => forward !== null && country !== forward,
+    picking: {
+      label: "Highlight a country",
+      pressed,
+      onPress: (key: string | null) => setPressed(of(key)),
+      onPoint: (key: string | null) => setPointed(of(key)),
+    },
+  }
+}
 
 // The trend's whole history, for picking its years over it.
 export interface History {
@@ -211,9 +312,27 @@ interface TipProps
     Pick<ComponentProps<typeof ChartTooltipContent>, "active" | "payload" | "label">,
     Omit<PoliticsProps, "year"> {}
 
-// The values of the hovered year and the political context of that year.
-const Tip = ({ terms: all, elections, events, reforms, countries, ...tooltip }: TipProps) => (
-  <ChartTooltipContent {...tooltip}>
+// A line's value in the hovered year; a country without one sorts last.
+const valueOf = ({ value }: { value?: unknown }) => Number(value ?? -Infinity)
+
+// The hovered year, its values highest first so a reader finds a country
+// among many, and the political context of that year. Recharts passes the
+// year as a number, which the tooltip would read as a series and name after
+// the first country.
+const Tip = ({
+  terms: all,
+  elections,
+  events,
+  reforms,
+  countries,
+  payload,
+  ...tooltip
+}: TipProps) => (
+  <ChartTooltipContent
+    {...tooltip}
+    label={`${Number(tooltip.label)}`}
+    payload={(payload ?? []).toSorted((left, right) => valueOf(right) - valueOf(left))}
+  >
     <Politics
       terms={all}
       elections={elections}
@@ -245,7 +364,7 @@ const caption = (
     `Line chart of ${title} for ${countries.map(countryName).join(", ")}`,
     ...(bands.length > 0
       ? [
-          bands.some(({ color }) => color !== null)
+          bands.some((band) => band.color !== null)
             ? "shaded by head of government and tinted by their party"
             : "shaded by head of government",
         ]
@@ -324,7 +443,8 @@ interface TrendChartProps {
   reforms?: ReadonlyArray<Reform> | undefined
 }
 
-// One line per country. With a history, a window under the chart picks its
+// One line per country, in the country's own colour, and a tooltip that
+// lists the hovered year's values highest first. With a history, a window under the chart picks its
 // years; the value scale then fits the whole history, so it stays put while
 // the window moves. With governments, the tooltip names who governed each
 // country in the hovered year, and a chart of one country is shaded in a
@@ -385,11 +505,11 @@ export const TrendChart = ({
     reforms,
   })
 
+  const { forward, faded, picking } = useForward(trend.countries)
+  const room = useRoom(trend.countries)
+
   const config: ChartConfig = Object.fromEntries(
-    trend.countries.map((country, index) => [
-      country,
-      { label: countryName(country), color: fill(slot(index)) },
-    ]),
+    trend.countries.map((country) => [country, { label: countryName(country) }]),
   )
 
   return (
@@ -405,20 +525,24 @@ export const TrendChart = ({
         })}
       </figcaption>
       <ChartContainer config={config} className="aspect-auto h-80 w-full">
-        <LineChart data={rows} accessibilityLayer>
-          {bands.map(({ term, x1, x2, color }, index) => (
+        <LineChart
+          data={rows}
+          margin={{ ...margin, right: margin.right + room }}
+          accessibilityLayer
+        >
+          {bands.map(({ term, x1, x2, color: party }, index) => (
             <ReferenceArea
               key={`${term.head} ${term.governments[0].start}`}
               x1={x1}
               x2={x2}
               ifOverflow="hidden"
-              // A light tint of the head's party's colour, the one colour a
-              // chart takes from data; grey without one. Neighbouring bands
-              // alternate in strength, so two heads of one party stay apart.
+              // A light tint of the head's party's colour; grey without one.
+              // Neighbouring bands alternate in strength, so two heads of one
+              // party stay apart.
               // oxlint-disable-next-line anti-slop/no-shape-in-symbol-names -- Recharts names the prop.
               shape={Band}
-              fill={color?.hex ?? "var(--muted-foreground)"}
-              fillOpacity={(color === null ? 0.06 : 0.14) * (index % 2 === 0 ? 1 : 1.6)}
+              fill={party?.hex ?? "var(--muted-foreground)"}
+              fillOpacity={(party === null ? 0.06 : 0.14) * (index % 2 === 0 ? 1 : 1.6)}
               // A band under two years wide has no room for a name; the
               // tooltip still gives it.
               {...(x2 - x1 >= 2
@@ -457,7 +581,8 @@ export const TrendChart = ({
             <ReferenceLine
               key={`reform ${country} ${year}`}
               x={year}
-              stroke={`var(--color-${country})`}
+              stroke={color(country)}
+              strokeOpacity={faded(country) ? faint : 1}
               strokeDasharray="1 3"
               strokeWidth={2}
               ifOverflow="hidden"
@@ -467,7 +592,8 @@ export const TrendChart = ({
             <ReferenceLine
               key={`${country} ${year}`}
               x={year}
-              stroke={`var(--color-${country})`}
+              stroke={color(country)}
+              strokeOpacity={faded(country) ? faint : 1}
               strokeDasharray="4 4"
               ifOverflow="hidden"
             />
@@ -494,23 +620,30 @@ export const TrendChart = ({
               />
             }
           />
-          <ChartLegend content={<ChartLegendContent />} />
+          {/* Rows wrap, so a legend of many countries stays inside the card. */}
+          <ChartLegend
+            content={<ChartLegendContent className="flex-wrap gap-y-1" picking={picking} />}
+          />
           {trend.countries.map((country) => (
             <Line
               key={country}
               dataKey={country}
               type="monotone"
-              stroke={`var(--color-${country})`}
-              strokeWidth={2}
-              dot={<Marked country={country} flagged={flagged} alone={alone} />}
+              stroke={color(country)}
+              strokeOpacity={faded(country) ? faint : 1}
+              strokeWidth={country === forward ? 3 : 2}
+              dot={
+                <Marked country={country} faded={faded(country)} flagged={flagged} alone={alone} />
+              }
               connectNulls={false}
               isAnimationActive={dragged === null}
             />
           ))}
+          {room > 0 ? <Ends rows={rows} countries={trend.countries} forward={forward} /> : null}
         </LineChart>
       </ChartContainer>
       {history === undefined ? null : (
-        <div className="pr-1 pl-14">
+        <div className="pl-14" style={{ paddingRight: 4 + room }}>
           <YearWindow
             history={history.observations}
             countries={trend.countries}

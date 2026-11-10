@@ -3,7 +3,7 @@ import { type PointerEvent, useRef } from "react"
 
 import { Slider } from "@/components/ui/slider"
 
-import { fill, slot } from "./palette.ts"
+import { color } from "./palette.ts"
 
 export interface Years {
   readonly from: Year
@@ -93,7 +93,7 @@ export const YearWindow = ({ history, countries, years, onChange, onCommit }: Ye
         className="absolute inset-0 size-full overflow-visible"
         aria-hidden
       >
-        {countries.map((country, index) => (
+        {countries.map((country) => (
           <path
             key={country}
             d={lineOf(
@@ -101,7 +101,7 @@ export const YearWindow = ({ history, countries, years, onChange, onCommit }: Ye
               { first, last, low, high },
             )}
             fill="none"
-            stroke={fill(slot(index))}
+            stroke={color(country)}
             strokeWidth={1.5}
             vectorEffect="non-scaling-stroke"
           />

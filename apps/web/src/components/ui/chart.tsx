@@ -3,6 +3,8 @@ import * as React from "react"
 import * as RechartsPrimitive from "recharts"
 import type { TooltipValueType } from "recharts"
 
+import { Toggle } from "@/components/ui/toggle"
+
 // Format: { THEME_NAME: CSS_SELECTOR }
 const THEMES = { light: "", dark: ".dark" } as const
 
@@ -226,7 +228,7 @@ function ChartTooltipContent({
                     )}
                     <div
                       className={cn(
-                        "flex flex-1 justify-between leading-none",
+                        "flex flex-1 justify-between gap-4 leading-none",
                         nestLabel ? "items-end" : "items-center",
                       )}
                     >
@@ -258,15 +260,28 @@ function ChartTooltipContent({
 
 const ChartLegend = RechartsPrimitive.Legend
 
+// civicdata: legend items that bring one series forward. Pointing at an item
+// or focusing it brings its series forward while it lasts; pressing it keeps
+// the series forward until it is pressed again.
+interface LegendPicking {
+  // What the items pick, for screen readers: "Highlight a country".
+  label: string
+  pressed: string | null
+  onPress: (key: string | null) => void
+  onPoint: (key: string | null) => void
+}
+
 function ChartLegendContent({
   className,
   hideIcon = false,
   payload,
   verticalAlign = "bottom",
   nameKey,
+  picking,
 }: React.ComponentProps<"div"> & {
   hideIcon?: boolean
   nameKey?: string
+  picking?: LegendPicking
 } & RechartsPrimitive.DefaultLegendContentProps) {
   const { config } = useChart()
 
@@ -276,8 +291,11 @@ function ChartLegendContent({
 
   return (
     <div
+      role={picking === undefined ? undefined : "group"}
+      aria-label={picking?.label}
       className={cn(
-        "flex items-center justify-center gap-4",
+        "flex items-center justify-center",
+        picking === undefined ? "gap-4" : "gap-x-1",
         verticalAlign === "top" ? "pb-3" : "pt-3",
         className,
       )}
@@ -288,13 +306,8 @@ function ChartLegendContent({
           const key = `${nameKey ?? item.dataKey ?? "value"}`
           const itemConfig = getPayloadConfigFromPayload(config, item, key)
 
-          return (
-            <div
-              key={index}
-              className={cn(
-                "flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground",
-              )}
-            >
+          const content = (
+            <>
               {itemConfig?.icon && !hideIcon ? (
                 <itemConfig.icon />
               ) : (
@@ -306,7 +319,32 @@ function ChartLegendContent({
                 />
               )}
               {itemConfig?.label}
+            </>
+          )
+
+          return picking === undefined ? (
+            <div
+              key={index}
+              className={cn(
+                "flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3 [&>svg]:text-muted-foreground",
+              )}
+            >
+              {content}
             </div>
+          ) : (
+            <Toggle
+              key={index}
+              size="sm"
+              className="h-6 min-w-0 gap-1.5 px-1.5 text-xs font-normal"
+              pressed={picking.pressed === key}
+              onPressedChange={(pressed) => picking.onPress(pressed ? key : null)}
+              onPointerEnter={() => picking.onPoint(key)}
+              onPointerLeave={() => picking.onPoint(null)}
+              onFocus={() => picking.onPoint(key)}
+              onBlur={() => picking.onPoint(null)}
+            >
+              {content}
+            </Toggle>
           )
         })}
     </div>

@@ -229,8 +229,48 @@ const trend = Trend.make({
   to: Year.make(2020),
 })
 
+// A trend of `countries` whose values rise with their position, drawn in a
+// box Recharts can lay out.
+const drawTrend = (countries: Trend["countries"]) => {
+  const view = Trend.make({ ...trend, countries })
+
+  network.use(
+    notes,
+    search,
+    http.post("/api/views/resolve", () =>
+      HttpResponse.json(
+        Schema.encodeSync(ResolvedViewSchema)({
+          ...resolvedFor(view),
+          missing: [],
+          observations: countries.flatMap((country, index) => [
+            { country, year: Year.make(2019), value: 10 + index },
+            { country, year: Year.make(2020), value: 20 + index },
+          ]),
+        }),
+      ),
+    ),
+  )
+
+  return show(view)
+}
+
+// A box for the chart, and a line's height for its legend, which Recharts
+// takes off the plot's.
+const layOut = () =>
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (
+    this: HTMLElement,
+  ) {
+    return this.classList.contains("recharts-legend-wrapper")
+      ? new DOMRect(0, 0, 800, 24)
+      : new DOMRect(0, 0, 800, 320)
+  })
+
+// Each line's colour, in the order of the trend's countries.
+const strokes = (figure: HTMLElement) =>
+  [...figure.querySelectorAll(".recharts-line-curve")].map((line) => line.getAttribute("stroke"))
+
 describe("Explore", () => {
-  it("names all seven countries in the legend and table when the palette overflows", async () => {
+  it("names all seven countries in the legend, at their lines' ends and in the table, each in its own colour", async () => {
     const countries = ["FRA", "DEU", "ITA", "ESP", "GBR", "USA", "JPN"] as const
 
     const names = [
@@ -243,42 +283,144 @@ describe("Explore", () => {
       "Japan",
     ]
 
-    const view = Trend.make({ ...trend, countries })
-
-    network.use(
-      notes,
-      search,
-      http.post("/api/views/resolve", () =>
-        HttpResponse.json(
-          Schema.encodeSync(ResolvedViewSchema)({
-            ...resolvedFor(view),
-            missing: [],
-            observations: countries.flatMap((country, index) => [
-              { country, year: Year.make(2019), value: 10 + index },
-              { country, year: Year.make(2020), value: 20 + index },
-            ]),
-          }),
-        ),
-      ),
-    )
-
-    const bounds = vi
-      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
-      .mockReturnValue(new DOMRect(0, 0, 800, 320))
+    const bounds = layOut()
 
     try {
-      show(view)
+      drawTrend(countries)
 
-      const figure = within(await screen.findByRole("figure"))
+      const shown = await screen.findByRole("figure")
+      const figure = within(shown)
+
+      await figure.findByRole("button", { name: "Japan" })
+
+      expect(new Set(strokes(shown)).size).toBe(7)
+
+      // Each line is named in the legend and at its end.
+      const plot = within(
+        await vi.waitUntil(() => shown.querySelector<HTMLElement>(".recharts-surface")),
+      )
 
       for (const name of names) {
-        expect(figure.getByText(name)).toBeDefined()
+        expect(figure.getByRole("button", { name })).toBeDefined()
+        expect(plot.getByText(name)).toBeDefined()
       }
 
       await userEvent.setup().click(screen.getByRole("tab", { name: "Data" }))
       const table = within(await screen.findByRole("table"))
 
       for (const name of names) expect(table.getAllByRole("cell", { name })).toHaveLength(2)
+    } finally {
+      bounds.mockRestore()
+    }
+  })
+
+  it("names a trend of nine countries in its legend only", async () => {
+    const bounds = layOut()
+
+    try {
+      drawTrend(["FRA", "DEU", "ITA", "ESP", "GBR", "USA", "JPN", "CAN", "MEX"])
+
+      const shown = await screen.findByRole("figure")
+
+      await within(shown).findByRole("button", { name: "Mexico" })
+
+      const plot = await vi.waitUntil(() => shown.querySelector<HTMLElement>(".recharts-surface"))
+
+      expect(within(plot).queryByText("Mexico")).toBeNull()
+    } finally {
+      bounds.mockRestore()
+    }
+  })
+
+  it("brings a country forward while its legend entry is pointed at, and keeps it once pressed", async () => {
+    const bounds = layOut()
+
+    try {
+      const user = userEvent.setup()
+
+      drawTrend(["FRA", "DEU", "ITA"])
+
+      const shown = await screen.findByRole("figure")
+
+      const legend = within(
+        await within(shown).findByRole("group", { name: "Highlight a country" }),
+      )
+
+      const france = legend.getByRole("button", { name: "France" })
+
+      const opacities = () =>
+        [...shown.querySelectorAll(".recharts-line-curve")].map((line) =>
+          line.getAttribute("stroke-opacity"),
+        )
+
+      await user.hover(france)
+      expect(opacities()).toEqual(["1", "0.15", "0.15"])
+
+      await user.unhover(france)
+      expect(opacities()).toEqual(["1", "1", "1"])
+
+      await user.click(france)
+      await user.unhover(france)
+      expect(france.getAttribute("aria-pressed")).toBe("true")
+      expect(opacities()).toEqual(["1", "0.15", "0.15"])
+
+      await user.click(france)
+      await user.unhover(france)
+      expect(france.getAttribute("aria-pressed")).toBe("false")
+      expect(opacities()).toEqual(["1", "1", "1"])
+    } finally {
+      bounds.mockRestore()
+    }
+  })
+
+  it("draws France in the same colour whatever its place in the trend", async () => {
+    const bounds = layOut()
+
+    try {
+      const first = drawTrend(["FRA", "DEU"])
+      const before = await screen.findByRole("figure")
+
+      await within(before).findByRole("button", { name: "Germany" })
+      const [france] = strokes(before)
+
+      first.unmount()
+      drawTrend(["DEU", "ITA", "FRA"])
+
+      const after = await screen.findByRole("figure")
+
+      await within(after).findByRole("button", { name: "Italy" })
+
+      expect(france).toMatch(/^light-dark\(#[0-9a-f]{6}, #[0-9a-f]{6}\)$/)
+      expect(strokes(after)[2]).toBe(france)
+    } finally {
+      bounds.mockRestore()
+    }
+  })
+
+  it("lists a year's values in the tooltip highest first", async () => {
+    const bounds = layOut()
+
+    try {
+      const user = userEvent.setup()
+
+      drawTrend(["FRA", "DEU", "ITA"])
+
+      const shown = await screen.findByRole("figure")
+
+      await within(shown).findByRole("button", { name: "Italy" })
+      await user.click(within(shown).getByRole("application"))
+      await user.keyboard("{ArrowRight}")
+
+      const tooltip = await vi.waitUntil(() =>
+        shown.querySelector<HTMLElement>(".recharts-tooltip-wrapper"),
+      )
+
+      expect(await within(tooltip).findByText("2020")).toBeDefined()
+      expect(
+        within(tooltip)
+          .getAllByText(/^(France|Germany|Italy)$/)
+          .map((name) => name.textContent),
+      ).toEqual(["Italy", "Germany", "France"])
     } finally {
       bounds.mockRestore()
     }
@@ -629,7 +771,7 @@ describe("Explore", () => {
 
       // The tooltip steps through every year: two steps from 1996, past the
       // empty 1997, is 1998's value.
-      await figure.findByText("France")
+      await figure.findByRole("button", { name: "France" })
       await user.click(figure.getByRole("application"))
       await user.keyboard("{ArrowRight}{ArrowRight}")
 

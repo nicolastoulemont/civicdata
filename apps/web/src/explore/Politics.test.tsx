@@ -356,7 +356,7 @@ const hover = async (
   user: ReturnType<typeof userEvent.setup>,
   { figure, country, after }: { figure: HTMLElement; country: string; after: number },
 ) => {
-  await within(figure).findByText(country)
+  await within(figure).findByRole("button", { name: country })
   await user.click(within(figure).getByRole("application"))
 
   if (after > 0) await user.keyboard("{ArrowRight}".repeat(after))
