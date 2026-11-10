@@ -12,7 +12,7 @@ import {
   sourceOf,
   type Year,
 } from "@civicdata/domain"
-import { Array as Arr, Context, Data, Effect, Layer, Option, Order, Schema } from "effect"
+import { Array as Arr, Context, Data, DateTime, Effect, Layer, Option, Order, Schema } from "effect"
 
 import { fingerprint } from "./fingerprint.ts"
 import { Described } from "./Series.ts"
@@ -32,6 +32,20 @@ export const Stored = Schema.Struct({
 export interface Stored extends Schema.Schema.Type<typeof Stored> {}
 
 const StoredJson = Schema.fromJsonString(Schema.toCodecJson(Stored))
+
+// A series as StoredJson encodes it, built with JSON.stringify: Schema's
+// encoding costs about 0.7 ms of CPU for a series of 750 values, this one
+// 0.05, and a first pass writes millions. Every read still decodes the object
+// with StoredJson.
+const encode = ({ indicator, dataset, retrievedAt, version, dimensions, observations }: Stored) =>
+  JSON.stringify({
+    indicator,
+    dataset,
+    retrievedAt: DateTime.formatIso(retrievedAt),
+    version,
+    dimensions,
+    observations,
+  })
 
 // Country, then year: the order a stored series keeps its observations in.
 export const byCountryYear = Order.combine(
@@ -211,7 +225,7 @@ export class Store extends Context.Service<Store, Interface>()("@civicdata/serve
           }).pipe(Effect.withSpan("Store.hashes")),
         write: (series) =>
           Effect.gen(function* () {
-            const text = yield* Schema.encodeEffect(StoredJson)(series).pipe(Effect.orDie)
+            const text = encode(series)
             const hash = yield* hashOf(series)
 
             yield* attempt(() =>

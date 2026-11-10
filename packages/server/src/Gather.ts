@@ -48,9 +48,9 @@ const together = 2
 const perStepValues = 5_000_000
 
 // Larger datasets are skipped. Reading one takes about half a second of CPU
-// per million values, and stores up to 50,000 series (government spending
-// by function, at 21 million values); the largest hold 490 million. 2% of
-// datasets are larger.
+// per million values, and a dataset this size stores up to about 80,000
+// series (business demography by size class, at 16 million values); the
+// largest hold 490 million. 2% of datasets are larger.
 const largest = 25_000_000
 
 // Series of one dataset stored at once.
@@ -313,9 +313,7 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
         candidate: Stored,
         stored: Option.Option<string>,
       ) {
-        const hash = yield* hashOf(candidate)
-
-        if (Option.exists(stored, (found) => found === hash)) {
+        if (Option.isSome(stored) && stored.value === (yield* hashOf(candidate))) {
           return "Unchanged" satisfies Outcome
         }
 
@@ -721,7 +719,7 @@ const runEurostat = Effect.fn("Gather.runEurostat")(function* () {
 
   const totals = yield* steps("Eurostat", eurostat.gather, {
     name: (after) => `gather Eurostat after ${after}`,
-    // A large dataset stores up to 50,000 series.
+    // A large dataset stores up to about 80,000 series.
     timeout: "30 minutes",
     until: started + Duration.toMillis(eurostatHours),
   })
