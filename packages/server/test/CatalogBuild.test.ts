@@ -7,7 +7,7 @@ import { BuildFailed, CatalogBuild } from "../src/CatalogBuild.ts"
 import {
   build,
   catalogOver,
-  dropFingerprints,
+  drop,
   emptyCatalog,
   entry,
   listings,
@@ -28,6 +28,21 @@ const kept: Record<Source, string> = {
   Eurostat: "Population on 1 January",
   OECD: "Monthly unemployment rates",
 }
+
+// The World Bank's list with GDP per capita renamed, a child mortality rate
+// added and the income share dropped. Workers AI's fake embeds "rich" and
+// "kids", so a search by meaning finds each.
+const edited = [
+  ...worldBankList.filter(
+    ({ indicator }) => indicator !== "SI.DST.10TH.10" && indicator !== "NY.GDP.PCAP.CD",
+  ),
+  entry(
+    "NY.GDP.PCAP.CD",
+    "GDP per capita, revised",
+    "Gross domestic product divided by the number of people.",
+  ),
+  entry("SH.DYN.MORT", "Mortality rate, under-five (per 1,000 live births)"),
+]
 
 const many = (count: number) =>
   Array.from({ length: count }, (_, index) => entry(`TEST.${index}`, `Indicator ${index}`))
@@ -197,7 +212,8 @@ describe("CatalogBuild", () => {
 
       yield* build(2)
 
-      expect(upserts().slice(embedded)).toEqual([2])
+      // The unemployment entry kept its vector.
+      expect(upserts().slice(embedded)).toEqual([1])
       expect(yield* published()).toEqual([
         { source: "Eurostat", generation: 2 },
         { source: "OECD", generation: 1 },
@@ -239,7 +255,7 @@ describe("CatalogBuild", () => {
     return Effect.gen(function* () {
       yield* build(1).pipe(Effect.provide(catalogOver(lists, { index })))
       // The catalog as the version before fingerprints left it.
-      yield* dropFingerprints
+      yield* drop("catalog_fingerprint", "catalog_vector")
       const embedded = upserts().length
 
       yield* build(2).pipe(Effect.provide(catalogOver(lists, { index })))
@@ -268,7 +284,7 @@ describe("CatalogBuild", () => {
 
     return Effect.gen(function* () {
       yield* build(1)
-      lists["World Bank"] = worldBankList.slice(0, 1)
+      lists["World Bank"] = edited
       ai.up = false
 
       const error = yield* build(2).pipe(Effect.flip)
@@ -279,5 +295,80 @@ describe("CatalogBuild", () => {
         "Life expectancy at birth, total (years)",
       ])
     }).pipe(Effect.provide(catalogOver(lists, { ai: workersAi(ai) })))
+  })
+
+  it.effect("embeds the new and edited entries and removes the dropped one's vector", () => {
+    const lists = listings()
+    const { index, upserts, deletes } = vectorize()
+
+    return Effect.gen(function* () {
+      const search = (yield* Catalog).search
+
+      yield* build(1)
+      lists["World Bank"] = edited
+      const embedded = upserts().length
+
+      yield* build(2)
+
+      expect(upserts().slice(embedded)).toEqual([2])
+      expect(deletes()).toEqual([["SI.DST.10TH.10"]])
+      expect(names(yield* search("how rich"))).toEqual(["GDP per capita, revised"])
+      expect(names(yield* search("kids"))).toEqual([
+        "Mortality rate, under-five (per 1,000 live births)",
+      ])
+    }).pipe(Effect.provide(catalogOver(lists, { index })))
+  })
+
+  for (const lose of ["embed World Bank after 0", "remove World Bank after 0"]) {
+    it.effect(`embeds and removes the same entries when it resumes after losing ${lose}`, () => {
+      const lists = listings()
+      const { index, upserts, deletes } = vectorize()
+      const run = steps(undefined, { lose })
+
+      return Effect.gen(function* () {
+        yield* build(1)
+        lists["World Bank"] = edited
+        const embedded = upserts().length
+
+        const error = yield* CatalogBuild.run(2).pipe(Effect.provide(run.layer), Effect.flip)
+
+        expect(error).toEqual(new BuildFailed({ sources: ["World Bank"] }))
+
+        yield* CatalogBuild.run(2).pipe(Effect.provide(run.layer))
+
+        expect(upserts().slice(embedded)).toEqual([2])
+        expect(deletes()).toEqual([["SI.DST.10TH.10"]])
+        expect(names(yield* (yield* Catalog).search("how rich"))).toEqual([
+          "GDP per capita, revised",
+        ])
+      }).pipe(Effect.provide(catalogOver(lists, { index })))
+    })
+  }
+
+  it.effect("embeds a changed source in full once over the tables fingerprints made", () => {
+    const lists = listings()
+    const { index, upserts } = vectorize()
+
+    return Effect.gen(function* () {
+      yield* build(1).pipe(Effect.provide(catalogOver(lists, { index })))
+      // The catalog as the version before catalog_vector left it.
+      yield* drop("catalog_vector")
+      lists["World Bank"] = edited
+      const embedded = upserts().length
+
+      yield* build(2).pipe(Effect.provide(catalogOver(lists, { index })))
+
+      // Every entry the World Bank lists, since no build recorded its vectors.
+      expect(upserts().slice(embedded)).toEqual([edited.length])
+
+      lists["World Bank"] = [
+        ...edited.filter(({ indicator }) => indicator !== "SP.POP.TOTL"),
+        entry("SP.POP.TOTL", "Population, total", "Revised."),
+      ]
+
+      yield* build(3).pipe(Effect.provide(catalogOver(lists, { index })))
+
+      expect(upserts().slice(embedded)).toEqual([edited.length, 1])
+    })
   })
 })
