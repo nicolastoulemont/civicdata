@@ -3,6 +3,7 @@ import {
   Country,
   Dimensions,
   IndicatorId,
+  Overlay,
   Ranking,
   Ratio,
   Relation,
@@ -15,7 +16,6 @@ import { defaultParseSearch, defaultStringifySearch } from "@tanstack/react-rout
 import { Match, Schema } from "effect"
 
 import { withPicks, withTransform } from "./edits.ts"
-import { Overlay } from "./politics.ts"
 
 // The View as readable URL parameters:
 // ?chart=trend&indicator=SP.POP.TOTL&countries=FRA,DEU&from=2000&to=2022&transform=index

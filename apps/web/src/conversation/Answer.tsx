@@ -4,6 +4,7 @@ import {
   type ChartIndex,
   type ConversationId,
   NoChart,
+  type Overlay,
   type TurnIndex,
   TurnNotFound,
   type View,
@@ -12,7 +13,6 @@ import { useState } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Explore } from "@/explore/Explore"
-import type { Overlay } from "@/explore/politics"
 
 import { useShow } from "./useConversation.ts"
 
@@ -43,8 +43,9 @@ interface AnswerProps {
 export const Answer = ({ id, turn, chart, agent, shown }: AnswerProps) => {
   const showing = useShow(id, { turn, chart })
   const view = showing.isPending ? showing.variables : (shown ?? agent.view)
-  // Not kept with the conversation: a copied link carries them instead.
-  const [overlays, setOverlays] = useState<ReadonlyArray<Overlay>>([])
+  // Open as the agent drew the chart. A person's changes are not kept with
+  // the conversation: a copied link carries them instead.
+  const [overlays, setOverlays] = useState<ReadonlyArray<Overlay>>(agent.overlays ?? [])
 
   return (
     <>

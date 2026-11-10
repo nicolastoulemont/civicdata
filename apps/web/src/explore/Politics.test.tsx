@@ -8,6 +8,7 @@ import {
   type Government,
   IndicatorId,
   Moment,
+  type Overlay,
   Politics,
   PoliticsUnavailable,
   type Reform,
@@ -30,7 +31,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { network } from "../../test/network.ts"
 import { Explore } from "./Explore.tsx"
-import type { Overlay } from "./politics.ts"
 
 const unemployment = IndicatorId.make("SL.UEM.TOTL.ZS")
 

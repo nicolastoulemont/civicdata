@@ -7,6 +7,7 @@ import {
   type Chart,
   ChartIndex,
   ConversationBusy,
+  type Country,
   Checked,
   ConversationId,
   Definition,
@@ -24,9 +25,12 @@ import {
   Located,
   Lookup,
   NoChart,
+  PoliticsUnavailable,
   put,
   Ranking,
   Read,
+  Recorded,
+  Records,
   Rejected,
   Rejection,
   Running,
@@ -49,7 +53,7 @@ import {
   View,
   Year,
 } from "@civicdata/domain"
-import { describe, expect, it } from "@effect/vitest"
+import { beforeEach, describe, expect, it } from "@effect/vitest"
 import {
   type Array as Arr,
   Clock,
@@ -85,12 +89,14 @@ import { http, memoryStorage } from "./fakes.ts"
 import unemploymentFlow from "./fixtures/eurostat/unemployment-flow.json"
 import unemploymentOptions from "./fixtures/eurostat/unemployment-options.csv?raw"
 import unemploymentRates from "./fixtures/eurostat/unemployment-total.csv?raw"
+import { build, emptyPolitics, politicsOver, recorded as archived } from "./politics.ts"
 
 const lifeExpectancy = IndicatorId.make("SP.DYN.LE00.IN")
 
 const id = ConversationId.make("0b5d7c1e-8f4a-4c2b-9d3e-1a2b3c4d5e6f")
 
-// A World Bank that publishes life expectancy for Brazil and Mexico, 2000 to 2002.
+// A World Bank that publishes life expectancy for Brazil, Mexico and Spain,
+// 2000 to 2002.
 const recordedWorldBank = Layer.succeed(
   WorldBank,
   WorldBank.of({
@@ -108,7 +114,7 @@ const recordedWorldBank = Layer.succeed(
         : Effect.fail(new IndicatorNotFound({ indicator })),
     observations: (query) =>
       Effect.succeed({
-        observations: (["BRA", "MEX"] as const).flatMap((country) =>
+        observations: (["BRA", "MEX", "ESP"] as const).flatMap((country) =>
           [2000, 2001, 2002].flatMap((year) =>
             query.countries.includes(country) && year >= query.from && year <= query.to
               ? [{ country, year: Year.make(year), value: 70 + year - 2000 }]
@@ -172,6 +178,7 @@ type Name =
   | "search_indicators"
   | "describe_indicator"
   | "find_countries"
+  | "find_politics"
   | "show_chart"
   | "ask_user"
 
@@ -193,6 +200,7 @@ const brazil = {
   transform: null,
   per: null,
   dimensions: null,
+  overlays: null,
 }
 
 const words = (text: string): ReadonlyArray<Response.PartEncoded> => [
@@ -268,6 +276,8 @@ interface ServeOptions {
   // The sources, when a test needs one to fail.
   readonly worldBank?: Layer.Layer<WorldBank>
   readonly sdmx?: Layer.Layer<Sdmx>
+  // The political records. Without them, none are available.
+  readonly politics?: Layer.Layer<Politics>
   // The conversations' Durable Object storage. Without it, each conversation
   // keeps its transcript in memory.
   readonly storage?: Storage
@@ -282,12 +292,14 @@ const serveApi = (
     storage,
     worldBank = recordedWorldBank,
     sdmx = recordedSdmx,
+    politics = Politics.unavailable,
   }: ServeOptions = {},
 ) => {
   const agent = Agent.layer.pipe(
     Layer.provide(model),
     Layer.provide(Resolver.layer),
     Layer.provide(catalog),
+    Layer.provide(politics),
     Layer.provide(worldBank),
     Layer.provide(sdmx),
   )
@@ -316,7 +328,7 @@ const serveApi = (
             Layer.provide(limit),
             Layer.provide(notes),
             Layer.provide(catalog),
-            Layer.provide(Politics.unavailable),
+            Layer.provide(politics),
             Layer.provide(worldBank),
             Layer.provide(sdmx),
           ),
@@ -592,7 +604,7 @@ describe("conversations", () => {
         }),
       ])
       expect(log(yield* answer("Show it again")).slice(-2)).toEqual([
-        wrote(Dropped.make({})),
+        wrote(Dropped.make({ reason: "number" })),
         charted({ view: brazilTrend }),
       ])
     }).pipe(Effect.provide(serveApi(model.layer)))
@@ -1758,7 +1770,7 @@ describe("several charts", () => {
       const steps = log(yield* answer("Life expectancy in Brazil, and its change"))
 
       expect(steps.filter(Schema.is(Takeaway))).toEqual([
-        wrote(Dropped.make({})),
+        wrote(Dropped.make({ reason: "number" })),
         wrote(Checked.make({ numbers: 4 }), { chart: 1 }),
       ])
       expect(steps.at(-1)).toEqual(
@@ -2056,5 +2068,161 @@ describe("explaining a chart", () => {
 
       expect(yield* explain(unknown).pipe(Effect.flip)).toBeInstanceOf(IndicatorNotFound)
     }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+})
+
+// The model looks up the political records of some countries, 2015 to 2016.
+const records = (countries: ReadonlyArray<string>, { step }: { step: string }) =>
+  call("find_politics", { countries, from: 2015, to: 2016 }, { step })
+
+// That lookup's step, as it last stood.
+const looked = (
+  step: string,
+  countries: Arr.NonEmptyReadonlyArray<Country>,
+  state: typeof Records.Type.state,
+) =>
+  Records.make({
+    id: StepId.make(step),
+    countries,
+    from: Year.make(2015),
+    to: Year.make(2016),
+    state,
+  })
+
+describe("political context", () => {
+  beforeEach(emptyPolitics)
+
+  // The records built from the recorded archives: Spain's governments and
+  // elections among them, none for Brazil.
+  const politics = politicsOver(archived())
+
+  // Stores the records in the test Worker's D1 database, where the agent's
+  // own Politics reads them.
+  const built = build(1).pipe(Effect.provide(politics))
+
+  const spainTrend = Trend.make({
+    indicator: lifeExpectancy,
+    countries: ["ESP"],
+    from: Year.make(2000),
+    to: Year.make(2002),
+  })
+
+  const spain = { ...brazil, countries: ["ESP"] }
+
+  it.effect("looks up the records of a covered and an uncovered country for the model", () => {
+    const model = scripted([
+      Effect.succeed(records(["ESP"], { step: "spain" })),
+      Effect.succeed(records(["BRA"], { step: "brazil" })),
+      done,
+    ])
+
+    return Effect.gen(function* () {
+      yield* built
+
+      const steps = yield* answer(
+        "How did life expectancy move in Spain and Brazil around their 2015 elections?",
+      )
+
+      expect(log(steps)).toEqual([
+        looked(
+          "spain",
+          ["ESP"],
+          Recorded.make({ governments: 3, elections: 2, events: 1, reforms: 0 }),
+        ),
+        looked(
+          "brazil",
+          ["BRA"],
+          Recorded.make({ governments: 0, elections: 0, events: 0, reforms: 0 }),
+        ),
+        Unanswered.make({}),
+      ])
+
+      // Each record goes to the model with its id; Brazil has none of its own.
+      expect(model.prompts[1]).toContain(
+        '"id":"government:ESP:2011-12-21","country":"ESP","head":"Mariano Rajoy"',
+      )
+      expect(model.prompts[2]).toContain('"uncovered":["BRA"]')
+    }).pipe(Effect.provide(serveApi(model.layer, { politics })))
+  })
+
+  it.effect("tells the model when the records are unavailable, and answers without them", () => {
+    const model = scripted([Effect.succeed(records(["ESP"], { step: "spain" })), done])
+
+    return Effect.gen(function* () {
+      const steps = yield* answer("How did life expectancy move in Spain around its 2015 election?")
+
+      expect(log(steps)[0]).toEqual(
+        looked("spain", ["ESP"], Failed.make({ reason: new PoliticsUnavailable() })),
+      )
+      expect(model.prompts[1]).toContain("Political records are unavailable now")
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("answers with a trend that opens with the governments shown", () => {
+    const model = scripted([
+      Effect.succeed(call("show_chart", { ...spain, overlays: ["governments"] })),
+    ])
+
+    const chart = { view: spainTrend, overlays: ["governments"] as const, takeaway }
+
+    return Effect.gen(function* () {
+      yield* built
+
+      const steps = yield* answer("Life expectancy in Spain under each prime minister")
+
+      expect(steps.find(isDrawn)).toEqual(
+        Drawn.make({
+          id: StepId.make("drawn-0"),
+          view: spainTrend,
+          overlays: ["governments"],
+          state: running,
+        }),
+      )
+      expect(steps.at(-1)).toEqual(charted(chart))
+      expect((yield* turns).answered[0]?.answer).toEqual(charted(chart))
+    }).pipe(Effect.provide(serveApi(model.layer, { politics })))
+  })
+
+  it.effect("tells the model that only a trend shows political context", () => {
+    const model = scripted([
+      Effect.succeed(
+        call("show_chart", {
+          ...spain,
+          chart: "ranking",
+          from: null,
+          to: null,
+          year: 2002,
+          overlays: ["events"],
+        }),
+      ),
+      done,
+    ])
+
+    return Effect.gen(function* () {
+      expect(log(yield* answer("Spain's life expectancy in 2002, with events"))).toEqual([
+        Unanswered.make({}),
+      ])
+      expect(model.prompts[1]).toContain("Only a trend shows elections, governments or events")
+    }).pipe(Effect.provide(serveApi(model.layer, { politics })))
+  })
+
+  it.effect("drops a takeaway that names a head of government from the records", () => {
+    const model = scripted([
+      Effect.succeed(call("show_chart", spain)),
+      Effect.succeed(words("Life expectancy rose in Spain before Mariano Rajoy governed.")),
+      done,
+    ])
+
+    return Effect.gen(function* () {
+      yield* built
+
+      const steps = yield* answer("How has life expectancy changed in Spain?")
+
+      expect(log(steps)).toEqual([
+        fetched(undefined, { view: spainTrend }),
+        wrote(Dropped.make({ reason: "name" })),
+        charted({ view: spainTrend }),
+      ])
+    }).pipe(Effect.provide(serveApi(model.layer, { politics })))
   })
 })
