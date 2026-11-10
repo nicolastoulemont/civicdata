@@ -1,4 +1,10 @@
-import { type Change, countries, type ResolvedView, type Trend } from "@civicdata/domain"
+import {
+  type Change,
+  type Country,
+  countries,
+  type ResolvedView,
+  type Trend,
+} from "@civicdata/domain"
 import { Match } from "effect"
 
 import { colors } from "@/explore/colors.gen"
@@ -15,7 +21,7 @@ import {
 import { changes, type Paired, pairs } from "@/explore/points"
 import { places } from "@/explore/preview"
 import { around, ticks } from "@/explore/scale"
-import * as world from "@/explore/world"
+import { rings, type Sheet, shades, sheetOf, type Steps } from "@/explore/sheet"
 
 import { type Canvas, canvas, fill, type Ink, line, png, rect, mapInks, text } from "./canvas.ts"
 import { body, label, title } from "./faces.gen.ts"
@@ -346,34 +352,89 @@ const drawRelation = (image: Canvas, resolved: Paired, box: Box) => {
   }
 }
 
-// A world map shaded by rank, as on the site, with the key to its right. A
+// An outline scaled into the card from its top-left corner.
+const place = (outline: Steps, { x, y, scale }: { x: number; y: number; scale: number }) =>
+  rings(outline).map((ring) => ring.map(([px, py]) => [x + px * scale, y + py * scale] as const))
+
+// A one-pixel frame around a box.
+const frame = (image: Canvas, box: { x: number; y: number; width: number; height: number }) => {
+  const { x, y } = box
+
+  rect(image, { x, y, width: box.width, height: 1 }, "border")
+  rect(image, { x, y: y + box.height - 1, width: box.width, height: 1 }, "border")
+  rect(image, { x, y, width: 1, height: box.height }, "border")
+  rect(image, { x: x + box.width - 1, y, width: 1, height: box.height }, "border")
+}
+
+// The map's insets in two columns, each region boxed over its name.
+const drawInsets = (
+  image: Canvas,
+  {
+    sheet,
+    inkOf,
+    left,
+    top,
+    column,
+    row,
+  }: {
+    sheet: Sheet
+    inkOf: (country: Country) => Ink
+    left: number
+    top: number
+    column: number
+    row: number
+  },
+) => {
+  for (const [index, inset] of sheet.insets.entries()) {
+    const x = left + (index % 2) * (column + 8)
+    const y = top + Math.floor(index / 2) * row
+    const scale = Math.min(column / inset.width, (row - 18) / inset.height)
+
+    frame(image, { x, y, width: inset.width * scale, height: inset.height * scale })
+    fill(image, place(inset.outline, { x, y, scale }), inkOf(inset.country))
+    text(image, label, inset.name, { x, y: y + inset.height * scale + 12, ink: "muted" })
+  }
+}
+
+// A map shaded by rank, as on the site, then its insets, then the key. A
 // country without a value stays the colour of a border.
 const drawMap = (image: Canvas, resolved: ResolvedView, box: Box) => {
-  const { byCountry, key } = world.shades(resolved.observations)
+  const sheet = sheetOf(resolved.view.countries)
+  const { byCountry, key } = shades(resolved.observations)
+
+  const inkOf = (country: Country): Ink => {
+    const shade = byCountry.get(country)
+
+    return shade === undefined ? "border" : (mapInks[shade] ?? "chart-1")
+  }
 
   const labels = key.map(({ low, high }) =>
     low === high ? formatCompact(low) : `${formatCompact(low)}–${formatCompact(high)}`,
   )
 
   const room = Math.max(widest(labels), widest(["No data"])) + 30
+  const column = widest(sheet.insets.map((inset) => inset.name))
+  const insets = sheet.insets.length === 0 ? 0 : 2 * column + 8 + 16
+  const row = (box.bottom - box.top) / Math.ceil(sheet.insets.length / 2)
 
   const scale = Math.min(
-    (box.right - box.left - room) / world.width,
-    (box.bottom - box.top) / world.height,
+    (box.right - box.left - room - insets) / sheet.width,
+    (box.bottom - box.top) / sheet.height,
   )
 
+  const at = { x: box.left, y: box.top, scale }
+
+  fill(image, place(sheet.land, at), "land")
+
   for (const { code } of countries) {
-    const shade = byCountry.get(code)
+    const outline = sheet.outlines[code]
 
-    const projected = world
-      .rings(code)
-      .map((ring) => ring.map(([x, y]) => [box.left + x * scale, box.top + y * scale] as const))
-
-    if (projected.length > 0)
-      fill(image, projected, shade === undefined ? "border" : (mapInks[shade] ?? "chart-1"))
+    if (outline !== undefined) fill(image, place(outline, at), inkOf(code))
   }
 
-  const left = box.left + world.width * scale + 16
+  const left = box.left + sheet.width * scale + 16
+
+  drawInsets(image, { sheet, inkOf, left, top: box.top, column, row })
 
   const rows = [
     ...key.map(({ shade }, index) => ({
@@ -383,11 +444,11 @@ const drawMap = (image: Canvas, resolved: ResolvedView, box: Box) => {
     { ink: "border" as const, text: "No data" },
   ]
 
-  for (const [index, row] of rows.entries()) {
+  for (const [index, entry] of rows.entries()) {
     const top = box.top + index * 16
 
-    rect(image, { x: left, y: top + 2, width: 10, height: 10 }, row.ink)
-    text(image, label, row.text, { x: left + 16, y: top + 11, ink: "muted" })
+    rect(image, { x: left + insets, y: top + 2, width: 10, height: 10 }, entry.ink)
+    text(image, label, entry.text, { x: left + insets + 16, y: top + 11, ink: "muted" })
   }
 }
 
