@@ -1,5 +1,10 @@
 import { maxQuestion, Question } from "@civicdata/domain"
-import { type Editor, Extension, type JSONContent } from "@tiptap/core"
+import {
+  type Editor,
+  Extension,
+  type JSONContent,
+  type KeyboardShortcutCommand,
+} from "@tiptap/core"
 import { Document } from "@tiptap/extension-document"
 import { Paragraph } from "@tiptap/extension-paragraph"
 import { Text } from "@tiptap/extension-text"
@@ -58,18 +63,24 @@ const lines = (text: string): JSONContent => ({
     ),
 })
 
-// Enter sends the question through the box's form and Shift+Enter starts a
-// new line. It runs before the editor's own Enter, which would split the line.
+const send: KeyboardShortcutCommand = ({ editor }) => {
+  editor.view.dom.closest("form")?.requestSubmit()
+
+  return true
+}
+
+// Enter, Cmd+Enter and Ctrl+Enter send the question through the box's form,
+// and Shift+Enter starts a new line. They run before the editor's own keys:
+// Enter would split the line. Both modifiers send on every platform, as in
+// T3 Code. ProseMirror ignores keys that confirm an input method composition.
 const Keys = Extension.create({
   name: "keys",
   priority: 1000,
   addKeyboardShortcuts() {
     return {
-      Enter: ({ editor }) => {
-        editor.view.dom.closest("form")?.requestSubmit()
-
-        return true
-      },
+      Enter: send,
+      "Meta-Enter": send,
+      "Ctrl-Enter": send,
       "Shift-Enter": ({ editor }) => editor.commands.splitBlock(),
     }
   },

@@ -1347,6 +1347,28 @@ describe("Conversation", () => {
     )
   })
 
+  it.each([
+    ["Cmd+Enter", "{Meta>}{Enter}{/Meta}"],
+    ["Ctrl+Enter", "{Control>}{Enter}{/Control}"],
+  ])("sends with %s", async (_, keys) => {
+    const reply = answer()
+    const user = userEvent.setup()
+
+    network.use(turns([]), reply.handler, resolve)
+    show()
+
+    await user.type(line(await findComposer()), "Life expectancy in Chile")
+    await user.keyboard(keys)
+
+    expect(await findQuestion("Life expectancy in Chile")).toBeDefined()
+    expect(typed(await findComposer())).toBe("")
+
+    reply.send(message(Unanswered.make({})))
+    reply.end()
+
+    expect(await screen.findByText("No World Bank indicator answers this question")).toBeDefined()
+  })
+
   it("says why a question too short to send cannot be sent", async () => {
     const user = userEvent.setup()
 
@@ -1547,8 +1569,12 @@ describe("Conversation", () => {
       "Write your next question while civicdata answers",
     )
 
-    // A draft waits: Enter sends nothing while the agent answers.
-    await userEvent.setup().type(line(await findComposer()), "And in Chile?{Enter}")
+    // A draft waits: Enter and Cmd+Enter send nothing while the agent answers.
+    const user = userEvent.setup()
+
+    await user.type(line(await findComposer()), "And in Chile?{Enter}")
+    expect(typed(await findComposer())).toBe("And in Chile?")
+    await user.keyboard("{Meta>}{Enter}{/Meta}")
     expect(typed(await findComposer())).toBe("And in Chile?")
     expect(
       screen
