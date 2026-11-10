@@ -17,8 +17,14 @@ import {
   geoPath,
 } from "d3-geo"
 import { Schema } from "effect"
-import type { MultiPolygon, Polygon, Position } from "geojson"
-import { feature, merge } from "topojson-client"
+import type {
+  GeometryCollection as Geometries,
+  MultiPoint,
+  MultiPolygon,
+  Polygon,
+  Position,
+} from "geojson"
+import { feature, merge, mergeArcs } from "topojson-client"
 import type {
   GeometryCollection,
   GeometryObject,
@@ -35,11 +41,63 @@ type Countries = Topology<{ countries: GeometryCollection<{ name: string }> }>
 // most regions, 1:10m for the smallest.
 type Detail = "110m" | "50m" | "10m"
 
+// Natural Earth draws who holds the land, so its Russia holds Crimea. Our
+// maps draw Crimea in Ukraine, as the EU, whose statistics office we chart,
+// and the UN General Assembly do: its polygon, Sevastopol included, moves
+// from Russia's outline into Ukraine's, without a border between them.
+const ukrainian = (atlas: Countries): Countries => {
+  const { geometries } = atlas.objects.countries
+  const areas = geometries.filter(isArea)
+  const russia = areas.find((geometry) => geometry.properties?.name === "Russia")
+  const ukraine = areas.find((geometry) => geometry.properties?.name === "Ukraine")
+
+  if (russia?.type !== "MultiPolygon" || ukraine === undefined)
+    throw new Error("Natural Earth no longer draws Russia and Ukraine as it did")
+
+  const crimean = (arcs: Array<Array<number>>) => {
+    const [x, y] = geoCentroid(feature(atlas, { type: "Polygon", arcs }))
+
+    return x > 32 && x < 37 && y > 44 && y < 46.5
+  }
+
+  const crimea = russia.arcs.filter(crimean)
+
+  if (crimea.length !== 1) throw new Error(`Found ${crimea.length} polygons of Crimea, not 1`)
+
+  const moved = {
+    ...russia,
+    arcs: russia.arcs.filter((arcs) => !crimean(arcs)),
+  }
+
+  const joined = {
+    ...mergeArcs(atlas, [ukraine, { type: "MultiPolygon", arcs: crimea }]),
+    id: ukraine.id,
+    properties: ukraine.properties,
+  }
+
+  return {
+    ...atlas,
+    objects: {
+      countries: {
+        ...atlas.objects.countries,
+        geometries: geometries.map((geometry) =>
+          geometry === russia ? moved : geometry === ukraine ? joined : geometry,
+        ),
+      },
+    },
+  }
+}
+
+const isArea = (
+  geometry: GeometryObject<{ name: string }>,
+): geometry is Arc<{ name: string }> | Arcs<{ name: string }> =>
+  geometry.type === "Polygon" || geometry.type === "MultiPolygon"
+
 // Natural Earth country outlines, keyed by ISO 3166-1 numeric code.
 const atlas: Record<Detail, Countries> = {
-  "110m": JSON.parse(read("world-atlas/countries-110m.json")),
-  "50m": JSON.parse(read("world-atlas/countries-50m.json")),
-  "10m": JSON.parse(read("world-atlas/countries-10m.json")),
+  "110m": ukrainian(JSON.parse(read("world-atlas/countries-110m.json"))),
+  "50m": ukrainian(JSON.parse(read("world-atlas/countries-50m.json"))),
+  "10m": ukrainian(JSON.parse(read("world-atlas/countries-10m.json"))),
 }
 
 // [alpha-2, alpha-3, numeric] for every ISO 3166-1 country.
@@ -155,14 +213,16 @@ const drawWorld = () => {
 // box crosses the 180th meridian.
 type Box = readonly [number, number, number, number]
 
-const inside =
+const within =
   ([west, south, east, north]: Box) =>
-  (polygon: ReadonlyArray<Array<Position>>) => {
-    const [x, y] = geoCentroid({ type: "Polygon", coordinates: [...polygon] })
+  ([x = 0, y = 0]: Position) => {
     const across = west <= east ? x >= west && x <= east : x >= west || x <= east
 
     return across && y >= south && y <= north
   }
+
+const inside = (box: Box) => (polygon: ReadonlyArray<Array<Position>>) =>
+  within(box)(geoCentroid({ type: "Polygon", coordinates: [...polygon] }))
 
 // A part of a country drawn in its own box beside the map, found by the box
 // its land lies in.
@@ -190,12 +250,15 @@ const hawaii: Away = { name: "Hawaii", country: "USA", box: [-160.5, 18.8, -154.
 // How each region is drawn: a Lambert azimuthal equal-area projection centred
 // on `centre`, framed on the parts of its countries whose middle lies in
 // `box`. Parts outside it, e.g. Svalbard on the map of Europe, fall outside
-// the frame, and `insets` move to their own boxes.
+// the frame, and `insets` move to their own boxes. A country in `cut` is too
+// large for the frame: the frame reaches as far as its land inside `box`,
+// and the rest falls off the edge, e.g. Russia east of the Urals.
 interface Frame {
   readonly centre: readonly [number, number]
   readonly box: Box
   readonly detail: Detail
   readonly insets?: ReadonlyArray<Away>
+  readonly cut?: ReadonlyArray<Country>
 }
 
 const frames: Record<Region["id"], Frame> = {
@@ -218,6 +281,13 @@ const frames: Record<Region["id"], Frame> = {
   "east-asia": { centre: [112, 36], box: [72, 17, 150, 54], detail: "50m" },
   australia: { centre: [155, -27], box: [110, -55, -170, 0], detail: "50m" },
   europe: { centre: [10, 52], box: [-25, 34, 47, 72], detail: "50m", insets: outermost },
+  "extended-europe": {
+    centre: [20, 54],
+    box: [-25, 34, 60, 72],
+    detail: "50m",
+    insets: outermost,
+    cut: ["RUS"],
+  },
   "south-america": { centre: [-60, -20], box: [-92, -57, -34, 13], detail: "50m" },
   "latin-america": { centre: [-75, -5], box: [-118, -57, -32, 33], detail: "50m" },
   "north-america": {
@@ -239,11 +309,6 @@ const frames: Record<Region["id"], Frame> = {
   },
 }
 
-const isArea = (
-  geometry: GeometryObject<{ name: string }>,
-): geometry is Arc<{ name: string }> | Arcs<{ name: string }> =>
-  geometry.type === "Polygon" || geometry.type === "MultiPolygon"
-
 const polygonsOf = (geometry: Polygon | MultiPolygon) =>
   geometry.type === "Polygon" ? [geometry.coordinates] : geometry.coordinates
 
@@ -258,7 +323,7 @@ const inset = { width: 120, height: 90, margin: 8 }
 // A region's map, 1000 units wide. Every country outside the region is land,
 // drawn as one shape around it.
 const drawRegion = ({ id, countries }: Region) => {
-  const { centre, box, detail, insets = [] } = frames[id]
+  const { centre, box, detail, insets = [], cut = [] } = frames[id]
   const source = atlas[detail]
   const members = new Set<Country>(countries)
 
@@ -295,7 +360,18 @@ const drawRegion = ({ id, countries }: Region) => {
     area: multi(polygons.filter((polygon) => !moved(polygon))),
   }))
 
-  const frame = multi(mainland.flatMap(({ area }) => area.coordinates.filter(framed)))
+  const reach: MultiPoint = {
+    type: "MultiPoint",
+    coordinates: mainland
+      .filter(({ code }) => cut.includes(code))
+      .flatMap(({ area }) => area.coordinates.flatMap(([outer = []]) => outer))
+      .filter(within(box)),
+  }
+
+  const frame: Geometries = {
+    type: "GeometryCollection",
+    geometries: [multi(mainland.flatMap(({ area }) => area.coordinates.filter(framed))), reach],
+  }
 
   for (const { code, area } of mainland) {
     const left = area.coordinates.filter((polygon) => !framed(polygon)).length

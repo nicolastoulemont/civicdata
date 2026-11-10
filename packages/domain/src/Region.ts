@@ -137,6 +137,68 @@ const africa = joined(northAfrica, westAfrica, centralAfrica, eastAfrica, southe
 
 const latinAmerica = [...centralAmerica, ...caribbean, ...southAmerica]
 
+// The countries Eurostat maps: the EU 27, the EFTA four, the United Kingdom,
+// and the candidate and potential candidate countries. Then every other
+// economy inside the frame those need. Russia reaches the Pacific, so it is
+// not here.
+const europe: ReadonlyArray<Country> = [
+  // The EU 27.
+  "AUT",
+  "BEL",
+  "BGR",
+  "CYP",
+  "CZE",
+  "DEU",
+  "DNK",
+  "ESP",
+  "EST",
+  "FIN",
+  "FRA",
+  "GRC",
+  "HRV",
+  "HUN",
+  "IRL",
+  "ITA",
+  "LTU",
+  "LUX",
+  "LVA",
+  "MLT",
+  "NLD",
+  "POL",
+  "PRT",
+  "ROU",
+  "SVK",
+  "SVN",
+  "SWE",
+  // EFTA and the United Kingdom.
+  "CHE",
+  "GBR",
+  "ISL",
+  "LIE",
+  "NOR",
+  // Candidates and potential candidates.
+  "ALB",
+  "BIH",
+  "GEO",
+  "MDA",
+  "MKD",
+  "MNE",
+  "SRB",
+  "TUR",
+  "UKR",
+  "XKX",
+  // The rest of the frame.
+  "AND",
+  "ARM",
+  "BLR",
+  "CHI",
+  "FRO",
+  "GIB",
+  "IMN",
+  "MCO",
+  "SMR",
+]
+
 // A group of countries people often compare, with a map of its own. `name`
 // reads after "Map of". A map draws the first region, in this order, that
 // holds every country it shows, so the narrower regions come first; a map
@@ -194,71 +256,7 @@ export const regions = [
   },
   { id: "east-asia", name: "East Asia", countries: eastAsia },
   { id: "australia", name: "Australia, New Zealand and their neighbours", countries: australia },
-  // The countries Eurostat maps: the EU 27, the EFTA four, the United
-  // Kingdom, and the candidate and potential candidate countries. Then every
-  // other economy inside the frame those need. Russia reaches the Pacific, so
-  // it is not here.
-  {
-    id: "europe",
-    name: "Europe",
-    countries: [
-      // The EU 27.
-      "AUT",
-      "BEL",
-      "BGR",
-      "CYP",
-      "CZE",
-      "DEU",
-      "DNK",
-      "ESP",
-      "EST",
-      "FIN",
-      "FRA",
-      "GRC",
-      "HRV",
-      "HUN",
-      "IRL",
-      "ITA",
-      "LTU",
-      "LUX",
-      "LVA",
-      "MLT",
-      "NLD",
-      "POL",
-      "PRT",
-      "ROU",
-      "SVK",
-      "SVN",
-      "SWE",
-      // EFTA and the United Kingdom.
-      "CHE",
-      "GBR",
-      "ISL",
-      "LIE",
-      "NOR",
-      // Candidates and potential candidates.
-      "ALB",
-      "BIH",
-      "GEO",
-      "MDA",
-      "MKD",
-      "MNE",
-      "SRB",
-      "TUR",
-      "UKR",
-      "XKX",
-      // The rest of the frame.
-      "AND",
-      "ARM",
-      "BLR",
-      "CHI",
-      "FRO",
-      "GIB",
-      "IMN",
-      "MCO",
-      "SMR",
-    ],
-  },
+  { id: "europe", name: "Europe", countries: europe },
   { id: "south-america", name: "South America", countries: southAmerica },
   { id: "latin-america", name: "Latin America and the Caribbean", countries: latinAmerica },
   { id: "north-america", name: "North America", countries: northAmerica },
@@ -274,6 +272,10 @@ export const regions = [
     name: "the post-Soviet states",
     countries: [...baltics, ...southCaucasus, ...centralAsia, "BLR", "MDA", "RUS", "UKR"],
   },
+  // Europe with Russia, drawn to the Urals. It comes after the regions that
+  // draw all of Russia, so Russia with its post-Soviet or Asian neighbours
+  // keeps its whole map.
+  { id: "extended-europe", name: "Europe and Russia", countries: [...europe, "RUS"] },
   {
     id: "oceania",
     name: "Oceania",
