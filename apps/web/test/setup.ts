@@ -9,6 +9,10 @@ beforeAll(() => network.listen({ onUnhandledFrame: "error" }))
 
 afterEach(() => {
   cleanup()
+
+  // Drafts, history and settings live in localStorage, which the tests that
+  // run in Node do not have.
+  if (typeof localStorage !== "undefined") localStorage.clear()
   network.resetHandlers()
 
   const unhandled = drainUnhandled()

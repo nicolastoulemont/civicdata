@@ -46,6 +46,7 @@ export const Conversation = ({ id, first }: ConversationProps) => {
           previews={questions.map(preview)}
           composer={
             <FollowUp
+              id={id}
               pending={pending !== undefined}
               last={all.at(-1)?.answer}
               answering={answering ? { stop, stopping } : undefined}

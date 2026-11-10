@@ -56,6 +56,7 @@ const Home = () => {
         <QuestionForm
           label="Ask about a country"
           placeholder="How has life expectancy changed in Brazil?"
+          draft="home"
           onAsk={(question) =>
             void navigate({
               to: "/c/$id",
