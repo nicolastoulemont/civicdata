@@ -62,6 +62,7 @@ import {
   Year,
 } from "@civicdata/domain"
 import { beforeEach, describe, expect, it } from "@effect/vitest"
+import { reset } from "cloudflare:test"
 import {
   Array as Arr,
   Clock,
@@ -104,7 +105,7 @@ import unemploymentEsms from "./fixtures/eurostat/unemployment-esms.sdmx.xml?raw
 import unemploymentFlow from "./fixtures/eurostat/unemployment-flow.json"
 import unemploymentOptions from "./fixtures/eurostat/unemployment-options.csv?raw"
 import unemploymentRates from "./fixtures/eurostat/unemployment-total.csv?raw"
-import { build, emptyPolitics, politicsOver, recorded as archived } from "./politics.ts"
+import { build, politicsOver, recorded as archived } from "./politics.ts"
 
 const lifeExpectancy = IndicatorId.make("SP.DYN.LE00.IN")
 const gdpPerPerson = IndicatorId.make("NY.GDP.PCAP.CD")
@@ -2176,7 +2177,7 @@ const looked = (
   })
 
 describe("political context", () => {
-  beforeEach(emptyPolitics)
+  beforeEach(() => reset())
 
   // The records built from the recorded archives: Spain's governments and
   // elections among them, none for Brazil.

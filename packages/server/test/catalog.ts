@@ -161,12 +161,6 @@ const db = env.DB
 
 if (db === undefined) throw new Error("vitest.config.ts must bind a D1 database as DB")
 
-// The test Worker's D1 database is shared by every test that uses it.
-export const emptyCatalog = () =>
-  db.exec(
-    "DROP TABLE IF EXISTS catalog; DROP TABLE IF EXISTS catalog_current; DROP TABLE IF EXISTS catalog_fingerprint; DROP TABLE IF EXISTS catalog_vector; DROP TABLE IF EXISTS catalog_direction;",
-  )
-
 // Drops tables, leaving the catalog as an earlier version made it.
 export const drop = (...tables: ReadonlyArray<string>) =>
   Effect.promise(() => db.exec(tables.map((table) => `DROP TABLE ${table};`).join(" ")))

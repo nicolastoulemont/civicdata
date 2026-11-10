@@ -2,6 +2,8 @@ import { Effect, Layer, Schema, Stream } from "effect"
 import { AiError, LanguageModel } from "effect/ai"
 
 import { modelClassifier } from "../src/ModelClassifier.ts"
+import { openAi as client } from "../src/OpenAi.ts"
+import recorded from "./fixtures/openai/directions.json?raw"
 
 const Asked = Schema.fromJsonString(Schema.Array(Schema.Struct({ indicator: Schema.String })))
 
@@ -9,7 +11,7 @@ const Asked = Schema.fromJsonString(Schema.Array(Schema.Struct({ indicator: Sche
 // it is asked about with `answers[indicator]`, any string, and leaves out the
 // rest. It records the indicators of each request; while `state.up` is
 // false, every request fails.
-export const openAi = (
+export const fakeModel = (
   answers: Record<string, string> = {},
   state: { up: boolean } = { up: true },
 ) => {
@@ -55,4 +57,30 @@ export const openAi = (
   )
 
   return { classifier: modelClassifier.pipe(Layer.provide(language)), asked: () => asked }
+}
+
+const responses = "https://api.openai.com/v1/responses"
+
+// The model's classifier over OpenAI's own client, with `fetch` faked: it
+// answers every request to the Responses API with OpenAI's answer recorded on
+// 2026-11-10 for test/catalog.ts's World Bank list (its encrypted reasoning
+// item removed), and keeps each request's body.
+export const recordedOpenAi = () => {
+  const sent: Array<string> = []
+
+  const fetch: typeof globalThis.fetch = async (input, init) => {
+    const request = new Request(input, init)
+
+    if (request.url !== responses) throw new Error(`Unexpected request to ${request.url}`)
+
+    sent.push(await request.text())
+
+    return new Response(recorded, { headers: { "content-type": "application/json" } })
+  }
+
+  return {
+    classifier: modelClassifier.pipe(Layer.provide(client("sk-test", undefined))),
+    fetch,
+    sent: () => sent,
+  }
 }

@@ -1,6 +1,8 @@
 import { type CatalogEntry, IndicatorId, Source, SourceUnavailable } from "@civicdata/domain"
 import { beforeEach, describe, expect, it } from "@effect/vitest"
+import { reset } from "cloudflare:test"
 import { Effect } from "effect"
+import { FetchHttpClient } from "effect/http"
 
 import { Catalog } from "../src/Catalog.ts"
 import { BuildFailed, CatalogBuild } from "../src/CatalogBuild.ts"
@@ -9,7 +11,6 @@ import {
   build,
   catalogOver,
   drop,
-  emptyCatalog,
   entry,
   listings,
   published,
@@ -19,9 +20,11 @@ import {
   worldBankList,
 } from "./catalog.ts"
 import { steps } from "./fakes.ts"
-import { openAi } from "./model.ts"
+import { fakeModel, recordedOpenAi } from "./model.ts"
 
-beforeEach(emptyCatalog)
+// Every test starts from empty bindings: the test Worker's D1 database and
+// buckets are shared by the file's tests.
+beforeEach(() => reset())
 
 const names = (entries: ReadonlyArray<CatalogEntry>) => entries.map((found) => found.name)
 
@@ -413,7 +416,7 @@ describe("CatalogBuild", () => {
       "stores a direction for each new entry, Neutral for an answer outside the three",
       () => {
         const lists = listings()
-        const model = openAi(answers)
+        const model = fakeModel(answers)
 
         return Effect.gen(function* () {
           yield* build(1)
@@ -440,8 +443,42 @@ describe("CatalogBuild", () => {
       },
     )
 
+    it.effect(
+      "asks OpenAI for the directions in one structured request and stores its answers",
+      () => {
+        const wire = recordedOpenAi()
+
+        return Effect.gen(function* () {
+          const catalog = yield* CatalogBuild
+
+          yield* catalog.write("World Bank", 1)
+          yield* catalog.publish("World Bank", 1)
+          yield* catalog.classify("World Bank", 0)
+
+          // OpenAI answered Higher for the surgeons, Neutral for the others.
+          expect(yield* read([surgeons, richest, growth, population])).toEqual([
+            "Higher",
+            "Neutral",
+            "Neutral",
+            "Neutral",
+          ])
+
+          // One request, asking for the answer schema by name, about every entry.
+          const [request, ...more] = wire.sent()
+
+          expect(more).toEqual([])
+          expect(request).toContain('"type":"json_schema","name":"directions"')
+
+          for (const { indicator } of worldBankList) expect(request).toContain(indicator)
+        }).pipe(
+          Effect.provide(catalogOver(listings(), { classifier: wire.classifier })),
+          Effect.provideService(FetchHttpClient.Fetch, wire.fetch),
+        )
+      },
+    )
+
     it.effect("asks the model nothing when a second build finds nothing changed", () => {
-      const model = openAi(answers)
+      const model = fakeModel(answers)
 
       return Effect.gen(function* () {
         yield* build(1)
@@ -456,7 +493,7 @@ describe("CatalogBuild", () => {
 
     it.effect("asks again about an entry whose definition changed, and only it", () => {
       const lists = listings()
-      const model = openAi(answers)
+      const model = fakeModel(answers)
 
       return Effect.gen(function* () {
         yield* build(1)
@@ -475,7 +512,7 @@ describe("CatalogBuild", () => {
 
     it.effect("publishes the catalog and leaves every entry Neutral when the model is down", () => {
       const state = { up: false }
-      const model = openAi(answers, state)
+      const model = fakeModel(answers, state)
 
       return Effect.gen(function* () {
         yield* build(1)
@@ -496,7 +533,7 @@ describe("CatalogBuild", () => {
     })
 
     it.effect("classifies a source in requests of 50 and resumes after losing a step", () => {
-      const model = openAi()
+      const model = fakeModel()
       const run = steps(undefined, { lose: "classify World Bank after 0" })
 
       return Effect.gen(function* () {

@@ -52,12 +52,6 @@ const db = env.DB
 
 if (db === undefined) throw new Error("vitest.config.ts must bind a D1 database as DB")
 
-// The test Worker's D1 database is shared by every test that uses it.
-export const emptyPolitics = () =>
-  db.exec(
-    "DROP TABLE IF EXISTS governments; DROP TABLE IF EXISTS elections; DROP TABLE IF EXISTS politics_current; DROP TABLE IF EXISTS politics_fingerprint;",
-  )
-
 // The records as the version before fingerprints left them.
 export const dropFingerprints = Effect.promise(() => db.exec("DROP TABLE politics_fingerprint"))
 
