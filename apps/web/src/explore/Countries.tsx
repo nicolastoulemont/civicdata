@@ -59,7 +59,12 @@ export const Countries = ({ selected, onChange }: CountriesProps) => {
           onChange([head, ...rest])
         }}
       >
-        <ComboboxChips ref={anchor}>
+        {/* Collapsed, the field keeps to one line and long names shorten. While
+            typing, it wraps so the input has room beside full names. */}
+        <ComboboxChips
+          ref={anchor}
+          className={collapsed ? "flex-nowrap has-[input:focus]:flex-wrap" : undefined}
+        >
           <ComboboxValue>
             {(chosen: Array<Country>) => (
               <>
@@ -68,8 +73,9 @@ export const Countries = ({ selected, onChange }: CountriesProps) => {
                     key={country}
                     showRemove={chosen.length > 1}
                     removeLabel={`Remove ${countryName(country)}`}
+                    className="min-w-0"
                   >
-                    {countryName(country)}
+                    <span className="truncate">{countryName(country)}</span>
                   </ComboboxChip>
                 ))}
                 {/* One button in one place, so focus stays on it as it toggles. */}
@@ -77,7 +83,7 @@ export const Countries = ({ selected, onChange }: CountriesProps) => {
                   <Button
                     variant="ghost"
                     size="xs"
-                    className="h-[calc(--spacing(5.25))] rounded-sm px-1.5 text-muted-foreground"
+                    className="h-[calc(--spacing(5.25))] shrink-0 rounded-sm px-1.5 text-muted-foreground"
                     aria-label={
                       collapsed ? `Show all ${chosen.length} countries` : "Show fewer countries"
                     }
@@ -89,6 +95,9 @@ export const Countries = ({ selected, onChange }: CountriesProps) => {
                 {/* The label names the input either way; the hint shows only with no chip. */}
                 <ComboboxChipsInput
                   id={id}
+                  // Without text, the input drops the gap before it, so it never
+                  // shortens the chips beside it.
+                  className={collapsed ? "-ml-1 min-w-0 focus:ml-0 focus:min-w-16" : undefined}
                   placeholder={chosen.length === 0 ? "Add a country" : undefined}
                   // Base UI's Backspace removes the last chip shown. Collapsed,
                   // that is the third country, not the last one, so it removes none.
