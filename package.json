@@ -6,6 +6,7 @@
     "build": "turbo run build",
     "dev": "pnpm --filter @civicdata/infra run dev",
     "dev:web": "turbo run dev --filter=@civicdata/web",
+    "storybook": "pnpm --filter @civicdata/web run storybook",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "lint": "oxlint --deny-warnings",

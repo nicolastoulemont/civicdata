@@ -65,6 +65,7 @@ The app deploys as one Cloudflare Worker. Alchemy builds `apps/web` with its own
 pnpm install
 pnpm dev          # the app in the Workers runtime with local D1 and R2: http://localhost:1337
 pnpm dev:web      # the web app alone in Node, no D1 or R2, no Cloudflare login needed
+pnpm storybook    # each chart type alone, drawn from recorded World Bank data: http://localhost:6006
 pnpm check        # format, lint, fallow, typecheck, test, build: what CI runs
 ```
 
