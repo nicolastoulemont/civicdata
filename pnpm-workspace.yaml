@@ -32,6 +32,13 @@ overrides:
   # ts-morph, whose latest release still asks for ^10. ts-morph only calls
   # minimatch(), which 11 keeps. Drop this once @ts-morph/common allows 11.
   "@ts-morph/common>minimatch": ^11.0.1
+  # GHSA-3g3m-2fjr-6pw4: glob 9.0.0 to 14.0.1 keeps walking the filesystem
+  # after its AbortSignal fires. Only Storybook reaches it, through
+  # @joshwooding/vite-plugin-react-docgen-typescript 0.7.0, whose latest
+  # release still asks for ^13. The plugin only calls globSync(), which 14
+  # keeps, and Storybook loads it only with reactDocgen "react-docgen-typescript",
+  # which we do not set. Drop this once the plugin allows 14.0.2.
+  "@joshwooding/vite-plugin-react-docgen-typescript>glob": ^14.0.2
 
 catalog:
   "@effect/vitest": 4.1.2

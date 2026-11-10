@@ -1,0 +1,1630 @@
+{
+  "view": {
+    "_tag": "Trend",
+    "indicator": "SP.DYN.LE00.IN",
+    "countries": ["FRA", "DEU", "ITA", "ESP", "POL"],
+    "from": 1960,
+    "to": 2023
+  },
+  "title": "Life expectancy at birth (years)",
+  "indicator": {
+    "id": "SP.DYN.LE00.IN",
+    "name": "Life expectancy at birth, total (years)",
+    "definition": "Life expectancy at birth indicates the number of years a newborn infant would live if prevailing patterns of mortality at the time of its birth were to stay the same throughout its life."
+  },
+  "observations": [
+    {
+      "country": "DEU",
+      "year": 1960,
+      "value": 69.0640731707317
+    },
+    {
+      "country": "DEU",
+      "year": 1961,
+      "value": 69.6448780487805
+    },
+    {
+      "country": "DEU",
+      "year": 1962,
+      "value": 69.7992195121951
+    },
+    {
+      "country": "DEU",
+      "year": 1963,
+      "value": 69.9140731707317
+    },
+    {
+      "country": "DEU",
+      "year": 1964,
+      "value": 70.4355609756098
+    },
+    {
+      "country": "DEU",
+      "year": 1965,
+      "value": 70.4103658536585
+    },
+    {
+      "country": "DEU",
+      "year": 1966,
+      "value": 70.5215853658537
+    },
+    {
+      "country": "DEU",
+      "year": 1967,
+      "value": 70.7317317073171
+    },
+    {
+      "country": "DEU",
+      "year": 1968,
+      "value": 70.3784634146342
+    },
+    {
+      "country": "DEU",
+      "year": 1969,
+      "value": 70.2288048780488
+    },
+    {
+      "country": "DEU",
+      "year": 1970,
+      "value": 70.4471951219512
+    },
+    {
+      "country": "DEU",
+      "year": 1971,
+      "value": 70.676756097561
+    },
+    {
+      "country": "DEU",
+      "year": 1972,
+      "value": 70.9067073170732
+    },
+    {
+      "country": "DEU",
+      "year": 1973,
+      "value": 71.1128048780488
+    },
+    {
+      "country": "DEU",
+      "year": 1974,
+      "value": 71.4189268292683
+    },
+    {
+      "country": "DEU",
+      "year": 1975,
+      "value": 71.259243902439
+    },
+    {
+      "country": "DEU",
+      "year": 1976,
+      "value": 71.7122195121951
+    },
+    {
+      "country": "DEU",
+      "year": 1977,
+      "value": 72.3073170731707
+    },
+    {
+      "country": "DEU",
+      "year": 1978,
+      "value": 72.2904146341464
+    },
+    {
+      "country": "DEU",
+      "year": 1979,
+      "value": 72.6301707317073
+    },
+    {
+      "country": "DEU",
+      "year": 1980,
+      "value": 72.8003170731707
+    },
+    {
+      "country": "DEU",
+      "year": 1981,
+      "value": 73.0402195121951
+    },
+    {
+      "country": "DEU",
+      "year": 1982,
+      "value": 73.3331463414634
+    },
+    {
+      "country": "DEU",
+      "year": 1983,
+      "value": 73.6221463414634
+    },
+    {
+      "country": "DEU",
+      "year": 1984,
+      "value": 74.0722926829268
+    },
+    {
+      "country": "DEU",
+      "year": 1985,
+      "value": 74.1890975609756
+    },
+    {
+      "country": "DEU",
+      "year": 1986,
+      "value": 74.3968292682927
+    },
+    {
+      "country": "DEU",
+      "year": 1987,
+      "value": 74.8070243902439
+    },
+    {
+      "country": "DEU",
+      "year": 1988,
+      "value": 74.9987317073171
+    },
+    {
+      "country": "DEU",
+      "year": 1989,
+      "value": 75.1915365853659
+    },
+    {
+      "country": "DEU",
+      "year": 1990,
+      "value": 75.0856341463415
+    },
+    {
+      "country": "DEU",
+      "year": 1991,
+      "value": 75.319512195122
+    },
+    {
+      "country": "DEU",
+      "year": 1992,
+      "value": 75.819512195122
+    },
+    {
+      "country": "DEU",
+      "year": 1993,
+      "value": 75.8707317073171
+    },
+    {
+      "country": "DEU",
+      "year": 1994,
+      "value": 76.2707317073171
+    },
+    {
+      "country": "DEU",
+      "year": 1995,
+      "value": 76.4219512195122
+    },
+    {
+      "country": "DEU",
+      "year": 1996,
+      "value": 76.6731707317073
+    },
+    {
+      "country": "DEU",
+      "year": 1997,
+      "value": 77.0731707317073
+    },
+    {
+      "country": "DEU",
+      "year": 1998,
+      "value": 77.4756097560976
+    },
+    {
+      "country": "DEU",
+      "year": 1999,
+      "value": 77.7268292682927
+    },
+    {
+      "country": "DEU",
+      "year": 2000,
+      "value": 77.9268292682927
+    },
+    {
+      "country": "DEU",
+      "year": 2001,
+      "value": 78.3292682926829
+    },
+    {
+      "country": "DEU",
+      "year": 2002,
+      "value": 78.2292682926829
+    },
+    {
+      "country": "DEU",
+      "year": 2003,
+      "value": 78.3804878048781
+    },
+    {
+      "country": "DEU",
+      "year": 2004,
+      "value": 78.6804878048781
+    },
+    {
+      "country": "DEU",
+      "year": 2005,
+      "value": 78.9317073170732
+    },
+    {
+      "country": "DEU",
+      "year": 2006,
+      "value": 79.1317073170732
+    },
+    {
+      "country": "DEU",
+      "year": 2007,
+      "value": 79.5341463414634
+    },
+    {
+      "country": "DEU",
+      "year": 2008,
+      "value": 79.7365853658537
+    },
+    {
+      "country": "DEU",
+      "year": 2009,
+      "value": 79.8365853658537
+    },
+    {
+      "country": "DEU",
+      "year": 2010,
+      "value": 79.9878048780488
+    },
+    {
+      "country": "DEU",
+      "year": 2011,
+      "value": 80.4365853658537
+    },
+    {
+      "country": "DEU",
+      "year": 2012,
+      "value": 80.5390243902439
+    },
+    {
+      "country": "DEU",
+      "year": 2013,
+      "value": 80.490243902439
+    },
+    {
+      "country": "DEU",
+      "year": 2014,
+      "value": 81.090243902439
+    },
+    {
+      "country": "DEU",
+      "year": 2015,
+      "value": 80.6414634146341
+    },
+    {
+      "country": "DEU",
+      "year": 2016,
+      "value": 80.990243902439
+    },
+    {
+      "country": "DEU",
+      "year": 2017,
+      "value": 80.9926829268293
+    },
+    {
+      "country": "DEU",
+      "year": 2018,
+      "value": 80.8926829268293
+    },
+    {
+      "country": "DEU",
+      "year": 2019,
+      "value": 81.2926829268293
+    },
+    {
+      "country": "DEU",
+      "year": 2020,
+      "value": 81.0414634146342
+    },
+    {
+      "country": "DEU",
+      "year": 2021,
+      "value": 80.790243902439
+    },
+    {
+      "country": "DEU",
+      "year": 2022,
+      "value": 80.6080487804878
+    },
+    {
+      "country": "DEU",
+      "year": 2023,
+      "value": 81.0414634146342
+    },
+    {
+      "country": "ESP",
+      "year": 1960,
+      "value": 69.1092682926829
+    },
+    {
+      "country": "ESP",
+      "year": 1961,
+      "value": 69.4804878048781
+    },
+    {
+      "country": "ESP",
+      "year": 1962,
+      "value": 69.5190243902439
+    },
+    {
+      "country": "ESP",
+      "year": 1963,
+      "value": 69.6812195121951
+    },
+    {
+      "country": "ESP",
+      "year": 1964,
+      "value": 70.399756097561
+    },
+    {
+      "country": "ESP",
+      "year": 1965,
+      "value": 70.8092682926829
+    },
+    {
+      "country": "ESP",
+      "year": 1966,
+      "value": 71.0551219512195
+    },
+    {
+      "country": "ESP",
+      "year": 1967,
+      "value": 71.2529268292683
+    },
+    {
+      "country": "ESP",
+      "year": 1968,
+      "value": 71.5378048780488
+    },
+    {
+      "country": "ESP",
+      "year": 1969,
+      "value": 71.0575609756098
+    },
+    {
+      "country": "ESP",
+      "year": 1970,
+      "value": 72.0273170731707
+    },
+    {
+      "country": "ESP",
+      "year": 1971,
+      "value": 71.630243902439
+    },
+    {
+      "country": "ESP",
+      "year": 1972,
+      "value": 72.8180487804878
+    },
+    {
+      "country": "ESP",
+      "year": 1973,
+      "value": 72.6107317073171
+    },
+    {
+      "country": "ESP",
+      "year": 1974,
+      "value": 72.969756097561
+    },
+    {
+      "country": "ESP",
+      "year": 1975,
+      "value": 73.3187804878049
+    },
+    {
+      "country": "ESP",
+      "year": 1976,
+      "value": 73.6426829268293
+    },
+    {
+      "country": "ESP",
+      "year": 1977,
+      "value": 74.1319512195122
+    },
+    {
+      "country": "ESP",
+      "year": 1978,
+      "value": 74.2956097560976
+    },
+    {
+      "country": "ESP",
+      "year": 1979,
+      "value": 74.8187804878049
+    },
+    {
+      "country": "ESP",
+      "year": 1980,
+      "value": 75.3492682926829
+    },
+    {
+      "country": "ESP",
+      "year": 1981,
+      "value": 75.5285365853659
+    },
+    {
+      "country": "ESP",
+      "year": 1982,
+      "value": 76.1341463414634
+    },
+    {
+      "country": "ESP",
+      "year": 1983,
+      "value": 75.9090243902439
+    },
+    {
+      "country": "ESP",
+      "year": 1984,
+      "value": 76.2953658536586
+    },
+    {
+      "country": "ESP",
+      "year": 1985,
+      "value": 76.259512195122
+    },
+    {
+      "country": "ESP",
+      "year": 1986,
+      "value": 76.5104878048781
+    },
+    {
+      "country": "ESP",
+      "year": 1987,
+      "value": 76.7280487804878
+    },
+    {
+      "country": "ESP",
+      "year": 1988,
+      "value": 76.7470731707317
+    },
+    {
+      "country": "ESP",
+      "year": 1989,
+      "value": 76.8136585365854
+    },
+    {
+      "country": "ESP",
+      "year": 1990,
+      "value": 76.8375609756098
+    },
+    {
+      "country": "ESP",
+      "year": 1991,
+      "value": 76.9712195121951
+    },
+    {
+      "country": "ESP",
+      "year": 1992,
+      "value": 77.41
+    },
+    {
+      "country": "ESP",
+      "year": 1993,
+      "value": 77.5465853658537
+    },
+    {
+      "country": "ESP",
+      "year": 1994,
+      "value": 77.9014634146342
+    },
+    {
+      "country": "ESP",
+      "year": 1995,
+      "value": 77.9807317073171
+    },
+    {
+      "country": "ESP",
+      "year": 1996,
+      "value": 78.1204878048781
+    },
+    {
+      "country": "ESP",
+      "year": 1997,
+      "value": 78.6041463414634
+    },
+    {
+      "country": "ESP",
+      "year": 1998,
+      "value": 78.6658536585366
+    },
+    {
+      "country": "ESP",
+      "year": 1999,
+      "value": 78.7170731707317
+    },
+    {
+      "country": "ESP",
+      "year": 2000,
+      "value": 78.9658536585366
+    },
+    {
+      "country": "ESP",
+      "year": 2001,
+      "value": 79.3682926829268
+    },
+    {
+      "country": "ESP",
+      "year": 2002,
+      "value": 79.5682926829268
+    },
+    {
+      "country": "ESP",
+      "year": 2003,
+      "value": 79.619512195122
+    },
+    {
+      "country": "ESP",
+      "year": 2004,
+      "value": 79.8707317073171
+    },
+    {
+      "country": "ESP",
+      "year": 2005,
+      "value": 80.1707317073171
+    },
+    {
+      "country": "ESP",
+      "year": 2006,
+      "value": 80.8219512195122
+    },
+    {
+      "country": "ESP",
+      "year": 2007,
+      "value": 80.8731707317073
+    },
+    {
+      "country": "ESP",
+      "year": 2008,
+      "value": 81.1756097560976
+    },
+    {
+      "country": "ESP",
+      "year": 2009,
+      "value": 81.4756097560976
+    },
+    {
+      "country": "ESP",
+      "year": 2010,
+      "value": 81.6268292682927
+    },
+    {
+      "country": "ESP",
+      "year": 2011,
+      "value": 82.4756097560976
+    },
+    {
+      "country": "ESP",
+      "year": 2012,
+      "value": 82.4268292682927
+    },
+    {
+      "country": "ESP",
+      "year": 2013,
+      "value": 83.0780487804878
+    },
+    {
+      "country": "ESP",
+      "year": 2014,
+      "value": 83.2292682926829
+    },
+    {
+      "country": "ESP",
+      "year": 2015,
+      "value": 82.8317073170732
+    },
+    {
+      "country": "ESP",
+      "year": 2016,
+      "value": 83.3292682926829
+    },
+    {
+      "country": "ESP",
+      "year": 2017,
+      "value": 83.2829268292683
+    },
+    {
+      "country": "ESP",
+      "year": 2018,
+      "value": 83.4317073170732
+    },
+    {
+      "country": "ESP",
+      "year": 2019,
+      "value": 83.8317073170732
+    },
+    {
+      "country": "ESP",
+      "year": 2020,
+      "value": 82.2317073170732
+    },
+    {
+      "country": "ESP",
+      "year": 2021,
+      "value": 83.1780487804878
+    },
+    {
+      "country": "ESP",
+      "year": 2022,
+      "value": 83.1341463414634
+    },
+    {
+      "country": "ESP",
+      "year": 2023,
+      "value": 83.9341463414634
+    },
+    {
+      "country": "FRA",
+      "year": 1960,
+      "value": 69.8682926829268
+    },
+    {
+      "country": "FRA",
+      "year": 1961,
+      "value": 70.1170731707317
+    },
+    {
+      "country": "FRA",
+      "year": 1962,
+      "value": 70.3146341463415
+    },
+    {
+      "country": "FRA",
+      "year": 1963,
+      "value": 70.5146341463415
+    },
+    {
+      "country": "FRA",
+      "year": 1964,
+      "value": 70.6634146341463
+    },
+    {
+      "country": "FRA",
+      "year": 1965,
+      "value": 70.8121951219512
+    },
+    {
+      "country": "FRA",
+      "year": 1966,
+      "value": 70.9609756097561
+    },
+    {
+      "country": "FRA",
+      "year": 1967,
+      "value": 71.1609756097561
+    },
+    {
+      "country": "FRA",
+      "year": 1968,
+      "value": 71.309756097561
+    },
+    {
+      "country": "FRA",
+      "year": 1969,
+      "value": 71.4585365853659
+    },
+    {
+      "country": "FRA",
+      "year": 1970,
+      "value": 71.6585365853659
+    },
+    {
+      "country": "FRA",
+      "year": 1971,
+      "value": 71.9073170731707
+    },
+    {
+      "country": "FRA",
+      "year": 1972,
+      "value": 72.1073170731707
+    },
+    {
+      "country": "FRA",
+      "year": 1973,
+      "value": 72.3560975609756
+    },
+    {
+      "country": "FRA",
+      "year": 1974,
+      "value": 72.6048780487805
+    },
+    {
+      "country": "FRA",
+      "year": 1975,
+      "value": 72.8536585365854
+    },
+    {
+      "country": "FRA",
+      "year": 1976,
+      "value": 73.1024390243903
+    },
+    {
+      "country": "FRA",
+      "year": 1977,
+      "value": 73.3512195121951
+    },
+    {
+      "country": "FRA",
+      "year": 1978,
+      "value": 73.6024390243903
+    },
+    {
+      "country": "FRA",
+      "year": 1979,
+      "value": 73.8512195121951
+    },
+    {
+      "country": "FRA",
+      "year": 1980,
+      "value": 74.0512195121951
+    },
+    {
+      "country": "FRA",
+      "year": 1981,
+      "value": 74.3
+    },
+    {
+      "country": "FRA",
+      "year": 1982,
+      "value": 74.5
+    },
+    {
+      "country": "FRA",
+      "year": 1983,
+      "value": 74.8
+    },
+    {
+      "country": "FRA",
+      "year": 1984,
+      "value": 75
+    },
+    {
+      "country": "FRA",
+      "year": 1985,
+      "value": 75.3
+    },
+    {
+      "country": "FRA",
+      "year": 1986,
+      "value": 75.6
+    },
+    {
+      "country": "FRA",
+      "year": 1987,
+      "value": 75.8
+    },
+    {
+      "country": "FRA",
+      "year": 1988,
+      "value": 76.1
+    },
+    {
+      "country": "FRA",
+      "year": 1989,
+      "value": 76.3487804878049
+    },
+    {
+      "country": "FRA",
+      "year": 1990,
+      "value": 76.6
+    },
+    {
+      "country": "FRA",
+      "year": 1991,
+      "value": 76.8487804878049
+    },
+    {
+      "country": "FRA",
+      "year": 1992,
+      "value": 77.1
+    },
+    {
+      "country": "FRA",
+      "year": 1993,
+      "value": 77.3
+    },
+    {
+      "country": "FRA",
+      "year": 1994,
+      "value": 77.6487804878049
+    },
+    {
+      "country": "FRA",
+      "year": 1995,
+      "value": 77.7512195121951
+    },
+    {
+      "country": "FRA",
+      "year": 1996,
+      "value": 77.9536585365854
+    },
+    {
+      "country": "FRA",
+      "year": 1997,
+      "value": 78.3048780487805
+    },
+    {
+      "country": "FRA",
+      "year": 1998,
+      "value": 78.6048780487805
+    },
+    {
+      "country": "FRA",
+      "year": 1999,
+      "value": 78.7560975609756
+    },
+    {
+      "country": "FRA",
+      "year": 2000,
+      "value": 79.0560975609756
+    },
+    {
+      "country": "FRA",
+      "year": 2001,
+      "value": 79.1585365853659
+    },
+    {
+      "country": "FRA",
+      "year": 2002,
+      "value": 79.2609756097561
+    },
+    {
+      "country": "FRA",
+      "year": 2003,
+      "value": 79.1146341463415
+    },
+    {
+      "country": "FRA",
+      "year": 2004,
+      "value": 80.1634146341463
+    },
+    {
+      "country": "FRA",
+      "year": 2005,
+      "value": 80.1634146341463
+    },
+    {
+      "country": "FRA",
+      "year": 2006,
+      "value": 80.8121951219512
+    },
+    {
+      "country": "FRA",
+      "year": 2007,
+      "value": 81.1121951219512
+    },
+    {
+      "country": "FRA",
+      "year": 2008,
+      "value": 81.2146341463415
+    },
+    {
+      "country": "FRA",
+      "year": 2009,
+      "value": 81.4146341463415
+    },
+    {
+      "country": "FRA",
+      "year": 2010,
+      "value": 81.6634146341463
+    },
+    {
+      "country": "FRA",
+      "year": 2011,
+      "value": 82.1146341463415
+    },
+    {
+      "country": "FRA",
+      "year": 2012,
+      "value": 81.9682926829268
+    },
+    {
+      "country": "FRA",
+      "year": 2013,
+      "value": 82.219512195122
+    },
+    {
+      "country": "FRA",
+      "year": 2014,
+      "value": 82.719512195122
+    },
+    {
+      "country": "FRA",
+      "year": 2015,
+      "value": 82.3219512195122
+    },
+    {
+      "country": "FRA",
+      "year": 2016,
+      "value": 82.5731707317073
+    },
+    {
+      "country": "FRA",
+      "year": 2017,
+      "value": 82.5756097560976
+    },
+    {
+      "country": "FRA",
+      "year": 2018,
+      "value": 82.6756097560976
+    },
+    {
+      "country": "FRA",
+      "year": 2019,
+      "value": 82.8268292682927
+    },
+    {
+      "country": "FRA",
+      "year": 2020,
+      "value": 82.1756097560976
+    },
+    {
+      "country": "FRA",
+      "year": 2021,
+      "value": 82.3243902439024
+    },
+    {
+      "country": "FRA",
+      "year": 2022,
+      "value": 82.1292682926829
+    },
+    {
+      "country": "FRA",
+      "year": 2023,
+      "value": 82.8317073170732
+    },
+    {
+      "country": "ITA",
+      "year": 1960,
+      "value": 69.1239024390244
+    },
+    {
+      "country": "ITA",
+      "year": 1961,
+      "value": 69.760243902439
+    },
+    {
+      "country": "ITA",
+      "year": 1962,
+      "value": 69.149756097561
+    },
+    {
+      "country": "ITA",
+      "year": 1963,
+      "value": 69.2480487804878
+    },
+    {
+      "country": "ITA",
+      "year": 1964,
+      "value": 70.3117073170732
+    },
+    {
+      "country": "ITA",
+      "year": 1965,
+      "value": 70.1717073170732
+    },
+    {
+      "country": "ITA",
+      "year": 1966,
+      "value": 70.9260975609756
+    },
+    {
+      "country": "ITA",
+      "year": 1967,
+      "value": 70.9565853658537
+    },
+    {
+      "country": "ITA",
+      "year": 1968,
+      "value": 70.78
+    },
+    {
+      "country": "ITA",
+      "year": 1969,
+      "value": 70.8119512195122
+    },
+    {
+      "country": "ITA",
+      "year": 1970,
+      "value": 71.5587804878049
+    },
+    {
+      "country": "ITA",
+      "year": 1971,
+      "value": 71.8068292682927
+    },
+    {
+      "country": "ITA",
+      "year": 1972,
+      "value": 72.0753658536586
+    },
+    {
+      "country": "ITA",
+      "year": 1973,
+      "value": 72.0263414634146
+    },
+    {
+      "country": "ITA",
+      "year": 1974,
+      "value": 72.7343902439025
+    },
+    {
+      "country": "ITA",
+      "year": 1975,
+      "value": 72.6473170731708
+    },
+    {
+      "country": "ITA",
+      "year": 1976,
+      "value": 72.9919512195122
+    },
+    {
+      "country": "ITA",
+      "year": 1977,
+      "value": 73.3646341463415
+    },
+    {
+      "country": "ITA",
+      "year": 1978,
+      "value": 73.6931707317073
+    },
+    {
+      "country": "ITA",
+      "year": 1979,
+      "value": 74.0026829268293
+    },
+    {
+      "country": "ITA",
+      "year": 1980,
+      "value": 73.9431707317073
+    },
+    {
+      "country": "ITA",
+      "year": 1981,
+      "value": 74.3539024390244
+    },
+    {
+      "country": "ITA",
+      "year": 1982,
+      "value": 74.8146341463415
+    },
+    {
+      "country": "ITA",
+      "year": 1983,
+      "value": 74.640243902439
+    },
+    {
+      "country": "ITA",
+      "year": 1984,
+      "value": 75.389512195122
+    },
+    {
+      "country": "ITA",
+      "year": 1985,
+      "value": 75.4707317073171
+    },
+    {
+      "country": "ITA",
+      "year": 1986,
+      "value": 75.7707317073171
+    },
+    {
+      "country": "ITA",
+      "year": 1987,
+      "value": 76.219512195122
+    },
+    {
+      "country": "ITA",
+      "year": 1988,
+      "value": 76.3707317073171
+    },
+    {
+      "country": "ITA",
+      "year": 1989,
+      "value": 76.819512195122
+    },
+    {
+      "country": "ITA",
+      "year": 1990,
+      "value": 76.9707317073171
+    },
+    {
+      "country": "ITA",
+      "year": 1991,
+      "value": 77.0195121951219
+    },
+    {
+      "country": "ITA",
+      "year": 1992,
+      "value": 77.419512195122
+    },
+    {
+      "country": "ITA",
+      "year": 1993,
+      "value": 77.7219512195122
+    },
+    {
+      "country": "ITA",
+      "year": 1994,
+      "value": 77.9219512195122
+    },
+    {
+      "country": "ITA",
+      "year": 1995,
+      "value": 78.1707317073171
+    },
+    {
+      "country": "ITA",
+      "year": 1996,
+      "value": 78.5219512195122
+    },
+    {
+      "country": "ITA",
+      "year": 1997,
+      "value": 78.8243902439024
+    },
+    {
+      "country": "ITA",
+      "year": 1998,
+      "value": 78.9756097560976
+    },
+    {
+      "country": "ITA",
+      "year": 1999,
+      "value": 79.4243902439024
+    },
+    {
+      "country": "ITA",
+      "year": 2000,
+      "value": 79.7780487804878
+    },
+    {
+      "country": "ITA",
+      "year": 2001,
+      "value": 80.1268292682927
+    },
+    {
+      "country": "ITA",
+      "year": 2002,
+      "value": 80.2292682926829
+    },
+    {
+      "country": "ITA",
+      "year": 2003,
+      "value": 79.9829268292683
+    },
+    {
+      "country": "ITA",
+      "year": 2004,
+      "value": 80.7804878048781
+    },
+    {
+      "country": "ITA",
+      "year": 2005,
+      "value": 80.7829268292683
+    },
+    {
+      "country": "ITA",
+      "year": 2006,
+      "value": 81.2829268292683
+    },
+    {
+      "country": "ITA",
+      "year": 2007,
+      "value": 81.4341463414634
+    },
+    {
+      "country": "ITA",
+      "year": 2008,
+      "value": 81.4853658536585
+    },
+    {
+      "country": "ITA",
+      "year": 2009,
+      "value": 81.6365853658537
+    },
+    {
+      "country": "ITA",
+      "year": 2010,
+      "value": 82.0365853658537
+    },
+    {
+      "country": "ITA",
+      "year": 2011,
+      "value": 82.1878048780488
+    },
+    {
+      "country": "ITA",
+      "year": 2012,
+      "value": 82.2390243902439
+    },
+    {
+      "country": "ITA",
+      "year": 2013,
+      "value": 82.690243902439
+    },
+    {
+      "country": "ITA",
+      "year": 2014,
+      "value": 83.090243902439
+    },
+    {
+      "country": "ITA",
+      "year": 2015,
+      "value": 82.5439024390244
+    },
+    {
+      "country": "ITA",
+      "year": 2016,
+      "value": 83.2439024390244
+    },
+    {
+      "country": "ITA",
+      "year": 2017,
+      "value": 82.9463414634147
+    },
+    {
+      "country": "ITA",
+      "year": 2018,
+      "value": 83.3463414634146
+    },
+    {
+      "country": "ITA",
+      "year": 2019,
+      "value": 83.4975609756098
+    },
+    {
+      "country": "ITA",
+      "year": 2020,
+      "value": 82.1951219512195
+    },
+    {
+      "country": "ITA",
+      "year": 2021,
+      "value": 82.6463414634146
+    },
+    {
+      "country": "ITA",
+      "year": 2022,
+      "value": 82.7
+    },
+    {
+      "country": "ITA",
+      "year": 2023,
+      "value": 83.3512195121951
+    },
+    {
+      "country": "POL",
+      "year": 1960,
+      "value": 67.6804878048781
+    },
+    {
+      "country": "POL",
+      "year": 1961,
+      "value": 67.7780487804878
+    },
+    {
+      "country": "POL",
+      "year": 1962,
+      "value": 67.4268292682927
+    },
+    {
+      "country": "POL",
+      "year": 1963,
+      "value": 68.3756097560976
+    },
+    {
+      "country": "POL",
+      "year": 1964,
+      "value": 68.6292682926829
+    },
+    {
+      "country": "POL",
+      "year": 1965,
+      "value": 69.4292682926829
+    },
+    {
+      "country": "POL",
+      "year": 1966,
+      "value": 69.8268292682927
+    },
+    {
+      "country": "POL",
+      "year": 1967,
+      "value": 69.4243902439024
+    },
+    {
+      "country": "POL",
+      "year": 1968,
+      "value": 70.219512195122
+    },
+    {
+      "country": "POL",
+      "year": 1969,
+      "value": 69.719512195122
+    },
+    {
+      "country": "POL",
+      "year": 1970,
+      "value": 69.8682926829268
+    },
+    {
+      "country": "POL",
+      "year": 1971,
+      "value": 69.6121951219512
+    },
+    {
+      "country": "POL",
+      "year": 1972,
+      "value": 70.6658536585366
+    },
+    {
+      "country": "POL",
+      "year": 1973,
+      "value": 70.6634146341463
+    },
+    {
+      "country": "POL",
+      "year": 1974,
+      "value": 71.1170731707317
+    },
+    {
+      "country": "POL",
+      "year": 1975,
+      "value": 70.5609756097561
+    },
+    {
+      "country": "POL",
+      "year": 1976,
+      "value": 70.6560975609756
+    },
+    {
+      "country": "POL",
+      "year": 1977,
+      "value": 70.4024390243902
+    },
+    {
+      "country": "POL",
+      "year": 1978,
+      "value": 70.3512195121951
+    },
+    {
+      "country": "POL",
+      "year": 1979,
+      "value": 70.7512195121951
+    },
+    {
+      "country": "POL",
+      "year": 1980,
+      "value": 70.0975609756098
+    },
+    {
+      "country": "POL",
+      "year": 1981,
+      "value": 71.0512195121951
+    },
+    {
+      "country": "POL",
+      "year": 1982,
+      "value": 71.1024390243903
+    },
+    {
+      "country": "POL",
+      "year": 1983,
+      "value": 71
+    },
+    {
+      "country": "POL",
+      "year": 1984,
+      "value": 70.8
+    },
+    {
+      "country": "POL",
+      "year": 1985,
+      "value": 70.5487804878049
+    },
+    {
+      "country": "POL",
+      "year": 1986,
+      "value": 70.8487804878049
+    },
+    {
+      "country": "POL",
+      "year": 1987,
+      "value": 70.8975609756098
+    },
+    {
+      "country": "POL",
+      "year": 1988,
+      "value": 71.3317073170732
+    },
+    {
+      "country": "POL",
+      "year": 1989,
+      "value": 71.0439024390244
+    },
+    {
+      "country": "POL",
+      "year": 1990,
+      "value": 70.890243902439
+    },
+    {
+      "country": "POL",
+      "year": 1991,
+      "value": 70.5878048780488
+    },
+    {
+      "country": "POL",
+      "year": 1992,
+      "value": 71.090243902439
+    },
+    {
+      "country": "POL",
+      "year": 1993,
+      "value": 71.5951219512195
+    },
+    {
+      "country": "POL",
+      "year": 1994,
+      "value": 71.6951219512195
+    },
+    {
+      "country": "POL",
+      "year": 1995,
+      "value": 71.8926829268293
+    },
+    {
+      "country": "POL",
+      "year": 1996,
+      "value": 72.2463414634146
+    },
+    {
+      "country": "POL",
+      "year": 1997,
+      "value": 72.6463414634146
+    },
+    {
+      "country": "POL",
+      "year": 1998,
+      "value": 72.9975609756098
+    },
+    {
+      "country": "POL",
+      "year": 1999,
+      "value": 73.0439024390244
+    },
+    {
+      "country": "POL",
+      "year": 2000,
+      "value": 73.7487804878049
+    },
+    {
+      "country": "POL",
+      "year": 2001,
+      "value": 74.2
+    },
+    {
+      "country": "POL",
+      "year": 2002,
+      "value": 74.4975609756098
+    },
+    {
+      "country": "POL",
+      "year": 2003,
+      "value": 74.5975609756098
+    },
+    {
+      "country": "POL",
+      "year": 2004,
+      "value": 74.8463414634146
+    },
+    {
+      "country": "POL",
+      "year": 2005,
+      "value": 74.9951219512195
+    },
+    {
+      "country": "POL",
+      "year": 2006,
+      "value": 75.1439024390244
+    },
+    {
+      "country": "POL",
+      "year": 2007,
+      "value": 75.2439024390244
+    },
+    {
+      "country": "POL",
+      "year": 2008,
+      "value": 75.5439024390244
+    },
+    {
+      "country": "POL",
+      "year": 2009,
+      "value": 75.6951219512195
+    },
+    {
+      "country": "POL",
+      "year": 2010,
+      "value": 76.2463414634146
+    },
+    {
+      "country": "POL",
+      "year": 2011,
+      "value": 76.6951219512195
+    },
+    {
+      "country": "POL",
+      "year": 2012,
+      "value": 76.7463414634146
+    },
+    {
+      "country": "POL",
+      "year": 2013,
+      "value": 77
+    },
+    {
+      "country": "POL",
+      "year": 2014,
+      "value": 77.6024390243903
+    },
+    {
+      "country": "POL",
+      "year": 2015,
+      "value": 77.4512195121951
+    },
+    {
+      "country": "POL",
+      "year": 2016,
+      "value": 77.8512195121951
+    },
+    {
+      "country": "POL",
+      "year": 2017,
+      "value": 77.7536585365854
+    },
+    {
+      "country": "POL",
+      "year": 2018,
+      "value": 77.6024390243903
+    },
+    {
+      "country": "POL",
+      "year": 2019,
+      "value": 77.9048780487805
+    },
+    {
+      "country": "POL",
+      "year": 2020,
+      "value": 76.4
+    },
+    {
+      "country": "POL",
+      "year": 2021,
+      "value": 75.3512195121951
+    },
+    {
+      "country": "POL",
+      "year": 2022,
+      "value": 77.1560975609756
+    },
+    {
+      "country": "POL",
+      "year": 2023,
+      "value": 78.2585365853659
+    }
+  ],
+  "missing": [],
+  "dimensions": [],
+  "disagreements": [],
+  "sources": [
+    {
+      "indicator": "SP.DYN.LE00.IN",
+      "name": "Life expectancy at birth, total (years)",
+      "source": "World Bank",
+      "dataset": "World Development Indicators",
+      "url": "https://api.worldbank.org/v2/country/FRA;DEU;ITA;ESP;POL/indicator/SP.DYN.LE00.IN?format=json&date=1960:2023&per_page=320",
+      "retrievedAt": "2026-11-10T07:27:07.949Z"
+    }
+  ]
+}

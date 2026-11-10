@@ -1,0 +1,1333 @@
+{
+  "view": {
+    "_tag": "Ranking",
+    "indicator": "SP.DYN.LE00.IN",
+    "countries": [
+      "ABW",
+      "AFG",
+      "AGO",
+      "ALB",
+      "AND",
+      "ARE",
+      "ARG",
+      "ARM",
+      "ASM",
+      "ATG",
+      "AUS",
+      "AUT",
+      "AZE",
+      "BDI",
+      "BEL",
+      "BEN",
+      "BFA",
+      "BGD",
+      "BGR",
+      "BHR",
+      "BHS",
+      "BIH",
+      "BLR",
+      "BLZ",
+      "BMU",
+      "BOL",
+      "BRA",
+      "BRB",
+      "BRN",
+      "BTN",
+      "BWA",
+      "CAF",
+      "CAN",
+      "CHE",
+      "CHI",
+      "CHL",
+      "CHN",
+      "CIV",
+      "CMR",
+      "COD",
+      "COG",
+      "COL",
+      "COM",
+      "CPV",
+      "CRI",
+      "CUB",
+      "CUW",
+      "CYM",
+      "CYP",
+      "CZE",
+      "DEU",
+      "DJI",
+      "DMA",
+      "DNK",
+      "DOM",
+      "DZA",
+      "ECU",
+      "EGY",
+      "ERI",
+      "ESP",
+      "EST",
+      "ETH",
+      "FIN",
+      "FJI",
+      "FRA",
+      "FRO",
+      "FSM",
+      "GAB",
+      "GBR",
+      "GEO",
+      "GHA",
+      "GIB",
+      "GIN",
+      "GMB",
+      "GNB",
+      "GNQ",
+      "GRC",
+      "GRD",
+      "GRL",
+      "GTM",
+      "GUM",
+      "GUY",
+      "HKG",
+      "HND",
+      "HRV",
+      "HTI",
+      "HUN",
+      "IDN",
+      "IMN",
+      "IND",
+      "IRL",
+      "IRN",
+      "IRQ",
+      "ISL",
+      "ISR",
+      "ITA",
+      "JAM",
+      "JOR",
+      "JPN",
+      "KAZ",
+      "KEN",
+      "KGZ",
+      "KHM",
+      "KIR",
+      "KNA",
+      "KOR",
+      "KWT",
+      "LAO",
+      "LBN",
+      "LBR",
+      "LBY",
+      "LCA",
+      "LIE",
+      "LKA",
+      "LSO",
+      "LTU",
+      "LUX",
+      "LVA",
+      "MAC",
+      "MAF",
+      "MAR",
+      "MCO",
+      "MDA",
+      "MDG",
+      "MDV",
+      "MEX",
+      "MHL",
+      "MKD",
+      "MLI",
+      "MLT",
+      "MMR",
+      "MNE",
+      "MNG",
+      "MNP",
+      "MOZ",
+      "MRT",
+      "MUS",
+      "MWI",
+      "MYS",
+      "NAM",
+      "NCL",
+      "NER",
+      "NGA",
+      "NIC",
+      "NLD",
+      "NOR",
+      "NPL",
+      "NRU",
+      "NZL",
+      "OMN",
+      "PAK",
+      "PAN",
+      "PER",
+      "PHL",
+      "PLW",
+      "PNG",
+      "POL",
+      "PRI",
+      "PRK",
+      "PRT",
+      "PRY",
+      "PSE",
+      "PYF",
+      "QAT",
+      "ROU",
+      "RUS",
+      "RWA",
+      "SAU",
+      "SDN",
+      "SEN",
+      "SGP",
+      "SLB",
+      "SLE",
+      "SLV",
+      "SMR",
+      "SOM",
+      "SRB",
+      "SSD",
+      "STP",
+      "SUR",
+      "SVK",
+      "SVN",
+      "SWE",
+      "SWZ",
+      "SXM",
+      "SYC",
+      "SYR",
+      "TCA",
+      "TCD",
+      "TGO",
+      "THA",
+      "TJK",
+      "TKM",
+      "TLS",
+      "TON",
+      "TTO",
+      "TUN",
+      "TUR",
+      "TUV",
+      "TZA",
+      "UGA",
+      "UKR",
+      "URY",
+      "USA",
+      "UZB",
+      "VCT",
+      "VEN",
+      "VGB",
+      "VIR",
+      "VNM",
+      "VUT",
+      "WSM",
+      "XKX",
+      "YEM",
+      "ZAF",
+      "ZMB",
+      "ZWE"
+    ],
+    "year": 2023,
+    "as": "Map"
+  },
+  "title": "Life expectancy at birth (years)",
+  "indicator": {
+    "id": "SP.DYN.LE00.IN",
+    "name": "Life expectancy at birth, total (years)",
+    "definition": "Life expectancy at birth indicates the number of years a newborn infant would live if prevailing patterns of mortality at the time of its birth were to stay the same throughout its life."
+  },
+  "observations": [
+    {
+      "country": "ABW",
+      "year": 2023,
+      "value": 76.353
+    },
+    {
+      "country": "AFG",
+      "year": 2023,
+      "value": 66.035
+    },
+    {
+      "country": "AGO",
+      "year": 2023,
+      "value": 64.617
+    },
+    {
+      "country": "ALB",
+      "year": 2023,
+      "value": 79.602
+    },
+    {
+      "country": "AND",
+      "year": 2023,
+      "value": 84.041
+    },
+    {
+      "country": "ARE",
+      "year": 2023,
+      "value": 82.909
+    },
+    {
+      "country": "ARG",
+      "year": 2023,
+      "value": 77.395
+    },
+    {
+      "country": "ARM",
+      "year": 2023,
+      "value": 77.4658536585366
+    },
+    {
+      "country": "ASM",
+      "year": 2023,
+      "value": 72.852
+    },
+    {
+      "country": "ATG",
+      "year": 2023,
+      "value": 77.598
+    },
+    {
+      "country": "AUS",
+      "year": 2023,
+      "value": 83.0512195121951
+    },
+    {
+      "country": "AUT",
+      "year": 2023,
+      "value": 81.7926829268293
+    },
+    {
+      "country": "AZE",
+      "year": 2023,
+      "value": 74.429
+    },
+    {
+      "country": "BDI",
+      "year": 2023,
+      "value": 63.651
+    },
+    {
+      "country": "BEL",
+      "year": 2023,
+      "value": 82.4
+    },
+    {
+      "country": "BEN",
+      "year": 2023,
+      "value": 60.774
+    },
+    {
+      "country": "BFA",
+      "year": 2023,
+      "value": 61.092
+    },
+    {
+      "country": "BGD",
+      "year": 2023,
+      "value": 74.672
+    },
+    {
+      "country": "BGR",
+      "year": 2023,
+      "value": 75.7560975609756
+    },
+    {
+      "country": "BHR",
+      "year": 2023,
+      "value": 81.284
+    },
+    {
+      "country": "BHS",
+      "year": 2023,
+      "value": 74.552
+    },
+    {
+      "country": "BIH",
+      "year": 2023,
+      "value": 77.85
+    },
+    {
+      "country": "BLR",
+      "year": 2023,
+      "value": 74.1837804878049
+    },
+    {
+      "country": "BLZ",
+      "year": 2023,
+      "value": 73.566
+    },
+    {
+      "country": "BMU",
+      "year": 2023,
+      "value": 82.309
+    },
+    {
+      "country": "BOL",
+      "year": 2023,
+      "value": 68.581
+    },
+    {
+      "country": "BRA",
+      "year": 2023,
+      "value": 75.848
+    },
+    {
+      "country": "BRB",
+      "year": 2023,
+      "value": 76.178
+    },
+    {
+      "country": "BRN",
+      "year": 2023,
+      "value": 75.327
+    },
+    {
+      "country": "BTN",
+      "year": 2023,
+      "value": 72.975
+    },
+    {
+      "country": "BWA",
+      "year": 2023,
+      "value": 69.163
+    },
+    {
+      "country": "CAF",
+      "year": 2023,
+      "value": 57.408
+    },
+    {
+      "country": "CAN",
+      "year": 2023,
+      "value": 81.6263414634146
+    },
+    {
+      "country": "CHE",
+      "year": 2023,
+      "value": 84.1560975609756
+    },
+    {
+      "country": "CHI",
+      "year": 2023,
+      "value": 81.1
+    },
+    {
+      "country": "CHL",
+      "year": 2023,
+      "value": 81.167
+    },
+    {
+      "country": "CHN",
+      "year": 2023,
+      "value": 77.953
+    },
+    {
+      "country": "CIV",
+      "year": 2023,
+      "value": 61.944
+    },
+    {
+      "country": "CMR",
+      "year": 2023,
+      "value": 63.7
+    },
+    {
+      "country": "COD",
+      "year": 2023,
+      "value": 61.895
+    },
+    {
+      "country": "COG",
+      "year": 2023,
+      "value": 65.772
+    },
+    {
+      "country": "COL",
+      "year": 2023,
+      "value": 77.725
+    },
+    {
+      "country": "COM",
+      "year": 2023,
+      "value": 66.777
+    },
+    {
+      "country": "CPV",
+      "year": 2023,
+      "value": 76.059
+    },
+    {
+      "country": "CRI",
+      "year": 2023,
+      "value": 80.799
+    },
+    {
+      "country": "CUB",
+      "year": 2023,
+      "value": 78.085
+    },
+    {
+      "country": "CUW",
+      "year": 2023,
+      "value": 76.8
+    },
+    {
+      "country": "CYM",
+      "year": 2023,
+      "value": 80.358
+    },
+    {
+      "country": "CYP",
+      "year": 2023,
+      "value": 81.648
+    },
+    {
+      "country": "CZE",
+      "year": 2023,
+      "value": 79.8268292682927
+    },
+    {
+      "country": "DEU",
+      "year": 2023,
+      "value": 81.0414634146342
+    },
+    {
+      "country": "DJI",
+      "year": 2023,
+      "value": 65.987
+    },
+    {
+      "country": "DMA",
+      "year": 2023,
+      "value": 71.132
+    },
+    {
+      "country": "DNK",
+      "year": 2023,
+      "value": 81.7536585365854
+    },
+    {
+      "country": "DOM",
+      "year": 2023,
+      "value": 73.72
+    },
+    {
+      "country": "DZA",
+      "year": 2023,
+      "value": 76.261
+    },
+    {
+      "country": "ECU",
+      "year": 2023,
+      "value": 77.392
+    },
+    {
+      "country": "EGY",
+      "year": 2023,
+      "value": 71.633
+    },
+    {
+      "country": "ERI",
+      "year": 2023,
+      "value": 68.624
+    },
+    {
+      "country": "ESP",
+      "year": 2023,
+      "value": 83.9341463414634
+    },
+    {
+      "country": "EST",
+      "year": 2023,
+      "value": 78.7926829268293
+    },
+    {
+      "country": "ETH",
+      "year": 2023,
+      "value": 67.315
+    },
+    {
+      "country": "FIN",
+      "year": 2023,
+      "value": 81.5853658536585
+    },
+    {
+      "country": "FJI",
+      "year": 2023,
+      "value": 67.316
+    },
+    {
+      "country": "FRA",
+      "year": 2023,
+      "value": 82.8317073170732
+    },
+    {
+      "country": "FRO",
+      "year": 2023,
+      "value": 82.9521195121951
+    },
+    {
+      "country": "FSM",
+      "year": 2023,
+      "value": 67.198
+    },
+    {
+      "country": "GAB",
+      "year": 2023,
+      "value": 68.337
+    },
+    {
+      "country": "GBR",
+      "year": 2023,
+      "value": 81.2380975609756
+    },
+    {
+      "country": "GEO",
+      "year": 2023,
+      "value": 74.496
+    },
+    {
+      "country": "GHA",
+      "year": 2023,
+      "value": 65.498
+    },
+    {
+      "country": "GIB",
+      "year": 2023,
+      "value": 83.553
+    },
+    {
+      "country": "GIN",
+      "year": 2023,
+      "value": 60.74
+    },
+    {
+      "country": "GMB",
+      "year": 2023,
+      "value": 65.86
+    },
+    {
+      "country": "GNB",
+      "year": 2023,
+      "value": 64.085
+    },
+    {
+      "country": "GNQ",
+      "year": 2023,
+      "value": 63.707
+    },
+    {
+      "country": "GRC",
+      "year": 2023,
+      "value": 81.7365853658537
+    },
+    {
+      "country": "GRD",
+      "year": 2023,
+      "value": 75.205
+    },
+    {
+      "country": "GRL",
+      "year": 2023,
+      "value": 70.9724390243902
+    },
+    {
+      "country": "GTM",
+      "year": 2023,
+      "value": 72.602
+    },
+    {
+      "country": "GUM",
+      "year": 2023,
+      "value": 77.209
+    },
+    {
+      "country": "GUY",
+      "year": 2023,
+      "value": 70.18
+    },
+    {
+      "country": "HKG",
+      "year": 2023,
+      "value": 85.2473170731707
+    },
+    {
+      "country": "HND",
+      "year": 2023,
+      "value": 72.884
+    },
+    {
+      "country": "HRV",
+      "year": 2023,
+      "value": 78.4731707317073
+    },
+    {
+      "country": "HTI",
+      "year": 2023,
+      "value": 64.936
+    },
+    {
+      "country": "HUN",
+      "year": 2023,
+      "value": 76.5707317073171
+    },
+    {
+      "country": "IDN",
+      "year": 2023,
+      "value": 71.146
+    },
+    {
+      "country": "IMN",
+      "year": 2023,
+      "value": 80.999
+    },
+    {
+      "country": "IND",
+      "year": 2023,
+      "value": 72.003
+    },
+    {
+      "country": "IRL",
+      "year": 2023,
+      "value": 82.8073170731707
+    },
+    {
+      "country": "IRN",
+      "year": 2023,
+      "value": 77.654
+    },
+    {
+      "country": "IRQ",
+      "year": 2023,
+      "value": 72.324
+    },
+    {
+      "country": "ISL",
+      "year": 2023,
+      "value": 82.4560975609756
+    },
+    {
+      "country": "ISR",
+      "year": 2023,
+      "value": 83.1951219512195
+    },
+    {
+      "country": "ITA",
+      "year": 2023,
+      "value": 83.3512195121951
+    },
+    {
+      "country": "JAM",
+      "year": 2023,
+      "value": 71.479
+    },
+    {
+      "country": "JOR",
+      "year": 2023,
+      "value": 77.814
+    },
+    {
+      "country": "JPN",
+      "year": 2023,
+      "value": 84.0412195121951
+    },
+    {
+      "country": "KAZ",
+      "year": 2023,
+      "value": 74.402
+    },
+    {
+      "country": "KEN",
+      "year": 2023,
+      "value": 63.646
+    },
+    {
+      "country": "KGZ",
+      "year": 2023,
+      "value": 72.2487804878049
+    },
+    {
+      "country": "KHM",
+      "year": 2023,
+      "value": 70.668
+    },
+    {
+      "country": "KIR",
+      "year": 2023,
+      "value": 66.473
+    },
+    {
+      "country": "KNA",
+      "year": 2023,
+      "value": 72.145
+    },
+    {
+      "country": "KOR",
+      "year": 2023,
+      "value": 83.4292682926829
+    },
+    {
+      "country": "KWT",
+      "year": 2023,
+      "value": 83.1878048780488
+    },
+    {
+      "country": "LAO",
+      "year": 2023,
+      "value": 68.964
+    },
+    {
+      "country": "LBN",
+      "year": 2023,
+      "value": 77.817
+    },
+    {
+      "country": "LBR",
+      "year": 2023,
+      "value": 62.163
+    },
+    {
+      "country": "LBY",
+      "year": 2023,
+      "value": 69.339
+    },
+    {
+      "country": "LCA",
+      "year": 2023,
+      "value": 72.697
+    },
+    {
+      "country": "LIE",
+      "year": 2023,
+      "value": 84.5951219512195
+    },
+    {
+      "country": "LKA",
+      "year": 2023,
+      "value": 77.483
+    },
+    {
+      "country": "LSO",
+      "year": 2023,
+      "value": 57.375
+    },
+    {
+      "country": "LTU",
+      "year": 2023,
+      "value": 77.290243902439
+    },
+    {
+      "country": "LUX",
+      "year": 2023,
+      "value": 83.309756097561
+    },
+    {
+      "country": "LVA",
+      "year": 2023,
+      "value": 75.4268292682927
+    },
+    {
+      "country": "MAC",
+      "year": 2023,
+      "value": 83.1804878048781
+    },
+    {
+      "country": "MAF",
+      "year": 2023,
+      "value": 80.224
+    },
+    {
+      "country": "MAR",
+      "year": 2023,
+      "value": 75.313
+    },
+    {
+      "country": "MCO",
+      "year": 2023,
+      "value": 86.372
+    },
+    {
+      "country": "MDA",
+      "year": 2023,
+      "value": 71.198
+    },
+    {
+      "country": "MDG",
+      "year": 2023,
+      "value": 63.632
+    },
+    {
+      "country": "MDV",
+      "year": 2023,
+      "value": 81.041
+    },
+    {
+      "country": "MEX",
+      "year": 2023,
+      "value": 75.069
+    },
+    {
+      "country": "MHL",
+      "year": 2023,
+      "value": 66.945
+    },
+    {
+      "country": "MKD",
+      "year": 2023,
+      "value": 75.3160975609756
+    },
+    {
+      "country": "MLI",
+      "year": 2023,
+      "value": 60.439
+    },
+    {
+      "country": "MLT",
+      "year": 2023,
+      "value": 83.3560975609756
+    },
+    {
+      "country": "MMR",
+      "year": 2023,
+      "value": 66.889
+    },
+    {
+      "country": "MNE",
+      "year": 2023,
+      "value": 77.5878048780488
+    },
+    {
+      "country": "MNG",
+      "year": 2023,
+      "value": 72.1224390243902
+    },
+    {
+      "country": "MNP",
+      "year": 2023,
+      "value": 78.808
+    },
+    {
+      "country": "MOZ",
+      "year": 2023,
+      "value": 63.611
+    },
+    {
+      "country": "MRT",
+      "year": 2023,
+      "value": 68.484
+    },
+    {
+      "country": "MUS",
+      "year": 2023,
+      "value": 73.4121951219512
+    },
+    {
+      "country": "MWI",
+      "year": 2023,
+      "value": 67.353
+    },
+    {
+      "country": "MYS",
+      "year": 2023,
+      "value": 76.657
+    },
+    {
+      "country": "NAM",
+      "year": 2023,
+      "value": 67.385
+    },
+    {
+      "country": "NCL",
+      "year": 2023,
+      "value": 78.766
+    },
+    {
+      "country": "NER",
+      "year": 2023,
+      "value": 61.183
+    },
+    {
+      "country": "NGA",
+      "year": 2023,
+      "value": 54.462
+    },
+    {
+      "country": "NIC",
+      "year": 2023,
+      "value": 74.947
+    },
+    {
+      "country": "NLD",
+      "year": 2023,
+      "value": 81.8634146341464
+    },
+    {
+      "country": "NOR",
+      "year": 2023,
+      "value": 83.0121951219512
+    },
+    {
+      "country": "NPL",
+      "year": 2023,
+      "value": 70.354
+    },
+    {
+      "country": "NRU",
+      "year": 2023,
+      "value": 62.109
+    },
+    {
+      "country": "NZL",
+      "year": 2023,
+      "value": 81.7585365853659
+    },
+    {
+      "country": "OMN",
+      "year": 2023,
+      "value": 80.031
+    },
+    {
+      "country": "PAK",
+      "year": 2023,
+      "value": 67.649
+    },
+    {
+      "country": "PAN",
+      "year": 2023,
+      "value": 79.594
+    },
+    {
+      "country": "PER",
+      "year": 2023,
+      "value": 77.74
+    },
+    {
+      "country": "PHL",
+      "year": 2023,
+      "value": 69.833
+    },
+    {
+      "country": "PLW",
+      "year": 2023,
+      "value": 69.269
+    },
+    {
+      "country": "PNG",
+      "year": 2023,
+      "value": 66.134
+    },
+    {
+      "country": "POL",
+      "year": 2023,
+      "value": 78.2585365853659
+    },
+    {
+      "country": "PRI",
+      "year": 2023,
+      "value": 81.69
+    },
+    {
+      "country": "PRK",
+      "year": 2023,
+      "value": 73.642
+    },
+    {
+      "country": "PRT",
+      "year": 2023,
+      "value": 82.3292682926829
+    },
+    {
+      "country": "PRY",
+      "year": 2023,
+      "value": 73.844
+    },
+    {
+      "country": "PSE",
+      "year": 2023,
+      "value": 65.17
+    },
+    {
+      "country": "PYF",
+      "year": 2023,
+      "value": 84.07
+    },
+    {
+      "country": "QAT",
+      "year": 2023,
+      "value": 82.368
+    },
+    {
+      "country": "ROU",
+      "year": 2023,
+      "value": 76.4048780487805
+    },
+    {
+      "country": "RUS",
+      "year": 2023,
+      "value": 73.2546341463415
+    },
+    {
+      "country": "RWA",
+      "year": 2023,
+      "value": 67.785
+    },
+    {
+      "country": "SAU",
+      "year": 2023,
+      "value": 78.732
+    },
+    {
+      "country": "SDN",
+      "year": 2023,
+      "value": 66.331
+    },
+    {
+      "country": "SEN",
+      "year": 2023,
+      "value": 68.683
+    },
+    {
+      "country": "SGP",
+      "year": 2023,
+      "value": 83.0975609756098
+    },
+    {
+      "country": "SLB",
+      "year": 2023,
+      "value": 70.528
+    },
+    {
+      "country": "SLE",
+      "year": 2023,
+      "value": 61.786
+    },
+    {
+      "country": "SLV",
+      "year": 2023,
+      "value": 72.099
+    },
+    {
+      "country": "SMR",
+      "year": 2023,
+      "value": 85.706
+    },
+    {
+      "country": "SOM",
+      "year": 2023,
+      "value": 58.816
+    },
+    {
+      "country": "SRB",
+      "year": 2023,
+      "value": 76.1414634146341
+    },
+    {
+      "country": "SSD",
+      "year": 2023,
+      "value": 57.617
+    },
+    {
+      "country": "STP",
+      "year": 2023,
+      "value": 69.718
+    },
+    {
+      "country": "SUR",
+      "year": 2023,
+      "value": 73.631
+    },
+    {
+      "country": "SVK",
+      "year": 2023,
+      "value": 78.119512195122
+    },
+    {
+      "country": "SVN",
+      "year": 2023,
+      "value": 81.9292682926829
+    },
+    {
+      "country": "SWE",
+      "year": 2023,
+      "value": 83.309756097561
+    },
+    {
+      "country": "SWZ",
+      "year": 2023,
+      "value": 64.123
+    },
+    {
+      "country": "SXM",
+      "year": 2023,
+      "value": 76.371
+    },
+    {
+      "country": "SYC",
+      "year": 2023,
+      "value": 75.419512195122
+    },
+    {
+      "country": "SYR",
+      "year": 2023,
+      "value": 72.12
+    },
+    {
+      "country": "TCA",
+      "year": 2023,
+      "value": 78.008
+    },
+    {
+      "country": "TCD",
+      "year": 2023,
+      "value": 55.069
+    },
+    {
+      "country": "TGO",
+      "year": 2023,
+      "value": 62.74
+    },
+    {
+      "country": "THA",
+      "year": 2023,
+      "value": 76.412
+    },
+    {
+      "country": "TJK",
+      "year": 2023,
+      "value": 71.79
+    },
+    {
+      "country": "TKM",
+      "year": 2023,
+      "value": 70.073
+    },
+    {
+      "country": "TLS",
+      "year": 2023,
+      "value": 67.689
+    },
+    {
+      "country": "TON",
+      "year": 2023,
+      "value": 72.895
+    },
+    {
+      "country": "TTO",
+      "year": 2023,
+      "value": 73.49
+    },
+    {
+      "country": "TUN",
+      "year": 2023,
+      "value": 76.508
+    },
+    {
+      "country": "TUR",
+      "year": 2023,
+      "value": 77.156
+    },
+    {
+      "country": "TUV",
+      "year": 2023,
+      "value": 67.105
+    },
+    {
+      "country": "TZA",
+      "year": 2023,
+      "value": 66.995
+    },
+    {
+      "country": "UGA",
+      "year": 2023,
+      "value": 68.252
+    },
+    {
+      "country": "UKR",
+      "year": 2023,
+      "value": 73.422
+    },
+    {
+      "country": "URY",
+      "year": 2023,
+      "value": 78.138
+    },
+    {
+      "country": "USA",
+      "year": 2023,
+      "value": 78.3853658536585
+    },
+    {
+      "country": "UZB",
+      "year": 2023,
+      "value": 72.388
+    },
+    {
+      "country": "VCT",
+      "year": 2023,
+      "value": 71.23
+    },
+    {
+      "country": "VEN",
+      "year": 2023,
+      "value": 72.514
+    },
+    {
+      "country": "VGB",
+      "year": 2023,
+      "value": 77.276
+    },
+    {
+      "country": "VIR",
+      "year": 2023,
+      "value": 80.519512195122
+    },
+    {
+      "country": "VNM",
+      "year": 2023,
+      "value": 74.588
+    },
+    {
+      "country": "VUT",
+      "year": 2023,
+      "value": 71.477
+    },
+    {
+      "country": "WSM",
+      "year": 2023,
+      "value": 71.698
+    },
+    {
+      "country": "XKX",
+      "year": 2023,
+      "value": 78.033
+    },
+    {
+      "country": "YEM",
+      "year": 2023,
+      "value": 69.295
+    },
+    {
+      "country": "ZAF",
+      "year": 2023,
+      "value": 66.139
+    },
+    {
+      "country": "ZMB",
+      "year": 2023,
+      "value": 66.349
+    },
+    {
+      "country": "ZWE",
+      "year": 2023,
+      "value": 62.775
+    }
+  ],
+  "missing": [],
+  "dimensions": [],
+  "disagreements": [],
+  "sources": [
+    {
+      "indicator": "SP.DYN.LE00.IN",
+      "name": "Life expectancy at birth, total (years)",
+      "source": "World Bank",
+      "dataset": "World Development Indicators",
+      "url": "https://api.worldbank.org/v2/country/ABW;AFG;AGO;ALB;AND;ARE;ARG;ARM;ASM;ATG;AUS;AUT;AZE;BDI;BEL;BEN;BFA;BGD;BGR;BHR;BHS;BIH;BLR;BLZ;BMU;BOL;BRA;BRB;BRN;BTN;BWA;CAF;CAN;CHE;CHI;CHL;CHN;CIV;CMR;COD;COG;COL;COM;CPV;CRI;CUB;CUW;CYM;CYP;CZE;DEU;DJI;DMA;DNK;DOM;DZA;ECU;EGY;ERI;ESP;EST;ETH;FIN;FJI;FRA;FRO;FSM;GAB;GBR;GEO;GHA;GIB;GIN;GMB;GNB;GNQ;GRC;GRD;GRL;GTM;GUM;GUY;HKG;HND;HRV;HTI;HUN;IDN;IMN;IND;IRL;IRN;IRQ;ISL;ISR;ITA;JAM;JOR;JPN;KAZ;KEN;KGZ;KHM;KIR;KNA;KOR;KWT;LAO;LBN;LBR;LBY;LCA;LIE;LKA;LSO;LTU;LUX;LVA;MAC;MAF;MAR;MCO;MDA;MDG;MDV;MEX;MHL;MKD;MLI;MLT;MMR;MNE;MNG;MNP;MOZ;MRT;MUS;MWI;MYS;NAM;NCL;NER;NGA;NIC;NLD;NOR;NPL;NRU;NZL;OMN;PAK;PAN;PER;PHL;PLW;PNG;POL;PRI;PRK;PRT;PRY;PSE;PYF;QAT;ROU;RUS;RWA;SAU;SDN;SEN;SGP;SLB;SLE;SLV;SMR;SOM;SRB;SSD;STP;SUR;SVK;SVN;SWE;SWZ;SXM;SYC;SYR;TCA;TCD;TGO;THA;TJK;TKM;TLS;TON;TTO;TUN;TUR;TUV;TZA;UGA;UKR;URY;USA;UZB;VCT;VEN;VGB;VIR;VNM;VUT;WSM;XKX;YEM;ZAF;ZMB;ZWE/indicator/SP.DYN.LE00.IN?format=json&date=2023:2023&per_page=217",
+      "retrievedAt": "2026-11-10T07:27:09.377Z"
+    }
+  ]
+}
