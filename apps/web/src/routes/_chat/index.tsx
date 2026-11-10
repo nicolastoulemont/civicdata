@@ -1,10 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
 
 import { buttonVariants } from "@/components/ui/button"
-import { SidebarTrigger } from "@/components/ui/sidebar"
 import { Lane } from "@/conversation/Lane"
 import { QuestionForm } from "@/conversation/QuestionForm"
 import type { Search } from "@/explore/search"
+import { Toggle } from "@/history/Toggle"
 
 const examples: ReadonlyArray<{ title: string; search: Search }> = [
   {
@@ -45,7 +45,7 @@ const Home = () => {
 
   return (
     <main className="flex min-h-svh flex-col justify-center py-6">
-      <SidebarTrigger className="absolute top-3 left-3" />
+      <Toggle className="absolute top-3 left-3" />
       <Lane>
         <div className="mb-6 flex flex-col items-center gap-2 text-center">
           <h1 className="text-3xl font-medium tracking-tight">civicdata</h1>

@@ -388,6 +388,8 @@ describe("History", () => {
     await user.unhover(link)
     await waitFor(() => expect(screen.queryByRole("tooltip")).toBeNull())
 
+    // The sidebar's toggle, then "New conversation", then the conversation.
+    await user.tab()
     await user.tab()
     await user.tab()
 
