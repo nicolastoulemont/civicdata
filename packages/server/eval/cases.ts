@@ -189,6 +189,13 @@ const healthSpending = {
   ],
 } as const
 
+// The G7's health spending, for a ranking, a trend or a change.
+const g7Health = {
+  indicators: healthSpending.worldBank,
+  series: healthSpending.oecd,
+  countries: g7,
+}
+
 // Eurostat publishes these, with no World Bank counterpart, as a share of the
 // whole population.
 const povertyOrExclusion = [
@@ -490,10 +497,13 @@ export const cases: ReadonlyArray<Case> = [
     questions: ["Has India caught up with China on life expectancy?"],
     accepts: [Trend({ indicators: lifeExpectancy.worldBank, countries: ["IND", "CHN"] })],
   },
-  // Seven lines are too many for a trend.
+  // A trend of seven lines or the change of each answers it.
   {
     questions: ["How has life expectancy changed in the G7 since 2000?"],
-    accepts: [Change({ indicators: lifeExpectancy.worldBank, countries: g7, from: 2000 })],
+    accepts: [
+      Trend({ indicators: lifeExpectancy.worldBank, countries: g7, from: 2000 }),
+      Change({ indicators: lifeExpectancy.worldBank, countries: g7, from: 2000 }),
+    ],
   },
   {
     questions: ["Do people live longer in richer countries? Look at the G7."],
@@ -548,24 +558,15 @@ export const cases: ReadonlyArray<Case> = [
       },
     ),
   },
-  // Seven countries: the change over time is a change, not a trend.
+  // The change over time is a trend or a change.
   {
     questions: ["Which G7 country spends most on health, and how has that changed since 2000?"],
     accepts: [
       Charts({
-        charts: [
-          Ranking({
-            indicators: healthSpending.worldBank,
-            series: healthSpending.oecd,
-            countries: g7,
-          }),
-          Change({
-            indicators: healthSpending.worldBank,
-            series: healthSpending.oecd,
-            countries: g7,
-            from: 2000,
-          }),
-        ],
+        charts: [Ranking(g7Health), Trend({ ...g7Health, from: 2000 })],
+      }),
+      Charts({
+        charts: [Ranking(g7Health), Change({ ...g7Health, from: 2000 })],
       }),
     ],
   },

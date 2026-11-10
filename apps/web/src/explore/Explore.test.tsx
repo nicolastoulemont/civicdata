@@ -1,6 +1,7 @@
 import {
   Explanation,
   CatalogUnavailable,
+  countries as economies,
   Dimension,
   Dimensions,
   DimensionsMissing,
@@ -8,6 +9,7 @@ import {
   IndicatorNotes,
   type Overlay,
   type ResolvedView,
+  Ranking,
   ResolvedView as ResolvedViewSchema,
   SourceUnavailable,
   TooManyQuestions,
@@ -875,6 +877,50 @@ describe("Explore", () => {
       "textContent",
       "Indicator search needs D1: run `pnpm dev`, not `pnpm dev:web`.",
     )
+  })
+
+  it("ranks the first 25 of 30 countries, and all 30 once asked", async () => {
+    const [first, ...rest] = economies
+    const thirty = [first.code, ...rest.slice(0, 29).map(({ code }) => code)] as const
+    const view = Ranking.make({ indicator: population, countries: thirty, year: Year.make(2020) })
+
+    network.use(
+      notes,
+      search,
+      http.post("/api/views/resolve", () =>
+        HttpResponse.json(
+          Schema.encodeSync(ResolvedViewSchema)({
+            ...resolvedFor(view),
+            missing: [],
+            observations: thirty.map((country, index) => ({
+              country,
+              year: Year.make(2020),
+              value: index + 1,
+            })),
+          }),
+        ),
+      ),
+    )
+
+    const bounds = layOut()
+
+    try {
+      const user = userEvent.setup()
+
+      show(view)
+
+      const shown = await screen.findByRole("figure")
+      const bars = () => shown.querySelectorAll(".recharts-bar-rectangle")
+
+      await vi.waitFor(() => expect(bars()).toHaveLength(25))
+
+      await user.click(within(shown).getByRole("button", { name: "Show all 30 countries" }))
+
+      await vi.waitFor(() => expect(bars()).toHaveLength(30))
+      expect(within(shown).queryByRole("button", { name: /Show all/ })).toBeNull()
+    } finally {
+      bounds.mockRestore()
+    }
   })
 
   it("switches a trend to a ranking of its last year", async () => {
