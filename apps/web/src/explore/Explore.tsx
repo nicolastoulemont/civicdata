@@ -18,8 +18,8 @@ import {
   type View,
   Year,
 } from "@civicdata/domain"
-import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { Match } from "effect"
+import { type UseQueryResult, useQuery, useQueryClient } from "@tanstack/react-query"
+import { Data, Match, Struct } from "effect"
 import { Fragment, type ReactNode, use, useState } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -46,7 +46,7 @@ import { ChangeChart } from "./ChangeChart.tsx"
 import { ChartType } from "./ChartType.tsx"
 import { CopyLink } from "./CopyLink.tsx"
 import { Countries } from "./Countries.tsx"
-import { Data } from "./Data.tsx"
+import { Data as Table } from "./Data.tsx"
 import { Dimensions } from "./Dimensions.tsx"
 import { Disagreements } from "./Disagreements.tsx"
 import type { Years } from "./drag.ts"
@@ -331,15 +331,25 @@ const Problem = ({ error, retry }: ProblemProps) =>
   )
 
 // The trend on screen with its whole history, to pick its years over, while
-// the chart is being changed.
-interface Picking {
-  readonly trend: Trend
-  readonly history: History
-}
+// the chart is being changed: off for a chart other than a trend or while the
+// controls are closed, then the View's own history once loaded.
+type Picking = Data.TaggedEnum<{
+  Off: {}
+  Loading: {}
+  Ready: { readonly trend: Trend; readonly history: History }
+  Failed: {}
+}>
+
+const Picking = Data.taggedEnum<Picking>()
+
+// The trend the chart draws: the one being picked once its history is ready,
+// or else the one on screen, without a history.
+const pickedOf = (picking: Picking, shown: Trend) =>
+  Picking.$is("Ready")(picking) ? picking : { trend: shown, history: undefined }
 
 interface SingleProps {
   resolved: Exclude<ResolvedView, Paired>
-  picking: Picking | undefined
+  picking: Picking
   moving: Moving | undefined
   politics: Politics | undefined
 }
@@ -347,24 +357,36 @@ interface SingleProps {
 // A chart of one indicator's values.
 const Single = ({ resolved, picking, moving, politics }: SingleProps) =>
   Match.valueTags(resolved.view, {
-    Trend: (shown) => (
-      <TrendChart
-        resolved={resolved}
-        trend={picking?.trend ?? shown}
-        history={picking?.history}
-        governments={politics?.governments}
-        elections={politics?.elections}
-        events={politics?.events}
-        reforms={politics?.reforms}
-      />
-    ),
+    Trend: (shown) => {
+      const { trend, history } = pickedOf(picking, shown)
+
+      return (
+        <>
+          <TrendChart
+            resolved={resolved}
+            trend={trend}
+            history={history}
+            governments={politics?.governments}
+            elections={politics?.elections}
+            events={politics?.events}
+            reforms={politics?.reforms}
+          />
+          {Picking.$is("Failed")(picking) ? (
+            <Alert>
+              <AlertTitle>The chart's history could not be loaded</AlertTitle>
+              <AlertDescription>Pick its years with From and To above.</AlertDescription>
+            </Alert>
+          ) : null}
+        </>
+      )
+    },
     Ranking: (view) => <RankedChart resolved={{ ...resolved, view }} moving={moving} />,
     Change: (change) => <ChangeChart resolved={resolved} change={change} />,
   })
 
 interface ChartProps {
   resolved: ResolvedView
-  picking?: Picking | undefined
+  picking: Picking
   moving?: Moving | undefined
   politics: Politics | undefined
 }
@@ -390,30 +412,46 @@ interface PickingOptions {
   onChange: (view: View) => void
 }
 
-// What the trend chart needs to pick a trend's years over its whole history,
-// once that history has loaded. Only a trend picks its years; the history
-// query is the same for every year picked, so it loads once.
-const usePicking = (view: View, { enabled, onChange }: PickingOptions): Picking | undefined => {
+interface PickingOf {
+  history: UseQueryResult<ResolvedView>
+  onChange: (view: View) => void
+}
+
+// A trend's picking, none while picking is off. Another trend's history,
+// kept while this one's loads, is not this trend's.
+const pickingOf = (trend: Trend | undefined, { history, onChange }: PickingOf): Picking => {
+  if (trend === undefined) return Picking.Off()
+
+  if (history.isError) return Picking.Failed()
+
+  return history.data === undefined || history.isPlaceholderData
+    ? Picking.Loading()
+    : Picking.Ready({
+        trend,
+        history: {
+          observations: history.data.observations,
+          same: trend.transform !== "Index",
+          onChange: (picked: Years) =>
+            onChange(Trend.make({ ...Struct.omit(trend, ["from", "to"]), ...picked })),
+        },
+      })
+}
+
+// What the trend chart needs to pick a trend's years over its whole history.
+// Only a trend picks its years; the history query is the same for every year
+// picked, so it loads once.
+const usePicking = (view: View, { enabled, onChange }: PickingOptions): Picking => {
   const trend = Match.value(view).pipe(
-    Match.tag("Trend", (shown) => shown),
+    Match.tag("Trend", (shown) => (enabled ? shown : undefined)),
     Match.orElse(() => undefined),
   )
 
   const history = useQuery({
     ...resolveQuery(historyOf(view)),
-    enabled: enabled && trend !== undefined,
+    enabled: trend !== undefined,
   })
 
-  return !enabled || trend === undefined || history.data === undefined
-    ? undefined
-    : {
-        trend,
-        history: {
-          observations: history.data.observations,
-          same: trend.transform !== "Index",
-          onChange: (picked: Years) => onChange(Trend.make({ ...trend, ...picked })),
-        },
-      }
+  return pickingOf(trend, { history, onChange })
 }
 
 interface MovingOptions {
@@ -474,8 +512,8 @@ interface SectionsProps {
   view: View
   resolved: ResolvedView
   // Whether the chart is the previous one, shown while the changed one loads.
-  stale: boolean
-  picking: Picking | undefined
+  refreshing: boolean
+  picking: Picking
   moving: Moving | undefined
   // What the chart tab shows above the chart: its overlays' controls and notes.
   above: ReactNode
@@ -489,7 +527,7 @@ interface SectionsProps {
 const Sections = ({
   view,
   resolved,
-  stale,
+  refreshing,
   picking,
   moving,
   above,
@@ -517,14 +555,14 @@ const Sections = ({
           </Alert>
         ) : null}
         <div
-          aria-busy={stale}
-          className={stale ? "opacity-50 transition-opacity" : "transition-opacity"}
+          aria-busy={refreshing}
+          className={refreshing ? "opacity-50 transition-opacity" : "transition-opacity"}
         >
           <Chart resolved={resolved} picking={picking} moving={moving} politics={politics} />
         </div>
       </TabsContent>
       <TabsContent value="data">
-        <Data resolved={resolved} />
+        <Table resolved={resolved} />
       </TabsContent>
       <TabsContent value="about">
         <About
@@ -556,13 +594,25 @@ const archived = (overlays: ReadonlyArray<Overlay>) =>
 const recordsNamed = (overlays: ReadonlyArray<Overlay>) =>
   `${overlays.map((overlay) => overlayNames[overlay].records).join(" or ")} records`
 
+// The records of the overlays on: none while every overlay is off, then the
+// trend's own once loaded. While they load, the previous trend's records stay
+// drawn, but only the trend's own say which countries have none: the
+// previous ones would name the countries just added.
+type Records = Data.TaggedEnum<{
+  Off: {}
+  Loading: {}
+  Refreshing: { readonly politics: Politics }
+  Failed: {}
+  Loaded: { readonly politics: Politics }
+}>
+
+const Records = Data.taggedEnum<Records>()
+
 interface OverlaysProps {
   // None for a chart other than a trend, which shows no political context.
   trend: Trend | undefined
   overlays: ReadonlyArray<Overlay>
-  // The records of the overlays on, once loaded.
-  records: Politics | undefined
-  failed: boolean
+  records: Records
   onOverlays: (overlays: ReadonlyArray<Overlay>) => void
 }
 
@@ -570,19 +620,22 @@ interface OverlaysProps {
 // what the chart cannot show: a country without election or government
 // records says so, since no band or marker would read as nothing happening.
 // Events are few by design, so a country with none has nothing to say.
-const Overlays = ({ trend, overlays, records, failed, onOverlays }: OverlaysProps) => {
+const Overlays = ({ trend, overlays, records, onOverlays }: OverlaysProps) => {
   const hold = use(Hold)
 
   if (trend === undefined) return null
 
   const kept = archived(overlays)
 
-  const unrecorded = trend.countries.filter(
-    (country) =>
-      records !== undefined &&
-      kept.length > 0 &&
-      ![...records.governments, ...records.elections].some((record) => record.country === country),
-  )
+  const unrecorded = Records.$is("Loaded")(records)
+    ? trend.countries.filter(
+        (country) =>
+          kept.length > 0 &&
+          ![...records.politics.governments, ...records.politics.elections].some(
+            (record) => record.country === country,
+          ),
+      )
+    : []
 
   return (
     <>
@@ -606,7 +659,7 @@ const Overlays = ({ trend, overlays, records, failed, onOverlays }: OverlaysProp
           </Toggle>
         ))}
       </div>
-      {failed ? (
+      {Records.$is("Failed")(records) ? (
         <Alert>
           <AlertTitle>
             {recordsNamed(overlays).replace(/^./, (first) => first.toUpperCase())} are unavailable
@@ -767,6 +820,32 @@ const shownOf = (loaded: Politics, { overlays, indicator }: ShownOptions): Polit
     : nothing.reforms,
 })
 
+const recordsOf = (
+  { data, isError, isPlaceholderData }: UseQueryResult<Politics>,
+  shown: ShownOptions,
+) => {
+  if (shown.overlays.length === 0) return Records.Off()
+
+  if (isError) return Records.Failed()
+
+  if (data === undefined) return Records.Loading()
+
+  const politics = shownOf(data, shown)
+
+  return isPlaceholderData ? Records.Refreshing({ politics }) : Records.Loaded({ politics })
+}
+
+// The records a chart draws: its own, or the previous trend's while its own
+// load.
+const drawn = (records: Records) =>
+  Records.$match(records, {
+    Off: () => undefined,
+    Loading: () => undefined,
+    Refreshing: ({ politics }) => politics,
+    Failed: () => undefined,
+    Loaded: ({ politics }) => politics,
+  })
+
 // The elections, governments and events a card draws over its chart: only a
 // trend's, and only those whose overlay is on.
 const usePolitics = (view: View, overlays: ReadonlyArray<Overlay>) => {
@@ -777,18 +856,61 @@ const usePolitics = (view: View, overlays: ReadonlyArray<Overlay>) => {
 
   const on = trend === undefined ? [] : overlays
   const query = useQuery(politicsQuery(on.length === 0 ? undefined : trend))
-  const loaded = on.length === 0 ? undefined : query.data
 
   return {
     trend,
     overlays: on,
-    records:
-      loaded === undefined
-        ? undefined
-        : shownOf(loaded, { overlays: on, indicator: view.indicator }),
-    failed: on.length > 0 && query.isError,
+    records: recordsOf(query, { overlays: on, indicator: view.indicator }),
   }
 }
+
+// What the card shows of a View: nothing yet, why it failed, its chart, or
+// while an edited View loads, the previous chart. Only a result of the View on
+// screen moves its years, picks its series or marks its countries.
+type Display = Data.TaggedEnum<{
+  Loading: {}
+  Failed: { readonly error: Error }
+  Shown: { readonly resolved: ResolvedView }
+  Refreshing: { readonly previous: ResolvedView }
+}>
+
+const Display = Data.taggedEnum<Display>()
+
+const displayOf = ({ data, error, isPlaceholderData }: UseQueryResult<ResolvedView>): Display =>
+  error !== null
+    ? Display.Failed({ error })
+    : data === undefined
+      ? Display.Loading()
+      : isPlaceholderData
+        ? Display.Refreshing({ previous: data })
+        : Display.Shown({ resolved: data })
+
+// What else an SDMX indicator's series differ by, once known: from the View's
+// result, from the error asking to pick them, or while another View of the
+// same indicator loads, from that one's.
+const dimensionsOf = (display: Display, view: View): ReadonlyArray<Dimension> =>
+  Match.valueTags(display, {
+    Loading: () => [],
+    Failed: ({ error }) => (error instanceof DimensionsMissing ? error.dimensions : []),
+    Shown: ({ resolved }) => resolved.dimensions,
+    Refreshing: ({ previous }) =>
+      previous.view.indicator === view.indicator ? previous.dimensions : [],
+  })
+
+interface ResultProps {
+  display: Display
+  retry: () => void
+  // Draws a result: the View's own, or while it loads, the previous one.
+  children: (resolved: ResolvedView, options: { refreshing: boolean }) => ReactNode
+}
+
+const Result = ({ display, retry, children }: ResultProps) =>
+  Match.valueTags(display, {
+    Loading: () => <Skeleton className="h-80 w-full" />,
+    Failed: ({ error }) => <Problem error={error} retry={retry} />,
+    Shown: ({ resolved }) => children(resolved, { refreshing: false }),
+    Refreshing: ({ previous }) => children(previous, { refreshing: true }),
+  })
 
 interface ExploreProps {
   view: View
@@ -827,14 +949,30 @@ export const Explore = ({
   }
 
   const query = useQuery(resolveQuery(view))
+  const display = displayOf(query)
   const known = indicatorNames(query.data === undefined ? [] : [query.data])
   const picking = usePicking(view, { enabled: changing, onChange: change })
 
   const political = usePolitics(view, overlays)
+  const politics = drawn(political.records)
 
-  const dimensions =
-    query.data?.dimensions ??
-    (query.error instanceof DimensionsMissing ? query.error.dimensions : [])
+  const sections = (resolved: ResolvedView, { refreshing }: { refreshing: boolean }) => (
+    <>
+      <Takeaway view={view} agent={agent} onChange={change} />
+      <Sections
+        view={view}
+        resolved={resolved}
+        refreshing={refreshing}
+        picking={picking}
+        // The previous chart's years are not the View's, so nothing moves them.
+        moving={refreshing ? undefined : movingOf(view, { agent, onChange: change })}
+        above={<Overlays {...political} onOverlays={onOverlays} />}
+        politics={politics}
+        heading={Heading}
+        onChange={change}
+      />
+    </>
+  )
 
   return (
     <Card>
@@ -860,37 +998,23 @@ export const Explore = ({
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
         {changing ? (
-          <Controls view={view} known={known} dimensions={dimensions} onChange={change} />
+          <Controls
+            view={view}
+            known={known}
+            dimensions={dimensionsOf(display, view)}
+            onChange={change}
+          />
         ) : null}
-        {query.isPending ? <Skeleton className="h-80 w-full" /> : null}
-        {query.isError ? <Problem error={query.error} retry={() => void query.refetch()} /> : null}
-        {query.data === undefined ? null : (
-          <>
-            <Takeaway view={view} agent={agent} onChange={change} />
-            <Sections
-              view={view}
-              resolved={query.data}
-              stale={query.isPlaceholderData}
-              picking={picking}
-              moving={movingOf(view, { agent, onChange: change })}
-              above={<Overlays {...political} onOverlays={onOverlays} />}
-              politics={political.records}
-              heading={Heading}
-              onChange={change}
-            />
-          </>
-        )}
+        <Result display={display} retry={() => void query.refetch()}>
+          {sections}
+        </Result>
       </CardContent>
       <CardFooter className="text-sm text-muted-foreground">
         <p>
           {query.data === undefined
             ? `Source: ${sourceOf(view.indicator)}`
             : attribution(query.data)}
-          <Credits
-            overlays={political.overlays}
-            records={political.records}
-            countries={view.countries}
-          />
+          <Credits overlays={political.overlays} records={politics} countries={view.countries} />
         </p>
       </CardFooter>
     </Card>
