@@ -231,6 +231,25 @@ const trend = Trend.make({
   to: Year.make(2020),
 })
 
+// The catalog's country names, in its order.
+const catalogNames = economies.map((country) => country.name)
+
+// A trend of the catalog's first `count` countries.
+const trendOf = (count: number) => {
+  const [first, ...rest] = economies
+
+  return Trend.make({
+    ...trend,
+    countries: [first.code, ...rest.slice(0, count - 1).map(({ code }) => code)],
+  })
+}
+
+// The countries the field shows as chips, read from their remove buttons.
+const chips = (field: HTMLElement) =>
+  within(field)
+    .queryAllByRole("button", { name: /^Remove / })
+    .map((remove) => remove.getAttribute("aria-label")?.replace(/^Remove /, ""))
+
 // A trend of `countries` whose values rise with their position, drawn in a
 // box Recharts can lay out.
 const drawTrend = (countries: Trend["countries"]) => {
@@ -468,6 +487,72 @@ describe("Explore", () => {
     const countries = await screen.findByRole("combobox", { name: "Countries" })
 
     expect(countries.getAttribute("placeholder")).toBeNull()
+  })
+
+  it("shows the first 3 of 27 countries in the field, and all 27 once asked", async () => {
+    network.use(worldBank, notes, search)
+    const user = userEvent.setup()
+
+    show(trendOf(27))
+
+    const field = await screen.findByRole("toolbar")
+
+    expect(chips(field)).toEqual(catalogNames.slice(0, 3))
+
+    await user.click(within(field).getByRole("button", { name: "Show all 27 countries" }))
+
+    expect(chips(field)).toEqual(catalogNames.slice(0, 27))
+
+    await user.click(within(field).getByRole("button", { name: "Show fewer countries" }))
+
+    expect(chips(field)).toEqual(catalogNames.slice(0, 3))
+  })
+
+  it("shows all of 4 countries in the field, with no button", async () => {
+    network.use(worldBank, notes, search)
+
+    show(trendOf(4))
+
+    const field = await screen.findByRole("toolbar")
+
+    expect(chips(field)).toEqual(catalogNames.slice(0, 4))
+    expect(within(field).queryByRole("button", { name: /^Show / })).toBeNull()
+  })
+
+  it("counts a country added while the field is collapsed", async () => {
+    network.use(worldBank, notes, search)
+    const user = userEvent.setup()
+
+    show(trendOf(27))
+
+    const added = catalogNames[27] ?? ""
+
+    await user.type(await screen.findByRole("combobox", { name: "Countries" }), added)
+    await user.click(await screen.findByRole("option", { name: added }))
+
+    const field = screen.getByRole("toolbar")
+
+    expect(
+      await within(field).findByRole("button", { name: "Show all 28 countries" }),
+    ).toBeDefined()
+    expect(chips(field)).toEqual(catalogNames.slice(0, 3))
+  })
+
+  it("keeps every country on Backspace while the field is collapsed", async () => {
+    network.use(worldBank, notes, search)
+    const user = userEvent.setup()
+
+    show(trendOf(27))
+
+    await user.click(await screen.findByRole("combobox", { name: "Countries" }))
+    // Escape closes the dropdown, which hides the rest of the page while open.
+    await user.keyboard("{Backspace}{Escape}")
+
+    const field = screen.getByRole("toolbar")
+
+    expect(chips(field)).toEqual(catalogNames.slice(0, 3))
+    await user.click(within(field).getByRole("button", { name: "Show all 27 countries" }))
+    expect(chips(field)).toEqual(catalogNames.slice(0, 27))
   })
 
   it("copies a link to the chart on screen", async () => {
