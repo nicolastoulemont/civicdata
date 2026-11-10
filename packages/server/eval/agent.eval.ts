@@ -2,6 +2,7 @@ import { ChartIndex, TurnIndex } from "@civicdata/domain"
 import { assert, layer } from "@effect/vitest"
 import { env } from "cloudflare:workers"
 import { Array as Arr, Clock, Effect, Layer, Predicate, Schedule, Stream } from "effect"
+import { FetchHttpClient } from "effect/http"
 
 import { Agent } from "../src/Agent.ts"
 import { Catalog } from "../src/Catalog.ts"
@@ -50,7 +51,8 @@ const Live = Layer.mergeAll(Agent.live.pipe(Layer.provide(Resolver.layer)), Buil
   Layer.provide(Catalog.live),
   Layer.provide(Politics.live),
   Layer.provide(Sources),
-  Layer.provide(Tally.layer),
+  // The cases meter their own OpenAI tokens.
+  Layer.provideMerge(Tally.layer),
 )
 
 // Asks the questions in one conversation, as a person would, and returns the
@@ -97,7 +99,11 @@ layer(Live, { concurrent: true, excludeTestServices: true, timeout: "2 minutes" 
     for (const each of cases) {
       it.effect(title(each), () =>
         Effect.gen(function* () {
-          const turn = yield* answer(each)
+          const fetch = yield* (yield* Tally).meter(title(each))
+
+          // The agent's OpenAI client sends through FetchHttpClient, which
+          // reads this fetch per request.
+          const turn = yield* answer(each).pipe(Effect.provideService(FetchHttpClient.Fetch, fetch))
 
           // A failure shows the turn: what the agent searched, fetched and
           // picked. it.effect swallows logs.
