@@ -4,7 +4,6 @@ import {
   type IndicatorId,
   IndicatorNotes,
   IndicatorNotFound,
-  type OecdNote,
   type Source,
   SourceUnavailable,
   sourceOf,
@@ -27,6 +26,9 @@ interface Scope {
   readonly countries?: ReadonlyArray<Country>
   readonly dimensions?: Dimensions
 }
+
+// A note the OECD attaches to some of a dataflow's countries and series.
+type OecdNote = (typeof IndicatorNotes.cases.OECD.Type)["notes"][number]
 
 interface Interface {
   readonly get: (
@@ -136,10 +138,11 @@ const oecdNotes = (csv: string): ReadonlyArray<OecdNote> =>
 
     const series = decodeDimensions(
       Object.fromEntries(
-        names
-          .slice(first, last)
-          .filter((name) => name !== "REF_AREA" && name !== "FREQ" && notOpen(record.get(name)))
-          .map((name) => [name, record.get(name)]),
+        names.slice(first, last).flatMap((name) => {
+          const value = record.get(name)
+
+          return name === "REF_AREA" || name === "FREQ" || !notOpen(value) ? [] : [[name, value]]
+        }),
       ),
     )
 
@@ -177,6 +180,12 @@ const applies =
     )
   }
 
+// An answer the adapter does not expect is the source being unavailable.
+const refuse = (source: Source, { url, status }: { url: string; status: number }) =>
+  Effect.logWarning("Notes source refused", url, status).pipe(
+    Effect.andThen(Effect.fail(new SourceUnavailable({ source }))),
+  )
+
 const make = Effect.gen(function* () {
   const client = (yield* HttpClient.HttpClient).pipe(
     HttpClient.retryTransient({
@@ -196,11 +205,6 @@ const make = Effect.gen(function* () {
       Effect.timeout("30 seconds"),
       Effect.tapError((error) => Effect.logWarning("Notes request failed", request.url, error)),
       Effect.mapError(unavailable(source)),
-    )
-
-  const refuse = (source: Source, { url, status }: { url: string; status: number }) =>
-    Effect.logWarning("Notes source refused", url, status).pipe(
-      Effect.andThen(Effect.fail(new SourceUnavailable({ source }))),
     )
 
   const worldBank = Effect.fn("Notes.worldBank")(function* (indicator: IndicatorId) {
@@ -352,7 +356,7 @@ const make = Effect.gen(function* () {
       ),
     })
 
-    return notes._tag === "OECD"
+    return IndicatorNotes.guards.OECD(notes)
       ? IndicatorNotes.cases.OECD.make({ ...notes, notes: notes.notes.filter(applies(scope)) })
       : notes
   })

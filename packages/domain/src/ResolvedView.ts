@@ -24,9 +24,9 @@ export const Observation = Schema.Struct({
 export interface Observation extends Schema.Schema.Type<typeof Observation> {}
 
 // A country's first value after a break in series.
-export const Break = Schema.Struct({ country: Country, year: Year })
+const Break = Schema.Struct({ country: Country, year: Year })
 
-export interface Break extends Schema.Schema.Type<typeof Break> {}
+export type Break = typeof Break.Type
 
 // One series fetched to draw the chart, shown next to it. A transformed chart
 // lists every series it was computed from, e.g. GDP and population.

@@ -66,7 +66,7 @@ const eurostat = {
 // "Statistical concepts and definitions", "Quality assessment", where the
 // OECD records breaks in series, "Recommended uses and limitations" and
 // "Comment".
-export const OecdNote = Schema.Struct({
+const OecdNote = Schema.Struct({
   country: Schema.NullOr(Country),
   series: Dimensions,
   concepts: Section,
@@ -74,8 +74,6 @@ export const OecdNote = Schema.Struct({
   limitations: Section,
   comment: Section,
 })
-
-export interface OecdNote extends Schema.Schema.Type<typeof OecdNote> {}
 
 // What a source writes about an indicator beyond its definition, tagged by
 // the source: each publishes different sections.

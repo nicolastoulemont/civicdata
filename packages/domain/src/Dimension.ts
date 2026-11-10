@@ -46,7 +46,7 @@ export type Dimensions = typeof Dimensions.Type
 export const DimensionList = Schema.String.pipe(
   Schema.decodeTo(Schema.Record(Schema.String, Schema.String), {
     decode: SchemaGetter.transform((text) =>
-      Object.fromEntries(text.split(",").map((pair) => pair.split(":"))),
+      text === "" ? {} : Object.fromEntries(text.split(",").map((pair) => pair.split(":"))),
     ),
     encode: SchemaGetter.transform((dimensions) =>
       Object.entries(dimensions)

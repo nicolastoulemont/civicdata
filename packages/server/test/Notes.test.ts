@@ -105,7 +105,7 @@ const read = (indicator: string, scope?: Parameters<Notes["Service"]["get"]>[1])
 const narrow =
   <A extends IndicatorNotes>(guard: (notes: IndicatorNotes) => notes is A) =>
   (notes: IndicatorNotes) => {
-    if (!guard(notes)) throw new Error(`${notes._tag} notes`)
+    if (!guard(notes)) throw new Error("another source's notes")
 
     return notes
   }
@@ -256,7 +256,7 @@ describe("OECD notes", () => {
       const notes = oecdNotesOf(
         yield* read(unemployment, {
           countries: ["FRA"],
-          dimensions: Schema.decodeSync(Dimensions)({ MEASURE: "EMP" }),
+          dimensions: yield* Schema.decodeEffect(Dimensions)({ MEASURE: "EMP" }),
         }),
       )
 

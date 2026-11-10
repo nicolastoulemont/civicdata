@@ -1,12 +1,19 @@
-import { type CatalogEntry, type IndicatorId, type ResolvedView, sourceOf } from "@civicdata/domain"
+import {
+  type CatalogEntry,
+  type IndicatorId,
+  IndicatorNotes,
+  type ResolvedView,
+  sourceOf,
+  type View,
+} from "@civicdata/domain"
 import { useQuery } from "@tanstack/react-query"
-import { Fragment } from "react"
+import { Fragment, useId } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 
 import { notesQuery, searchQuery } from "./api.ts"
-import { indicators, page, retrieved } from "./format.ts"
+import { countryName, indicators, page, retrieved } from "./format.ts"
 
 // The level of the About tab's own headings, one below the card's title.
 type Heading = "h2" | "h4"
@@ -19,48 +26,130 @@ const relatedShown = 8
 // NY.GDP.PCAP.PP.KD (PPP, constant dollars).
 const stemOf = (indicator: IndicatorId) => indicator.split(".").slice(0, 3).join(".")
 
-// Why the indicator matters, its limitations and who produced it, in the
-// World Bank's words.
-// Loaded when About opens; left out when the World Bank cannot be reached.
-interface NotesProps {
-  indicator: IndicatorId
+interface SectionProps {
+  title: string
+  text: string | null
   heading: Heading
 }
 
-const Notes = ({ indicator, heading: Heading }: NotesProps) => {
-  const query = useQuery(notesQuery(indicator))
+// One section of a source's notes, under its own heading, left out when the
+// source wrote none. Paragraphs are separated by a blank line.
+const Section = ({ title, text, heading: Heading }: SectionProps) => {
+  const id = useId()
+
+  return text === null ? null : (
+    <section aria-labelledby={id} className="space-y-1">
+      <Heading id={id} className="font-medium">
+        {title}
+      </Heading>
+      {text.split(/\n\s*\n/).map((paragraph) => (
+        <p key={paragraph}>{paragraph}</p>
+      ))}
+    </section>
+  )
+}
+
+// The source's notes, in its own words: the World Bank's on a series,
+// Eurostat's reference metadata on a dataset, and the OECD's notes on the
+// chart's countries and series. Loaded when About opens; left out when the
+// source cannot be reached.
+interface NotesProps {
+  view: View
+  heading: Heading
+}
+
+const fromWorldBank = IndicatorNotes.isAnyOf(["World Bank"])
+const fromEurostat = IndicatorNotes.isAnyOf(["Eurostat"])
+
+const Notes = ({ view, heading }: NotesProps) => {
+  const query = useQuery(notesQuery(view))
 
   if (query.isPending) return <Skeleton className="h-16 w-full" />
 
-  return query.data === undefined ? null : (
-    <>
-      {query.data.relevance === null ? null : (
-        <section aria-labelledby="relevance" className="space-y-1">
-          <Heading id="relevance" className="font-medium">
-            Why it matters
-          </Heading>
-          <p>{query.data.relevance}</p>
-        </section>
-      )}
-      {query.data.limitations === null ? null : (
-        <section aria-labelledby="limitations" className="space-y-1">
-          <Heading id="limitations" className="font-medium">
-            Limitations
-          </Heading>
-          <p>{query.data.limitations}</p>
-        </section>
-      )}
-      {query.data.producer === null ? null : (
-        <section aria-labelledby="producer" className="space-y-1">
-          <Heading id="producer" className="font-medium">
-            Produced by
-          </Heading>
-          <a className="underline underline-offset-4" href={query.data.producer.url}>
-            {query.data.producer.name}
-          </a>
-        </section>
-      )}
-    </>
+  if (query.data === undefined) return null
+
+  if (fromWorldBank(query.data)) return <WorldBankNotes notes={query.data} heading={heading} />
+
+  if (fromEurostat(query.data)) return <EurostatNotes notes={query.data} heading={heading} />
+
+  return <OecdNotes notes={query.data} heading={heading} />
+}
+
+interface WorldBankNotesProps {
+  notes: (typeof IndicatorNotes.cases)["World Bank"]["Type"]
+  heading: Heading
+}
+
+const WorldBankNotes = ({ notes, heading }: WorldBankNotesProps) => (
+  <>
+    <Section title="Why it matters" text={notes.relevance} heading={heading} />
+    <Section title="Limitations" text={notes.limitations} heading={heading} />
+    <Section title="Methodology" text={notes.methodology} heading={heading} />
+    {notes.producer === null ? null : <Producer producer={notes.producer} heading={heading} />}
+  </>
+)
+
+interface EurostatNotesProps {
+  notes: typeof IndicatorNotes.cases.Eurostat.Type
+  heading: Heading
+}
+
+const EurostatNotes = ({ notes, heading }: EurostatNotesProps) => (
+  <>
+    <Section title="Concepts and definitions" text={notes.concepts} heading={heading} />
+    <Section title="Accuracy" text={notes.accuracy} heading={heading} />
+    <Section
+      title="Comparability across countries"
+      text={notes.comparability.countries}
+      heading={heading}
+    />
+    <Section title="Comparability over time" text={notes.comparability.time} heading={heading} />
+    <Section title="Coherence with other statistics" text={notes.coherence} heading={heading} />
+  </>
+)
+
+// Each note, titled by the country it is about.
+interface OecdNotesProps {
+  notes: typeof IndicatorNotes.cases.OECD.Type
+  heading: Heading
+}
+
+const OecdNotes = ({ notes, heading }: OecdNotesProps) =>
+  notes.notes.map((note) => {
+    const about = note.country === null ? "Every country" : countryName(note.country)
+
+    return (
+      <Fragment key={`${about} ${JSON.stringify(note.series)}`}>
+        <Section
+          title={`${about}: concepts and definitions`}
+          text={note.concepts}
+          heading={heading}
+        />
+        <Section title={`${about}: quality`} text={note.quality} heading={heading} />
+        <Section title={`${about}: limitations`} text={note.limitations} heading={heading} />
+        <Section title={`${about}: comment`} text={note.comment} heading={heading} />
+      </Fragment>
+    )
+  })
+
+// Who produced a World Bank series, linking their page.
+interface ProducerProps {
+  producer: { readonly name: string; readonly url: string }
+  heading: Heading
+}
+
+const Producer = ({ producer, heading: Heading }: ProducerProps) => {
+  const id = useId()
+
+  return (
+    <section aria-labelledby={id} className="space-y-1">
+      <Heading id={id} className="font-medium">
+        Produced by
+      </Heading>
+      <a className="underline underline-offset-4" href={producer.url}>
+        {producer.name}
+      </a>
+    </section>
   )
 }
 
@@ -110,9 +199,9 @@ interface AboutProps {
   onSwitch: (entry: CatalogEntry) => void
 }
 
-// What the indicators measure and, for a World Bank indicator, why it
-// matters, its limitations and related indicators to switch to, then where
-// the data comes from.
+// What the indicators measure, what the source writes about the indicator
+// and, for a World Bank indicator, related indicators to switch to, then
+// where the data comes from.
 export const About = ({ resolved, heading: Heading, onSwitch }: AboutProps) => (
   <div className="space-y-3">
     {indicators(resolved).map((indicator, _, all) => (
@@ -125,11 +214,9 @@ export const About = ({ resolved, heading: Heading, onSwitch }: AboutProps) => (
         ))}
       </div>
     ))}
+    <Notes view={resolved.view} heading={Heading} />
     {sourceOf(resolved.indicator.id) === "World Bank" ? (
-      <>
-        <Notes indicator={resolved.indicator.id} heading={Heading} />
-        <Related indicator={resolved.indicator.id} heading={Heading} onSwitch={onSwitch} />
-      </>
+      <Related indicator={resolved.indicator.id} heading={Heading} onSwitch={onSwitch} />
     ) : null}
     <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
       <dt className="text-muted-foreground">Official name</dt>

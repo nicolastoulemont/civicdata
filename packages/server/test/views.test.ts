@@ -4,6 +4,7 @@ import {
   Dimensions,
   DimensionsMissing,
   IndicatorId,
+  IndicatorNotes,
   IndicatorNotFound,
   type ResolvedView,
   Ranking,
@@ -540,15 +541,13 @@ describe("GET /api/indicators/:indicator/notes", () => {
         params: { indicator: IndicatorId.make("OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M,1.0") },
         query: {
           countries: ["IRL", "FRA"],
-          dimensions: Schema.decodeSync(Dimensions)({ MEASURE: "UNE_LF_M", SEX: "_T" }),
+          dimensions: yield* Schema.decodeEffect(Dimensions)({ MEASURE: "UNE_LF_M", SEX: "_T" }),
         },
       })
 
-      expect(notes._tag === "OECD" && notes.notes.map(({ country }) => country)).toEqual([
-        "FRA",
-        null,
-        "IRL",
-      ])
+      expect(
+        IndicatorNotes.guards.OECD(notes) && notes.notes.map(({ country }) => country),
+      ).toEqual(["FRA", null, "IRL"])
     }).pipe(Effect.provide(serve(worldBank, { notes: recordedOecd }))),
   )
 })

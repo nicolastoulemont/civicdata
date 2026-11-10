@@ -204,7 +204,9 @@ export const records = (text: string): ReadonlyArray<ReadonlyMap<string, string>
 
   const endRecord = () => {
     endField()
+
     if (record.some((each) => each !== "")) parsed.push(record)
+
     record = []
   }
 
@@ -227,5 +229,5 @@ export const records = (text: string): ReadonlyArray<ReadonlyMap<string, string>
 
   const [header = [], ...rest] = parsed
 
-  return rest.map((fields) => new Map(header.map((name, at) => [name, fields[at] ?? ""])))
+  return rest.map((cells) => new Map(header.map((name, at) => [name, cells[at] ?? ""])))
 }
