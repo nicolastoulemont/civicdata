@@ -15,6 +15,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -42,7 +43,8 @@ const GitHub = () => (
   </svg>
 )
 
-// The sidebar: a link to start a conversation, then the conversations asked
+// The sidebar: its toggle, at the spot the page's toggle takes once it is
+// closed, and a link to start a conversation, then the conversations asked
 // in this browser, newest first, and links to the source and to Settings at
 // the bottom. A drawer on phones.
 export const History = () => {
@@ -55,6 +57,7 @@ export const History = () => {
   return (
     <Sidebar>
       <SidebarHeader>
+        <SidebarTrigger className="mt-1 ml-1" />
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton render={<Link to="/" onClick={() => setOpenMobile(false)} />}>

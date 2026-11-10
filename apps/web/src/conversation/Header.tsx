@@ -7,7 +7,7 @@ import {
   BreadcrumbList,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
-import { SidebarTrigger } from "@/components/ui/sidebar"
+import { Toggle } from "@/history/Toggle"
 
 interface HeaderProps {
   title: string | undefined
@@ -15,10 +15,11 @@ interface HeaderProps {
 
 // Names the conversation by its first question, cut to one line, under the
 // site. A conversation with no question yet is just "Conversation". The
-// sidebar toggle comes first; "New conversation" is in the sidebar.
+// sidebar toggle comes first while the sidebar is closed; "New conversation"
+// is in the sidebar.
 export const Header = ({ title }: HeaderProps) => (
-  <header className="flex items-center gap-2 px-3 py-3 sm:px-12">
-    <SidebarTrigger />
+  <header className="flex items-center gap-2 p-3">
+    <Toggle />
     <Breadcrumb className="min-w-0">
       <BreadcrumbList className="flex-nowrap">
         <BreadcrumbItem>
