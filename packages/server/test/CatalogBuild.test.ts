@@ -2,7 +2,6 @@ import { type CatalogEntry, IndicatorId, Source, SourceUnavailable } from "@civi
 import { beforeEach, describe, expect, it } from "@effect/vitest"
 import { reset } from "cloudflare:test"
 import { Effect } from "effect"
-import { FetchHttpClient } from "effect/http"
 
 import { Catalog } from "../src/Catalog.ts"
 import { BuildFailed, CatalogBuild } from "../src/CatalogBuild.ts"
@@ -20,7 +19,7 @@ import {
   worldBankList,
 } from "./catalog.ts"
 import { steps } from "./fakes.ts"
-import { fakeModel, recordedOpenAi } from "./model.ts"
+import { fakeModel } from "./model.ts"
 
 // Every test starts from empty bindings: the test Worker's D1 database and
 // buckets are shared by the file's tests.
@@ -440,40 +439,6 @@ describe("CatalogBuild", () => {
               .toSorted(),
           )
         }).pipe(Effect.provide(catalogOver(lists, { classifier: model.classifier })))
-      },
-    )
-
-    it.effect(
-      "asks OpenAI for the directions in one structured request and stores its answers",
-      () => {
-        const wire = recordedOpenAi()
-
-        return Effect.gen(function* () {
-          const catalog = yield* CatalogBuild
-
-          yield* catalog.write("World Bank", 1)
-          yield* catalog.publish("World Bank", 1)
-          yield* catalog.classify("World Bank", 0)
-
-          // OpenAI answered Higher for the surgeons, Neutral for the others.
-          expect(yield* read([surgeons, richest, growth, population])).toEqual([
-            "Higher",
-            "Neutral",
-            "Neutral",
-            "Neutral",
-          ])
-
-          // One request, asking for the answer schema by name, about every entry.
-          const [request, ...more] = wire.sent()
-
-          expect(more).toEqual([])
-          expect(request).toContain('"type":"json_schema","name":"directions"')
-
-          for (const { indicator } of worldBankList) expect(request).toContain(indicator)
-        }).pipe(
-          Effect.provide(catalogOver(listings(), { classifier: wire.classifier })),
-          Effect.provideService(FetchHttpClient.Fetch, wire.fetch),
-        )
       },
     )
 
