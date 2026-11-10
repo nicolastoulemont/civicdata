@@ -9,6 +9,7 @@ import {
   Ranking,
   Ratio,
   Relation,
+  type Span,
   type Transform,
   transformOf,
   Trend,
@@ -107,7 +108,12 @@ export const withPer = (view: View, per: Picked) => withTransform(view, Ratio.ma
 // Switches the indicator a relation is plotted against. Picking its own
 // indicator swaps the two axes, which drops the dimensions it picked.
 export const withAgainst = (relation: Relation, against: Picked) => {
-  const kept = { against: against.id, countries: relation.countries, year: relation.year }
+  const kept = {
+    ...Struct.pick(relation, ["span"]),
+    against: against.id,
+    countries: relation.countries,
+    year: relation.year,
+  }
 
   return against.id === relation.indicator
     ? Relation.make({ ...kept, indicator: relation.against })
@@ -140,7 +146,11 @@ const span = (view: View) =>
         from: Year.make(Math.max(1960, ranking.year - rangeYears)),
         to: ranking.year,
       },
-    Relation: ({ year }) => ({ from: Year.make(Math.max(1960, year - rangeYears)), to: year }),
+    Relation: (relation) =>
+      relation.span ?? {
+        from: Year.make(Math.max(1960, relation.year - rangeYears)),
+        to: relation.year,
+      },
   })
 
 const gdpPerPerson = IndicatorId.make("NY.GDP.PCAP.CD")
@@ -226,14 +236,23 @@ export const withChart = (view: View, chart: Chart): View => {
   )
 }
 
-// A ranking of one year turned into one over time: from the first year every
-// country with values has one, to the latest year with any, as `history` has
-// them. Its year moves inside the span when it lies outside. Without values
-// it stays one year.
-export const overTime = (
-  ranking: typeof Ranking.Type,
-  history: ReadonlyArray<Observation>,
-): typeof Ranking.Type => {
+// A chart that can move through a span of years.
+export type Spanned = typeof Ranking.Type | typeof Relation.Type
+
+// Sets a chart's span, moving its year inside the span when it lies outside.
+export const withSpan = (view: Spanned, years: Span): Spanned => {
+  const year = Year.make(Math.min(Math.max(view.year, years.from), years.to))
+
+  return Match.valueTags(view, {
+    Ranking: (ranking) => Ranking.make({ ...ranking, year, span: years }),
+    Relation: (relation) => Relation.make({ ...relation, year, span: years }),
+  })
+}
+
+// A chart of one year turned into one over time: from the first year every
+// country with values has one, to the latest year with any, as `history`
+// has them. Without values it stays one year.
+export const overTime = (view: Spanned, history: ReadonlyArray<Observation>): Spanned => {
   const years = [...new Set(history.map((observation) => observation.year))]
   const covered = new Set(history.map((observation) => observation.country))
   const held = new Set(history.map(({ country, year }) => `${country} ${year}`))
@@ -242,18 +261,24 @@ export const overTime = (
     [...covered].every((country) => held.has(`${country} ${year}`)),
   )
 
-  if (years.length === 0) return ranking
+  if (years.length === 0) return view
 
-  const to = Year.make(Math.max(...years))
-  const from = Year.make(Math.min(...(shared.length === 0 ? years : shared)))
-
-  return Ranking.make({
-    ...ranking,
-    year: Year.make(Math.min(Math.max(ranking.year, from), to)),
-    span: { from, to },
+  return withSpan(view, {
+    from: Year.make(Math.min(...(shared.length === 0 ? years : shared))),
+    to: Year.make(Math.max(...years)),
   })
 }
 
-// A ranking over time turned into one of the year it shows.
-export const oneYear = (ranking: typeof Ranking.Type) =>
-  Ranking.make(Struct.omit(ranking, ["span"]))
+// A chart over time turned into one of the year it shows.
+export const oneYear = (view: Spanned): Spanned =>
+  Match.valueTags(view, {
+    Ranking: (ranking) => Ranking.make(Struct.omit(ranking, ["span"])),
+    Relation: (relation) => Relation.make(Struct.omit(relation, ["span"])),
+  })
+
+// Sets the single year of a chart of one year.
+export const withYear = (view: Spanned, year: Year): Spanned =>
+  Match.valueTags(view, {
+    Ranking: (ranking) => Ranking.make({ ...ranking, year }),
+    Relation: (relation) => Relation.make({ ...relation, year }),
+  })

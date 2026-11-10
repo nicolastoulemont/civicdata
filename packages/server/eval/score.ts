@@ -42,8 +42,8 @@ interface Chart {
 }
 
 // The chart types a case can expect. A relation plots its indicator against
-// any of `against`. A ranking or map moves through a span of years when
-// `overTime`, and shows one year otherwise.
+// any of `against`. A ranking, map or relation moves through a span of years
+// when `overTime`, and shows one year otherwise.
 type Over = { readonly year?: number; readonly overTime?: boolean }
 
 type Types = {
@@ -51,7 +51,7 @@ type Types = {
   Ranking: Chart & Over
   Map: Chart & Over
   Change: Chart & { readonly from?: number; readonly to?: number }
-  Relation: Chart & { readonly against: ReadonlyArray<string>; readonly year?: number }
+  Relation: Chart & Over & { readonly against: ReadonlyArray<string> }
 }
 
 // One chart a case expects.
@@ -93,7 +93,13 @@ const partsOf = (view: View): Parts =>
       overTime: span !== undefined,
     }),
     Change: ({ from, to }): Parts => ({ chart: "change", from, to }),
-    Relation: ({ year, against }): Parts => ({ chart: "relation", from: year, to: year, against }),
+    Relation: ({ year, against, span }): Parts => ({
+      chart: "relation",
+      from: year,
+      to: year,
+      overTime: span !== undefined,
+      against,
+    }),
   })
 
 // The parts a case wants, with the indicators a relation may plot against.
@@ -259,6 +265,7 @@ const wantedOf = (drawn: Drawn): Wanted =>
       chart: "relation",
       from: relation.year,
       to: relation.year,
+      overTime: relation.overTime ?? false,
     }),
   })
 

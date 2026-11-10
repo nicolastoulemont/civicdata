@@ -10,6 +10,7 @@ import {
   type Overlay,
   type ResolvedView,
   Ranking,
+  Relation,
   ResolvedView as ResolvedViewSchema,
   sourceOf,
   SourceUnavailable,
@@ -113,7 +114,10 @@ const resolvedFor = (view: View): ResolvedView => {
       ({ from, to }) =>
       (year: number) =>
         year === from || year === to,
-    Relation: (relation) => (year: number) => year === relation.year,
+    Relation:
+      ({ year, span }) =>
+      (each: number) =>
+        span === undefined ? each === year : each >= span.from && each <= span.to,
   })
 
   // Per person, the fake divides by a round million so the change is visible.
@@ -1271,6 +1275,84 @@ describe("Explore", () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it("moves a relation's dots through its span, tracing their paths only while paused", async () => {
+    network.use(worldBank)
+    const user = userEvent.setup()
+    const bounds = layOut()
+
+    try {
+      show(
+        Relation.make({
+          indicator: population,
+          against: IndicatorId.make("NY.GDP.PCAP.CD"),
+          countries: ["FRA", "DEU"],
+          year: Year.make(2020),
+          span: { from: Year.make(2017), to: Year.make(2020) },
+        }),
+      )
+
+      const shown = (await screen.findByText(/^Scatter plot of Total population against/)).closest(
+        "figure",
+      )!
+
+      const lines = () => shown.querySelectorAll(".recharts-scatter-line")
+
+      expect(screen.getByText("Lines trace each country from 2017 to 2020.")).toBeDefined()
+      await vi.waitFor(() => expect(lines()).toHaveLength(2))
+
+      act(() => screen.getByRole("slider", { name: "Year" }).focus())
+      await user.keyboard("{ArrowLeft}{ArrowLeft}")
+
+      expect(await screen.findByText("No data in 2018 for Germany.")).toBeDefined()
+      expect(screen.getByText("Lines trace each country from 2017 to 2018.")).toBeDefined()
+      await vi.waitFor(() => expect(lines()).toHaveLength(1))
+
+      vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] })
+
+      try {
+        await user.click(screen.getByRole("button", { name: "Play" }))
+        second()
+
+        expect(screen.getByRole("status").textContent).toBe("2019")
+        expect(screen.queryByText(/^Lines trace/)).toBeNull()
+        await vi.waitFor(() => expect(lines()).toHaveLength(0))
+
+        await user.click(screen.getByRole("button", { name: "Pause" }))
+
+        expect(screen.getByText("Lines trace each country from 2017 to 2019.")).toBeDefined()
+      } finally {
+        vi.useRealTimers()
+      }
+    } finally {
+      bounds.mockRestore()
+    }
+  })
+
+  it("switches a relation to over time, from the first year both indicators share", async () => {
+    network.use(worldBank)
+    const user = userEvent.setup()
+
+    show(
+      Relation.make({
+        indicator: population,
+        against: IndicatorId.make("NY.GDP.PCAP.CD"),
+        countries: ["FRA", "DEU"],
+        year: Year.make(2020),
+      }),
+    )
+
+    await screen.findByText(/^Scatter plot of Total population against/)
+    await user.click(screen.getByRole("button", { name: "Over time" }))
+
+    expect(await screen.findByRole("slider", { name: "Year" })).toBeDefined()
+    expect(screen.getByText("France and Germany · 2019–2020")).toBeDefined()
+
+    await user.click(screen.getByRole("button", { name: "One year" }))
+
+    expect(await screen.findByText("France and Germany · 2020")).toBeDefined()
+    expect(screen.queryByRole("slider", { name: "Year" })).toBeNull()
   })
 
   it("asks for a ranking over time's span once, whichever year it shows", async () => {

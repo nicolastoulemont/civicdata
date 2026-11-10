@@ -513,8 +513,8 @@ export const cases: ReadonlyArray<Case> = [
     questions: ["Has India caught up with China on life expectancy?"],
     accepts: [Trend({ indicators: lifeExpectancy.worldBank, countries: ["IND", "CHN"] })],
   },
-  // How a comparison across countries evolved: a ranking or map over time,
-  // with a slider through the years. Close questions about one point, a few
+  // How a comparison across countries evolved: a ranking, map or relation
+  // over time, with a slider through the years. Close questions about one point, a few
   // lines or two years keep their static chart. Not yet scored by a run.
   {
     questions: ["How has the map of life expectancy in Africa changed since 1990?"],
@@ -528,6 +528,38 @@ export const cases: ReadonlyArray<Case> = [
         series: governmentDebt.eurostat,
         countries: eu,
         overTime: true,
+      }),
+    ],
+  },
+  {
+    questions: ["How have income and life expectancy moved together in the G7 since 1990?"],
+    accepts: [
+      Relation({
+        indicators: lifeExpectancy.worldBank,
+        against: gdpPerPerson.worldBank,
+        countries: g7,
+        overTime: true,
+      }),
+      Relation({
+        indicators: gdpPerPerson.worldBank,
+        against: lifeExpectancy.worldBank,
+        countries: g7,
+        overTime: true,
+      }),
+    ],
+  },
+  {
+    questions: ["Does more schooling go with higher incomes in the G7?"],
+    accepts: [
+      Relation({
+        indicators: ["SE.SCH.LIFE", "SE.TER.ENRR", "SE.SEC.ENRR"],
+        against: gdpPerPerson.worldBank,
+        countries: g7,
+      }),
+      Relation({
+        indicators: gdpPerPerson.worldBank,
+        against: ["SE.SCH.LIFE", "SE.TER.ENRR", "SE.SEC.ENRR"],
+        countries: g7,
       }),
     ],
   },

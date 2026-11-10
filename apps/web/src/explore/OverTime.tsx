@@ -1,4 +1,4 @@
-import { inYear, type Ranked, type Span, Year } from "@civicdata/domain"
+import { inYear, type Ranked, type Related, type Span, Year } from "@civicdata/domain"
 import { cn } from "cn"
 import { Pause, Play } from "lucide-react"
 import { type ReactNode, useEffect, useEffectEvent, useState } from "react"
@@ -15,7 +15,7 @@ const yearOf = (value: number | ReadonlyArray<number>) => Year.make([value].flat
 const align = (place: number) =>
   place < 15 ? "" : place > 85 ? "-translate-x-full" : "-translate-x-1/2"
 
-// The chart a ranking over time shows, and how a reader moves it.
+// The year a chart over time shows, and how a reader moves it.
 export interface Moving {
   // The year saved with the View.
   readonly year: Year
@@ -27,17 +27,17 @@ export interface Moving {
 
 interface OverTimeProps extends Moving {
   // Every year of the span.
-  resolved: Ranked
+  resolved: Ranked | Related
   span: Span
-  // Draws one year's values.
-  children: (shown: Ranked) => ReactNode
+  // Draws the year shown, knowing whether play runs.
+  children: (shown: Year, playing: boolean) => ReactNode
 }
 
 // How long play shows each year.
 const step = 1000
 
-// A ranking or map over time: the chart of the year shown, the countries
-// without a value that year, and a slider of the span's years with the
+// A ranking, map or relation over time: the chart of the year shown, the
+// countries without a value that year, and a slider of the span's years with the
 // agent's year marked. Moving the slider redraws the chart at once; only
 // letting go saves the year, so the link or the conversation keeps it.
 // Play shows the next year each second and saves nothing until it pauses:
@@ -85,7 +85,7 @@ export const OverTime = ({ resolved, span, year, agent, onYear, children }: Over
 
   return (
     <div className="flex flex-col gap-4">
-      {children(shown)}
+      {children(shown.view.year, playing)}
       {shown.missing.length > 0 ? (
         <p className="text-sm text-muted-foreground">
           No data in {shown.view.year} for {shown.missing.map(countryName).join(", ")}.

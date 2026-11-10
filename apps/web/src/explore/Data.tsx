@@ -15,11 +15,10 @@ import { countryName, flagLabels, formatValue, indicatorNames, transformLabel } 
 
 const quote = (field: string) => `"${field.replaceAll('"', '""')}"`
 
-const valueOf = (observations: ResolvedView["observations"], country: Country) =>
-  observations.find((observation) => observation.country === country)?.value
+type At = { readonly country: Country; readonly year: number }
 
-const flagsOf = (observations: ResolvedView["observations"], country: Country) =>
-  observations.find((observation) => observation.country === country)?.flags ?? []
+const find = (observations: ResolvedView["observations"], { country, year }: At) =>
+  observations.find((observation) => observation.country === country && observation.year === year)
 
 const flagged = (flags: ReadonlyArray<Flag>) =>
   [...new Set(flags)].map((flag) => flagLabels[flag].toLowerCase()).join(", ")
@@ -29,26 +28,37 @@ const flagged = (flags: ReadonlyArray<Flag>) =>
 const tableOf = (resolved: ResolvedView) => {
   const order = (country: Country) => resolved.view.countries.indexOf(country)
 
+  // A relation lists each country in its year, or over time in each year
+  // either indicator has a value.
   if ("against" in resolved) {
-    const year = resolved.view.year
+    const { span, year: one } = resolved.view
+    const { observations, against } = resolved
+
+    const years =
+      span === undefined
+        ? [one]
+        : [...new Set([...observations, ...against.observations].map(({ year }) => year))].toSorted(
+            (left, right) => left - right,
+          )
 
     return {
       columns: [
         { id: resolved.indicator.id, title: resolved.title },
-        { id: resolved.against.indicator.id, title: resolved.against.title },
+        { id: against.indicator.id, title: against.title },
       ],
-      rows: resolved.view.countries.map((country) => ({
-        country,
-        year,
-        values: [
-          valueOf(resolved.observations, country),
-          valueOf(resolved.against.observations, country),
-        ],
-        flags: [
-          ...flagsOf(resolved.observations, country),
-          ...flagsOf(resolved.against.observations, country),
-        ],
-      })),
+      rows: resolved.view.countries.flatMap((country) =>
+        years.map((year) => {
+          const own = find(observations, { country, year })
+          const other = find(against.observations, { country, year })
+
+          return {
+            country,
+            year,
+            values: [own?.value, other?.value],
+            flags: [...(own?.flags ?? []), ...(other?.flags ?? [])],
+          }
+        }),
+      ),
     }
   }
 

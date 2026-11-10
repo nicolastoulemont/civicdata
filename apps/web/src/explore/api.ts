@@ -1,4 +1,4 @@
-import { Ranking, type Trend, type View } from "@civicdata/domain"
+import { Ranking, Relation, type Trend, type View } from "@civicdata/domain"
 import { keepPreviousData, queryOptions, skipToken } from "@tanstack/react-query"
 import { Match } from "effect"
 
@@ -11,12 +11,17 @@ import { toSearch } from "./search.ts"
 export const resolve = (view: View, transport = page) =>
   call(transport, (api) => api.views.resolve({ payload: view }))
 
-// A ranking over time fetches every year of its span whichever it shows, so
-// it asks for its last: moving the slider asks for nothing.
+// A chart over time fetches every year of its span whichever it shows, so it
+// asks for its last: moving the slider asks for nothing.
 const fetched = (view: View) =>
   Match.value(view).pipe(
     Match.tag("Ranking", (ranking) =>
       ranking.span === undefined ? ranking : Ranking.make({ ...ranking, year: ranking.span.to }),
+    ),
+    Match.tag("Relation", (relation) =>
+      relation.span === undefined
+        ? relation
+        : Relation.make({ ...relation, year: relation.span.to }),
     ),
     Match.orElse((other) => other),
   )
@@ -24,7 +29,7 @@ const fetched = (view: View) =>
 // Keyed by the URL form so equal Views share a cache entry. While an edited
 // View loads, the previous result stays on screen so the chart and the open
 // sections do not collapse. A resolved View carries when its data was
-// retrieved, so it stays fresh. A ranking over time's result names the last
+// retrieved, so it stays fresh. A chart over time's result names the last
 // year of its span, not the year on screen.
 export const resolveQuery = (view: View) =>
   queryOptions({

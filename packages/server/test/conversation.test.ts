@@ -828,6 +828,64 @@ describe("conversations", () => {
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
+  it.effect(
+    "answers with a relation over time, telling the model the dots at its span's ends",
+    () => {
+      const model = scripted([
+        Effect.succeed(
+          call("show_chart", {
+            ...brazil,
+            chart: "relation",
+            against: gdpPerPerson,
+            countries: ["BRA", "MEX"],
+            from: null,
+            to: null,
+            year: 2002,
+            span_from: 2000,
+            span_to: 2002,
+          }),
+        ),
+      ])
+
+      return Effect.gen(function* () {
+        const steps = yield* answer("How have income and life expectancy moved together?")
+
+        expect(steps.at(-1)).toEqual(
+          charted(
+            chart(
+              Relation.make({
+                indicator: lifeExpectancy,
+                against: gdpPerPerson,
+                countries: ["BRA", "MEX"],
+                year: Year.make(2002),
+                span: { from: Year.make(2000), to: Year.make(2002) },
+              }),
+            ),
+            said(),
+          ),
+        )
+        expect(model.prompts[1]).toContain(
+          JSON.stringify({
+            from: {
+              year: 2000,
+              dots: [
+                { country: "BRA", value: 70, against: 70 },
+                { country: "MEX", value: 70, against: 70 },
+              ],
+            },
+            to: {
+              year: 2002,
+              dots: [
+                { country: "BRA", value: 72, against: 72 },
+                { country: "MEX", value: 72, against: 72 },
+              ],
+            },
+          }),
+        )
+      }).pipe(Effect.provide(serveApi(model.layer)))
+    },
+  )
+
   it.effect("rejects a span on a trend, then draws the trend", () => {
     const model = scripted([
       Effect.succeed(

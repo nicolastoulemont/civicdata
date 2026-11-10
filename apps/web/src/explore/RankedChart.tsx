@@ -44,7 +44,7 @@ export const RankedChart = ({ resolved, moving }: RankedChartProps) => {
 
   return (
     <OverTime resolved={resolved} span={span} {...moving}>
-      {draw}
+      {(year) => draw(inYear(resolved, year))}
     </OverTime>
   )
 }
