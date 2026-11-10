@@ -33,6 +33,7 @@ import {
   locate,
   Lookup,
   members,
+  type Observation,
   Overlay,
   type Overlays,
   type Politics as PoliticalRecords,
@@ -419,8 +420,14 @@ const Years = Schema.TaggedStruct("Years", {
 
 const FindYears = Tool.make("find_years", {
   description:
-    "Look up which years an indicator has values for in each country, over the last 30 years, to pick a chart's years before show_chart. Returns each country's first and last year with a value, the runs of years every country with values has one in (`shared`), and the countries with no value at all (`missing`).",
-  parameters: Schema.Struct(subject),
+    "Look up which years an indicator has values for in each country, over the last 30 years or from an earlier year the question asks for, to pick a chart's indicator and years before show_chart. Returns the years it looked at, each country's first and last year with a value, the runs of years every country with values has one in (`shared`), and the countries with no value at all (`missing`).",
+  parameters: Schema.Struct({
+    ...subject,
+    from: Schema.NullOr(Schema.Int).annotate({
+      description:
+        "The first year the question asks about, e.g. 1975 for 'the last 50 years' in 2025, so the lookup reaches back to it; null when the question names no years",
+    }),
+  }),
   success: Schema.Union([Years, Refused]),
   failure: SourceUnavailable,
   dependencies: [Report],
@@ -637,20 +644,45 @@ interface Refusal<R extends Rejection = Rejection> {
 const refuse = <R extends Rejection>(reason: R, problem: string) =>
   Result.fail<Refusal<R>>({ reason, problem })
 
-// A trend ends at the latest year it has values for. Told only the current
-// year, the model asks for years the World Bank has not published yet. A
-// change names its two years, so it is kept as asked.
+// The first and last years a trend's values fall in, for at least one value.
+const spanOf = (
+  observations: ReadonlyArray<Observation>,
+  { from, to }: { readonly from: Year; readonly to: Year },
+) => ({
+  from: observations.reduce((earliest, { year }) => (year < earliest ? year : earliest), to),
+  to: observations.reduce((latest, { year }) => (year > latest ? year : latest), from),
+})
+
+// A trend runs from the earliest to the latest year it has values for, so
+// its title names the years its lines cover. Told only the current year, the
+// model asks for years the World Bank has not published yet; asked for 50
+// years, it gets those the source has. A change names its two years, so it
+// is kept as asked.
 const trim = ({ view, observations }: ResolvedView): View =>
   Match.valueTags(view, {
-    Trend: (trend) =>
-      Trend.make({
-        ...trend,
-        to: observations.reduce((latest, { year }) => (year > latest ? year : latest), trend.from),
-      }),
+    Trend: (trend) => Trend.make({ ...trend, ...spanOf(observations, trend) }),
     Ranking: (ranking) => ranking,
     Change: (change) => change,
     Relation: (relation) => relation,
   })
+
+// A trend whose values cover under half its years, up to the latest it has:
+// another indicator of the same measure may cover more. A chart once shown
+// stays in the answer, so the model hears it before the chart is drawn.
+const short = (resolved: ResolvedView): Result.Result<ResolvedView, Refusal> =>
+  Match.value(resolved.view).pipe(
+    Match.tag("Trend", (trend) => {
+      const { from, to } = spanOf(resolved.observations, trend)
+
+      return (to - from + 1) * 2 < to - trend.from + 1
+        ? refuse(
+            Rejection.cases.Short.make({ from, to }),
+            `${resolved.indicator.name} has values for these countries from ${from} to ${to} only, under half the years from ${trend.from}. A chart you show stays in the answer: call find_years with from ${trend.from} for the other indicators search_indicators found for the same measure, and show the one that covers the most years. If none covers more, show ${from} to ${to}.`,
+          )
+        : Result.succeed(resolved)
+    }),
+    Match.orElse(() => Result.succeed(resolved)),
+  )
 
 // A dimension and its first codes as the model reads them:
 // "sex (F Females, M Males, T Total)".
@@ -861,7 +893,7 @@ const ToolsLayer = Tools.toLayer(
               Result.flatMap((values) =>
                 values.observations.length === 0
                   ? refuse(Rejection.cases.NoValues.make({}), noValues(sourceOf(view.indicator)))
-                  : Result.succeed(values),
+                  : short(values),
               ),
             ),
             Effect.catchTag("TransformNotApplicable", ({ indicator, transform }) =>
@@ -1069,65 +1101,72 @@ const ToolsLayer = Tools.toLayer(
           Effect.catchTag("SchemaError", (error) => Effect.succeed(rejected(error.message))),
         ),
       // Reads the recent years of the data the model named, the years a
-      // cached source asks for at once (see `recent`), so show_chart, given
-      // the same countries and series, reads its values from the cache.
-      // Arguments that do not decode, and data the source cannot give, are
-      // the model's mistakes, told to it as show_chart tells them. A country
-      // without values is part of the answer.
-      find_years: ({ indicator, countries, dimensions }, { toolCallId }) =>
-        Effect.flatMap(recent, ({ from, to }) =>
-          toView({
-            chart: "trend",
-            indicator,
-            against: null,
-            countries,
-            from,
+      // cached source asks for at once (see `recent`), from the question's
+      // first year when it is earlier, so show_chart, given the same
+      // countries and series, reads its values from the cache. Arguments
+      // that do not decode, and data the source cannot give, are the model's
+      // mistakes, told to it as show_chart tells them. A country without
+      // values is part of the answer.
+      find_years: ({ indicator, countries, dimensions, from: asked }, { toolCallId }) =>
+        Effect.all([recent, Schema.decodeEffect(Schema.NullOr(Year))(asked)]).pipe(
+          Effect.map(([{ from, to }, first]) => ({
+            from: first !== null && first < from ? first : from,
             to,
-            year: null,
-            span_from: null,
-            span_to: null,
-            transform: null,
-            per: null,
-            dimensions,
-            overlays: null,
-          }).pipe(
-            Effect.flatMap((view) => {
-              const at = (state: typeof Coverage.Type.state) =>
-                Coverage.make({
-                  id: stepOf(toolCallId, "find_years"),
-                  indicator: view.indicator,
-                  countries: view.countries,
-                  state,
-                })
+          })),
+          Effect.flatMap(({ from, to }) =>
+            toView({
+              chart: "trend",
+              indicator,
+              against: null,
+              countries,
+              from,
+              to,
+              year: null,
+              span_from: null,
+              span_to: null,
+              transform: null,
+              per: null,
+              dimensions,
+              overlays: null,
+            }).pipe(
+              Effect.flatMap((view) => {
+                const at = (state: typeof Coverage.Type.state) =>
+                  Coverage.make({
+                    id: stepOf(toolCallId, "find_years"),
+                    indicator: view.indicator,
+                    countries: view.countries,
+                    state,
+                  })
 
-              const covering = resolve(view).pipe(
-                Effect.map(
-                  Result.map(({ indicator: { name }, observations }) => ({
-                    name,
-                    ...coverage(observations, view.countries),
-                  })),
-                ),
-                // find_years asks for no transform.
-                Effect.catchTag("TransformNotApplicable", Effect.die),
-              )
+                const covering = resolve(view).pipe(
+                  Effect.map(
+                    Result.map(({ indicator: { name }, observations }) => ({
+                      name,
+                      ...coverage(observations, view.countries),
+                    })),
+                  ),
+                  // find_years asks for no transform.
+                  Effect.catchTag("TransformNotApplicable", Effect.die),
+                )
 
-              return reported(covering, {
-                at,
-                done: Result.match({
-                  onSuccess: (found) => at(Covered.make(Struct.omit(found, ["name"]))),
-                  onFailure: ({ reason }) => at(Unresolved.make({ reason })),
-                }),
-              }).pipe(
-                Effect.map(
-                  Result.match({
-                    onSuccess: (found) => Years.make({ ...found, from, to }),
-                    onFailure: ({ problem }) => rejected(problem),
+                return reported(covering, {
+                  at,
+                  done: Result.match({
+                    onSuccess: (found) => at(Covered.make(Struct.omit(found, ["name"]))),
+                    onFailure: ({ reason }) => at(Unresolved.make({ reason })),
                   }),
-                ),
-              )
-            }),
-            Effect.catchTag("SchemaError", (error) => Effect.succeed(rejected(error.message))),
+                }).pipe(
+                  Effect.map(
+                    Result.match({
+                      onSuccess: (found) => Years.make({ ...found, from, to }),
+                      onFailure: ({ problem }) => rejected(problem),
+                    }),
+                  ),
+                )
+              }),
+            ),
           ),
+          Effect.catchTag("SchemaError", (error) => Effect.succeed(rejected(error.message))),
         ),
       // The question is shown when the round ends; see `answer`.
       ask_user: () =>
@@ -1205,7 +1244,8 @@ A measure only one source publishes comes from that source.
    - Countries are ISO 3166-1 alpha-3 codes for every source. When a place name is not plainly one country, call find_countries. List the members of a group yourself, e.g. the G7 or the Nordic countries.
    - A Eurostat or OECD dataflow holds several series, e.g. by sex or age. find_years' and show_chart's rejections list its dimensions and their codes: pick the series the question asks for, else the total.
    - Charts show annual values. Prefer a Eurostat or OECD dataflow whose name does not say quarterly or monthly.
-3. Unless the question names the years, call find_years with the indicator, the countries and the series before show_chart, and pick the years from what it returns. For a relation, call it for both indicators.
+3. Call find_years with the indicator, the countries and the series before show_chart, and pick the years from what it returns. When the question names a first year, pass it as from, e.g. ${year - 50} for "the last 50 years"; else pass null. For a relation, call it for both indicators.
+   - A chart you show stays in the answer, so pick its indicator before show_chart. When the indicator's values start long after the first year the question asks for, call find_years for the other indicators search_indicators found for the same measure, and chart the one that covers the most years. If none covers them, chart the years there are and say in one sentence where the data starts.
    - "shared" holds the years every country has a value in. A ranking, map or relation shows the latest of them. A change runs from the first year it would show, or the first shared year after it, to the latest shared year. A ranking, map or relation over time spans the same years as a change, and shows its last year unless the question names another.
    - A trend covers the last 20 years unless the question asks for others, and keeps them when a country's values start later: its line shows where data exists. It is ${year} now; most indicators have values up to ${year - 2}.
    - Years carried over from a chart you drew before are not named by the question.
@@ -1227,7 +1267,7 @@ Any chart type takes any number of countries: draw the countries the question as
 Several charts: most answers need one chart. Show more only when one chart cannot show what the question asks:
 - The question asks about measures with different units, e.g. "How have inflation and unemployment moved in Portugal?" is a trend of each.
 - The question asks both how countries compare at one point and how they changed over time, e.g. "Which EU country has the highest debt, and how has that changed since 2010?" is a ranking, then a change.
-One indicator for several countries is one chart, whatever the number of countries. "How does X go with Y?" is one relation chart, not a chart of each. You may write a sentence that ties the charts together after the last one.
+One indicator for several countries is one chart, whatever the number of countries. Never show a second chart of the same measure to replace one you showed: it stays in the answer beside the first. "How does X go with Y?" is one relation chart, not a chart of each. You may write a sentence that ties the charts together after the last one.
 
 Political context: a trend of EU and OECD members can show their elections, their governments, shaded by head of government, and major events, with pension reforms on pension charts. Use it only when the question asks about them, e.g. "under each president" or "since the last election" asks for governments or elections, "around the 2010 bailout" or "since the financial crisis" asks for events. Then call find_politics for the chart's countries and years, and pass the overlays the question asks for to show_chart. Never add context the question does not ask for.
 To name a record find_politics returned, cite it by its id in double brackets, e.g. "Unemployment rose from 2008, the year the [[event:financial-crisis]] began." The record's name takes the id's place and links to its source: a government's is its head's name, an election's its year and ballot, e.g. "2017 presidential election". Never write the name of a head of government, party, election or event yourself, and cite only records find_politics returned.

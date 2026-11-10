@@ -620,6 +620,35 @@ describe("Conversation", () => {
     expect(await findStep("The World Bank has no values for Brazil in 2024–2025.")).toBeDefined()
   })
 
+  it("opens years the data barely covers to the years it has", async () => {
+    const reply = answer()
+    const fifty = Trend.make({ ...brazil, from: Year.make(1976), to: Year.make(2025) })
+
+    network.use(turns([]), reply.handler, resolve)
+    show("Life expectancy in Brazil over the last 50 years")
+
+    reply.send(
+      message(
+        Fetch.make({
+          id: StepId.make("chart-1"),
+          view: fifty,
+          state: Rejected.make({
+            reason: Rejection.cases.Short.make({ from: Year.make(2014), to: Year.make(2025) }),
+          }),
+        }),
+      ),
+    )
+    await userEvent.setup().click(
+      await screen.findByRole("button", {
+        name: "Tried years the data barely covers, trying again",
+      }),
+    )
+
+    expect(
+      await findStep("The World Bank has values only from 2014 to 2025, under half of 1976–2025."),
+    ).toBeDefined()
+  })
+
   it("opens a chart too crowded to read to how many countries it had, and how many fit", async () => {
     const reply = answer()
 

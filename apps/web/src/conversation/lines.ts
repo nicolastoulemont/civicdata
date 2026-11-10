@@ -323,6 +323,8 @@ const rejected = (view: View, reason: Rejection) =>
       ),
     OpenDimensions: ({ open }) =>
       `The data holds several series, and the chart has to pick one by ${open.join(", ")}.`,
+    Short: ({ from, to }) =>
+      `${named(sourceOf(view.indicator))} has values only from ${from} to ${to}, under half of ${period(view)}.`,
     TooMany: ({ most }) =>
       `Too many countries for ${typeOf(view)}: ${view.countries.length}, at most ${most}.`,
     TooFew: ({ least }) =>
@@ -330,6 +332,9 @@ const rejected = (view: View, reason: Rejection) =>
   })
 
 const retried = "Tried a chart the data can't show, trying again"
+
+// The agent asked for years the data barely covers, and looks for more.
+const thin = "Tried years the data barely covers, trying again"
 
 // The agent drew a chart people could not read, and draws another.
 const redrawn = "Tried a chart that would be hard to read, trying again"
@@ -341,6 +346,7 @@ const retrying = (reason: Rejection) =>
     NoIndicator: () => retried,
     NotApplicable: () => retried,
     OpenDimensions: () => retried,
+    Short: () => thin,
     TooMany: () => redrawn,
     TooFew: () => redrawn,
   })
