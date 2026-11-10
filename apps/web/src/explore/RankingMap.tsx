@@ -2,7 +2,7 @@ import { type Country, countries, regionOf, type ResolvedView } from "@civicdata
 import { use, useId } from "react"
 
 import { countryName, formatCompact, formatValue } from "./format.ts"
-import { blend } from "./palette.ts"
+import { phrase, shading } from "./palette.ts"
 import { banded, type Band, load, offMap, path, shades } from "./sheet.ts"
 
 interface RankingMapProps {
@@ -14,10 +14,12 @@ interface RankingMapProps {
 
 // A map shaded by rank, or for a map over time by value on bands fixed across
 // its span, with a key of each shade's values: of the first region holding
-// every country asked for, else of the world. It suspends while that map's
-// outlines load. A country without a value, or not asked for, stays blank;
-// the land around a region is fainter still. A note names the countries too
-// small to draw; the data table lists every value.
+// every country asked for, else of the world. An indicator with a direction
+// shades from green for better to red for worse, and its key says which way
+// is better. It suspends while that map's outlines load. A country without a
+// value, or not asked for, stays blank; the land around a region is fainter
+// still. A note names the countries too small to draw; the data table lists
+// every value.
 export const RankingMap = ({ resolved, bands }: RankingMapProps) => {
   const caption = useId()
   const region = regionOf(resolved.view.countries)
@@ -27,6 +29,9 @@ export const RankingMap = ({ resolved, bands }: RankingMapProps) => {
     bands === undefined
       ? shades(resolved.observations)
       : { byCountry: banded(resolved.observations, bands), key: bands }
+
+  const paint = shading(resolved.direction)
+  const better = phrase(resolved.direction)
 
   const values = new Map(resolved.observations.map((each) => [each.country, each.value]))
 
@@ -38,7 +43,7 @@ export const RankingMap = ({ resolved, bands }: RankingMapProps) => {
   const fillOf = (country: Country) => {
     const shade = byCountry.get(country)
 
-    return shade === undefined ? "var(--border)" : blend(shade)
+    return shade === undefined ? "var(--border)" : paint(shade)
   }
 
   const valueOf = (country: Country) => {
@@ -52,7 +57,7 @@ export const RankingMap = ({ resolved, bands }: RankingMapProps) => {
       <figcaption
         id={caption}
         className="sr-only"
-      >{`${region === undefined ? "World map" : `Map of ${region.name}`} ${bands === undefined ? "ranking" : "shading"} countries by ${resolved.title}`}</figcaption>
+      >{`${region === undefined ? "World map" : `Map of ${region.name}`} ${bands === undefined ? "ranking" : "shading"} countries by ${resolved.title}${better === undefined ? "" : `, ${better.toLowerCase()}`}`}</figcaption>
       <svg
         viewBox={`0 0 ${sheet.width} ${sheet.height}`}
         className="h-auto max-h-[70svh] w-full"
@@ -96,9 +101,10 @@ export const RankingMap = ({ resolved, bands }: RankingMapProps) => {
         </ul>
       ) : null}
       <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
+        {better === undefined ? null : <li className="text-foreground">{better}</li>}
         {key.map(({ shade, low, high }) => (
           <li key={shade} className="flex items-center gap-1.5">
-            <span className="size-3 rounded-sm" style={{ background: blend(shade) }} aria-hidden />
+            <span className="size-3 rounded-sm" style={{ background: paint(shade) }} aria-hidden />
             {low === high ? formatCompact(low) : `${formatCompact(low)}–${formatCompact(high)}`}
           </li>
         ))}

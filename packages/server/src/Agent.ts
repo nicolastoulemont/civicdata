@@ -12,6 +12,7 @@ import {
   Coverage,
   Covered,
   Definition,
+  Direction,
   type Dimension,
   Dimensions,
   type DimensionsMissing,
@@ -94,6 +95,7 @@ import { FetchHttpClient } from "effect/http"
 
 import { Catalog } from "./Catalog.ts"
 import { cite } from "./Citations.ts"
+import { Directions } from "./Directions.ts"
 import { Findings } from "./Findings.ts"
 import { Notes } from "./Notes.ts"
 import { Politics } from "./Politics.ts"
@@ -234,25 +236,27 @@ const SearchIndicators = Tool.make("search_indicators", {
 })
 
 // What show_chart tells the model: the chart was shown with a summary of its
-// values, or why it was not. describe_indicator also answers Rejected for a
-// code that does not exist.
+// values and which way they are better, or why it was not. describe_indicator
+// also answers Rejected for a code that does not exist.
 const Shown = Schema.TaggedStruct("Shown", {
   view: View,
   overlays: Schema.optionalKey(Schema.NonEmptyArray(Overlay)),
   data: Summary,
+  direction: Direction,
 })
 
 const Refused = Schema.TaggedStruct("Rejected", { problem: Schema.String })
 
-// What describe_indicator tells the model: the indicator's definition and
-// what its source writes about it, or null for the notes when the source
-// cannot be reached now.
+// What describe_indicator tells the model: the indicator's definition, which
+// way its values are better, and what its source writes about it, or null for
+// the notes when the source cannot be reached now.
 const Defined = Schema.TaggedStruct("Definition", {
   indicator: IndicatorId,
   source: Source,
   name: Schema.String,
   definition: Schema.String,
   dataset: Schema.String,
+  direction: Direction,
   notes: Schema.NullOr(IndicatorNotes),
 })
 
@@ -804,6 +808,7 @@ const ToolsLayer = Tools.toLayer(
     const politics = yield* Politics
     const research = yield* Findings
     const notes = yield* Notes
+    const directions = yield* Directions
 
     // A View's values, or why the data cannot give them: no source has the
     // indicator, or its dataflow holds several series and the View has not
@@ -884,7 +889,11 @@ const ToolsLayer = Tools.toLayer(
             Effect.map(
               Result.match({
                 onSuccess: (resolved) => {
-                  const shown = Shown.make({ view: trim(resolved), data: summarize(resolved) })
+                  const shown = Shown.make({
+                    view: trim(resolved),
+                    data: summarize(resolved),
+                    direction: resolved.direction,
+                  })
 
                   return overlays === undefined ? shown : Struct.assign(shown, { overlays })
                 },
@@ -950,8 +959,9 @@ const ToolsLayer = Tools.toLayer(
               [
                 sourceOf(id) === "World Bank" ? worldBank.describe(id) : sdmx.describe(id),
                 notes.get(id, scope).pipe(Effect.orElseSucceed(() => null)),
+                directions.of(id),
               ],
-              { concurrency: 2 },
+              { concurrency: 3 },
             )
 
             return reported(read, {
@@ -959,13 +969,14 @@ const ToolsLayer = Tools.toLayer(
               done: ([described]) => at(Read.make({ name: described.indicator.name })),
             })
           }),
-          Effect.map(([described, written]) =>
+          Effect.map(([described, written, direction]) =>
             Defined.make({
               indicator: described.indicator.id,
               source: sourceOf(described.indicator.id),
               name: described.indicator.name,
               definition: described.indicator.definition,
               dataset: described.dataset,
+              direction,
               notes: written,
             }),
           ),
@@ -1230,6 +1241,8 @@ Why a figure moved: give a cause only from a research finding find_research retu
 
 Breaks in series and the sources' notes: show_chart's data lists under "flagged" each break in series the source marks, by country and year: the source changed how it measures from that year. When a chart you show crosses one, say so, naming the country, the year and the source, e.g. "Eurostat marks a break in series for Germany in 2020", so a change of method does not read as a change in the world. When a question asks why a line jumps, why two sources disagree, or how a figure is measured, call describe_indicator with the chart's indicator, countries and series before you write, and answer from the notes it returns, naming the source, e.g. "Eurostat's notes say". The notes say how the source measures a figure, never what made it move: give a cause only from find_research, as the paragraph above says. Quote no number the notes or the data do not give. If the notes do not explain it, say so instead of guessing.
 
+Better and worse: describe_indicator and show_chart give a direction. Higher or Lower says which way the indicator's values are better; maps and change charts colour them green for better and red for worse. Never call a value or a move better or worse against it. Neutral means no side is better, e.g. government spending or fertility: say what the values are and leave the judgement to the reader.
+
 If no indicator of any source measures what the question asks, say so in one sentence and stop without calling show_chart. A question only about politics, with no data to chart, e.g. "Who governed Spain in 2008?", is one of those: you answer with charts.
 
 If the question can be read in ways that give different charts and none is a safe default, call ask_user instead of show_chart, with two to four short choices. Prefer a sensible default to asking: ask at most once per question.
@@ -1238,7 +1251,7 @@ A later question can follow up on your last answer, e.g. "add Chile" or "now per
 
 export class Agent extends Context.Service<Agent, Interface>()("@civicdata/server/Agent") {
   // Needs a LanguageModel, a Catalog, a Resolver, a WorldBank, an Sdmx, the
-  // political records and the research findings.
+  // political records, the research findings and the indicators' directions.
   static readonly layer = Layer.effect(
     Agent,
     Effect.gen(function* () {
@@ -1411,6 +1424,7 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
           ? Agent.unavailable
           : Agent.layer.pipe(
               Layer.provide(Findings.layer),
+              Layer.provide(Directions.layer),
               Layer.provide(OpenAiLanguageModel.model(env.OPENAI_MODEL ?? defaultModel)),
               Layer.provide(OpenAiClient.layer({ apiKey: Redacted.make(env.OPENAI_API_KEY) })),
               Layer.provide(FetchHttpClient.layer),

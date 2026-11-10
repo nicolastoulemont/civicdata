@@ -761,5 +761,6 @@
       "url": "https://api.worldbank.org/v2/country/CAN;FRA;DEU;ITA;JPN;GBR;USA/indicator/SL.UEM.TOTL.ZS?format=json&date=2004:2024&per_page=147",
       "retrievedAt": "2026-11-10T11:27:32.544Z"
     }
-  ]
+  ],
+  "direction": "Lower"
 }

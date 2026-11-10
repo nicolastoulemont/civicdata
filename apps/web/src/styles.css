@@ -109,6 +109,12 @@
   --chart-6: #008300;
   --chart-other: color-mix(in oklab, var(--foreground) 45%, var(--card));
   --chart-faint: color-mix(in oklab, var(--foreground) 12%, var(--card));
+  /* The poles and grey midpoint of a map or change whose indicator has a
+     direction: a teal green for better, an orange red for worse, at different
+     lightness so they part without colour vision. */
+  --chart-better: #046c46;
+  --chart-worse: #e06b39;
+  --chart-even: color-mix(in oklab, var(--foreground) 20%, var(--card));
   --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
@@ -154,6 +160,10 @@
     --chart-4: #9085e9;
     --chart-5: #d55181;
     --chart-6: #008300;
+    --chart-better: #1cae86;
+    --chart-worse: #c24d25;
+    /* Lighter than on light, so the midpoint parts from the dark land. */
+    --chart-even: color-mix(in oklab, var(--foreground) 30%, var(--card));
     --sidebar: oklch(0.18 0 0);
     --sidebar-foreground: oklch(0.97 0 0);
     --sidebar-primary: oklch(0.922 0 0);
