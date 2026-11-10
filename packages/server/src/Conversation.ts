@@ -5,6 +5,7 @@ import {
   type ChartIndex,
   chartsOf,
   ConversationBusy,
+  ConversationNotFound,
   Ended,
   Ending,
   Halted,
@@ -50,7 +51,13 @@ import { type Edit, type Saved, Transcript } from "./Transcript.ts"
 type Failure = AgentUnavailable | SourceUnavailable | CatalogUnavailable
 
 interface Interface {
-  readonly turns: Effect.Effect<Turns>
+  // Fails with ConversationNotFound when no question was ever asked here, or
+  // after the conversation was deleted. One being answered for the first
+  // time has no turns yet.
+  readonly turns: Effect.Effect<Turns, ConversationNotFound>
+  // Keeps the conversation from a question on, even when that question is
+  // never answered: an empty one stays until it is deleted.
+  readonly open: Effect.Effect<void>
   // Starts answering a question and streams its steps. Fails with
   // ConversationBusy while an earlier question is still being answered.
   readonly ask: (question: string) => Effect.Effect<Stream.Stream<Step, Failure>, ConversationBusy>
@@ -247,7 +254,8 @@ const isExpiring = Phase.$is("Expiring")
 // One conversation: its turns, and follow-up questions answered with the
 // chat so far. An answer runs to its end even when nobody reads it any more,
 // and its turn is saved then; an answer that fails leaves the conversation as
-// it was. Only `stop` ends an answer early.
+// it was, which after a first question is open with no turns. Only `stop`
+// ends an answer early.
 export class Conversation extends Context.Service<Conversation, Interface>()(
   "@civicdata/server/Conversation",
 ) {
@@ -276,12 +284,25 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
           return { answered, answering: { question: now.question, started: now.started } }
         }
 
+        if (Option.isNone(saved)) return yield* new ConversationNotFound()
+
         // No answer runs here, so the one saved as running ran in an earlier
         // life of this object and was cut off with it.
         const lost = Option.getOrUndefined(saved)?.answering
 
         return lost === undefined ? { answered } : { answered, lost }
       }).pipe(Semaphore.withPermit(lock))
+
+      // Saves an empty conversation with the agent's opening chat, which
+      // also sets its deletion alarm, so a first question refused over the
+      // ask limit still keeps it.
+      const open = Effect.gen(function* () {
+        if (Option.isSome(yield* transcript.load)) return
+
+        const chat = yield* agent.start
+
+        yield* transcript.save({ chat: yield* chat.exportJson.pipe(Effect.orDie), turns: [] })
+      }).pipe(Semaphore.withPermit(lock), Effect.withSpan("Conversation.open"))
 
       // The chat to answer a question with, and the changes it builds on. The
       // question is saved as being answered before the agent starts, and its
@@ -478,7 +499,7 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
           Effect.withSpan("Conversation.expire"),
         )
 
-      return Conversation.of({ turns, ask, follow, stop, show, expire })
+      return Conversation.of({ turns, open, ask, follow, stop, show, expire })
     }),
   )
 }

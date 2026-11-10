@@ -69,6 +69,13 @@ export class ConversationBusy extends Schema.TaggedError<
   { readonly brand: unique symbol }
 >()("ConversationBusy", {}, { httpApiStatus: 409 }) {}
 
+// No conversation has this id: none was ever asked in it, or the server
+// deleted it 30 days after its last question.
+export class ConversationNotFound extends Schema.TaggedError<
+  ConversationNotFound,
+  { readonly brand: unique symbol }
+>()("ConversationNotFound", {}, { httpApiStatus: 404 }) {}
+
 // The conversation has no turn at this place, e.g. one not answered yet.
 export class TurnNotFound extends Schema.TaggedError<
   TurnNotFound,

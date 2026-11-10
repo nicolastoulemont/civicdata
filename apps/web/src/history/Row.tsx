@@ -1,8 +1,8 @@
-import type { Ending } from "@civicdata/domain"
+import { ConversationNotFound, type Ending, type Turns } from "@civicdata/domain"
 import { useIsMutating, useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { cn } from "cn"
-import { DateTime, Match } from "effect"
+import { Data, DateTime, Match } from "effect"
 import { useEffect } from "react"
 
 import { Badge } from "@/components/ui/badge"
@@ -13,29 +13,74 @@ import { answerKey, turnsQuery } from "@/conversation/useConversation"
 import { ago } from "./ago.ts"
 import { type Entry, forget } from "./store.ts"
 
-// How a conversation's last question stands, in a word and a colour.
-interface Status {
+// How a conversation stands: its turns still loading, a question being
+// answered, how its last answer ended, kept with no answer (its first
+// question failed), or deleted by the server.
+type Status = Data.TaggedEnum<{
+  Loading: {}
+  Working: {}
+  Ended: { readonly answer: Ending }
+  Unanswered: {}
+  Gone: {}
+}>
+
+const Status = Data.taggedEnum<Status>()
+
+const isWorking = Status.$is("Working")
+const isGone = Status.$is("Gone")
+
+interface StatusInput {
+  // Whether this page is asking a question in the conversation.
+  readonly asking: boolean
+  readonly data: Turns | undefined
+  readonly error: Error | null
+}
+
+// Only the server says a conversation is gone. An answer in progress
+// outranks that: a question asked a moment ago can reach the server after
+// the read that found no conversation.
+const statusOf = ({ asking, data, error }: StatusInput): Status => {
+  if (asking || data?.answering !== undefined) return Status.Working()
+
+  if (error instanceof ConversationNotFound) return Status.Gone()
+
+  if (data === undefined) return Status.Loading()
+
+  const last = data.answered.at(-1)
+
+  return last === undefined ? Status.Unanswered() : Status.Ended({ answer: last.answer })
+}
+
+// A status in a word and a colour.
+interface Badged {
   readonly label: string
   readonly className: string
 }
 
-const working: Status = {
-  label: "Working",
-  className: "bg-status-working/10 text-status-working",
-}
+const idle = "bg-status-idle/10 text-status-idle"
 
 // How an answer ended. The match is exhaustive, so a new ending fails the
-// typecheck until it gets a status.
-const ended = (answer: Ending): Status =>
+// typecheck until it gets a badge.
+const ended = (answer: Ending): Badged =>
   Match.valueTags(answer, {
     Answered: () => ({
       label: "Answered",
       className: "bg-status-answered/10 text-status-answered",
     }),
     Asked: () => ({ label: "Your reply", className: "bg-status-reply/10 text-status-reply" }),
-    Unanswered: () => ({ label: "No data", className: "bg-status-idle/10 text-status-idle" }),
-    Exhausted: () => ({ label: "Cut short", className: "bg-status-idle/10 text-status-idle" }),
-    Stopped: () => ({ label: "Stopped", className: "bg-status-idle/10 text-status-idle" }),
+    Unanswered: () => ({ label: "No data", className: idle }),
+    Exhausted: () => ({ label: "Cut short", className: idle }),
+    Stopped: () => ({ label: "Stopped", className: idle }),
+  })
+
+// No badge while the turns load, or once the conversation is gone.
+const badged = (status: Status): Badged | undefined =>
+  Match.valueTags(status, {
+    Loading: () => undefined,
+    Working: () => ({ label: "Working", className: "bg-status-working/10 text-status-working" }),
+    Ended: ({ answer }) => ended(answer),
+    Unanswered: () => ({ label: "Not answered", className: idle }),
+    Gone: () => undefined,
   })
 
 interface RowProps {
@@ -52,19 +97,16 @@ export const Row = ({ entry: { id, title, askedAt }, current, now }: RowProps) =
   const { setOpenMobile } = useSidebar()
   const asking = useIsMutating({ mutationKey: answerKey(id) }) > 0
 
-  const { data } = useQuery({
+  const { data, error } = useQuery({
     ...turnsQuery(id),
     refetchInterval: (query) =>
       !asking && query.state.data?.answering !== undefined ? 5000 : false,
   })
 
-  const answering = asking || data?.answering !== undefined
-  // The server deletes a conversation 30 days after its last question, and
-  // reads it as empty from then on.
-  const gone = !answering && data?.answered.length === 0
-  const last = data?.answered.at(-1)
-  // No status while the turns load.
-  const status = answering ? working : last === undefined ? undefined : ended(last.answer)
+  const status = statusOf({ asking, data, error })
+  const badge = badged(status)
+  // The server deletes a conversation 30 days after its last question.
+  const gone = isGone(status)
 
   useEffect(() => {
     if (gone) forget(id)
@@ -84,16 +126,16 @@ export const Row = ({ entry: { id, title, askedAt }, current, now }: RowProps) =
         >
           <div className="line-clamp-2 break-words">{title}</div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground tabular-nums">
-            {status === undefined ? null : (
-              <Badge className={status.className}>
+            {badge === undefined ? null : (
+              <Badge className={badge.className}>
                 <span
                   aria-hidden
                   className={cn(
                     "size-1.5 rounded-full bg-current",
-                    status === working && "motion-safe:animate-pulse",
+                    isWorking(status) && "motion-safe:animate-pulse",
                   )}
                 />
-                {status.label}
+                {badge.label}
               </Badge>
             )}
             <time className="ml-auto" dateTime={DateTime.formatIso(askedAt)}>

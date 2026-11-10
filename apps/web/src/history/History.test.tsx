@@ -3,9 +3,11 @@ import {
   Chart,
   Asked,
   ConversationId,
+  ConversationNotFound,
   IndicatorId,
   Step,
   Stopped,
+  TooManyQuestions,
   Trend,
   Turn,
   Turns,
@@ -59,6 +61,9 @@ const entry = (delta: Partial<Stored> = {}): Stored => ({
 const store = (...entries: ReadonlyArray<Stored>) =>
   localStorage.setItem(key, JSON.stringify(entries))
 
+// The follow-up typed in a conversation and not sent yet.
+const draft = (id: ConversationId) => `civicdata:draft:${id}`
+
 const encodeTurns = Schema.encodeSync(Schema.toCodecJson(Turns))
 
 const unanswered = (question: string): Turn => ({ question, answer: Unanswered.make({}) })
@@ -81,6 +86,14 @@ const answered = (question: string): Turn => ({
 
 const turns = (id: ConversationId, value: Turns) =>
   http.get(`/api/conversations/${id}`, () => HttpResponse.json(encodeTurns(value)))
+
+const notFound = () =>
+  HttpResponse.json(Schema.encodeSync(ConversationNotFound)(new ConversationNotFound()), {
+    status: 404,
+  })
+
+// A conversation the server does not have: never asked in, or deleted.
+const missing = (id: ConversationId) => http.get(`/api/conversations/${id}`, notFound)
 
 const encodeStep = Schema.encodeSync(Schema.fromJsonString(Schema.toCodecJson(Step)))
 
@@ -455,10 +468,11 @@ describe("History", () => {
     expect((await screen.findByRole("tooltip")).textContent).toBe(title)
   })
 
-  it("drops a conversation the server has deleted", async () => {
+  it("drops a conversation the server has deleted, and its draft", async () => {
     store(entry({ id: happiness, title: "Which countries are happiest?" }), entry())
+    localStorage.setItem(draft(brazil), "And in Chile?")
     network.use(
-      turns(brazil, { answered: [] }),
+      missing(brazil),
       turns(happiness, { answered: [unanswered("Which countries are happiest?")] }),
     )
     show()
@@ -470,6 +484,54 @@ describe("History", () => {
     )
     expect(list.getByRole("link", { name: /Which countries are happiest/ })).toBeDefined()
     expect(localStorage.getItem(key)).not.toContain(brazil)
+    expect(localStorage.getItem(draft(brazil))).toBeNull()
+  })
+
+  it("keeps a conversation whose first question failed, and its draft", async () => {
+    store(entry())
+    localStorage.setItem(draft(brazil), "And in Chile?")
+    network.use(turns(brazil, { answered: [] }))
+    show()
+
+    const link = (await sidebar()).getByRole("link", { name: /life expectancy changed/ })
+
+    expect(await within(link).findByText("Not answered")).toBeDefined()
+    expect(localStorage.getItem(key)).toContain(brazil)
+    expect(localStorage.getItem(draft(brazil))).toBe("And in Chile?")
+  })
+
+  it("keeps listing a conversation while its first question fails", async () => {
+    const user = userEvent.setup()
+    let asked = false
+
+    // The server keeps a conversation from its first question on, even one
+    // over the limit.
+    network.use(
+      http.get(`/api/conversations/${brazil}`, () =>
+        asked ? HttpResponse.json(encodeTurns({ answered: [] })) : notFound(),
+      ),
+      http.post(`/api/conversations/${brazil}/questions`, () => {
+        asked = true
+
+        return HttpResponse.json(Schema.encodeSync(TooManyQuestions)(new TooManyQuestions()), {
+          status: 429,
+        })
+      }),
+    )
+    show(`/c/${brazil}`)
+
+    await user.type(
+      await screen.findByRole("textbox", { name: "Ask a follow-up" }),
+      "Life expectancy in Brazil",
+    )
+    await user.click(screen.getByRole("button", { name: "Send" }))
+
+    expect(await screen.findByText("Too many questions in a minute")).toBeDefined()
+
+    const link = (await sidebar()).getByRole("link", { name: /Life expectancy in Brazil/ })
+
+    expect(await within(link).findByText("Not answered")).toBeDefined()
+    expect(localStorage.getItem(key)).toContain(brazil)
   })
 
   it("opens as a drawer on phones, and closes once a conversation is picked", async () => {

@@ -2,6 +2,7 @@ import {
   type ChartIndex,
   chartsOf,
   type ConversationId,
+  ConversationNotFound,
   Ended,
   Ending,
   put,
@@ -30,8 +31,10 @@ import { record } from "@/history/store"
 import { useMachine } from "@/machine"
 
 // The questions answered so far, and the one being answered, if any. Rejects
-// with AgentUnavailable where conversations cannot be reached. Finished turns
-// never change, so they stay fresh until a question is asked.
+// with ConversationNotFound before the first question and once the server
+// deletes the conversation, and with AgentUnavailable where conversations
+// cannot be reached. Finished turns never change, so they stay fresh until a
+// question is asked.
 export const turnsQuery = (id: ConversationId) =>
   queryOptions({
     queryKey: ["conversation", id],
@@ -43,6 +46,8 @@ export const turnsQuery = (id: ConversationId) =>
 const isEnding = Schema.is(Ending)
 
 const isEnded = Schema.is(Ended)
+
+const none: ReadonlyArray<Turn> = []
 
 // A question being answered here: one asked on this page, or one the server
 // was already answering when the page opened. `before` counts the turns
@@ -147,6 +152,20 @@ const settle = (failures: ReadonlyArray<Failure>, reported: Option.Option<Pendin
     onSome: (pending) => start(failures, pending),
   })
 
+// The failures, with the question the server lost as one more, once: asking
+// it again here may have failed too.
+const withLost = (
+  failures: ReadonlyArray<Failure>,
+  { lost, before }: { readonly lost: Turns["lost"]; readonly before: number },
+): ReadonlyArray<Failure> =>
+  lost === undefined ||
+  failures.some((failure) => failure.question === lost.question && failure.before === before)
+    ? failures
+    : [
+        ...failures,
+        { question: lost.question, steps: [], error: new AnswerLost(), before, retryAt: 0 },
+      ]
+
 // Marks the conversation as answered by this page while `use` runs, for the
 // sidebar to read through `answerKey`. The server finishes an answer even
 // when the page leaves, so leaving before the answer ends records it as
@@ -198,8 +217,15 @@ const marked = <A, E>(
 
 // Asks the server for the turns again, and for the answer it reports in
 // progress, if any. The server may still be answering, or have answered since.
+// A read sent before the question may still be running, and could answer
+// that the conversation does not exist, so it is dropped for a new one.
 const refresh = (client: QueryClient, id: ConversationId) =>
-  Effect.promise(() => client.invalidateQueries({ queryKey: turnsQuery(id).queryKey })).pipe(
+  Effect.promise(async () => {
+    const { queryKey } = turnsQuery(id)
+
+    await client.cancelQueries({ queryKey })
+    await client.invalidateQueries({ queryKey })
+  }).pipe(
     Effect.map(() =>
       Option.flatMap(Option.fromNullishOr(client.getQueryData(turnsQuery(id).queryKey)), following),
     ),
@@ -352,7 +378,10 @@ export const answerKey = (id: ConversationId) => ["conversation", id, "answer"]
 export const useConversation = (id: ConversationId) => {
   const queryClient = useQueryClient()
   const conversation = useQuery(turnsQuery(id))
-  const turns = useQuery({ ...turnsQuery(id), select: ({ answered }) => answered })
+  // A conversation the server does not have has no turns, even ones this
+  // browser saved before the server deleted it. A new one has none either.
+  const missing = conversation.error instanceof ConversationNotFound
+  const found = missing ? undefined : conversation.data
   const machine = useMemo(() => answer(queryClient), [queryClient])
 
   const [state, send] = useMachine(machine, {
@@ -366,16 +395,16 @@ export const useConversation = (id: ConversationId) => {
       ),
   })
 
-  const answered = conversation.data?.answered.length ?? 0
+  const answered = found?.answered.length ?? 0
 
   // Follows an answer the server reports, unless one is answered here.
   useEffect(() => {
-    if (conversation.data === undefined) return
+    if (found === undefined) return
 
-    const reported = following(conversation.data)
+    const reported = following(found)
 
     if (Option.isSome(reported)) send(Event.Report({ pending: reported.value }))
-  }, [conversation.data, send])
+  }, [found, send])
 
   const ask = (question: string) =>
     send(Event.Ask({ question, before: answered, started: Date.now() }))
@@ -387,37 +416,20 @@ export const useConversation = (id: ConversationId) => {
   const pending = Answer.$match(state, {
     Idle: () => undefined,
     Running: ({ pending: { question, via, started, before }, steps, stop }) =>
-      conversation.data?.answered[before]?.question === question
+      found?.answered[before]?.question === question
         ? undefined
         : { question, via, started, steps, stop },
   })
 
-  // A question the server lost fails like any other, once: asking it again
-  // here may have failed too.
-  const lost = conversation.data?.lost
-
-  const failed =
-    lost === undefined ||
-    state.failures.some(
-      (failure) => failure.question === lost.question && failure.before === answered,
-    )
-      ? state.failures
-      : [
-          ...state.failures,
-          {
-            question: lost.question,
-            steps: [],
-            error: new AnswerLost(),
-            before: answered,
-            retryAt: 0,
-          },
-        ]
+  const failed = withLost(state.failures, { lost: found?.lost, before: answered })
 
   return {
-    turns,
+    turns: found?.answered ?? none,
+    // Why the turns could not be read.
+    error: missing ? null : conversation.error,
     failures: failed.filter(
       (failure) =>
-        conversation.data?.answered[failure.before]?.question !== failure.question &&
+        found?.answered[failure.before]?.question !== failure.question &&
         pending?.question !== failure.question,
     ),
     retry: (failure: Failure) => {

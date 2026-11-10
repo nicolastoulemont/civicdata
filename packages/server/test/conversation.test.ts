@@ -8,6 +8,7 @@ import {
   Chart,
   ChartIndex,
   ConversationBusy,
+  ConversationNotFound,
   type Country,
   countries as economies,
   ConversationId,
@@ -578,8 +579,6 @@ describe("conversations", () => {
     ])
 
     return Effect.gen(function* () {
-      expect(yield* turns).toEqual({ answered: [] })
-
       // Each round thinks before its tools, and each tool reports running,
       // then done with what it found. Each block goes out once its round
       // ends, and a round of words alone ends the answer.
@@ -1936,24 +1935,28 @@ describe("conversations", () => {
     }),
   )
 
-  it.effect("fails with TooManyQuestions before asking the model when over the limit", () => {
-    const model = scripted([Effect.die("the model must not be asked")])
+  it.effect(
+    "fails with TooManyQuestions before asking the model, and keeps the conversation",
+    () => {
+      const model = scripted([Effect.die("the model must not be asked")])
 
-    return Effect.gen(function* () {
-      expect(yield* ask("Life expectancy in Brazil").pipe(Effect.flip)).toBeInstanceOf(
-        TooManyQuestions,
+      return Effect.gen(function* () {
+        expect(yield* ask("Life expectancy in Brazil").pipe(Effect.flip)).toBeInstanceOf(
+          TooManyQuestions,
+        )
+        expect(yield* turns).toEqual({ answered: [] })
+      }).pipe(
+        Effect.provide(
+          serveApi(model.layer, {
+            limit: Layer.succeed(
+              AskLimit,
+              AskLimit.of({ count: () => Effect.fail(new TooManyQuestions()) }),
+            ),
+          }),
+        ),
       )
-    }).pipe(
-      Effect.provide(
-        serveApi(model.layer, {
-          limit: Layer.succeed(
-            AskLimit,
-            AskLimit.of({ count: () => Effect.fail(new TooManyQuestions()) }),
-          ),
-        }),
-      ),
-    )
-  })
+    },
+  )
 })
 
 // The charts the model was told are on screen in a prompt, each with its
@@ -1995,7 +1998,7 @@ describe("expiring a conversation", () => {
       yield* alarm
 
       expect(values.size).toBe(0)
-      expect(yield* turns).toEqual({ answered: [] })
+      expect(yield* turns.pipe(Effect.flip)).toBeInstanceOf(ConversationNotFound)
     }).pipe(Effect.provide(serveApi(scripted([]).layer, { storage: fake })))
   })
 
@@ -2071,9 +2074,17 @@ describe("expiring a conversation", () => {
         yield* Deferred.await(deleted)
 
         expect(values.size).toBe(0)
-        expect(yield* turns).toEqual({ answered: [] })
+        expect(yield* turns.pipe(Effect.flip)).toBeInstanceOf(ConversationNotFound)
       }).pipe(Effect.provide(serveApi(model.layer, { storage: fake })))
     }),
+  )
+})
+
+describe("finding a conversation", () => {
+  it.effect("fails with ConversationNotFound for a conversation nobody asked in", () =>
+    Effect.gen(function* () {
+      expect(yield* turns.pipe(Effect.flip)).toBeInstanceOf(ConversationNotFound)
+    }).pipe(Effect.provide(serveApi(scripted([]).layer))),
   )
 })
 

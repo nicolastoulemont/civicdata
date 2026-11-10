@@ -25,7 +25,9 @@ const Handlers = HttpApiBuilder.group(
 
     // The object is the conversation, so the id in the path is not needed
     // here. Cloudflare sets cf-connecting-ip to the visitor's address, and the
-    // Worker passes the request on unchanged.
+    // Worker passes the request on unchanged. A question opens the
+    // conversation before it is counted, so a first question over the limit
+    // still keeps it.
     return handlers
       .handle("turns", () => conversation.turns)
       .handle("answer", () => conversation.follow)
@@ -34,9 +36,10 @@ const Handlers = HttpApiBuilder.group(
         conversation.show(params.turn, { chart: params.chart, view: payload }),
       )
       .handle("ask", ({ payload, request }) =>
-        limit
-          .count(request.headers["cf-connecting-ip"] ?? "unknown")
-          .pipe(Effect.andThen(conversation.ask(payload.question))),
+        conversation.open.pipe(
+          Effect.andThen(limit.count(request.headers["cf-connecting-ip"] ?? "unknown")),
+          Effect.andThen(conversation.ask(payload.question)),
+        ),
       )
   }),
 )
