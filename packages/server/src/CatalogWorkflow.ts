@@ -4,6 +4,7 @@ import { Effect, Layer } from "effect"
 
 import { CatalogBuild, Step } from "./CatalogBuild.ts"
 import { Classifier } from "./Classifier.ts"
+import { modelClassifier } from "./ModelClassifier.ts"
 import { openAi } from "./OpenAi.ts"
 import { PoliticsBuild } from "./PoliticsBuild.ts"
 
@@ -12,7 +13,7 @@ import { PoliticsBuild } from "./PoliticsBuild.ts"
 const classifier = () =>
   env.OPENAI_API_KEY === undefined
     ? Classifier.unavailable
-    : Classifier.layer.pipe(Layer.provide(openAi(env.OPENAI_API_KEY, env.OPENAI_MODEL)))
+    : modelClassifier.pipe(Layer.provide(openAi(env.OPENAI_API_KEY, env.OPENAI_MODEL)))
 
 // The Workflow that builds the catalog and stores the political records,
 // every Monday at 04:00 UTC and once after each deploy (packages/infra). The

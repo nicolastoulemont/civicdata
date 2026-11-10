@@ -12,7 +12,6 @@ import {
   emptyCatalog,
   entry,
   listings,
-  openAi,
   published,
   stored,
   vectorize,
@@ -20,6 +19,7 @@ import {
   worldBankList,
 } from "./catalog.ts"
 import { steps } from "./fakes.ts"
+import { openAi } from "./model.ts"
 
 beforeEach(emptyCatalog)
 
@@ -436,7 +436,7 @@ describe("CatalogBuild", () => {
               })
               .toSorted(),
           )
-        }).pipe(Effect.provide(catalogOver(lists, { openAi: model.layer })))
+        }).pipe(Effect.provide(catalogOver(lists, { classifier: model.classifier })))
       },
     )
 
@@ -451,7 +451,7 @@ describe("CatalogBuild", () => {
 
         expect(first).toBeGreaterThan(0)
         expect(model.asked()).toHaveLength(first)
-      }).pipe(Effect.provide(catalogOver(listings(), { openAi: model.layer })))
+      }).pipe(Effect.provide(catalogOver(listings(), { classifier: model.classifier })))
     })
 
     it.effect("asks again about an entry whose definition changed, and only it", () => {
@@ -470,7 +470,7 @@ describe("CatalogBuild", () => {
         yield* build(2)
 
         expect(model.asked().slice(first)).toEqual([[unemployment]])
-      }).pipe(Effect.provide(catalogOver(lists, { openAi: model.layer })))
+      }).pipe(Effect.provide(catalogOver(lists, { classifier: model.classifier })))
     })
 
     it.effect("publishes the catalog and leaves every entry Neutral when the model is down", () => {
@@ -492,7 +492,7 @@ describe("CatalogBuild", () => {
         yield* build(2)
 
         expect(yield* read([surgeons, richest])).toEqual(["Higher", "Lower"])
-      }).pipe(Effect.provide(catalogOver(listings(), { openAi: model.layer })))
+      }).pipe(Effect.provide(catalogOver(listings(), { classifier: model.classifier })))
     })
 
     it.effect("classifies a source in requests of 50 and resumes after losing a step", () => {
@@ -515,7 +515,9 @@ describe("CatalogBuild", () => {
         // build asks about the other 70 only.
         expect(sizes).toEqual([50, 50, 20])
       }).pipe(
-        Effect.provide(catalogOver(listings({ "World Bank": many(120) }), { openAi: model.layer })),
+        Effect.provide(
+          catalogOver(listings({ "World Bank": many(120) }), { classifier: model.classifier }),
+        ),
       )
     })
   })
