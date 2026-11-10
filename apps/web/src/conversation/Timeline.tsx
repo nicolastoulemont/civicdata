@@ -3,12 +3,12 @@ import { Match, Schema } from "effect"
 
 import { Blocks } from "./Blocks.tsx"
 import { Drawing } from "./Drawing.tsx"
-import { FailedQuestion } from "./Problem.tsx"
+import { FailedQuestion, Unstopped } from "./Problem.tsx"
 import { Question } from "./Question.tsx"
 import { Reply } from "./Reply.tsx"
 import { Agent } from "./Row.tsx"
 import type { Entry } from "./timeline.ts"
-import type { useConversation } from "./useConversation.ts"
+import { Stop, type useConversation } from "./useConversation.ts"
 import { Steps, Worked, Working } from "./Work.tsx"
 
 interface ItemProps {
@@ -72,6 +72,7 @@ const Item = ({ id, entry, retry, answering }: ItemProps) =>
         <Agent>
           <Working steps={pending.steps} started={pending.started} />
           <Sent steps={pending.steps} />
+          {Stop.$is("Failed")(pending.stop) ? <Unstopped /> : null}
         </Agent>
       </li>
     ),

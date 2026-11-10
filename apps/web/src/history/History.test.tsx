@@ -163,6 +163,9 @@ const show = (path = "/") => {
 
 const sidebar = async () => within(await screen.findByRole("navigation", { name: "Conversations" }))
 
+// The sidebar's row for the conversation about life expectancy.
+const row = async () => (await sidebar()).findByRole("link", { name: /Life expectancy/ })
+
 beforeEach(() => localStorage.clear())
 
 afterEach(() => {
@@ -294,6 +297,60 @@ describe("History", () => {
     const link = (await sidebar()).getByRole("link", { name: /life expectancy changed/ })
 
     expect(await within(link).findByText("Working")).toBeDefined()
+  })
+
+  it("keeps a conversation working after its page closes mid-answer, until the server answers", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    const question = "Life expectancy in Brazil"
+    const { promise: dropped, resolve: drop } = Promise.withResolvers<void>()
+
+    // The conversation as the server reports it before the question, while
+    // it answers, and once it has answered.
+    const reports: Record<"idle" | "answering" | "done", Turns> = {
+      idle: { answered: [] },
+      answering: {
+        answered: [],
+        answering: { question, started: DateTime.makeUnsafe("2026-11-09T12:00:00Z") },
+      },
+      done: { answered: [unanswered(question)] },
+    }
+
+    let server: keyof typeof reports = "idle"
+
+    network.use(
+      http.get(`/api/conversations/${brazil}`, () =>
+        HttpResponse.json(encodeTurns(reports[server])),
+      ),
+      // The server answers until the test says it is done, whether the page
+      // reads the answer or not.
+      http.post(`/api/conversations/${brazil}/questions`, () => {
+        server = "answering"
+
+        return new HttpResponse(new ReadableStream({ cancel: () => drop() }), {
+          headers: { "content-type": "text/event-stream" },
+        })
+      }),
+    )
+    show(`/c/${brazil}`)
+
+    await user.type(await screen.findByRole("textbox", { name: "Ask a follow-up" }), question)
+    await user.click(screen.getByRole("button", { name: "Send" }))
+
+    expect(within(await row()).getByText("Working")).toBeDefined()
+
+    await user.click(screen.getByRole("link", { name: "New conversation" }))
+    expect(await screen.findByText("Home")).toBeDefined()
+    await dropped
+    await vi.advanceTimersByTimeAsync(5000)
+
+    expect(within(await row()).getByText("Working")).toBeDefined()
+
+    server = "done"
+    await vi.advanceTimersByTimeAsync(5000)
+
+    expect(await within(await row()).findByText("No data")).toBeDefined()
   })
 
   it("turns a working conversation to answered once the server reports the answer", async () => {

@@ -115,11 +115,20 @@ const hanging = () => {
   }
 }
 
-// An answer in progress that ends with the test.
+// An answer in progress that ends with the test, unless the page stops
+// reading it first.
 const following = () =>
   http.get(`/api/conversations/${id}/answer`, () => {
+    let read = true
+
     const body = new ReadableStream<Uint8Array>({
-      start: (controller) => onTestFinished(() => controller.close()),
+      start: (controller) =>
+        onTestFinished(() => {
+          if (read) controller.close()
+        }),
+      cancel: () => {
+        read = false
+      },
     })
 
     return new HttpResponse(body, { headers: { "content-type": "text/event-stream" } })

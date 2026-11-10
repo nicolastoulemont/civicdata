@@ -12,13 +12,22 @@ import {
   type Turns,
   type View,
 } from "@civicdata/domain"
-import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Data, DateTime, Effect, Option, Result, Schema, Stream, Struct } from "effect"
-import { useEffect, useRef, useState } from "react"
+import { Machine } from "@civicdata/machine"
+import {
+  MutationObserver,
+  type QueryClient,
+  queryOptions,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query"
+import { Clock, Data, DateTime, Effect, Equal, Option, Schema, Stream, Struct } from "effect"
+import { useEffect, useMemo } from "react"
 
-import { call, page } from "@/api"
+import { call, page, request } from "@/api"
 import { toQuery } from "@/explore/search"
 import { record } from "@/history/store"
+import { useMachine } from "@/machine"
 
 // The questions answered so far, and the one being answered, if any. Rejects
 // with AgentUnavailable where conversations cannot be reached. Finished turns
@@ -35,39 +44,6 @@ const isEnding = Schema.is(Ending)
 
 const isEnded = Schema.is(Ended)
 
-// Passes each step of an answer to `onStep`, then resolves with how it ended:
-// its last step. An answer the server was not giving has no steps.
-const read = <E>(steps: Stream.Stream<Step, E>, onStep: (step: Step) => void) =>
-  steps.pipe(
-    Stream.tap((step) => Effect.sync(() => onStep(step))),
-    Stream.runLast,
-    Effect.map(Option.filter(isEnding)),
-  )
-
-// Asks a question. Rejects with TooManyQuestions or ConversationBusy before
-// the answer starts, and with AgentUnavailable, SourceUnavailable or
-// CatalogUnavailable during it.
-const ask = (id: ConversationId, question: string, onStep: (step: Step) => void) =>
-  call(page, (api) =>
-    api.conversation.ask({ params: { id }, payload: { question } }).pipe(
-      Effect.flatMap((steps) => read(steps, onStep)),
-      Effect.result,
-    ),
-  )
-
-// Follows the answer in progress from its first step.
-const follow = (id: ConversationId, onStep: (step: Step) => void) =>
-  call(page, (api) =>
-    api.conversation.answer({ params: { id } }).pipe(
-      Effect.flatMap((steps) => read(steps, onStep)),
-      Effect.result,
-    ),
-  )
-
-// Pending while this page asks a question or follows an answer, and on after
-// the page leaves until the answer ends.
-export const answerKey = (id: ConversationId) => ["conversation", id, "answer"]
-
 // A question being answered here: one asked on this page, or one the server
 // was already answering when the page opened. `before` counts the turns
 // answered when it started, and `started` is when, in epoch milliseconds.
@@ -78,9 +54,20 @@ interface Pending {
   readonly started: number
 }
 
-type QuestionError = Result.Result.Failure<
-  Awaited<ReturnType<typeof ask>> | Awaited<ReturnType<typeof follow>>
->
+// The steps of the answer to `pending`, asked or followed. Asking fails with
+// TooManyQuestions or ConversationBusy before the answer starts, and either
+// fails with AgentUnavailable, SourceUnavailable or CatalogUnavailable during
+// it. Following an answer the server was not giving has no steps.
+const stepsOf = (id: ConversationId, { question, via }: Pending) =>
+  Stream.unwrap(
+    request(page, (api) =>
+      via === "ask"
+        ? api.conversation.ask({ params: { id }, payload: { question } })
+        : api.conversation.answer({ params: { id } }),
+    ),
+  )
+
+type QuestionError = Stream.Error<ReturnType<typeof stepsOf>>
 
 // The server restarted while it answered the question, and lost the answer.
 export class AnswerLost extends Data.TaggedError("AnswerLost") {}
@@ -95,109 +82,309 @@ export interface Failure {
   readonly retryAt: number
 }
 
+// Whether the answer in progress can be stopped: it can, a stop was sent and
+// the answer has not ended yet, or the stop could not be sent.
+type Stop = Data.TaggedEnum<{
+  Ready: {}
+  Sent: {}
+  Failed: {}
+}>
+
+export const Stop = Data.taggedEnum<Stop>()
+
+// The answer of one conversation: none in progress, or one running, with the
+// steps the agent took so far, each as it last was. The questions that
+// failed in this conversation stay with it either way.
+type Answer = Data.TaggedEnum<{
+  Idle: { readonly failures: ReadonlyArray<Failure> }
+  Running: {
+    readonly failures: ReadonlyArray<Failure>
+    readonly pending: Pending
+    readonly steps: ReadonlyArray<Step>
+    readonly stop: Stop
+  }
+}>
+
+const Answer = Data.taggedEnum<Answer>()
+
+type Running = Data.TaggedEnum.Value<Answer, "Running">
+
+// `reported` is the answer the server reports in progress once one ends or
+// fails, if any: the page follows it next.
+type Event = Data.TaggedEnum<{
+  Ask: { readonly question: string; readonly before: number; readonly started: number }
+  Retry: { readonly failure: Failure; readonly before: number; readonly started: number }
+  Report: { readonly pending: Pending }
+  Progress: { readonly step: Step }
+  End: { readonly reported: Option.Option<Pending> }
+  Fail: {
+    readonly error: QuestionError
+    readonly retryAt: number
+    readonly reported: Option.Option<Pending>
+  }
+  Stop: {}
+  StopFail: { readonly pending: Pending }
+}>
+
+const Event = Data.taggedEnum<Event>()
+
+// The answer the server reports in progress, followed from its first step.
+const following = ({ answered, answering }: Turns): Option.Option<Pending> =>
+  Option.map(Option.fromNullishOr(answering), ({ question, started }) => ({
+    question,
+    via: "follow",
+    before: answered.length,
+    started: DateTime.toEpochMillis(started),
+  }))
+
+const start = (failures: ReadonlyArray<Failure>, pending: Pending) =>
+  Answer.Running({ failures, pending, steps: [], stop: Stop.Ready() })
+
+// Follows the answer the server reports, if any, or rests.
+const settle = (failures: ReadonlyArray<Failure>, reported: Option.Option<Pending>) =>
+  Option.match(reported, {
+    onNone: () => Answer.Idle({ failures }),
+    onSome: (pending) => start(failures, pending),
+  })
+
+// Marks the conversation as answered by this page while `use` runs, for the
+// sidebar to read through `answerKey`. The server finishes an answer even
+// when the page leaves, so leaving before the answer ends records it as
+// still in progress, and the sidebar asks the server until it ends.
+const marked = <A, E>(
+  client: QueryClient,
+  { id, pending }: { id: ConversationId; pending: Pending },
+  use: (done: () => void) => Stream.Stream<A, E>,
+) =>
+  Stream.unwrap(
+    Effect.gen(function* () {
+      let ended = false
+
+      yield* Effect.acquireRelease(
+        Effect.sync(() => {
+          const { promise, resolve } = Promise.withResolvers<void>()
+
+          void new MutationObserver(client, {
+            mutationKey: answerKey(id),
+            mutationFn: () => promise,
+          }).mutate()
+
+          return resolve
+        }),
+        (resolve) =>
+          Effect.sync(() => {
+            if (!ended) {
+              client.setQueryData(turnsQuery(id).queryKey, (previous?: Turns) =>
+                previous === undefined
+                  ? previous
+                  : Struct.assign(previous, {
+                      answering: {
+                        question: pending.question,
+                        started: DateTime.makeUnsafe(pending.started),
+                      },
+                    }),
+              )
+            }
+
+            resolve()
+          }),
+      )
+
+      return use(() => {
+        ended = true
+      })
+    }),
+  )
+
+// Asks the server for the turns again, and for the answer it reports in
+// progress, if any. The server may still be answering, or have answered since.
+const refresh = (client: QueryClient, id: ConversationId) =>
+  Effect.promise(() => client.invalidateQueries({ queryKey: turnsQuery(id).queryKey })).pipe(
+    Effect.map(() =>
+      Option.flatMap(Option.fromNullishOr(client.getQueryData(turnsQuery(id).queryKey)), following),
+    ),
+  )
+
+interface Answered {
+  readonly id: ConversationId
+  readonly pending: Pending
+  readonly steps: ReadonlyArray<Step>
+  readonly answer: Ending
+}
+
+// Keeps the answer with the turns: the saved turn carries how long the server
+// took to answer, and if it cannot be read, the turn shows without that time.
+const keep = (client: QueryClient, { id, pending, steps, answer }: Answered) =>
+  Effect.promise(() =>
+    call(page, (api) => api.conversation.turns({ params: { id } })).catch(() => undefined),
+  ).pipe(
+    Effect.map((saved) => {
+      client.setQueryData(turnsQuery(id).queryKey, (previous?: Turns) =>
+        saved !== undefined && saved.answered.length > pending.before
+          ? saved
+          : {
+              answered: [
+                ...(previous?.answered ?? []),
+                { question: pending.question, answer, steps: steps.filter(isEnded) },
+              ],
+            },
+      )
+
+      return Event.End({ reported: Option.none() })
+    }),
+  )
+
+// The answer running here: each of its steps, then how it ended or failed.
+// It lists the conversation in this browser's sidebar when asked here.
+const answering =
+  (client: QueryClient) =>
+  ({ pending }: Running, id: ConversationId) =>
+    marked(client, { id, pending }, (done) => {
+      let steps: ReadonlyArray<Step> = []
+
+      if (pending.via === "ask") record(id, pending.question)
+
+      const ended = Effect.suspend(() =>
+        Option.match(Option.filter(Option.fromNullishOr(steps.at(-1)), isEnding), {
+          onNone: () => refresh(client, id).pipe(Effect.map((reported) => Event.End({ reported }))),
+          onSome: (answer) => keep(client, { id, pending, steps, answer }),
+        }),
+      )
+
+      const failed = (error: QuestionError) =>
+        Effect.all([Clock.currentTimeMillis, refresh(client, id)]).pipe(
+          Effect.map(([now, reported]) =>
+            Event.Fail({
+              error,
+              retryAt: now + (error instanceof TooManyQuestions ? 60_000 : 0),
+              reported,
+            }),
+          ),
+        )
+
+      // How the answer ended, once the page is done with it.
+      const last = (event: Effect.Effect<Event>) =>
+        Stream.fromEffect(Effect.tap(event, () => Effect.sync(done)))
+
+      return stepsOf(id, pending).pipe(
+        Stream.map((step) => {
+          steps = put(steps, step)
+
+          return Event.Progress({ step })
+        }),
+        Stream.concat(last(ended)),
+        Stream.catch((error) => last(failed(error))),
+      )
+    })
+
+// The answer of one conversation. A question is asked, retried or followed
+// only while none is answered, and a stop is sent once per answer: the
+// answer's own stream then ends with Stopped, which joins the turns like any
+// ending. The page sends the stop for the answer the output names, and a
+// stop that fails can be sent again.
+const answer = (client: QueryClient) =>
+  Machine.make<Answer, Event, Pending>()({
+    initial: () => Answer.Idle({ failures: [] }),
+    on: {
+      Idle: {
+        Ask: (state, { question, before, started }) =>
+          start(state.failures, { question, via: "ask", before, started }),
+        Retry: (state, { failure, before, started }) =>
+          start(
+            state.failures.filter((each) => each !== failure),
+            { question: failure.question, via: "ask", before, started },
+          ),
+        Report: (state, { pending }) => start(state.failures, pending),
+        ignore: ["Progress", "End", "Fail", "Stop", "StopFail"],
+      },
+      Running: {
+        Progress: (state, { step }) => Answer.Running({ ...state, steps: put(state.steps, step) }),
+        End: (state, { reported }) => settle(state.failures, reported),
+        Fail: (state, { error, retryAt, reported }) =>
+          settle(
+            [
+              ...state.failures,
+              {
+                question: state.pending.question,
+                steps: state.steps,
+                error,
+                before: state.pending.before,
+                retryAt,
+              },
+            ],
+            reported,
+          ),
+        Stop: (state) =>
+          Stop.$is("Sent")(state.stop)
+            ? state
+            : Machine.emit(Answer.Running({ ...state, stop: Stop.Sent() }), state.pending),
+        StopFail: (state, { pending }) =>
+          Stop.$is("Sent")(state.stop) && Equal.equals(state.pending, pending)
+            ? Answer.Running({ ...state, stop: Stop.Failed() })
+            : state,
+        ignore: ["Ask", "Retry", "Report"],
+      },
+    },
+    work: {
+      // One answer keeps its work running while its steps come.
+      Running: {
+        key: ({ pending: { via, started } }) => `${via} ${started}`,
+        run: answering(client),
+      },
+    },
+  })
+
+// Pending while this page asks a question or follows an answer.
+export const answerKey = (id: ConversationId) => ["conversation", id, "answer"]
+
 // One conversation: its turns, the answer in progress with its steps so far,
 // each as it last was, and how to ask the next question. A finished answer
 // joins the turns. The server finishes an answer even when the page leaves,
 // so the page follows one it finds in progress, and asks the server again
-// when an answer is cut off.
+// when an answer is cut off. Everything here belongs to `id`: another
+// conversation starts with none of it, and stops this one's work.
 export const useConversation = (id: ConversationId) => {
   const queryClient = useQueryClient()
   const conversation = useQuery(turnsQuery(id))
   const turns = useQuery({ ...turnsQuery(id), select: ({ answered }) => answered })
-  const [failures, setFailures] = useState<ReadonlyArray<Failure>>([])
-  const [steps, setSteps] = useState<ReadonlyArray<Step>>([])
+  const machine = useMemo(() => answer(queryClient), [queryClient])
 
-  const asking = useMutation({
-    mutationKey: answerKey(id),
-    // Lists the conversation in this browser's sidebar.
-    onMutate: ({ question, via }) => {
-      if (via === "ask") record(id, question)
-    },
-    mutationFn: async ({ question, via }: Pending) => {
-      let seen: ReadonlyArray<Step> = []
-
-      const onStep = (step: Step) => {
-        seen = put(seen, step)
-        setSteps(seen)
-      }
-
-      setSteps([])
-
-      const result = await (via === "ask" ? ask(id, question, onStep) : follow(id, onStep))
-
-      return { result, steps: seen }
-    },
-    onSuccess: ({ result, steps: seen }, { question, before }) =>
-      Result.match(result, {
-        onSuccess: (ending) =>
-          Option.match(ending, {
-            onNone: () => queryClient.invalidateQueries({ queryKey: turnsQuery(id).queryKey }),
-            // The saved turn carries how long the server took to answer. If
-            // it cannot be read, the turn shows without that time.
-            onSome: async (answer) => {
-              const saved = await call(page, (api) =>
-                api.conversation.turns({ params: { id } }),
-              ).catch(() => undefined)
-
-              queryClient.setQueryData(turnsQuery(id).queryKey, (previous?: Turns) =>
-                saved !== undefined && saved.answered.length > before
-                  ? saved
-                  : {
-                      answered: [
-                        ...(previous?.answered ?? []),
-                        { question, answer, steps: seen.filter(isEnded) },
-                      ],
-                    },
-              )
-            },
-          }),
-        onFailure: (error) => {
-          setFailures((previous) => [
-            ...previous,
-            {
-              question,
-              steps: seen,
-              error,
-              before,
-              retryAt: Date.now() + (error instanceof TooManyQuestions ? 60_000 : 0),
-            },
-          ])
-
-          // The server may still be answering, or have answered since.
-          return queryClient.invalidateQueries({ queryKey: turnsQuery(id).queryKey })
-        },
-      }),
-  })
-
-  // Asks the server to stop the answer in progress. The answer's own stream
-  // then ends with Stopped, which joins the turns like any ending.
-  const stopping = useMutation({
-    mutationFn: () => call(page, (api) => api.conversation.stop({ params: { id } })),
+  const [state, send] = useMachine(machine, {
+    input: id,
+    // Asks the server to stop the answer in progress.
+    on: (pending) =>
+      Effect.runFork(
+        request(page, (api) => api.conversation.stop({ params: { id } })).pipe(
+          Effect.catch(() => Effect.sync(() => send(Event.StopFail({ pending })))),
+        ),
+      ),
   })
 
   const answered = conversation.data?.answered.length ?? 0
-  const answering = conversation.data?.answering
-  const { mutate, isPending } = asking
 
-  const send = (question: string) =>
-    mutate({ question, via: "ask", before: answered, started: Date.now() })
-
-  // Follows an answer the server reports, once per report.
-  const followed = useRef(0)
-
+  // Follows an answer the server reports, unless one is answered here.
   useEffect(() => {
-    if (answering === undefined || isPending || followed.current === conversation.dataUpdatedAt) {
-      return
-    }
+    if (conversation.data === undefined) return
 
-    followed.current = conversation.dataUpdatedAt
-    mutate({
-      question: answering.question,
-      via: "follow",
-      before: answered,
-      started: DateTime.toEpochMillis(answering.started),
-    })
-  }, [answering, answered, isPending, mutate, conversation.dataUpdatedAt])
+    const reported = following(conversation.data)
+
+    if (Option.isSome(reported)) send(Event.Report({ pending: reported.value }))
+  }, [conversation.data, send])
+
+  const ask = (question: string) =>
+    send(Event.Ask({ question, before: answered, started: Date.now() }))
+
+  // The question being answered, whether it was asked here or followed,
+  // when it started, what the agent did, and whether it can be stopped. An
+  // answer whose turn is saved is over, even before the machine hears it
+  // ended.
+  const pending = Answer.$match(state, {
+    Idle: () => undefined,
+    Running: ({ pending: { question, via, started, before }, steps, stop }) =>
+      conversation.data?.answered[before]?.question === question
+        ? undefined
+        : { question, via, started, steps, stop },
+  })
 
   // A question the server lost fails like any other, once: asking it again
   // here may have failed too.
@@ -205,10 +392,12 @@ export const useConversation = (id: ConversationId) => {
 
   const failed =
     lost === undefined ||
-    failures.some((failure) => failure.question === lost.question && failure.before === answered)
-      ? failures
+    state.failures.some(
+      (failure) => failure.question === lost.question && failure.before === answered,
+    )
+      ? state.failures
       : [
-          ...failures,
+          ...state.failures,
           {
             question: lost.question,
             steps: [],
@@ -223,28 +412,15 @@ export const useConversation = (id: ConversationId) => {
     failures: failed.filter(
       (failure) =>
         conversation.data?.answered[failure.before]?.question !== failure.question &&
-        !(asking.isPending && asking.variables?.question === failure.question),
+        pending?.question !== failure.question,
     ),
     retry: (failure: Failure) => {
-      if (isPending || Date.now() < failure.retryAt) return
-      setFailures((previous) => previous.filter((entry) => entry !== failure))
-      send(failure.question)
+      if (Date.now() < failure.retryAt) return
+      send(Event.Retry({ failure, before: answered, started: Date.now() }))
     },
-    // The question being answered, whether it was asked here or followed,
-    // when it started, and what the agent did.
-    pending:
-      asking.variables === undefined || !asking.isPending
-        ? undefined
-        : {
-            question: asking.variables.question,
-            via: asking.variables.via,
-            started: asking.variables.started,
-            steps,
-          },
-    answering: asking.isPending,
-    stop: () => stopping.mutate(),
-    stopping: stopping.isPending,
-    ask: send,
+    pending,
+    stop: () => send(Event.Stop()),
+    ask,
   }
 }
 

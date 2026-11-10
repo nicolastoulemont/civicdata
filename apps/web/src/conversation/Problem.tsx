@@ -121,3 +121,12 @@ export const FailedQuestion = ({ failure, answering, retry }: FailedQuestionProp
     </Alert>
   )
 }
+
+// Why the answer in progress was not stopped: the stop could not be sent. The
+// stop button is back, so the reader can send it again.
+export const Unstopped = () => (
+  <Alert variant="destructive">
+    <AlertTitle>The answer could not be stopped</AlertTitle>
+    <AlertDescription>Stop it again, or wait for it to end.</AlertDescription>
+  </Alert>
+)
