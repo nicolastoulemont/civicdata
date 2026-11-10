@@ -1,0 +1,545 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<GenericMetadata xmlns="http://www.sdmx.org/resources/sdmxml/schemas/v3_0/message" xmlns:common="http://www.sdmx.org/resources/sdmxml/schemas/v3_0/common" xmlns:generic="http://www.sdmx.org/resources/sdmxml/schemas/v3_0/metadata/generic" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <Header>
+        <ID>LFSI_ESMS_A</ID>
+        <Test>false</Test>
+        <Prepared>2026-10-26T15:40:39</Prepared>
+        <Sender id="4D0">
+            <Contact/>
+        </Sender>
+        <common:Name>LFSI_ESMS_A_4D_2017_0000 (lfsi_esms)</common:Name>
+        <Structure structureID="LFSI_ESMS_A_1_0">
+            <common:StructureUsage>urn:sdmx:org.sdmx.infomodel.metadatastructure.Metadataflow=ESTAT:LFSI_ESMS_A(1.0)</common:StructureUsage>
+        </Structure>
+        <DataSetAction>Delete</DataSetAction>
+        <DataSetID>LFSI_ESMS_A_1793025640548</DataSetID>
+    </Header>
+    <MetadataSet id="ESMS_MSD" agencyID="ESTAT" version="3.0">
+        <common:Annotations>
+            <common:Annotation>
+                <common:AnnotationType>REFERENCE_PERIOD</common:AnnotationType>
+                <common:AnnotationText>A0</common:AnnotationText>
+            </common:Annotation>
+            <common:Annotation>
+                <common:AnnotationTitle>EU-LFS (Statistics Explained) webpage (additional metadata information)</common:AnnotationTitle>
+                <common:AnnotationType>URL</common:AnnotationType>
+                <common:AnnotationURL>http://ec.europa.eu/eurostat/statistics-explained/index.php/EU_labour_force_survey</common:AnnotationURL>
+            </common:Annotation>
+            <common:Annotation>
+                <common:AnnotationTitle>Main Indicators Guide</common:AnnotationTitle>
+                <common:AnnotationType>FILE</common:AnnotationType>
+                <common:AnnotationText>Annexes/lfsi_esms_an_2.docx</common:AnnotationText>
+            </common:Annotation>
+            <common:Annotation>
+                <common:AnnotationType>FOR_PUBLICATION</common:AnnotationType>
+                <common:AnnotationText>YES</common:AnnotationText>
+            </common:Annotation>
+            <common:Annotation>
+                <common:AnnotationType>RELATED_METADATA</common:AnnotationType>
+                <common:AnnotationText>employ_esms</common:AnnotationText>
+                <common:AnnotationURL>https://ec.europa.eu/eurostat/cache/metadata/EN/employ_esms.htm</common:AnnotationURL>
+            </common:Annotation>
+            <common:Annotation>
+                <common:AnnotationType>RELATED_METADATA</common:AnnotationType>
+                <common:AnnotationText>lfsi_dwl_a_esms</common:AnnotationText>
+                <common:AnnotationURL>https://ec.europa.eu/eurostat/cache/metadata/EN/lfsi_dwl_a_esms.htm</common:AnnotationURL>
+            </common:Annotation>
+            <common:Annotation>
+                <common:AnnotationType>RELATED_METADATA</common:AnnotationType>
+                <common:AnnotationText>lfsi_jhh_a_esms</common:AnnotationText>
+                <common:AnnotationURL>https://ec.europa.eu/eurostat/cache/metadata/EN/lfsi_jhh_a_esms.htm</common:AnnotationURL>
+            </common:Annotation>
+            <common:Annotation>
+                <common:AnnotationType>RELATED_METADATA</common:AnnotationType>
+                <common:AnnotationText>une_rt_m_esms</common:AnnotationText>
+                <common:AnnotationURL>https://ec.europa.eu/eurostat/cache/metadata/EN/une_rt_m_esms.htm</common:AnnotationURL>
+            </common:Annotation>
+        </common:Annotations>
+        <common:Name></common:Name>
+        <generic:Metadataflow>urn:sdmx:org.sdmx.infomodel.metadatastructure.Metadataflow=ESTAT:LFSI_ESMS_A(1.0)</generic:Metadataflow>
+        <generic:Target>urn:sdmx:org.sdmx.infomodel.base.DataProvider=ESTAT:DATA_PROVIDERS(1.0).4D0</generic:Target>
+        <generic:Target>urn:sdmx:org.sdmx.infomodel.datastructure.Dataflow=ESTAT:LFSI_ESMS_A(1.0)</generic:Target>
+        <generic:Attribute id="CONTACT">
+            <common:Annotations>
+                <common:Annotation>
+                    <common:AnnotationType>EDITABLE</common:AnnotationType>
+                    <common:AnnotationText>NO</common:AnnotationText>
+                </common:Annotation>
+            </common:Annotations>
+            <generic:Value></generic:Value>
+            <generic:Attribute id="CONTACT_ORGANISATION">
+                <generic:Value>&lt;p&gt;Eurostat, the statistical office of the European Union&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="ORGANISATION_UNIT">
+                <generic:Value>&lt;p&gt;[4D1_F3] Eurostat - Labour market and skills&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="CONTACT_NAME">
+                <common:Annotations>
+                    <common:Annotation>
+                        <common:AnnotationType>RESTRICTED_FOR_PUBLICATION</common:AnnotationType>
+                        <common:AnnotationText>YES</common:AnnotationText>
+                    </common:Annotation>
+                </common:Annotations>
+                <generic:Value>Confidential because of GDPR</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="CONTACT_FUNCT">
+                <common:Annotations>
+                    <common:Annotation>
+                        <common:AnnotationType>RESTRICTED_FOR_PUBLICATION</common:AnnotationType>
+                        <common:AnnotationText>YES</common:AnnotationText>
+                    </common:Annotation>
+                </common:Annotations>
+                <generic:Value>Confidential because of GDPR</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="CONTACT_MAIL">
+                <generic:Value>&lt;p&gt;2920 Luxembourg LUXEMBOURG&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="CONTACT_EMAIL">
+                <common:Annotations>
+                    <common:Annotation>
+                        <common:AnnotationType>RESTRICTED_FOR_PUBLICATION</common:AnnotationType>
+                        <common:AnnotationText>YES</common:AnnotationText>
+                    </common:Annotation>
+                </common:Annotations>
+                <generic:Value>Confidential because of GDPR</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="CONTACT_PHONE">
+                <common:Annotations>
+                    <common:Annotation>
+                        <common:AnnotationType>RESTRICTED_FOR_PUBLICATION</common:AnnotationType>
+                        <common:AnnotationText>YES</common:AnnotationText>
+                    </common:Annotation>
+                </common:Annotations>
+                <generic:Value>Confidential because of GDPR</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="CONTACT_FAX">
+                <common:Annotations>
+                    <common:Annotation>
+                        <common:AnnotationType>RESTRICTED_FOR_PUBLICATION</common:AnnotationType>
+                        <common:AnnotationText>YES</common:AnnotationText>
+                    </common:Annotation>
+                </common:Annotations>
+                <generic:Value>Confidential because of GDPR</generic:Value>
+            </generic:Attribute>
+        </generic:Attribute>
+        <generic:Attribute id="META_UPDATE">
+            <common:Annotations>
+                <common:Annotation>
+                    <common:AnnotationType>EDITABLE</common:AnnotationType>
+                    <common:AnnotationText>NO</common:AnnotationText>
+                </common:Annotation>
+            </common:Annotations>
+            <generic:Value></generic:Value>
+            <generic:Attribute id="META_CERTIFIED">
+                <generic:Value>2026-09-11</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="META_POSTED">
+                <generic:Value>2026-09-11</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="META_LAST_UPDATE">
+                <generic:Value>2026-09-11</generic:Value>
+            </generic:Attribute>
+        </generic:Attribute>
+        <generic:Attribute id="STAT_PRES">
+            <common:Annotations>
+                <common:Annotation>
+                    <common:AnnotationType>EDITABLE</common:AnnotationType>
+                    <common:AnnotationText>NO</common:AnnotationText>
+                </common:Annotation>
+            </common:Annotations>
+            <generic:Value></generic:Value>
+            <generic:Attribute id="DATA_DESCR">
+                <generic:Value>&lt;p&gt;The 'LFS main indicators' section presents a selection of the main statistics on the labour market. They encompass indicators of&amp;nbsp;activity,&amp;nbsp;employment and&amp;nbsp;unemployment. Those indicators are based on the results of the European Labour Force Survey (EU-LFS), in few cases integrated with data sources like national accounts employment or registered unemployment. As a result of the application of adjustments, corrections and reconciliation of EU Labour Force Survey (EU-LFS) data, the 'LFS main indicators' is the most complete and reliable collection of employment and unemployment data available in the sub-domain 'Employment and unemployment'.&lt;/p&gt;
+&lt;p&gt;The EU-LFS data used for 'LFS main indicators' are, where necessary, adjusted and enriched in various ways, in accordance with the specificities of an indicator. The most common adjustments cover:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;estimation of missing values, i.e. in case of missing quarters, annual results and EU aggregates are estimated using interpolations of EU Labour Force Survey data with reference to the available quarter(s).&lt;/li&gt;
+&lt;li&gt;for all quarterly indicators seasonally adjusted data are available.&lt;/li&gt;
+&lt;li&gt;correction of the main breaks in the LFS series.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Those adjustments may produce&amp;nbsp;some differences between data published under 'LFS main indicators' and 'LFS series – detailed quarterly/annual survey results', particularly for back data. For the most recent years, the different series converge,&amp;nbsp;due to&amp;nbsp;the implementation of a continuous quarterly survey and the improved quality of the data.&lt;/p&gt;
+&lt;p&gt;This page focuses on the 'LFS main indicators' in general. There are special pages for indicators that are listed below:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Monthly Unemployment: &lt;a href="https://ec.europa.eu/eurostat/cache/metadata/en/une_rt_m_esms.htm"&gt;une_rt_m&lt;/a&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&lt;strong&gt;Quarterly and annual unemployment figures are derived in line with all other LFS Main Indciators, and no longer aggregated from monthly unemployment series.&lt;/strong&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Duration of working life - annual data: &lt;a href="https://ec.europa.eu/eurostat/cache/metadata/en/lfsi_dwl_a_esms.htm"&gt;lfsi_dwl_a&lt;/a&gt;;&lt;/li&gt;
+&lt;li&gt;Population in jobless households - annual data: &lt;a href="https://ec.europa.eu/eurostat/cache/metadata/en/lfsi_jhh_a_esms.htm"&gt;lfsi_jhh_a&lt;/a&gt;;&lt;/li&gt;
+&lt;li&gt;Labour market transitions - LFS longitudinal data: &lt;a href="https://ec.europa.eu/eurostat/cache/metadata/en/lfsi_long_esms.htm"&gt;lfsi_long&lt;/a&gt;.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;The entry of the new Framework regulation on Social Statistics (IESS) in 2021 created changes in the LFS Main Indicators. Most countries expected breaks for a number of series derived from LFS microdata, therefore Eurostat and participating countries launched a joint break correction exercise to produce comparable data before and under IESS. The 'LFS main indicators' section therefore contains two type of datasets depending on the underlying regulation. The first type of datasets are historical series under the pre-IESS regulation, and include the suffix ‘_h’ for historical series at the end of the table titles. Historical series will remain accessible and are continued until 2020Q4 LFS microdata revisions of previously released EU-LFS series. Reasons for revisions are for example weight revisions due to revised weighting routines, or census revisions. The second type of datasets are new tables that are filled with data under IESS from 2021Q1 on. These tables also include the break-corrected 2009Q1-2020Q4 data that are produced in the break correction exercise. If countries send longer complete time series than starting in 2009, that data will also be used and published. Until fully back-estimated series in line with IESS are available for all countries, EU and EA aggregates were based on the data that is available at the time and was flagged with a break flag. Fully break-free EU and EA aggregates were published for the first time in February 2022. More information can be found on the&amp;nbsp;&lt;a href="https://ec.europa.eu/eurostat/statistics-explained/index.php?title=EU_labour_force_survey_-_correction_for_breaks_in_time_series&amp;amp;stable=0#Comparability_over_time_-_correction_of_breaks_in_time_series"&gt;EU-LFS Breaks in Time Series (Statistics Explained) webpage.&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;General information on the EU-LFS can be found in the ESMS page for 'Employment and unemployment (LFS)', see link in related metadata. Detailed information&amp;nbsp;on the main features, the legal basis, the methodology and the data as well as on the historical development of the EU-LFS is available on the &lt;a href="http://ec.europa.eu/eurostat/statistics-explained/index.php/EU_labour_force_survey"&gt;EU-LFS (Statistics Explained) webpage&lt;/a&gt;.&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="CLASS_SYSTEM">
+                <generic:Value>&lt;p&gt;The 'LFS main indicators' are produced in accordance with the relevant international classification systems. The main classifications used are ISCED 1997 and ISCED 2011 (from 2014) for educational attainment.&lt;/p&gt;
+&lt;p&gt;For more details on classifications (including the comparability between the revised classifications), levels of aggregation and transition rules, please consult&amp;nbsp;&lt;a href="http://ec.europa.eu/eurostat/statistics-explained/index.php/EU_labour_force_survey_-_methodology"&gt;EU-LFS (Statistics Explained) - Methodology &amp;gt;&amp;gt; classification&lt;/a&gt;.&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="COVERAGE_SECTOR">
+                <generic:Value>&lt;p&gt;As a general rule the EU-LFS covers all economic sectors.&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="STAT_CONC_DEF">
+                <generic:Value>&lt;p&gt;The definitions of employment and unemployment, as well as other survey characteristics follow the definitions and recommendations of the International Labour Organisation (ILO). The updated definitions of the labour status are part of the new&amp;nbsp;&lt;a href="https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=uriserv:OJ.LI.2019.261.01.0001.01.ENG"&gt;Integrated European Social Statistics Framework Regulation (Regulation (EU) 2019/1700&lt;/a&gt;) and its&amp;nbsp;&lt;a href="https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=uriserv:OJ.L_.2019.336.01.0059.01.ENG"&gt;Implementing Regulation (EU) 2019/2240&lt;/a&gt;&amp;nbsp;for the labour market domain, which entered into force in 2021. The EU-LFS methodology before 2021 is described in the dedicated&amp;nbsp;&lt;a href="https://ec.europa.eu/eurostat/statistics-explained/index.php?title=EU_labour_force_survey_-_methodology"&gt;EU-LFS (Statistics explained) webpage on methodology&lt;/a&gt;, whereas updated definitions of the labour status under IESS are explained in the &lt;a href="https://ec.europa.eu/eurostat/statistics-explained/index.php?title=EU_Labour_Force_Survey_-_new_methodology_from_2021_onwards"&gt;EU-LFS (Statistics explained) webpage on methodology from 2021 onwards&lt;/a&gt;. The main concepts and indicators related to the labour status are the following:&amp;nbsp;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Employed persons&amp;nbsp;&lt;/strong&gt;are all persons who worked at least one hour for pay or profit during the reference week or were temporarily absent from such work.&lt;/li&gt;
+&lt;li&gt;The&amp;nbsp;&lt;strong&gt;employment rate&lt;/strong&gt;is the percentage of employed persons in relation to the total population.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Unemployed persons&lt;/strong&gt;are all persons 15 to 74 years of age (16 to 74 years in ES, IT, and the&amp;nbsp;UK) who were not employed during the reference week but who had actively sought work during the past four weeks and were available to begin working immediately or within two weeks.&lt;/li&gt;
+&lt;li&gt;The&amp;nbsp;&lt;strong&gt;duration of unemployment&lt;/strong&gt;is defined as the duration of a search for a job or as the length of the period since the last job was held (if this period is shorter than the duration of a search for a job).&lt;/li&gt;
+&lt;li&gt;The&amp;nbsp;&lt;strong&gt;unemployment rate&lt;/strong&gt;is the number of unemployed persons as a percentage of the labour force. The labour force is the sum of the number of persons that are employed or unemployed.&lt;/li&gt;
+&lt;li&gt;The&amp;nbsp;&lt;strong&gt;unemployment ratio&lt;/strong&gt;is the number of unemployed persons as a percentage of the total population.&lt;/li&gt;
+&lt;li&gt;The&lt;strong&gt;long-term unemployment rate&lt;/strong&gt;&amp;nbsp;is the share of persons unemployed for 12 months or more in the total number of persons in the labour force.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;The long-term unemployment share&lt;/strong&gt;is the share of the persons unemployed for 12 months or more in the total number of unemployed.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;The very long-term unemployment rate&lt;/strong&gt;is the share of the persons unemployed for 24 months or more in the total number of persons in the labour market.&lt;/li&gt;
+&lt;li&gt;The&lt;strong&gt; labour force&lt;/strong&gt; is defined as the sum of employed and unemployed persons.&lt;/li&gt;
+&lt;li&gt;The&amp;nbsp;&lt;strong&gt;activity rate&lt;/strong&gt;is the percentage of the labour force (being all employed and unemployed persons) in relation to the total population.&lt;/li&gt;
+&lt;li&gt;The&amp;nbsp;&lt;strong&gt;persons outside the labour force&lt;/strong&gt;consist of all persons who are classified neither as employed nor as unemployed.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&amp;nbsp;Relevant breakdowns used are the following:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Part-time workers&amp;nbsp;&lt;/strong&gt;are employed persons not working full time. The distinction between full-time and part-time work is generally based on a spontaneous response by the interviewee. The main exceptions are:&lt;/li&gt;
+&lt;li&gt;the Netherlands and Iceland, where a 35-hour threshold is applied&lt;/li&gt;
+&lt;li&gt;Sweden, where a threshold is applied to the self-employed&lt;/li&gt;
+&lt;li&gt;and Norway, where persons working between 32 and 36 hours are asked whether this is a full-time or part-time position.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Temporary&amp;nbsp;contracts&lt;/strong&gt;:&amp;nbsp;employees with a limited duration job/contract are employees whose main job will terminate either after a period fixed in advance, or after a period not known in advance, but nevertheless defined by objective criteria, such as the completion of an assignment or the period of absence of an employee temporarily replaced. The concept of a fixed-term contract is only applicable to employees, not to the self-employed.&lt;/li&gt;
+&lt;li&gt;The&amp;nbsp;&lt;strong&gt;educational attainment level&amp;nbsp;&lt;/strong&gt;of an individual is the highest ISCED (International Standard Classification of Education) level successfully completed, the successful completion of an education programme being validated by a recognised qualification (i.e.: a qualification officially recognised by the relevant national education authorities or recognised as equivalent to another qualification of formal education). The ISCED levels are divided into ISCED 0-2 (‘less than primary’, ‘primary’, and ‘lower secondary education’), ISCED 3+4 (‘upper secondary’ and ‘post-secondary non-tertiary education’), and ISCED 5+ (‘tertiary education’). &amp;nbsp;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;NEET - Young persons neither in employment nor in education and training &lt;/strong&gt;corresponds to the percentage of the persons of a given age group and sex that is not employed and not involved in further (formal or non-formal) education or training. The numerator of the indicator refers to persons who meet the following two conditions: &lt;strong&gt;(a)&lt;/strong&gt; they are not employed (i.e. they are unemployed or inactive according to the International Labour Organisation (ILO) definition) and &lt;strong&gt;(b)&lt;/strong&gt; they have not received any education or training (i.e. neither formal nor non-formal) in the four weeks preceding the survey. The denominator in the total population consists of the same age group and sex. LFS adjusted series for NEET are provided for the age groups 15 to 24 and 15 to 29. Further information on the NEET can be found on this&amp;nbsp;&lt;a href="http://ec.europa.eu/eurostat/statistics-explained/index.php/Glossary:NEET"&gt;website&lt;/a&gt;.&lt;/li&gt;
+&lt;li&gt;The &lt;strong&gt;usual weekly hours of work in the main and second job &lt;/strong&gt;is the sum of all hours including extra hours, either paid or unpaid, which a person normally works in both the main and second job. To make the data more easily interpretable, the results are then divided into multiple intervals (e.g.: 1-19 hours worked per week, 20-29, et cetera).&lt;/li&gt;
+&lt;li&gt;The &lt;strong&gt;actual hours worked in the main and second job during the reference week&lt;/strong&gt; is the sum of the self-declared number of hours worked by the interviewee in the reference week of the interview. Actual hours count the hours spent in work activities, including unpaid overtime. Periods of absence from work, such as sick leave, holidays and commuting time, account for 0 hours of work. To make the data more easily interpretable, the results are then divided into multiple intervals (e.g.: 1-19 hours worked per week, 20-29, et cetera).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&amp;nbsp;The indicators to supplement the unemployment rate are defined as follows:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Underemployed part-time workers&lt;/strong&gt;are persons working part-time who wish to work additional hours and are available to do so. Part-time work is recorded as self-reported by individuals.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Persons seeking work but not immediately available&lt;/strong&gt;are the sum of persons neither employed nor unemployed who are &lt;strong&gt;(a)&lt;/strong&gt; actively seeking work during the last 4 weeks but not available for work in the next 2 weeks; or &lt;strong&gt;(b)&lt;/strong&gt; found a job to start within a period of at most 3 months and are not available for work in the next 2 weeks; or &lt;strong&gt;(c)&lt;/strong&gt; found a job to start in more than 3 months but are not available for work in the next 2 weeks.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Persons available to work but not seeking &lt;/strong&gt;are the sum of persons neither employed nor unemployed who want to work and &lt;strong&gt;(a)&lt;/strong&gt; are available for work in the next 2 weeks but are not seeking work, or &lt;strong&gt;(b)&lt;/strong&gt; were passively seeking work during the last 4 weeks and are available for work in the next 2 weeks or &lt;strong&gt;(c)&lt;/strong&gt; found a job to start in more than 3 months and are available to work in the next 2 weeks. Persons who fall within the three categories above fall outside the bandwidth of unemployment, as these persons are either employed with insufficient working time, not immediately available, or not seeking a job in a very specific time period. However, these persons may have an unmet need for employment and could represent a potential ‘extended labour force’.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Labour Market Slack:&amp;nbsp;&lt;/strong&gt;the total sum of all unmet need for employment, including unemployment (according to the ILO definition), as well as the three supplementary indicators. In order to allow comparisons between these four groups, which do not all belong to the labour force, the concept of the &lt;strong&gt;extended labour force&lt;/strong&gt; is used. It includes unemployment, employment and the two categories of inactive persons mentioned above (those available but not seeking, and those seeking but not available). The total labour market slack is expressed as a percent of this extended labour force, and the relative sizes of each component of labour market slack can be compared by using this denominator.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Following developments on the labour market due to COVID-19 measures in the first quarter of 2020, additional indicators were introduced:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Absences from work:&amp;nbsp;&lt;/strong&gt;persons absent from work are considered as employed if there is a formal attachment to the job. This can be for example the continued receival of wage or salary, AND an assurance of a return to work (or an agreement as to the date of return) following the end of the contingency. Persons can be absent from work due to a number of reasons, such as&amp;nbsp;&lt;strong&gt;holidays&lt;/strong&gt;,&amp;nbsp;&lt;strong&gt;own illness&lt;/strong&gt;, and&amp;nbsp;&lt;strong&gt;temporary layoffs.&amp;nbsp;&lt;/strong&gt;The rules on formal job attachment have changed substantially with the new Regulations, leading to a break in the series in 2021.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Total actual hours worked in the main job&amp;nbsp;&lt;/strong&gt;are the total actual hours worked by all employees and self-employed in their main occupation during the quarter. Data are indexed for reasons of comparability between countries.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Recent job leavers&lt;/strong&gt;are those persons who report to have left their job in the last 3 months before the interview.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Recent job starters&lt;/strong&gt;are those persons who have started their employment in the last 3 months before the interview.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Please note that the EU aggregates in these new tables are directly seasonally adjusted.&lt;/p&gt;
+&lt;p&gt;For more details, please consult the&amp;nbsp;&lt;a href="http://ec.europa.eu/eurostat/statistics-explained/index.php/EU_labour_force_survey_-_methodology"&gt;EU-LFS (Statistics Explained) - Methodology&lt;/a&gt;.&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="STAT_UNIT">
+                <generic:Value>&lt;p style="text-align: left;"&gt;Persons.&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="STAT_POP">
+                <generic:Value>&lt;p style="text-align: left;"&gt;The EU-LFS results cover the total population usually residing in Member States, except for persons living in collective or institutional households. While demographic data are gathered for all age groups, questions relating to labour market status are restricted to persons in the age group of 15 years or older. In the EFTA countries participating in LFS, i.e. Iceland, Norway and Switzerland, population data are not provided for the age-groups outside the scope of labour market questions. The EU-LFS covers all industries and occupations.&lt;/p&gt;
+&lt;p style="text-align: left;"&gt;For more details and exceptions, please consult please consult the&amp;nbsp;&lt;a href="http://ec.europa.eu/eurostat/statistics-explained/index.php/EU_labour_force_survey_-_methodology"&gt;EU-LFS (Statistics Explained) - Methodology&lt;/a&gt;.&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="REF_AREA">
+                <generic:Value>&lt;p&gt;&lt;span lang="DE"&gt;European Union, Euro area, EU-Member States, Candidate Countries, EFTA Countries (except for Liechtenstein), USA and Japan. Data for Cyprus refer only to the areas of Cyprus controlled by the Government of the Republic of Cyprus. Since 2003, data for France include also the French overseas departments (Guadeloupe, Guyane, La Réunion, Martinique and Mayotte).&lt;/span&gt; EU and EA aggregates include metropolitan France in historical series, whereas aggregates under IESS include FR (incl. overseas departments) for aggregates. Employment data for USA and Japan are also disseminated for specific breakdowns before IESS entered into force (i.e., in the historical tables).&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="COVERAGE_TIME">
+                <generic:Value>&lt;p&gt;Available data ranges differ by country and indicator. Pre-IESS data for all Member States are mostly available in historical tables from 1998 onwards. Data relating to the former EU-15 and EU-28 are available in historical tables from 1992 onwards and stop in 2019. Data under IESS is available in new tables that are filled with microdata from 2021Q1 on. These tables will also include the break-corrected data (2009Q1-2020Q4) that are produced in the joint correction exercise between Member States and Eurostat, and mostly start in 2009. The UK has not delivered any data under the IESS definitions, and therefore no back-estimates for the UK or the EU28 aggregates can be produced.&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="BASE_PER">
+                <generic:Value>&lt;p&gt;Not applicable.&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+        </generic:Attribute>
+        <generic:Attribute id="UNIT_MEASURE">
+            <generic:Value>&lt;p style="text-align: left;"&gt;Most results measure number of persons (thousands). Some indicators are reported as rates (employment, unemployment rates) or ratios (share of total population). Rates and ratios in the LFS Main Indicators do not correct the denominator for item non-response due to the additional seasonal adjustment step. This can lead to marginal differences in rates and ratios due to rounding in comparison with the same indicators published in the detailed tables section.&amp;nbsp;Due to the continuous update of SA estimates, it has to be noted that SA estimates may slightly differ between historical and current main Indicators tables.&amp;nbsp;&lt;/p&gt;</generic:Value>
+        </generic:Attribute>
+        <generic:Attribute id="REF_PERIOD">
+            <generic:Value>&lt;p style="text-align: left;"&gt;The reference periods are the calendar months, quarters or years, depending on the indicator. They are defined building up time periods based on the EU-LFS reference week. For details please refer to the ESMS page on 'Employment and unemployment (LFS)' (see link below in section 'related metadata').&lt;/p&gt;</generic:Value>
+        </generic:Attribute>
+        <generic:Attribute id="INST_MANDATE">
+            <common:Annotations>
+                <common:Annotation>
+                    <common:AnnotationType>EDITABLE</common:AnnotationType>
+                    <common:AnnotationText>NO</common:AnnotationText>
+                </common:Annotation>
+            </common:Annotations>
+            <generic:Value></generic:Value>
+            <generic:Attribute id="INST_MAN_LA_OA">
+                <generic:Value>&lt;p&gt;Please refer to the ESMS page on 'Employment and unemployment (LFS)' (see link below in section 'related metadata').&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="INST_MAN_SHAR">
+                <generic:Value>&lt;p&gt;&lt;span&gt;Not &lt;/span&gt;&lt;span&gt;applicable.&lt;/span&gt;&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+        </generic:Attribute>
+        <generic:Attribute id="CONF">
+            <common:Annotations>
+                <common:Annotation>
+                    <common:AnnotationType>EDITABLE</common:AnnotationType>
+                    <common:AnnotationText>NO</common:AnnotationText>
+                </common:Annotation>
+            </common:Annotations>
+            <generic:Value></generic:Value>
+            <generic:Attribute id="CONF_POLICY">
+                <generic:Value>&lt;p style="text-align: left;"&gt;Please refer to the ESMS page on 'Employment and unemployment (LFS)' (see link below in section 'related metadata').&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="CONF_DATA_TR">
+                <generic:Value>&lt;p style="text-align: left;"&gt;EU-LFS microdata as received by Eurostat from the national statistical institutes does not contain any administrative information such as names or addresses that would allow direct identification. Access to this microdata is nevertheless strictly controlled and limited to specified Eurostat staff. After data treatment, records are aggregated for all further use. For further details, please refer to the ESMS page on 'Employment and unemployment (LFS)' (see link below in section 'related metadata').&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+        </generic:Attribute>
+        <generic:Attribute id="REL_POLICY">
+            <common:Annotations>
+                <common:Annotation>
+                    <common:AnnotationType>EDITABLE</common:AnnotationType>
+                    <common:AnnotationText>NO</common:AnnotationText>
+                </common:Annotation>
+            </common:Annotations>
+            <generic:Value></generic:Value>
+            <generic:Attribute id="REL_CAL_POLICY">
+                <generic:Value>&lt;p&gt;&lt;span&gt;The domain 'LFS main indicators' are bound by a release calendar. For further details, please&lt;/span&gt;&lt;span&gt; refer to the ESMS page on 'Employment and unemployment (LFS)' (see link below in section &lt;/span&gt;&lt;span&gt;'related metadata'&lt;/span&gt;&lt;span&gt;).&lt;/span&gt;&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="REL_CAL_ACCESS">
+                <generic:Value>&lt;p&gt;&lt;span&gt;For the domain 'LFS main indicators', the precise date of data release is disseminated on &lt;/span&gt;&lt;span lang="DE"&gt;&lt;a title="Eurostat's website" href="http://ec.europa.eu/eurostat/news/release-calendar"&gt;&lt;span lang="EN-IE"&gt;Eurostat's website&lt;/span&gt;&lt;/a&gt;&lt;/span&gt;&lt;span&gt;. For further details, please&lt;/span&gt;&lt;span&gt; refer to the ESMS page on 'Employment and unemployment (LFS)' (see link below in section &lt;/span&gt;&lt;span&gt;'related metadata'&lt;/span&gt;&lt;span&gt;).&amp;nbsp;For information on the dissemination of break-corrected data under IESS, please consult &lt;a href="https://ec.europa.eu/eurostat/statistics-explained/index.php?title=EU_labour_force_survey_-_correction_for_breaks_in_time_series&amp;amp;stable=0#Comparability_over_time_-_correction_of_breaks_in_time_series"&gt;EU-LFS Breaks in Time Series (Statistics Explained) webpage.&amp;nbsp;&lt;/a&gt;&lt;/span&gt;&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="REL_POL_US_AC">
+                <generic:Value>&lt;p style="text-align: left;"&gt;In line with the Community legal framework and the &lt;a href="https://ec.europa.eu/eurostat/documents/4031688/8971242/KS-02-18-142-EN-N.pdf/e7f85f07-91db-4312-8118-f729c75878c7" rel="noopener"&gt;European Statistics Code of Practice&lt;/a&gt;, Eurostat disseminates European statistics on Eurostat's website respecting professional independence and in an objective, professional and transparent manner in which all users are treated equitably. The detailed arrangements are governed by the &lt;a href="https://ec.europa.eu/eurostat/about-us/impartiality-protocol" rel="noopener"&gt;Eurostat protocol on impartial access to Eurostat data for users&lt;/a&gt;. In line with this protocol and on a strictly regulated basis, data on unemployment are sent for information to the European Central Bank (ECB) under embargo the evening before official release of data. For further details, please refer to the ESMS page on 'Employment and unemployment (LFS)' (see link below in section 'related metadata').&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+        </generic:Attribute>
+        <generic:Attribute id="FREQ_DISS">
+            <generic:Value>&lt;p&gt;&lt;span&gt;Quarterly and Annual&lt;/span&gt;.&lt;/p&gt;</generic:Value>
+        </generic:Attribute>
+        <generic:Attribute id="ACCESSIBILITY_CLARITY">
+            <common:Annotations>
+                <common:Annotation>
+                    <common:AnnotationType>EDITABLE</common:AnnotationType>
+                    <common:AnnotationText>NO</common:AnnotationText>
+                </common:Annotation>
+            </common:Annotations>
+            <generic:Value></generic:Value>
+            <generic:Attribute id="NEWS_REL">
+                <generic:Value>&lt;p&gt;Releases of quarterly and annual LFS main indicators follow the LFS Main Indicators release calendar (Available at this website &lt;a href="https://ec.europa.eu/eurostat/documents/1978984/6048829/LFS_release_announcement.pdf/d0e85313-1429-4ab0-9ce8-9179e4f31ab3" target="_self"&gt;Labour force survey release calendar 2024&lt;/a&gt;). Please refer to the ESMS page on 'Employment and unemployment (LFS)’ for further details (see link below in section 'related metadata').&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="PUBLICATIONS">
+                <generic:Value>&lt;p&gt;Please refer to the ESMS page on 'Employment and unemployment (LFS)' (see link below in section 'related metadata').&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="ONLINE_DB">
+                <generic:Value>&lt;p&gt;Please consult free data on-line or address to ESTAT-LFS-USER-SUPPORT@ec.europa.eu.&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="MICRO_DAT_ACC">
+                <generic:Value>&lt;p&gt;&lt;span&gt;EU-LFS anonymised microdata are available for research purposes. &lt;/span&gt;&lt;span&gt;Please refer to &lt;/span&gt;&lt;span lang="DE"&gt;&lt;a href="http://ec.europa.eu/eurostat/web/microdata/overview"&gt;&lt;span lang="EN-IE"&gt;access to microdata&lt;/span&gt;&lt;/a&gt;&lt;/span&gt;&lt;span&gt;.&lt;/span&gt;&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="DISS_OTHER">
+                <generic:Value>&lt;p&gt;More information at this website (&lt;a href="https://ec.europa.eu/eurostat" target="_self"&gt;Eurostat&lt;/a&gt;).&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="DOC_METHOD">
+                <generic:Value>&lt;p&gt;Information on the&amp;nbsp;Labour Force Survey before IESS is available on the &lt;a title="EU labour force survey - methodology" href="https://ec.europa.eu/eurostat/statistics-explained/index.php?title=EU_labour_force_survey_-_methodology"&gt;EU-LFS (Statistics explained) webpage on the methodology before 2021&lt;/a&gt;. Updated definitions of the labour status under IESS are described in the following &lt;a href="https://ec.europa.eu/eurostat/statistics-explained/index.php?title=EU_Labour_Force_Survey_-_new_methodology_from_2021_onwards"&gt;EU-LFS (Statistics explained) webpage - new methodology from 2021 onwards&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;&lt;span&gt;Please refer to the ESMS page on 'Employment and unemployment (LFS)' (see link below in section 'related metadata').&lt;/span&gt;&lt;/p&gt;
+&lt;p&gt;&lt;span&gt;For a detailed description of methods and concepts used, as well as for other documents related to the EU-LFS,&amp;nbsp;please consult the &lt;/span&gt;&lt;span&gt;&lt;a href="http://ec.europa.eu/eurostat/statistics-explained/index.php/EU_labour_force_survey"&gt;&lt;span&gt;EU-LFS (Statistics Explained) webpage&lt;/span&gt;&lt;/a&gt;.&lt;/span&gt;&lt;/p&gt;
+&lt;p&gt;&lt;span&gt;The EU-LFS disseminates also publications on the methodology of the survey. For more information please consult the &lt;/span&gt;&lt;span&gt;&lt;a title="LFS Quality" href="https://ec.europa.eu/eurostat/web/lfs/quality" target="_self"&gt;&lt;span&gt;Quality reports and methodological publications&lt;/span&gt;&lt;/a&gt;&lt;/span&gt;&lt;span&gt;.&lt;/span&gt;&lt;/p&gt;
+&lt;p&gt;&lt;span&gt;For more information on the break correction exercise of historical data, please consult &lt;a href="https://ec.europa.eu/eurostat/statistics-explained/index.php?title=EU_labour_force_survey_-_correction_for_breaks_in_time_series&amp;amp;stable=0#Comparability_over_time_-_correction_of_breaks_in_time_series"&gt;EU-LFS Breaks in Time Series (Statistics Explained) webpage.&amp;nbsp;&lt;/a&gt;&lt;/span&gt;&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="QUALITY_DOC">
+                <generic:Value>&lt;p&gt;See section 11.1.&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+        </generic:Attribute>
+        <generic:Attribute id="QUALITY_MGMNT">
+            <common:Annotations>
+                <common:Annotation>
+                    <common:AnnotationType>EDITABLE</common:AnnotationType>
+                    <common:AnnotationText>NO</common:AnnotationText>
+                </common:Annotation>
+            </common:Annotations>
+            <generic:Value></generic:Value>
+            <generic:Attribute id="QUALITY_ASSURE">
+                <generic:Value>&lt;p&gt;Please refer to the ESMS page on 'Employment and unemployment (LFS)' (see link below in section 'related metadata').&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="QUALITY_ASSMNT">
+                <generic:Value>&lt;p&gt;Please refer to the ESMS page on 'Employment and unemployment (LFS)' (see link below in section 'related metadata').&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+        </generic:Attribute>
+        <generic:Attribute id="RELEVANCE">
+            <common:Annotations>
+                <common:Annotation>
+                    <common:AnnotationType>EDITABLE</common:AnnotationType>
+                    <common:AnnotationText>NO</common:AnnotationText>
+                </common:Annotation>
+            </common:Annotations>
+            <generic:Value></generic:Value>
+            <generic:Attribute id="USER_NEEDS">
+                <generic:Value>&lt;p&gt;The 'LFS main indicators' stemming from the EU-LFS are used for monitoring and measurement of core employment policy objectives of the EU:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Macroeceonomic Imbalance Procedure Indicators.&lt;/li&gt;
+&lt;li&gt;Europe 2020 Indicators.&lt;/li&gt;
+&lt;li&gt;Sustainable Development Indicators.&lt;/li&gt;
+&lt;li&gt;Employment and Social Policy Indicators.&lt;/li&gt;
+&lt;li&gt;European Pillar of Social Rights.&lt;/li&gt;
+&lt;li&gt;European Statistical Recovery Dashboard.&lt;/li&gt;
+&lt;/ul&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="USER_SAT">
+                <generic:Value>&lt;p style="text-align: left;"&gt;Please refer to the ESMS page on 'Employment and unemployment (LFS)' (see link below in section 'related metadata').&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="COMPLETENESS">
+                <generic:Value>&lt;p style="text-align: left;"&gt;Please refer to the ESMS page on 'Employment and unemployment (LFS)' (see link below in section 'related metadata').&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+        </generic:Attribute>
+        <generic:Attribute id="ACCURACY">
+            <common:Annotations>
+                <common:Annotation>
+                    <common:AnnotationType>EDITABLE</common:AnnotationType>
+                    <common:AnnotationText>NO</common:AnnotationText>
+                </common:Annotation>
+            </common:Annotations>
+            <generic:Value></generic:Value>
+            <generic:Attribute id="ACCURACY_OVERALL">
+                <generic:Value>&lt;p style="margin: 0cm 0cm 0pt; text-align: left;"&gt;Please refer to the ESMS page on 'Employment and unemployment (LFS)' (see link below in section 'related metadata').&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="SAMPLING_ERR">
+                <generic:Value>&lt;p&gt;Please refer to the ESMS page on 'Employment and unemployment (LFS)' (see link below in section 'related metadata').&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="NONSAMPLING_ERR">
+                <generic:Value>&lt;p&gt;Please refer to the ESMS page on 'Employment and unemployment (LFS)' (see link below in section 'related metadata').&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+        </generic:Attribute>
+        <generic:Attribute id="TIMELINESS_PUNCT">
+            <common:Annotations>
+                <common:Annotation>
+                    <common:AnnotationType>EDITABLE</common:AnnotationType>
+                    <common:AnnotationText>NO</common:AnnotationText>
+                </common:Annotation>
+            </common:Annotations>
+            <generic:Value></generic:Value>
+            <generic:Attribute id="TIMELINESS">
+                <generic:Value>&lt;p style="text-align: left;"&gt;The quarterly series are updated 4 times a year approximately 75 days after the end of the reference quarter. Annual averages are published along with quarter 4 data. Some indicators, like 'population in jobless households', may exceptionally have different publication dates.&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="PUNCTUALITY">
+                <generic:Value>&lt;p&gt;Please refer to the ESMS page on 'Employment and unemployment (LFS)' (see link below in section 'related metadata').&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+        </generic:Attribute>
+        <generic:Attribute id="COHER_COMPAR">
+            <common:Annotations>
+                <common:Annotation>
+                    <common:AnnotationType>EDITABLE</common:AnnotationType>
+                    <common:AnnotationText>NO</common:AnnotationText>
+                </common:Annotation>
+            </common:Annotations>
+            <generic:Value></generic:Value>
+            <generic:Attribute id="COMPAR_GEO">
+                <generic:Value>&lt;p style="text-align: left;"&gt;Geographical comparability of the EU-LFS has historically been very high, and has further improved with the implementation of IESS. However, some countries are still in the process of implementing the Regulation, or have other quality concerns that may impact geographical comparability. Please find details below:&lt;strong&gt; &lt;br /&gt;&lt;/strong&gt;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;strong&gt;Spain&lt;/strong&gt;: Pre-IESS, and after the outbreak of the COVID crisis, Spain was including in employment also persons on lay-off paid by a governmental scheme and not directly from the employer. Under IESS, due to the COVID crisis, Spain continues to test for job attachment of employed persons on temporary lay-off as implemented in the pre-IESS situation.&amp;nbsp;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;France: &lt;/strong&gt;Under IESS, and due to the COVID crisis, France continues to test for job attachment of employed persons on temporary lay-off as implemented in the pre-IESS situation.&amp;nbsp;&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;The Netherlands&lt;/strong&gt;: Phase-in of data collection based on IESS principles consecutively over the year 2021. To ensure data quality and quality of back-calculations, they continue to publish &lt;strong&gt;monthly&lt;/strong&gt; unemployment following the pre-IESS definitions during 2021. Data is collected using a rolling reference week instead of a fixed reference week, i.e. interviewed persons are asked about the situation of the week before the interview rather than a pre-selected week (irrespective of the interview time). Delays in interviews (due to re-attempts, drawing from a reserve sample list, etc.) can consequently have in this country a knock-on effect on the distribution of the reference weeks, leading to differences between the theoretical and actual final distribution of the sample over the weeks of the quarter.&lt;/li&gt;
+&lt;li&gt;&lt;strong&gt;Germany:&lt;/strong&gt; Due to technical issues with the introduction of the new German system of integrated household surveys, including the LFS, the figures for Germany in 2020 are not direct estimates from LFS micro-data, but based on a larger sample including additional data from other integrated household surveys.&amp;nbsp;&lt;/li&gt;
+&lt;/ul&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="COMPAR_TIME">
+                <generic:Value>&lt;p&gt;From 2006 onwards, Commission Regulation (EC) No 430/2005 of 15 March 2005 regulates the codification to be used for data transmission and the use of a sub-sample for the collection of data on structural variables (OJ No L 71/36) until the year 2020.&lt;/p&gt;
+&lt;p&gt;From 2021 onwards, the new IESS Framework regulation provides the foundation for LFS Main Indicators data. The updated definitions of the labour status are part of the new&amp;nbsp;&lt;a href="https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=uriserv:OJ.LI.2019.261.01.0001.01.ENG" rel="noopener"&gt;Integrated European Social Statistics Framework Regulation (Regulation (EU) 2019/1700&lt;/a&gt;) and its&amp;nbsp;&lt;a href="https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=uriserv:OJ.L_.2019.336.01.0059.01.ENG" rel="noopener"&gt;Implementing Regulation (EU) 2019/2240&lt;/a&gt;&amp;nbsp;for the labour market domain entering into force in 2021. The changes in the derivation of the labour status can cause breaks in the time series of the quarterly and annual&amp;nbsp;&lt;a href="https://ec.europa.eu/eurostat/data/database?node_code=lfsi" rel="noopener"&gt;LFS main indicators&lt;/a&gt;&amp;nbsp;as they derive from&amp;nbsp;&lt;a href="https://ec.europa.eu/eurostat/statistics-explained/index.php?title=Glossary:Labour_force_survey_(LFS)"&gt;EU-LFS&lt;/a&gt;&amp;nbsp;microdata. The&amp;nbsp;&lt;a href="https://ec.europa.eu/eurostat/cache/metadata/en/lfsi_esms.htm" rel="noopener"&gt;LFS main indicators section&lt;/a&gt;&amp;nbsp;comprises the main statistics on the&amp;nbsp;&lt;a href="https://ec.europa.eu/eurostat/statistics-explained/index.php?title=Glossary:Labour_market"&gt;labour market&lt;/a&gt;, and encompasses various breakdowns of labour market participation,&amp;nbsp;&lt;a href="https://ec.europa.eu/eurostat/statistics-explained/index.php?title=Glossary:Employment"&gt;employment&lt;/a&gt;&amp;nbsp;and&amp;nbsp;&lt;a href="https://ec.europa.eu/eurostat/statistics-explained/index.php?title=Glossary:Unemployed"&gt;unemployment&lt;/a&gt;. In order to provide stakeholders with the most relevant labour market policy indicators, Member States and Eurostat produce and disseminate break-corrected series, thus ensuring data comparability over time. A large set of LFS Main Indicators data before and under IESS will be accessible on Eurobase. The following main indicators will be corrected and disseminated in the duplicated tables:&lt;/p&gt;
+&lt;p&gt;Employment Indicator with the following breakdowns;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Employment and activity by sex and age;&lt;/li&gt;
+&lt;li&gt;Employment by educational attainment level;&lt;/li&gt;
+&lt;li&gt;Part-time employment and temporary contracts.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Unemployment Indicator with the following breakdowns;&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Unemployment by sex and age;&lt;/li&gt;
+&lt;li&gt;Long-term unemployment by sex;&lt;/li&gt;
+&lt;li&gt;Unemployment by sex, age and educational attainment;&lt;/li&gt;
+&lt;li&gt;Supplementary indicators to unemployment;&lt;/li&gt;
+&lt;li&gt;Young people neither in employment nor in education and training by sex.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;During the transition time for correcting the duplicated tables, the published&amp;nbsp;EU and EA aggregates were based on the available information at each point in time. Fully break-free EU and EA aggregates were published for the first time in February 2022.&lt;/p&gt;
+&lt;p&gt;Overall, comparability over time is considered as high. Methodological improvements in the underlying sampling design or changes in nomenclatura can lead to breaks in the time series. These are flagged in the database, and detailed information on each break can be found &lt;a href="https://ec.europa.eu/eurostat/statistics-explained/index.php?title=EU_labour_force_survey_%E2%80%93_data_and_publication#Comparability_over_time_and_across_countries"&gt;at this website&lt;/a&gt;. For some series, in particular employment and activity, estimates have been made for years in which not yet data for all quarters&amp;nbsp;had been collected. These estimates are flagged accordingly. The estimates do not make use of other indicators, but are based on available quarterly data as well as the seasonal pattern of available years.&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="COHER_X_DOM">
+                <generic:Value>&lt;p&gt;The ESMS page on 'Employment and unemployment (LFS)' provides general explanations of coherence between EU-LFS, population statistics, national accounts employment and business surveys employment (see link below in section 'related metadata').&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="COHER_INTERNAL">
+                <generic:Value>&lt;p&gt;'LFS main indicators' estimates have full internal coherence, as they are all based on the same corpus of microdata and they calculated using the same estimation methods. Arithmetic and accounting identities in the production of LFS datasets are observed.&lt;/p&gt;
+&lt;p&gt;Breaks in series due to the regulatory change in 2021 are corrected over the year 2021/22 to provide internally consistent data. For details, please see the &lt;a href="https://ec.europa.eu/eurostat/statistics-explained/index.php?title=EU_labour_force_survey_-_correction_for_breaks_in_time_series&amp;amp;stable=0#Comparability_over_time_-_correction_of_breaks_in_time_series"&gt;EU-LFS Breaks in Time Series (Statistics Explained) webpage.&lt;/a&gt;&lt;/p&gt;
+&lt;p&gt;Annual results are calculated as average of quarterly results, and they are hence fully consistent.&lt;/p&gt;
+&lt;p&gt;To further improve internal coherence of the ‘LFS main indicators’, Eurostat disseminates quarterly and annual unemployment figures directly derived from the LFS microdata from April 2020 on. Figures are no longer aggregated from monthly unemployment figures, which remain unchanged.&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+        </generic:Attribute>
+        <generic:Attribute id="COST_BURDEN">
+            <generic:Value>&lt;p&gt;Not available.&lt;/p&gt;</generic:Value>
+        </generic:Attribute>
+        <generic:Attribute id="DATA_REV">
+            <common:Annotations>
+                <common:Annotation>
+                    <common:AnnotationType>EDITABLE</common:AnnotationType>
+                    <common:AnnotationText>NO</common:AnnotationText>
+                </common:Annotation>
+            </common:Annotations>
+            <generic:Value></generic:Value>
+            <generic:Attribute id="REV_POLICY">
+                <generic:Value>&lt;p style="text-align: left;"&gt;To further specify the general Eurostat revision policy, the following revision policy has been established for EU-LFS revision policy. The policy is presented in EU-LFS data submission and validation manual, a document providing rules for data transmission to the data providers (the NSIs).&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="REV_PRACTICE">
+                <generic:Value>&lt;p&gt;EU-LFS results are usually considered final with first dissemination. However, occasional revisions can occur if irregularities are discovered during in depth analysis or use or in case of change or improvements in the methodology. There are few exceptions to this: if new population estimates for past periods become available after a new census round, or in the context of back data revisions of regional coding. In such cases EU-LFS results are revised whenever revised quarterly or yearly LFS data become available, and main users informed accordingly.&lt;br /&gt;All reported errors (once validated) result in corrections of the disseminated data.&lt;br /&gt;Reported errors are carried out in connection with the regular scheduled data dissemination.&lt;br /&gt;Data may be published even if they are missing for certain countries or flagged as provisional or of low reliability for certain countries. They are replaced with revised data once transmitted and validated.&lt;br /&gt;Whenever new data are provided and validated, the already disseminated data are updated with next regular production cycle.&lt;/p&gt;
+&lt;p&gt;&amp;nbsp;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;1. Routine revisions:&lt;/strong&gt;&lt;br /&gt;Revisions of seasonally adjusted data may occur due to changes in the adjustment models used. Seasonal adjustment is done by Eurostat for most Member States on a disaggregated level (country by gender by age group, indirect approach) using TRAMO/SEATS. Seasonally adjusted data are thus revised 4 times a year for quarterly and annual data. Parameters used in the ARIMA models and for seasonal adjustment are reviewed annually.&lt;/p&gt;
+&lt;p&gt;&amp;nbsp;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;2. Major revisions:&lt;/strong&gt;&lt;br /&gt;The impact of major revisions is analysed.&lt;br /&gt;Major revisions are documented into the metadata and by means of Statistics Explained methodological articles available to all users.&lt;br /&gt;Time series breaks caused by major revisions are flagged. Whenever possible break-free data is provided by using break correction inputs related to LFS main indicators.&lt;br /&gt;Due to back series revisions it may happen that new estimates of population from a population census are incorporated into the data, or changes are necessary to overcome methodological breaks.&lt;/p&gt;
+&lt;p&gt;The following major revisions have been observed recently.&lt;/p&gt;
+&lt;p&gt;Bulgaria had a major revisions of Employment and Unemployment data (by sex and broad age class) as a part of the LFS main indicators. The time period under revision is 2019Q1 to 2020Q4. The reason for this particular revision is the introduction of the Census 2021 results into&amp;nbsp;the break correction inputs related to LFS main indicators. The rest of the LFS main indicators are also subject to revisions at microdata level, encompassing the time period 2019Q1 to 2021Q4.&lt;/p&gt;
+&lt;p&gt;Portugal had major revisions of all LFS Main indicators for the period up to 2020Q4. Complete microdata revision has been already published for the periods starting 2011Q1 and up to 2024Q1. This means that for the period from 2021Q1 to 2024Q1 all LFS main indicators for Portugal were revised too. All those revisions are due to introduction of Census 2021 results into the LFS data and into the break correction inputs related to LFS main indicators.&lt;/p&gt;
+&lt;p&gt;Sweden had major revisions of all LFS Main indicators for the period from 2005Q1 to 2020Q4, while LFS microdata remained unchanged for that period. A complete microdata revision has been already published for the period starting 2021Q1. Both types of revisions are due to IESS recoding of the complete microdata at national level.&lt;/p&gt;
+&lt;p&gt;On the occasion of the 2024Q3 data dissemination, LFS main indicators for Croatia (back to 2012), Cyprus (back to 2019), Hungary (back to 2018) and Serbia (back to 2012) were revised.&amp;nbsp; For those countries Census 2021 new population figures were received.&lt;/p&gt;
+&lt;p&gt;Germany:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Germany had a revision of all LFS main indicators for the period from 2009Q1 to 2020Q4, while LFS microdata remained unchanged for that period. A complete microdata revision has been published for the period 2021Q1 to 2024Q4. Both types of revisions are major and due to the recalculation of survey weights after incorporating Census data at national level. There is no break in time series related to the Census 2021 in the LFS main indicators datasets.&lt;/li&gt;
+&lt;li&gt;Major revision of quarterly data for the period Q1 to Q4 2025 due to new weights and additional survey data. These changes have been added to the LFS Flows data in April 2026.&lt;/li&gt;
+&lt;li&gt;Major revision for the period from 2024Q1 to 2024Q4. This is the result of the regular operation of completing the survey data. These changes were added to the EU-LFS dissemination round of June 2026.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Malta: weight revisions for the period from 2024Q1 to 2024Q4. This is due to the inclusion of Census results into the microdata of the EU-LFS.&lt;/p&gt;
+&lt;p&gt;Croatia: major revision for the quarterly data from Q1 2007 to Q4 2011 due to revised weights. Eurostat added this data to LFS Flows during the yearly revision update in April 2026.&lt;/p&gt;
+&lt;p&gt;Cyprus: due to a planned survey weights revision, EU-LFS data has been updated for the period from 2023Q1 to 2024Q4. The resulting changes were added to the EU-LFS dissemination round of June 2026.&lt;/p&gt;
+&lt;p&gt;France:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Due to the inclusion of Mayotte (overseas French department) in the EU-LFS coverage, a data revision for the period from 2024Q1 to 2025Q4 took place, encompassing all main indicators. The resulting changes were added to the EU-LFS dissemination round of June 2026.&amp;nbsp;&lt;/li&gt;
+&lt;li&gt;Due to the same reason (inclusion of Mayotte), a data revision for the period from 2003Q1 to 2023Q4 took place in the main indicators related to Employment and Unemployment only. These changes were added to the EU-LFS dissemination round of September 2026, leading to break-free time series (no b-flag due to Mayotte).&amp;nbsp;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Where necessary, a break flag was introduced for countries and quarters as follows:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;BG: 2019 Q1;&lt;/li&gt;
+&lt;li&gt;HR: 2012 Q1;&lt;/li&gt;
+&lt;li&gt;HU: 2018 Q1;&lt;/li&gt;
+&lt;li&gt;IT: 2018 Q1;&lt;/li&gt;
+&lt;li&gt;PL: 2019 Q1.&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;&amp;nbsp;&lt;/p&gt;
+&lt;p&gt;&lt;strong&gt;3. Unscheduled revisions:&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;No unscheduled revisions were known for the reference period up to 2024 Q2.&lt;br /&gt;For information on EU-LFS data revisions, please consult EU-LFS (&lt;a href="https://ec.europa.eu/eurostat/statistics-explained/index.php?title=EU_labour_force_survey_%E2%80%93_data_and_publication"&gt;Statistics Explained&lt;/a&gt;) - Data and publication.&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+        </generic:Attribute>
+        <generic:Attribute id="STAT_PROCESS">
+            <common:Annotations>
+                <common:Annotation>
+                    <common:AnnotationType>EDITABLE</common:AnnotationType>
+                    <common:AnnotationText>NO</common:AnnotationText>
+                </common:Annotation>
+            </common:Annotations>
+            <generic:Value></generic:Value>
+            <generic:Attribute id="SOURCE_TYPE">
+                <generic:Value>&lt;p style="text-align: left;"&gt;The quarterly EU-LFS is the main source of the data, for details see ESMS page on 'Employment and unemployment (LFS)' (see link below in section 'related metadata').&lt;/p&gt;
+&lt;p style="text-align: left;"&gt;In case of missing quarterly data, annual results and EU aggregates are estimated by using adjusted quarterly national labour force survey data or interpolations of the EU Labour Force Survey data with reference to the available quarter(s).&amp;nbsp;&lt;/p&gt;
+&lt;p style="text-align: left;"&gt;For the break correction of pre-IESS data, Member States transmit either complete break-corrected series to Eurostat, or correction factors that will be applied on the pre-IESS series as a base. Complete break-corrected time series are directly usable and published on Eurobase. If Eurostat receives correction factors, they will in principle be applied on pre-IESS data (last regular update with 2020 annual results). For details please see the &lt;a href="https://ec.europa.eu/eurostat/statistics-explained/index.php?title=EU_labour_force_survey_-_correction_for_breaks_in_time_series&amp;amp;stable=0#Comparability_over_time_-_correction_of_breaks_in_time_series"&gt;EU-LFS Breaks in Time Series (Statistics Explained) webpage.&lt;/a&gt;&lt;/p&gt;
+&lt;p style="text-align: left;"&gt;The data for US and Japan are produced by the &lt;a href="http://www.bls.gov" target="_self"&gt;U.S. Bureau of Labor Statistics&lt;/a&gt; and the Ministry of Internal Affairs and Communications Government of Japan, respectively. Eurostat obtains those data via OECD and disseminates them without any processing in historical series until 2020Q4.&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="FREQ_COLL">
+                <generic:Value>&lt;p&gt;For EU-LFS: quarterly and annual.&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="COLL_METHOD">
+                <generic:Value>&lt;p&gt;See ESMS page 'Employment and unemployment (LFS)'&amp;nbsp;(see link below in section 'related metadata').&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="DATA_VALIDATION">
+                <generic:Value>&lt;p&gt;Quarterly LFS data: Eurostat checks the quality and consistency of microdata data transmitted by National Statistical Institutes. Eurostat calculates aggregate LFS results which are then validated by the Member States.&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="DATA_COMP">
+                <generic:Value>&lt;p&gt;While absolute values at aggregate level (e.g. EU-27_2020) are added up from the national estimates (i.e. number of persons), estimates of rates at aggregate level are calculated as the population-weighted arithmetic average of the national figures.&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+            <generic:Attribute id="ADJUSTMENT">
+                <generic:Value>&lt;p&gt;Annual results are derived from the populations obtained at the annual level. Annual averages of the quarterly data are produced as simple averages of the quarterly populations.&lt;/p&gt;
+&lt;p&gt;For the period when the survey was run annually in spring, annual averages were calculated as follows: first, the spring quarter was used in combination with a simple regression model to estimate the missing quarters; then the annual averages were calculated from these quarterly estimates.&lt;/p&gt;
+&lt;p&gt;Interpolations for quarterly missing country data are flagged accordingly and published,&amp;nbsp;and used for the compilation of annual averages and European aggregates.&lt;/p&gt;
+&lt;p&gt;Seasonal adjustment is performed indirectly, i.e. on the lowest available breakdown, and higher aggregates are derived from these series. This also applies to EU and EA aggregates. Models are estimated once a year, while parameters are re-estimated with the inclusion of each quarterly data point.&amp;nbsp;&lt;/p&gt;
+&lt;p&gt;For more information on the transition to a quarterly continuous survey, please consult &lt;a href="http://ec.europa.eu/eurostat/statistics-explained/index.php/EU_labour_force_survey_%E2%80%93_development_and_history"&gt;EU-LFS (Statistics Explained) -&amp;nbsp;Development and history&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;For more information on the break correction exercise of historical data, please consult the&amp;nbsp;&lt;a href="https://ec.europa.eu/eurostat/statistics-explained/index.php?title=EU_labour_force_survey_-_correction_for_breaks_in_time_series&amp;amp;stable=0#Comparability_over_time_-_correction_of_breaks_in_time_series"&gt;EU-LFS Breaks in Time Series (Statistics Explained) webpage.&lt;/a&gt;&amp;nbsp;&lt;/p&gt;</generic:Value>
+            </generic:Attribute>
+        </generic:Attribute>
+        <generic:Attribute id="COMMENT_DSET">
+            <generic:Value>&lt;p&gt;Not applicable.&lt;/p&gt;</generic:Value>
+        </generic:Attribute>
+    </MetadataSet>
+</GenericMetadata>

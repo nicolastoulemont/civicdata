@@ -11,6 +11,8 @@ import {
   TurnIndex,
   Turns,
 } from "./Conversation.ts"
+import { CountryList } from "./Country.ts"
+import { DimensionList } from "./Dimension.ts"
 import {
   AgentUnavailable,
   CatalogUnavailable,
@@ -62,8 +64,14 @@ class Views extends HttpApiGroup.make("views")
 
 class Indicators extends HttpApiGroup.make("indicators")
   .add(
+    // The OECD writes notes on single countries and series: those of the
+    // chart, when given, besides the notes on every country.
     HttpApiEndpoint.get("notes", "/:indicator/notes", {
       params: { indicator: IndicatorId },
+      query: {
+        countries: Schema.optionalKey(CountryList),
+        dimensions: Schema.optionalKey(DimensionList),
+      },
       success: IndicatorNotes,
       error: [IndicatorNotFound, SourceUnavailable],
     }),

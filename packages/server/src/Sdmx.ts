@@ -75,13 +75,13 @@ interface Interface {
   ) => Effect.Effect<ReadonlyArray<CatalogEntry>, SourceUnavailable>
 }
 
-const eurostat = "https://ec.europa.eu/eurostat/api/dissemination"
-const oecd = "https://sdmx.oecd.org/public/rest"
+export const eurostat = "https://ec.europa.eu/eurostat/api/dissemination"
+export const oecd = "https://sdmx.oecd.org/public/rest"
 
 const sdmxCsv = "application/vnd.sdmx.data+csv;version=2.0.0"
 
 // "agency,id,version", as IndicatorId checks it.
-const parts = (indicator: IndicatorId) => {
+export const parts = (indicator: IndicatorId) => {
   const [agency = "", id = "", version = ""] = indicator.split(",")
 
   return { agency, id, version }

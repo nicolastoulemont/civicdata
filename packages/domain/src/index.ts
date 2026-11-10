@@ -54,9 +54,9 @@ export {
   type Work,
 } from "./Conversation.ts"
 
-export { Country, countries, locate } from "./Country.ts"
+export { Country, CountryList, countries, locate } from "./Country.ts"
 
-export { type Code, Dimension, DimensionId, Dimensions } from "./Dimension.ts"
+export { type Code, Dimension, DimensionId, DimensionList, Dimensions } from "./Dimension.ts"
 
 export {
   AgentUnavailable,
@@ -74,7 +74,7 @@ export {
 
 export { bylineOf, Evidence, Finding, type Study } from "./Finding.ts"
 
-export { Indicator, IndicatorId, IndicatorNotes } from "./Indicator.ts"
+export { Indicator, IndicatorId, IndicatorNotes, OecdNote } from "./Indicator.ts"
 
 export {
   areas,

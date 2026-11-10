@@ -39,7 +39,7 @@ const Indicators = HttpApiBuilder.group(
   Effect.fn(function* (handlers) {
     const notes = yield* Notes
 
-    return handlers.handle("notes", ({ params }) => notes.get(params.indicator))
+    return handlers.handle("notes", ({ params, query }) => notes.get(params.indicator, query))
   }),
 )
 

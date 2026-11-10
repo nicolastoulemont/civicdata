@@ -29,7 +29,7 @@ import { Politics } from "../src/Politics.ts"
 import { Sdmx } from "../src/Sdmx.ts"
 import { titles } from "../src/titles.gen.ts"
 import { WorldBank } from "../src/WorldBank.ts"
-import { http, offline } from "./fakes.ts"
+import { http, memory, offline } from "./fakes.ts"
 import populationFlow from "./fixtures/eurostat/population-flow.json"
 import populationOptions from "./fixtures/eurostat/population-options.csv?raw"
 import uncovered from "./fixtures/eurostat/population-uncovered.xml?raw"
@@ -37,6 +37,7 @@ import populations from "./fixtures/eurostat/population.csv?raw"
 import unemploymentFlow from "./fixtures/eurostat/unemployment-flow.json"
 import unemploymentOptions from "./fixtures/eurostat/unemployment-options.csv?raw"
 import unemploymentRates from "./fixtures/eurostat/unemployment-total.csv?raw"
+import unemploymentNotes from "./fixtures/oecd/unemployment-notes.csv?raw"
 
 const population = IndicatorId.make("SP.POP.TOTL")
 const gdp = IndicatorId.make("NY.GDP.MKTP.CD")
@@ -185,12 +186,18 @@ const recordedEurostat = Sdmx.layer.pipe(
   ),
 )
 
-// These tests read no indicator notes.
-const notes = Layer.succeed(Notes, Notes.of({ get: () => Effect.die("no notes in these tests") }))
+// Most tests read no indicator notes.
+const noNotes = Layer.succeed(Notes, Notes.of({ get: () => Effect.die("no notes in these tests") }))
 
 // These tests neither search nor ask, so the catalog, the conversations and
 // the agent are the ones plain `pnpm dev:web` gets.
-const serve = (source: Layer.Layer<WorldBank>, sdmx = Sdmx.layer.pipe(Layer.provide(offline))) =>
+const serve = (
+  source: Layer.Layer<WorldBank>,
+  {
+    sdmx = Sdmx.layer.pipe(Layer.provide(offline)),
+    notes = noNotes,
+  }: { sdmx?: Layer.Layer<Sdmx>; notes?: Layer.Layer<Notes> } = {},
+) =>
   Layer.mergeAll(
     Handlers.pipe(
       Layer.provide(notes),
@@ -437,7 +444,7 @@ describe("POST /api/views/resolve", () => {
           retrievedAt: expect.anything(),
         },
       ])
-    }).pipe(Effect.provide(serve(worldBank, recordedEurostat))),
+    }).pipe(Effect.provide(serve(worldBank, { sdmx: recordedEurostat }))),
   )
 
   it.effect("fails with DimensionsMissing for a dataflow with several series", () =>
@@ -455,7 +462,7 @@ describe("POST /api/views/resolve", () => {
         .pipe(Effect.flip)
 
       expect(error).toBeInstanceOf(DimensionsMissing)
-    }).pipe(Effect.provide(serve(worldBank, recordedEurostat))),
+    }).pipe(Effect.provide(serve(worldBank, { sdmx: recordedEurostat }))),
   )
 
   it.effect("resolves the series a View picks, listing what else it can pick", () =>
@@ -474,7 +481,7 @@ describe("POST /api/views/resolve", () => {
 
       expect(resolved.observations.map(({ value }) => value)).toEqual([7.3, 7.4, 7.4])
       expect(resolved.dimensions.map(({ id }) => id)).toEqual(["age", "unit", "sex"])
-    }).pipe(Effect.provide(serve(worldBank, recordedEurostat))),
+    }).pipe(Effect.provide(serve(worldBank, { sdmx: recordedEurostat }))),
   )
 
   it.effect("notes where another source's values for the same figure differ", () =>
@@ -507,6 +514,41 @@ describe("POST /api/views/resolve", () => {
           ],
         },
       ])
-    }).pipe(Effect.provide(serve(worldBank, recordedEurostat))),
+    }).pipe(Effect.provide(serve(worldBank, { sdmx: recordedEurostat }))),
+  )
+})
+
+describe("GET /api/indicators/:indicator/notes", () => {
+  // The OECD's notes on monthly unemployment, as recorded on 2026-11-10.
+  const recordedOecd = Notes.layer.pipe(
+    Layer.provide(
+      http((url) =>
+        url ===
+        "https://sdmx.oecd.org/public/rest/v2/data/dataflow/OECD.SDD.TPS/DSD_LFS@DF_IALFS_UNE_M/1.0/*?attributes=msd&measures=none"
+          ? new Response(unemploymentNotes)
+          : new Response("no recording", { status: 404 }),
+      ),
+    ),
+    Layer.provide(memory().layer),
+  )
+
+  it.effect("reads the OECD's notes on the chart's countries and series", () =>
+    Effect.gen(function* () {
+      const client = yield* HttpApiTest.groups(Api, ["indicators"])
+
+      const notes = yield* client.indicators.notes({
+        params: { indicator: IndicatorId.make("OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M,1.0") },
+        query: {
+          countries: ["IRL", "FRA"],
+          dimensions: Schema.decodeSync(Dimensions)({ MEASURE: "UNE_LF_M", SEX: "_T" }),
+        },
+      })
+
+      expect(notes._tag === "OECD" && notes.notes.map(({ country }) => country)).toEqual([
+        "FRA",
+        null,
+        "IRL",
+      ])
+    }).pipe(Effect.provide(serve(worldBank, { notes: recordedOecd }))),
   )
 })
