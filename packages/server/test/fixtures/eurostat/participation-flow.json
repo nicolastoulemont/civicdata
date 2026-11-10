@@ -1,0 +1,57 @@
+{
+  "version": "2.0",
+  "class": "dataset",
+  "label": "Employment and labour force by sex and age - annual data",
+  "extension": {
+    "lang": "EN",
+    "id": "LFSI_EMP_A",
+    "agencyId": "ESTAT",
+    "version": "1.0",
+    "datastructure": { "id": "LFSI_EMP_A", "agencyId": "ESTAT", "version": "50.0" },
+    "annotation": [
+      { "type": "CREATED", "date": "2021-07-14T13:09:27+0200" },
+      {
+        "type": "DISSEMINATION_DOI_XML",
+        "title": "<adms:identifier xmlns:adms=\"http://www.w3.org/ns/adms#\" xmlns:skos=\"http://www.w3.org/2004/02/skos/core.html\" xmlns:dct=\"http://purl.org/dc/terms/\" xmlns:rdf=\"http://www.w3.org/1999/02/22-rdf-syntax-ns#\"><adms:Identifier rdf:about=\"https://doi.org/10.2908/LFSI_EMP_A\"><skos:notation rdf:datatype=\"http://purl.org/spar/datacite/doi\">10.2908/LFSI_EMP_A</skos:notation><dct:creator rdf:resource=\"http://publications.europa.eu/resource/authority/corporate-body/ESTAT\"/><dct:issued rdf:datatype=\"http://www.w3.org/2001/XMLSchema#date\">2023-01-19</dct:issued></adms:Identifier></adms:identifier>"
+      },
+      {
+        "type": "DISSEMINATION_EXPLANATORY_LINK",
+        "title": "text-category",
+        "href": "https://ec.europa.eu/eurostat/databrowser-backend/api/public/explanatory-notes/get/Info_note_LFSQ_20240604.pdf",
+        "text": "~~Wichtiger Hinweis"
+      },
+      {
+        "type": "DISSEMINATION_EXPLANATORY_LINK",
+        "title": "text-category",
+        "href": "https://ec.europa.eu/eurostat/databrowser-backend/api/public/explanatory-notes/get/Info_note_LFSQ_20240604.pdf",
+        "text": "~~Avis important"
+      },
+      {
+        "type": "DISSEMINATION_EXPLANATORY_LINK",
+        "title": "text-category",
+        "href": "https://ec.europa.eu/eurostat/databrowser-backend/api/public/explanatory-notes/get/Info_note_LFSQ_20240604.pdf",
+        "text": "Information note"
+      },
+      { "type": "DISSEMINATION_OBJECT_TYPE", "title": "DATASET" },
+      { "type": "DISSEMINATION_TIMESTAMP_DATA", "date": "2026-11-06T23:00:00+0100" },
+      { "type": "DISSEMINATION_TIMESTAMP_GLOBAL", "date": "2026-11-06T23:00:00+0100" },
+      { "type": "DISSEMINATION_TIMESTAMP_PLANNED", "date": "2026-11-06T23:00:00+0100" },
+      {
+        "type": "ESMS_HTML",
+        "title": "Explanatory texts (metadata)",
+        "href": "https://ec.europa.eu/eurostat/cache/metadata/en/lfsi_esms.htm"
+      },
+      {
+        "type": "ESMS_SDMX",
+        "title": "Explanatory texts (metadata)",
+        "href": "https://ec.europa.eu/eurostat/api/dissemination/files?file=metadata/lfsi_esms.sdmx.zip"
+      },
+      { "type": "OBS_COUNT", "title": "44400" },
+      { "type": "OBS_PERIOD_OVERALL_LATEST", "title": "2025" },
+      { "type": "OBS_PERIOD_OVERALL_OLDEST", "title": "2003" },
+      { "type": "SOURCE_INSTITUTIONS", "text": "Eurostat" },
+      { "type": "UPDATE_DATA", "date": "2026-11-06T23:00:00+0100" },
+      { "type": "UPDATE_STRUCTURE", "date": "2026-11-06T23:00:00+0100" }
+    ]
+  }
+}

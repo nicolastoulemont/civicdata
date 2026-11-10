@@ -95,6 +95,12 @@ const recorded = new Map<string, () => Response>([
     () => new Response(uncovered, { status: 400 }),
   ],
   [eurostatData("TPS00001", { geo: "FR", years: "ge:2019+le:2021" }), () => new Response(france)],
+  // The recent years, which the cache asks for whenever a query falls inside
+  // them, on 2026-11-09.
+  [
+    eurostatData("TPS00001", { geo: "FR,EL", years: "ge:1996+le:2026" }),
+    () => new Response(populations),
+  ],
   [
     eurostatData("TPS00001", { geo: "FR,EL", years: "ge:2024+le:2026" }),
     () => new Response(recent),
@@ -265,6 +271,8 @@ describe("Sdmx with Eurostat", () => {
 
   it.effect("finds no values for years the dataflow does not have", () =>
     Effect.gen(function* () {
+      yield* TestClock.setTime(DateTime.toEpochMillis(DateTime.makeUnsafe("2026-11-09T09:00:00Z")))
+
       const series = yield* (yield* Sdmx).observations(
         query({ countries: ["FRA"], from: Year.make(1960), to: Year.make(1961) }),
       )
@@ -343,6 +351,31 @@ describe("Sdmx with Eurostat", () => {
       expect(error).toBeInstanceOf(IndicatorNotFound)
     }).pipe(Effect.provide(recording().layer)),
   )
+
+  it.effect("serves any years inside the recent ones from one request for all of them", () => {
+    const source = recording()
+
+    return Effect.gen(function* () {
+      const sdmx = yield* Sdmx
+
+      yield* TestClock.setTime(DateTime.toEpochMillis(DateTime.makeUnsafe("2026-11-09T09:00:00Z")))
+      yield* sdmx.observations(query())
+      const later = yield* sdmx.observations(query({ from: Year.make(2020), to: Year.make(2021) }))
+
+      // Its options and its data, once.
+      expect(source.asked).toEqual([
+        eurostatOptions("TPS00001", "FR,EL"),
+        eurostatData("TPS00001", { geo: "FR,EL", years: "ge:1996+le:2026" }),
+      ])
+      expect(later.observations.map(({ country, year }) => `${country} ${year}`)).toEqual([
+        "GRC 2020",
+        "GRC 2021",
+        "FRA 2020",
+        "FRA 2021",
+      ])
+      expect(later.url).toBe(eurostatData("TPS00001", { geo: "FR,EL", years: "ge:1996+le:2026" }))
+    }).pipe(Effect.provide(source.layer))
+  })
 
   it.effect("keeps a series until Eurostat's next update at 11:00 or 23:00 in Luxembourg", () => {
     const source = recording()

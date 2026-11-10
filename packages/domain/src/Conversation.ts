@@ -153,6 +153,34 @@ export const Rejected = Schema.TaggedStruct("Rejected", { reason: Rejection })
 // The agent fetches the data of the chart it proposed, which checks it.
 const fetch = <S extends Schema.Top>(state: S) => ({ id: StepId, view: View, state })
 
+// Consecutive years, first to last.
+const Run = Schema.Struct({ from: Year, to: Year })
+
+// What the data has for the countries a lookup asked about: each country's
+// first and last year with a value, the runs of years every one of them has
+// a value in, and the countries with no value at all, left out of the runs.
+export const Covered = Schema.TaggedStruct("Done", {
+  countries: Schema.Array(Schema.Struct({ country: Country, first: Year, last: Year })),
+  shared: Schema.Array(Run),
+  missing: Schema.Array(Country),
+})
+
+// Why the agent cannot look up an indicator's years, as it could not chart
+// them: no source has the indicator, or its dataflow holds several series
+// and the lookup has not picked one.
+export const Unresolved = Schema.TaggedStruct("Rejected", {
+  reason: Schema.Union([Rejection.cases.NoIndicator, Rejection.cases.OpenDimensions]),
+})
+
+// The agent looks up which years an indicator has values for in some
+// countries, before it picks a chart's years.
+const coverage = <S extends Schema.Top>(state: S) => ({
+  id: StepId,
+  indicator: IndicatorId,
+  countries: Schema.NonEmptyArray(Country),
+  state,
+})
+
 // A link to the record at `index` in a text's citations, as its Markdown
 // writes it: "[Mariano Rajoy](cite:0)".
 export const citeLink = (index: number) => `cite:${index}`
@@ -219,13 +247,15 @@ const Work = Schema.TaggedUnion({
   Definition: definition(live(Read)),
   Lookup: lookup(live(Located)),
   Records: records(live(Recorded)),
+  Coverage: coverage(live(Covered, Unresolved)),
   Fetch: fetch(live(Fetched, Rejected)),
   Rendered: { id: StepId, block: Block },
 })
 
 export type Work = typeof Work.Type
 
-export const { Thinking, Search, Definition, Lookup, Records, Fetch, Rendered } = Work.cases
+export const { Thinking, Search, Definition, Lookup, Records, Coverage, Fetch, Rendered } =
+  Work.cases
 
 // A step of work that ended, as a turn keeps it. Thinking is not kept: it
 // only fills the time between steps.
@@ -234,6 +264,7 @@ export const Ended = Schema.TaggedUnion({
   Definition: definition(ended(Read)),
   Lookup: lookup(ended(Located)),
   Records: records(ended(Recorded)),
+  Coverage: coverage(ended(Covered, Unresolved)),
   Fetch: fetch(ended(Fetched, Rejected)),
 })
 

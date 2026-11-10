@@ -1,11 +1,5 @@
-import {
-  type Country,
-  Indicator,
-  type IndicatorId,
-  Observation,
-  type Year,
-} from "@civicdata/domain"
-import { Schema } from "effect"
+import { type Country, Indicator, type IndicatorId, Observation, Year } from "@civicdata/domain"
+import { DateTime, Effect, Schema } from "effect"
 
 // What the Resolver asks a source adapter for: one indicator's values for
 // some countries and years.
@@ -33,3 +27,38 @@ export const Series = Schema.Struct({
 })
 
 export type Series = typeof Series.Type
+
+// How many years before this one a cached adapter asks a source for.
+const depth = 30
+
+// The years a cached adapter asks a source for whenever a query falls inside
+// them: the last `depth` and this one. Every query inside them for the same
+// indicator, countries and series then shares one stored answer, so find_years
+// and the chart drawn after it cost one source request.
+export const recent = Effect.map(DateTime.now, (now) => {
+  const year = DateTime.getPartUtc(now, "year")
+
+  return { from: Year.make(Math.max(1960, year - depth)), to: Year.make(year) }
+})
+
+// Asks `ask` for the recent years when the query falls inside them, and
+// answers with the query's years only. A query outside them is asked as is.
+export const widen =
+  <Q extends Query, A extends { readonly observations: ReadonlyArray<Observation> }, E, R>(
+    ask: (query: Q) => Effect.Effect<A, E, R>,
+  ) =>
+  (query: Q) =>
+    Effect.gen(function* () {
+      const years = yield* recent
+
+      if (query.from < years.from || query.to > years.to) return yield* ask(query)
+
+      const answer = yield* ask({ ...query, ...years })
+
+      return {
+        ...answer,
+        observations: answer.observations.filter(
+          ({ year }) => year >= query.from && year <= query.to,
+        ),
+      }
+    })

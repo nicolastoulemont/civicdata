@@ -11,7 +11,7 @@ import { HttpClient, HttpClientResponse } from "effect/http"
 
 import { Cache } from "./Cache.ts"
 import { Pace } from "./Pace.ts"
-import { Described, type Query, Series } from "./Series.ts"
+import { Described, type Query, Series, widen } from "./Series.ts"
 import { plain } from "./text.ts"
 
 const base = "https://api.worldbank.org/v2"
@@ -163,7 +163,7 @@ export class WorldBank extends Context.Service<WorldBank, Interface>()(
   static readonly layer = Layer.effect(WorldBank, make)
 
   // Serves a stored result younger than `lifetime`, otherwise asks the World
-  // Bank and stores the answer.
+  // Bank and stores the answer. Asks for the recent years at once (`widen`).
   static readonly cached = Layer.effect(
     WorldBank,
     Effect.gen(function* () {
@@ -177,12 +177,13 @@ export class WorldBank extends Context.Service<WorldBank, Interface>()(
             fresh,
             fetch: live.describe(indicator),
           }),
-        observations: (query) =>
+        observations: widen((query) =>
           remember(keys.series(query), {
             json: SeriesJson,
             fresh,
             fetch: live.observations(query),
           }),
+        ),
         // The catalog keeps its own copy in D1.
         indicators: live.indicators,
       })
