@@ -270,7 +270,7 @@ const strokes = (figure: HTMLElement) =>
   [...figure.querySelectorAll(".recharts-line-curve")].map((line) => line.getAttribute("stroke"))
 
 describe("Explore", () => {
-  it("names all seven countries in the legend and table, each in its own colour", async () => {
+  it("names all seven countries in the legend, at their lines' ends and in the table, each in its own colour", async () => {
     const countries = ["FRA", "DEU", "ITA", "ESP", "GBR", "USA", "JPN"] as const
 
     const names = [
@@ -291,14 +291,83 @@ describe("Explore", () => {
       const shown = await screen.findByRole("figure")
       const figure = within(shown)
 
-      await figure.findByText("Japan")
+      await figure.findByRole("button", { name: "Japan" })
 
       expect(new Set(strokes(shown)).size).toBe(7)
+
+      // Each line is named in the legend and at its end.
+      const plot = within(
+        await vi.waitUntil(() => shown.querySelector<HTMLElement>(".recharts-surface")),
+      )
+
+      for (const name of names) {
+        expect(figure.getByRole("button", { name })).toBeDefined()
+        expect(plot.getByText(name)).toBeDefined()
+      }
 
       await userEvent.setup().click(screen.getByRole("tab", { name: "Data" }))
       const table = within(await screen.findByRole("table"))
 
       for (const name of names) expect(table.getAllByRole("cell", { name })).toHaveLength(2)
+    } finally {
+      bounds.mockRestore()
+    }
+  })
+
+  it("names a trend of nine countries in its legend only", async () => {
+    const bounds = layOut()
+
+    try {
+      drawTrend(["FRA", "DEU", "ITA", "ESP", "GBR", "USA", "JPN", "CAN", "MEX"])
+
+      const shown = await screen.findByRole("figure")
+
+      await within(shown).findByRole("button", { name: "Mexico" })
+
+      const plot = await vi.waitUntil(() => shown.querySelector<HTMLElement>(".recharts-surface"))
+
+      expect(within(plot).queryByText("Mexico")).toBeNull()
+    } finally {
+      bounds.mockRestore()
+    }
+  })
+
+  it("brings a country forward while its legend entry is pointed at, and keeps it once pressed", async () => {
+    const bounds = layOut()
+
+    try {
+      const user = userEvent.setup()
+
+      drawTrend(["FRA", "DEU", "ITA"])
+
+      const shown = await screen.findByRole("figure")
+
+      const legend = within(
+        await within(shown).findByRole("group", { name: "Highlight a country" }),
+      )
+
+      const france = legend.getByRole("button", { name: "France" })
+
+      const opacities = () =>
+        [...shown.querySelectorAll(".recharts-line-curve")].map((line) =>
+          line.getAttribute("stroke-opacity"),
+        )
+
+      await user.hover(france)
+      expect(opacities()).toEqual(["1", "0.15", "0.15"])
+
+      await user.unhover(france)
+      expect(opacities()).toEqual(["1", "1", "1"])
+
+      await user.click(france)
+      await user.unhover(france)
+      expect(france.getAttribute("aria-pressed")).toBe("true")
+      expect(opacities()).toEqual(["1", "0.15", "0.15"])
+
+      await user.click(france)
+      await user.unhover(france)
+      expect(france.getAttribute("aria-pressed")).toBe("false")
+      expect(opacities()).toEqual(["1", "1", "1"])
     } finally {
       bounds.mockRestore()
     }
@@ -311,7 +380,7 @@ describe("Explore", () => {
       const first = drawTrend(["FRA", "DEU"])
       const before = await screen.findByRole("figure")
 
-      await within(before).findByText("Germany")
+      await within(before).findByRole("button", { name: "Germany" })
       const [france] = strokes(before)
 
       first.unmount()
@@ -319,7 +388,7 @@ describe("Explore", () => {
 
       const after = await screen.findByRole("figure")
 
-      await within(after).findByText("Italy")
+      await within(after).findByRole("button", { name: "Italy" })
 
       expect(france).toMatch(/^light-dark\(#[0-9a-f]{6}, #[0-9a-f]{6}\)$/)
       expect(strokes(after)[2]).toBe(france)
@@ -338,7 +407,7 @@ describe("Explore", () => {
 
       const shown = await screen.findByRole("figure")
 
-      await within(shown).findByText("Italy")
+      await within(shown).findByRole("button", { name: "Italy" })
       await user.click(within(shown).getByRole("application"))
       await user.keyboard("{ArrowRight}")
 
@@ -702,7 +771,7 @@ describe("Explore", () => {
 
       // The tooltip steps through every year: two steps from 1996, past the
       // empty 1997, is 1998's value.
-      await figure.findByText("France")
+      await figure.findByRole("button", { name: "France" })
       await user.click(figure.getByRole("application"))
       await user.keyboard("{ArrowRight}{ArrowRight}")
 

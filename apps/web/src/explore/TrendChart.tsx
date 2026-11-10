@@ -20,6 +20,8 @@ import {
   ReferenceLine,
   XAxis,
   YAxis,
+  usePlotArea,
+  useYAxisScale,
 } from "recharts"
 
 import {
@@ -30,6 +32,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart"
+import { useIsMobile } from "@/hooks/use-mobile"
 
 import { countryName, formatCompact } from "./format.ts"
 import { color } from "./palette.ts"
@@ -74,8 +77,12 @@ const byYear = (observations: ResolvedView["observations"]) => {
   )
 }
 
+// How faint the lines of other countries turn while one is brought forward.
+const faint = 0.15
+
 interface MarkedProps {
   country: Country
+  faded: boolean
   flagged: ReadonlySet<string>
   alone: ReadonlySet<string>
   cx?: number
@@ -86,7 +93,7 @@ interface MarkedProps {
 // A ring on a point its source flags, a dot on a point with no value on
 // either side, which no line reaches, and nothing on the others. Recharts
 // passes each point's position and row.
-const Marked = ({ country, flagged, alone, cx, cy, payload }: MarkedProps) => {
+const Marked = ({ country, faded, flagged, alone, cx, cy, payload }: MarkedProps) => {
   const key = payload === undefined ? undefined : `${country}:${payload.year}`
 
   if (key !== undefined && flagged.has(key)) {
@@ -98,12 +105,13 @@ const Marked = ({ country, flagged, alone, cx, cy, payload }: MarkedProps) => {
         fill="var(--background)"
         stroke={color(country)}
         strokeWidth={2}
+        opacity={faded ? faint : 1}
       />
     )
   }
 
   return key !== undefined && alone.has(key) ? (
-    <circle cx={cx} cy={cy} r={3} fill={color(country)} />
+    <circle cx={cx} cy={cy} r={3} fill={color(country)} opacity={faded ? faint : 1} />
   ) : null
 }
 
@@ -147,6 +155,99 @@ const Band = ({ x, y, width, height, fill, fillOpacity, clipPath }: BandProps) =
     clipPath={clipPath}
   />
 )
+
+// Recharts' own margin around the plot.
+const margin = { top: 5, right: 5, bottom: 5, left: 5 }
+
+// Up to this many countries, each line is named at its end.
+const named = 8
+
+// A country's name, cut to fit beside the plot.
+const short = (country: Country) => {
+  const name = countryName(country)
+
+  return name.length > 18 ? `${name.slice(0, 17)}…` : name
+}
+
+interface EndsProps {
+  rows: ReadonlyArray<Point>
+  countries: ReadonlyArray<Country>
+  forward: Country | null
+}
+
+// Each line's name right of the plot, level with its last value and pushed
+// apart so no two overlap, as on the share card. The legend names them too,
+// so screen readers skip these.
+const Ends = ({ rows, countries, forward }: EndsProps) => {
+  const y = useYAxisScale()
+  const plot = usePlotArea()
+
+  if (y === undefined || plot === undefined) return null
+
+  const ends = countries
+    .flatMap((country) => {
+      const last = rows.findLast((row) => row[country] !== undefined)?.[country]
+      const at = last === undefined ? undefined : y(last)
+
+      return at === undefined ? [] : [{ country, at }]
+    })
+    .toSorted((left, right) => left.at - right.at)
+
+  const placed = ends.reduce<Array<{ country: Country; at: number }>>((above, { country, at }) => {
+    above.push({ country, at: Math.max(at, (above.at(-1)?.at ?? -Infinity) + 14) })
+
+    return above
+  }, [])
+
+  return (
+    <g aria-hidden>
+      {placed.map(({ country, at }) => (
+        <text
+          key={country}
+          x={plot.x + plot.width + 6}
+          y={at}
+          dy="0.32em"
+          fontSize={12}
+          fill={country === forward ? "var(--foreground)" : "var(--muted-foreground)"}
+          opacity={forward !== null && country !== forward ? faint : 1}
+        >
+          {short(country)}
+        </text>
+      ))}
+    </g>
+  )
+}
+
+// Room right of the plot for the names at the lines' ends, on a trend of
+// few enough countries to name each. None past that, nor on a phone, which
+// has no room beside the plot: the legend names the lines.
+const useRoom = (countries: ReadonlyArray<Country>) =>
+  useIsMobile() || countries.length > named
+    ? 0
+    : Math.min(130, 8 + 6.5 * Math.max(...countries.map((country) => short(country).length)))
+
+// The country brought forward: the one pointed at in the legend, else the
+// one pressed there. A country the trend no longer shows brings none. The
+// others' lines fade.
+const useForward = (countries: ReadonlyArray<Country>) => {
+  const [pressed, setPressed] = useState<Country | null>(null)
+  const [pointed, setPointed] = useState<Country | null>(null)
+  const of = (key: string | null) => countries.find((each) => each === key) ?? null
+
+  const forward =
+    [pointed, pressed].find((each) => each !== null && countries.includes(each)) ?? null
+
+  return {
+    forward,
+    faded: (country: Country) => forward !== null && country !== forward,
+    picking: {
+      label: "Highlight a country",
+      pressed,
+      onPress: (key: string | null) => setPressed(of(key)),
+      onPoint: (key: string | null) => setPointed(of(key)),
+    },
+  }
+}
 
 // The trend's whole history, for picking its years over it.
 export interface History {
@@ -404,6 +505,9 @@ export const TrendChart = ({
     reforms,
   })
 
+  const { forward, faded, picking } = useForward(trend.countries)
+  const room = useRoom(trend.countries)
+
   const config: ChartConfig = Object.fromEntries(
     trend.countries.map((country) => [country, { label: countryName(country) }]),
   )
@@ -421,7 +525,11 @@ export const TrendChart = ({
         })}
       </figcaption>
       <ChartContainer config={config} className="aspect-auto h-80 w-full">
-        <LineChart data={rows} accessibilityLayer>
+        <LineChart
+          data={rows}
+          margin={{ ...margin, right: margin.right + room }}
+          accessibilityLayer
+        >
           {bands.map(({ term, x1, x2, color: party }, index) => (
             <ReferenceArea
               key={`${term.head} ${term.governments[0].start}`}
@@ -474,6 +582,7 @@ export const TrendChart = ({
               key={`reform ${country} ${year}`}
               x={year}
               stroke={color(country)}
+              strokeOpacity={faded(country) ? faint : 1}
               strokeDasharray="1 3"
               strokeWidth={2}
               ifOverflow="hidden"
@@ -484,6 +593,7 @@ export const TrendChart = ({
               key={`${country} ${year}`}
               x={year}
               stroke={color(country)}
+              strokeOpacity={faded(country) ? faint : 1}
               strokeDasharray="4 4"
               ifOverflow="hidden"
             />
@@ -511,23 +621,29 @@ export const TrendChart = ({
             }
           />
           {/* Rows wrap, so a legend of many countries stays inside the card. */}
-          <ChartLegend content={<ChartLegendContent className="flex-wrap gap-y-1" />} />
+          <ChartLegend
+            content={<ChartLegendContent className="flex-wrap gap-y-1" picking={picking} />}
+          />
           {trend.countries.map((country) => (
             <Line
               key={country}
               dataKey={country}
               type="monotone"
               stroke={color(country)}
-              strokeWidth={2}
-              dot={<Marked country={country} flagged={flagged} alone={alone} />}
+              strokeOpacity={faded(country) ? faint : 1}
+              strokeWidth={country === forward ? 3 : 2}
+              dot={
+                <Marked country={country} faded={faded(country)} flagged={flagged} alone={alone} />
+              }
               connectNulls={false}
               isAnimationActive={dragged === null}
             />
           ))}
+          {room > 0 ? <Ends rows={rows} countries={trend.countries} forward={forward} /> : null}
         </LineChart>
       </ChartContainer>
       {history === undefined ? null : (
-        <div className="pr-1 pl-14">
+        <div className="pl-14" style={{ paddingRight: 4 + room }}>
           <YearWindow
             history={history.observations}
             countries={trend.countries}
