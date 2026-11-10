@@ -208,11 +208,17 @@ export const useConversation = (id: ConversationId) => {
       setFailures((previous) => previous.filter((entry) => entry !== failure))
       send(failure.question)
     },
-    // The question being answered, when it started, and what the agent did.
+    // The question being answered, whether it was asked here or followed,
+    // when it started, and what the agent did.
     pending:
       asking.variables === undefined || !asking.isPending
         ? undefined
-        : { question: asking.variables.question, started: asking.variables.started, steps },
+        : {
+            question: asking.variables.question,
+            via: asking.variables.via,
+            started: asking.variables.started,
+            steps,
+          },
     answering: asking.isPending,
     stop: () => stopping.mutate(),
     stopping: stopping.isPending,

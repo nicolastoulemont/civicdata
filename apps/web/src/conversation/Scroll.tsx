@@ -12,21 +12,44 @@ interface ScrollProps {
   children: ReactNode
   composer: ReactNode
   previews: ReadonlyArray<Preview>
-  anchor: string | undefined
+  asked: number | undefined
 }
 
 const reduced = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches
 
+// Makes the content tall enough to scroll its last question 24px from the
+// top, however short its answer. The answer grows into the space, and only an
+// answer taller than it moves the end. The rows remount when the answer is
+// saved, so the space belongs to the content, not to a row.
+const reserve = (viewport: HTMLElement, content: HTMLElement) => {
+  const question = [...content.querySelectorAll("[data-question]")].at(-1)
+
+  if (question === undefined) return
+
+  const top = question.getBoundingClientRect().top - content.getBoundingClientRect().top
+  content.style.minHeight = `${top - 24 + viewport.clientHeight}px`
+}
+
+// Fits the space to the viewport and the rows again, once a question asked
+// here reserved it. It stays until the next question takes it over.
+const refit = (viewport: HTMLElement, content: HTMLElement) => {
+  if (content.style.minHeight !== "") reserve(viewport, content)
+}
+
 // The composer is docked at the end of the content and sticks to the bottom
 // of the viewport, so rows scroll under it and the last one still ends above
 // it, however tall the composer grows. The scroll button rides on top of it.
-// The rail beside it jumps between the rows marked as questions.
-export const Scroll = ({ children, composer, previews, anchor }: ScrollProps) => {
+// The rail beside it jumps between the rows marked as questions. `asked`
+// changes each time a question is asked here, and is undefined otherwise.
+export const Scroll = ({ children, composer, previews, asked }: ScrollProps) => {
   const viewport = useRef<HTMLElement>(null)
   const content = useRef<HTMLDivElement>(null)
   const dock = useRef<HTMLDivElement>(null)
   const follow = useRef<Follow>("following")
   const previous = useRef(0)
+  // The end the view last scrolled to. A smooth scroll on its way there is
+  // left to finish.
+  const bottom = useRef(0)
   const [mode, setMode] = useState<Follow>("following")
   const [current, setCurrent] = useState(0)
 
@@ -71,13 +94,14 @@ export const Scroll = ({ children, composer, previews, anchor }: ScrollProps) =>
     })
   }
 
-  const end = (behavior: ScrollBehavior) => {
+  const end = useCallback((behavior: ScrollBehavior) => {
     const node = viewport.current
 
     if (node === null) return
     node.scrollTo({ top: node.scrollHeight, behavior })
+    bottom.current = node.scrollHeight - node.clientHeight
     previous.current = node.scrollTop
-  }
+  }, [])
 
   useLayoutEffect(() => {
     const node = viewport.current
@@ -86,6 +110,7 @@ export const Scroll = ({ children, composer, previews, anchor }: ScrollProps) =>
     if (node === null || rows === null) return undefined
 
     const followEnd = () => {
+      refit(node, rows)
       locate()
 
       // With nothing to scroll, there is no end to return to.
@@ -95,8 +120,7 @@ export const Scroll = ({ children, composer, previews, anchor }: ScrollProps) =>
         return
       }
 
-      node.scrollTo({ top: node.scrollHeight, behavior: "instant" })
-      previous.current = node.scrollTop
+      if (node.scrollHeight - node.clientHeight !== bottom.current) end("instant")
     }
 
     const observer = new ResizeObserver(followEnd)
@@ -105,39 +129,19 @@ export const Scroll = ({ children, composer, previews, anchor }: ScrollProps) =>
     followEnd()
 
     return () => observer.disconnect()
-  }, [change, locate])
+  }, [change, end, locate])
 
   useLayoutEffect(() => {
-    if (anchor === undefined) return undefined
     const node = viewport.current
-    const below = dock.current
-    const question = content.current?.querySelector("[data-scroll-anchor]")
+    const rows = content.current
 
-    if (node === null || below === null || !(question instanceof HTMLElement)) return undefined
+    if (asked === undefined || node === null || rows === null) return
 
-    change("following")
-
-    // Reserve the viewport above the composer until the first work arrives.
-    // The new question then sits 24px from the top, even in a short thread:
-    // 56px is the rows' padding, 24px above them and 32px below.
-    const size = () => {
-      question.style.minHeight = `${Math.max(0, node.clientHeight - below.offsetHeight - 56)}px`
-
-      if (follow.current !== "following") return
-      node.scrollTo({ top: node.scrollHeight, behavior: "instant" })
-      previous.current = node.scrollTop
-    }
-
-    size()
-    const observer = new ResizeObserver(size)
-    observer.observe(node)
-    observer.observe(below)
-
-    return () => {
-      observer.disconnect()
-      question.style.minHeight = ""
-    }
-  }, [anchor, change])
+    // The button to scroll to the end goes once the view moves there.
+    follow.current = "following"
+    reserve(node, rows)
+    end(reduced() ? "instant" : "smooth")
+  }, [asked, end])
 
   return (
     <div className="@container relative flex min-h-0 flex-1 flex-col">
