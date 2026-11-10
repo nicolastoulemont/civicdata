@@ -22,9 +22,11 @@ import {
   type View,
   type Work,
 } from "@civicdata/domain"
+import { Machine } from "@civicdata/machine"
 import {
   Array as Arr,
   Context,
+  Data,
   DateTime,
   Deferred,
   Effect,
@@ -65,6 +67,11 @@ interface Interface {
     turn: TurnIndex,
     options: { readonly chart: ChartIndex; readonly view: View },
   ) => Effect.Effect<void, TurnNotFound | NoChart>
+  // Deletes the conversation once no answer is running: now, or when the
+  // answer in progress fails. An answer that keeps its turn keeps the
+  // conversation too, as saving it moves the alarm on. Returns once the
+  // conversation is deleted, or at once when an answer is running.
+  readonly expire: Effect.Effect<void>
 }
 
 // The step that ends an answer, and is kept in its turn.
@@ -142,6 +149,73 @@ interface Answer {
   readonly stop: Deferred.Deferred<void>
 }
 
+// What a conversation is doing: nothing, answering a question, or deleting
+// itself. `due` records that its time ran out while it was answering.
+type Phase = Data.TaggedEnum<{
+  Idle: {}
+  Answering: Answer & { readonly due: boolean }
+  Expiring: {}
+}>
+
+const Phase = Data.taggedEnum<Phase>()
+
+// `Saved` comes as an answer keeps its turn, which moves the alarm on.
+// `Finished` comes once an answer's fiber is over, whether or not it kept its
+// turn; it names the answer, so it never ends a later one. `Expire` comes
+// from the alarm.
+type PhaseEvent = Data.TaggedEnum<{
+  Ask: { readonly answer: Answer }
+  Saved: {}
+  Finished: { readonly steps: Answer["steps"] }
+  Expire: {}
+  Deleted: {}
+}>
+
+const PhaseEvent = Data.taggedEnum<PhaseEvent>()
+
+// The alarm never deletes a conversation while it answers: an answer that
+// started before the deletion would save its whole chat with only its own
+// turn. It waits for the answer to end, and deletes the conversation then
+// unless the answer kept its turn. A question asked while the conversation
+// is being deleted is refused as busy.
+const lifecycle = Machine.make<Phase, PhaseEvent>()({
+  initial: () => Phase.Idle(),
+  on: {
+    Idle: {
+      Ask: (_, { answer }) => Phase.Answering({ ...answer, due: false }),
+      Expire: () => Phase.Expiring(),
+      ignore: ["Saved", "Finished", "Deleted"],
+    },
+    Answering: {
+      Saved: () => Phase.Idle(),
+      Finished: (answering, { steps }) => {
+        if (answering.steps !== steps) return answering
+
+        return answering.due ? Phase.Expiring() : Phase.Idle()
+      },
+      Expire: (answering) => Phase.Answering({ ...answering, due: true }),
+      ignore: ["Ask", "Deleted"],
+    },
+    Expiring: {
+      Deleted: () => Phase.Idle(),
+      ignore: ["Ask", "Saved", "Finished", "Expire"],
+    },
+  },
+  work: {
+    // Storage failures are defects. One is logged and ends the deletion, so
+    // the conversation can answer again; the next save moves the alarm on.
+    Expiring: () =>
+      Transcript.use((transcript) => transcript.delete).pipe(
+        Effect.catchDefect((defect) => Effect.logError("Conversation not deleted", defect)),
+        Effect.as(PhaseEvent.Deleted()),
+      ),
+  },
+})
+
+const isAnswering = Phase.$is("Answering")
+
+const isExpiring = Phase.$is("Expiring")
+
 // One conversation: its turns, and follow-up questions answered with the
 // chat so far. An answer runs to its end even when nobody reads it any more,
 // and its turn is saved then; an answer that fails leaves the conversation as
@@ -158,7 +232,7 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
       // Answers run in the conversation's scope, not the request's, so a
       // visitor leaving does not stop them.
       const scope = yield* Effect.scope
-      const current = yield* Ref.make(Option.none<Answer>())
+      const phase = yield* Machine.start(lifecycle)
       // Held to save a turn, to read the turns and to stop an answer, so a
       // reader never sees a question both answered and still being answered,
       // and an answer is kept either as it ended or as stopped, never both.
@@ -166,22 +240,14 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
 
       const turns = Effect.gen(function* () {
         const saved = yield* transcript.load
-        const answer = yield* Ref.get(current)
+        const now = yield* phase.get
 
-        return {
-          answered: Option.match(saved, { onNone: () => [], onSome: (found) => found.turns }),
-          ...Option.match(answer, {
-            onNone: () => ({}),
-            onSome: ({ question, started }) => ({ answering: { question, started } }),
-          }),
-        }
+        const answered = Option.match(saved, { onNone: () => [], onSome: (found) => found.turns })
+
+        return isAnswering(now)
+          ? { answered, answering: { question: now.question, started: now.started } }
+          : { answered }
       }).pipe(Semaphore.withPermit(lock))
-
-      const done = (steps: Answer["steps"]) =>
-        Ref.update(
-          current,
-          Option.filter((answer) => answer.steps !== steps),
-        )
 
       // Answers to the end, saving the turn before its last step goes out. A
       // stop cuts the agent off, so it makes no more model requests, and
@@ -226,7 +292,7 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
             }
 
             yield* transcript.save(unheard === undefined ? next : { ...next, changed: unheard })
-            yield* done(steps)
+            yield* phase.send(PhaseEvent.Saved())
           })
 
           // Nothing is kept or sent once a stop arrives. Stops are only
@@ -268,7 +334,7 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
         (effect, { steps }) =>
           effect.pipe(
             Effect.onExit((exit) => PubSub.end(steps, exit)),
-            Effect.ensuring(done(steps)),
+            Effect.ensuring(phase.send(PhaseEvent.Finished({ steps }))),
             // Whoever follows the answer receives its failure.
             Effect.ignore,
           ),
@@ -280,42 +346,31 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
         const stop = yield* Deferred.make<void>()
         const started = yield* DateTime.now
         const next = { question, started, steps, stop }
+        const now = yield* phase.send(PhaseEvent.Ask({ answer: next }))
 
-        const free = yield* Ref.modify(current, (answering) =>
-          Option.isSome(answering) ? [false, answering] : [true, Option.some(next)],
-        )
-
-        if (!free) return yield* new ConversationBusy()
+        if (!isAnswering(now) || now.steps !== steps) return yield* new ConversationBusy()
 
         yield* Effect.forkIn(answer(next), scope)
 
         return Stream.fromPubSubTake(steps)
       })
 
-      const follow = Ref.get(current).pipe(
-        Effect.map(
-          Option.match({
-            onNone: () => Stream.empty,
-            onSome: ({ steps }) => Stream.fromPubSubTake(steps),
-          }),
-        ),
+      const follow = phase.get.pipe(
+        Effect.map((now) => (isAnswering(now) ? Stream.fromPubSubTake(now.steps) : Stream.empty)),
       )
 
       // Asks the answer in progress to stop, then waits for its last step.
       // An answer that failed meanwhile has nothing to keep.
       const stop = Effect.gen(function* () {
-        const stopped = yield* Ref.get(current).pipe(
-          Effect.tap(
-            Option.match({
-              onNone: () => Effect.void,
-              onSome: (running) => Deferred.succeed(running.stop, undefined),
-            }),
+        const now = yield* phase.get.pipe(
+          Effect.tap((running) =>
+            isAnswering(running) ? Deferred.succeed(running.stop, undefined) : Effect.void,
           ),
           Semaphore.withPermit(lock),
         )
 
-        if (Option.isSome(stopped)) {
-          yield* Stream.runDrain(Stream.fromPubSubTake(stopped.value.steps)).pipe(Effect.ignore)
+        if (isAnswering(now)) {
+          yield* Stream.runDrain(Stream.fromPubSubTake(now.steps)).pipe(Effect.ignore)
         }
       }).pipe(Effect.withSpan("Conversation.stop"))
 
@@ -336,7 +391,19 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
         })
       }, Semaphore.withPermit(lock))
 
-      return Conversation.of({ turns, ask, follow, stop, show })
+      // Waits out a deletion the alarm started. An answer running is not
+      // waited for.
+      const expire = phase
+        .send(PhaseEvent.Expire())
+        .pipe(
+          Effect.andThen(
+            phase.changes.pipe(Stream.filter(Predicate.not(isExpiring)), Stream.runHead),
+          ),
+          Effect.asVoid,
+          Effect.withSpan("Conversation.expire"),
+        )
+
+      return Conversation.of({ turns, ask, follow, stop, show, expire })
     }),
   )
 }

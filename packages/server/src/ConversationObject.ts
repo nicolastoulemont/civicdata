@@ -1,6 +1,6 @@
 import { ConversationApi } from "@civicdata/domain"
 import type { DurableObjectState } from "@cloudflare/workers-types"
-import { Effect, Layer } from "effect"
+import { Effect, Layer, ManagedRuntime } from "effect"
 import { HttpRouter, HttpServer } from "effect/http"
 import { HttpApiBuilder } from "effect/http-api"
 
@@ -41,10 +41,9 @@ const Handlers = HttpApiBuilder.group(
   }),
 )
 
-// What one conversation serves, needing an Agent, an AskLimit and a Transcript.
-export const serve = HttpApiBuilder.layer(ConversationApi).pipe(
+// What one conversation serves, needing a Conversation and an AskLimit.
+const serve = HttpApiBuilder.layer(ConversationApi).pipe(
   Layer.provide(Handlers),
-  Layer.provide(Conversation.layer),
   Layer.provide(HttpServer.layerServices),
 )
 
@@ -54,25 +53,42 @@ interface DurableObject {
   readonly alarm: () => Promise<void>
 }
 
+// One conversation's requests and alarm, given an Agent, an AskLimit and a
+// Transcript. Both reach the same Conversation, so the alarm knows whether
+// an answer is running. It is built on first use.
+export const open = (layer: Layer.Layer<Agent | AskLimit | Transcript>): DurableObject => {
+  const runtime = ManagedRuntime.make(Conversation.layer.pipe(Layer.provideMerge(layer)))
+
+  const { handler } = HttpRouter.toWebHandler(
+    serve.pipe(Layer.provide(Layer.effectContext(runtime.contextEffect))),
+  )
+
+  return {
+    fetch: handler,
+    alarm: () => runtime.runPromise(Conversation.use((conversation) => conversation.expire)),
+  }
+}
+
 // The Durable Object holding one conversation, named by its id. The Worker
 // passes it every request about that conversation. Its storage holds the
 // transcript until the alarm, set `keep` after the last question, deletes it.
 export class ConversationObject implements DurableObject {
   readonly #state: DurableObjectState
-  #handler: ((request: Request) => Promise<Response>) | undefined
+  #conversation: DurableObject | undefined
 
   constructor(state: DurableObjectState) {
     this.#state = state
   }
 
-  // Built on the first request: Workers forbid timers and random values
-  // outside one.
-  fetch(request: Request) {
-    this.#handler ??= HttpRouter.toWebHandler(
-      serve.pipe(
-        Layer.provide(Transcript.durable(this.#state.storage)),
-        Layer.provide(Agent.live.pipe(Layer.provide(Resolver.layer))),
-        Layer.provide(AskLimit.live),
+  // Built on the first request or alarm: Workers forbid timers and random
+  // values outside one. An alarm on a fresh object finds no answer running.
+  get #opened() {
+    this.#conversation ??= open(
+      Layer.mergeAll(
+        Transcript.durable(this.#state.storage),
+        Agent.live.pipe(Layer.provide(Resolver.layer)),
+        AskLimit.live,
+      ).pipe(
         Layer.provide(Catalog.live),
         Layer.provide(Politics.live),
         Layer.provide(Notes.live),
@@ -80,12 +96,16 @@ export class ConversationObject implements DurableObject {
         Layer.provide(Sdmx.live),
         Layer.provide(Directions.live),
       ),
-    ).handler
+    )
 
-    return this.#handler(request)
+    return this.#conversation
+  }
+
+  fetch(request: Request) {
+    return this.#opened.fetch(request)
   }
 
   alarm() {
-    return this.#state.storage.deleteAll()
+    return this.#opened.alarm()
   }
 }

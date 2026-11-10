@@ -15,11 +15,14 @@ export interface Storage {
   readonly get: (key: string) => Promise<string | undefined>
   readonly put: (key: string, value: string) => Promise<void>
   readonly setAlarm: (time: number) => Promise<void>
+  readonly deleteAll: () => Promise<void>
 }
 
 interface Interface {
   readonly load: Effect.Effect<Option.Option<Saved>>
   readonly save: (saved: Saved) => Effect.Effect<void>
+  // Deletes the conversation: a load after it finds nothing.
+  readonly delete: Effect.Effect<void>
 }
 
 const Stored = Schema.fromJsonString(
@@ -49,6 +52,7 @@ export class Transcript extends Context.Service<Transcript, Interface>()(
       return Transcript.of({
         load: Ref.get(saved),
         save: (next) => Ref.set(saved, Option.some(next)),
+        delete: Ref.set(saved, Option.none()),
       })
     }),
   )
@@ -75,6 +79,10 @@ export class Transcript extends Context.Service<Transcript, Interface>()(
           yield* Effect.tryPromise(() => storage.put(key, json))
           yield* Effect.tryPromise(() => storage.setAlarm(now + keep))
         }, Effect.orDie),
+        delete: Effect.tryPromise(() => storage.deleteAll()).pipe(
+          Effect.orDie,
+          Effect.withSpan("Transcript.delete"),
+        ),
       }),
     )
 }

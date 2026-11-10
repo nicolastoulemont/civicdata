@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@civicdata/domain": "workspace:*",
+    "@civicdata/machine": "workspace:*",
     "@effect/ai-openai": "4.1.2",
     "@effect/sql-d1": "4.1.2",
     "effect": "catalog:",
