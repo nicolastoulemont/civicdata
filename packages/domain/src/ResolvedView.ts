@@ -75,27 +75,51 @@ export interface Ranked extends Schema.Schema.Type<typeof Single> {
 export const isRanked = (resolved: ResolvedView): resolved is Ranked =>
   Predicate.isTagged(resolved.view, "Ranking")
 
-// A ranking over time as the static ranking of one year of its span: that
-// year's values and other sources' disagreements, with the countries that
-// have no value that year missing.
-export const inYear = (resolved: Ranked, year: Year): Ranked => {
-  const at = <O extends { readonly year: Year }>(observations: ReadonlyArray<O>) =>
-    observations.filter((observation) => observation.year === year)
+// The values of one year, and other sources' disagreements that year.
+const at = <O extends { readonly year: Year }>(observations: ReadonlyArray<O>, year: Year) =>
+  observations.filter((observation) => observation.year === year)
 
-  const observations = at(resolved.observations)
+const disagreementsIn = (disagreements: Ranked["disagreements"], year: Year) =>
+  disagreements.flatMap((disagreement) => {
+    const kept = at(disagreement.observations, year)
+
+    return Arr.isArrayNonEmpty(kept) ? [{ ...disagreement, observations: kept }] : []
+  })
+
+const held = (shown: ReadonlyArray<Observation>, country: Country) =>
+  shown.some((observation) => observation.country === country)
+
+// A chart over time as the static chart of one year of its span: that year's
+// values and other sources' disagreements, with the countries that have no
+// value that year missing; for a relation, no value of either indicator.
+export function inYear(resolved: Ranked, year: Year): Ranked
+export function inYear(resolved: Related, year: Year): Related
+export function inYear(resolved: Ranked | Related, year: Year): Ranked | Related
+export function inYear(resolved: Ranked | Related, year: Year): Ranked | Related {
+  const observations = at(resolved.observations, year)
+  const disagreements = disagreementsIn(resolved.disagreements, year)
+
+  if (!("against" in resolved)) {
+    return {
+      ...resolved,
+      view: Ranking.make({ ...Struct.omit(resolved.view, ["span"]), year }),
+      observations,
+      missing: resolved.view.countries.filter((country) => !held(observations, country)),
+      disagreements,
+    }
+  }
+
+  const against = at(resolved.against.observations, year)
 
   return {
     ...resolved,
-    view: Ranking.make({ ...Struct.omit(resolved.view, ["span"]), year }),
+    view: Relation.make({ ...Struct.omit(resolved.view, ["span"]), year }),
     observations,
+    against: { ...resolved.against, observations: against },
     missing: resolved.view.countries.filter(
-      (country) => !observations.some((observation) => observation.country === country),
+      (country) => !held(observations, country) || !held(against, country),
     ),
-    disagreements: resolved.disagreements.flatMap((disagreement) => {
-      const kept = at(disagreement.observations)
-
-      return Arr.isArrayNonEmpty(kept) ? [{ ...disagreement, observations: kept }] : []
-    }),
+    disagreements,
   }
 }
 
@@ -114,6 +138,8 @@ const Paired = Schema.Struct({
     observations: Schema.Array(Observation),
   }),
 })
+
+export interface Related extends Schema.Schema.Type<typeof Paired> {}
 
 export const ResolvedView = Schema.Union([Single, Stepped, Paired])
 

@@ -93,35 +93,43 @@ const published = new Map<IndicatorId, { name: string; values: ResolvedView["obs
 ])
 
 // Answers like the real API: only the requested countries and years, and
-// nothing for a country it has no value for.
-const worldBank = Layer.succeed(
-  WorldBank,
-  WorldBank.of({
-    describe: (indicator) => {
-      const known = published.get(indicator)
+// nothing for a country it has no value for. Notes each request for values
+// in `asked`.
+const worldBankNoting = (asked: Array<string> = []) =>
+  Layer.succeed(
+    WorldBank,
+    WorldBank.of({
+      describe: (indicator) => {
+        const known = published.get(indicator)
 
-      return known === undefined
-        ? Effect.fail(new IndicatorNotFound({ indicator }))
-        : Effect.succeed({
-            indicator: { id: indicator, name: known.name, definition: "" },
-            dataset: "World Development Indicators",
+        return known === undefined
+          ? Effect.fail(new IndicatorNotFound({ indicator }))
+          : Effect.succeed({
+              indicator: { id: indicator, name: known.name, definition: "" },
+              dataset: "World Development Indicators",
+              retrievedAt,
+            })
+      },
+      observations: (query) =>
+        Effect.sync(() => {
+          asked.push(`${query.indicator} ${query.from}-${query.to}`)
+        }).pipe(
+          Effect.as({
+            observations: (published.get(query.indicator)?.values ?? []).filter(
+              (observation) =>
+                query.countries.includes(observation.country) &&
+                observation.year >= query.from &&
+                observation.year <= query.to,
+            ),
+            url: `https://api.worldbank.org/v2/indicator/${query.indicator}`,
             retrievedAt,
-          })
-    },
-    observations: (query) =>
-      Effect.succeed({
-        observations: (published.get(query.indicator)?.values ?? []).filter(
-          (observation) =>
-            query.countries.includes(observation.country) &&
-            observation.year >= query.from &&
-            observation.year <= query.to,
+          }),
         ),
-        url: `https://api.worldbank.org/v2/indicator/${query.indicator}`,
-        retrievedAt,
-      }),
-    indicators: Effect.succeed([]),
-  }),
-)
+      indicators: Effect.succeed([]),
+    }),
+  )
+
+const worldBank = worldBankNoting()
 
 const down = Layer.succeed(
   WorldBank,
@@ -351,6 +359,31 @@ describe("POST /api/views/resolve", () => {
       })
       expect(resolved.sources.map((source) => source.indicator)).toEqual([gdp, population])
     }).pipe(Effect.provide(serve(worldBank))),
+  )
+
+  it.effect(
+    "resolves a relation over time for both indicators over its span, one request each",
+    () => {
+      const asked: Array<string> = []
+
+      return Effect.gen(function* () {
+        const client = yield* HttpApiTest.groups(Api, ["views"])
+
+        const resolved = yield* client.views.resolve({
+          payload: Relation.make({
+            indicator: gdp,
+            against: population,
+            countries: ["FRA", "DEU"],
+            year: year(2020),
+            span: { from: year(2018), to: year(2020) },
+          }),
+        })
+
+        expect(asked).toEqual([`${gdp} 2018-2020`, `${population} 2018-2020`])
+        expect("against" in resolved && resolved.against.observations).toHaveLength(5)
+        expect(resolved.missing).toEqual([])
+      }).pipe(Effect.provide(serve(worldBankNoting(asked))))
+    },
   )
 
   it.effect("fails with IndicatorNotFound for an unknown indicator", () =>

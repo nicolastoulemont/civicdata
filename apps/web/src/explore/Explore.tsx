@@ -18,8 +18,8 @@ import {
   type View,
   Year,
 } from "@civicdata/domain"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Match } from "effect"
+import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { Match, Struct } from "effect"
 import { Fragment, type ReactNode, use, useState } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -51,12 +51,15 @@ import { Disagreements } from "./Disagreements.tsx"
 import {
   oneYear,
   overTime,
+  type Spanned,
   withAgainst,
   withCountries,
   withIndicator,
   withPer,
   withPicks,
+  withSpan,
   withTransform,
+  withYear,
 } from "./edits.ts"
 import { Flags } from "./Flags.tsx"
 import {
@@ -75,7 +78,7 @@ import type { Paired } from "./points.ts"
 import { archives, cited, officialPages, terms, tints } from "./politics.ts"
 import { places } from "./preview.ts"
 import { RankedChart } from "./RankedChart.tsx"
-import { RelationChart } from "./RelationChart.tsx"
+import { RelatedChart } from "./RelatedChart.tsx"
 import { ShowAs } from "./ShowAs.tsx"
 import { Takeaway } from "./Takeaway.tsx"
 import { type History, TrendChart } from "./TrendChart.tsx"
@@ -132,31 +135,56 @@ const Years = ({ view, onChange }: YearsProps) =>
         onChange={(span) => onChange(Change.make({ ...change, ...span }))}
       />
     ),
-    Ranking: (ranking) => <RankingYears ranking={ranking} onChange={onChange} />,
-    Relation: (relation) => (
-      <YearSelect
-        label="Year"
-        value={relation.year}
-        options={years()}
-        onChange={(year) => onChange(Relation.make({ ...relation, year }))}
-      />
-    ),
+    Ranking: (ranking) => <SpanYears view={ranking} onChange={onChange} />,
+    Relation: (relation) => <SpanYears view={relation} onChange={onChange} />,
   })
 
-interface RankingYearsProps {
-  ranking: typeof Ranking.Type
+interface SpanYearsProps {
+  view: Spanned
   onChange: (view: View) => void
 }
 
+// The years a chart over time starts from: its indicator's whole history, or
+// for a relation, the years each country has a value for both indicators.
+const historyFor = async (view: Spanned, queryClient: QueryClient) => {
+  const main = queryClient.fetchQuery(resolveQuery(historyOf(view)))
+
+  return Match.value(view).pipe(
+    Match.tag("Ranking", async () => (await main).observations),
+    Match.tag("Relation", async (relation) => {
+      const [own, against] = await Promise.all([
+        main,
+        // The indicator it is plotted against, as published.
+        queryClient.fetchQuery(
+          resolveQuery(
+            historyOf(
+              Relation.make({
+                ...Struct.omit(relation, ["dimensions"]),
+                indicator: relation.against,
+                against: relation.indicator,
+              }),
+            ),
+          ),
+        ),
+      ])
+
+      const held = new Set(against.observations.map(({ country, year }) => `${country} ${year}`))
+
+      return own.observations.filter(({ country, year }) => held.has(`${country} ${year}`))
+    }),
+    Match.exhaustive,
+  )
+}
+
 // One year, or a span of years the chart moves through with a slider.
-// Switching to over time first loads the ranking's whole history, to start
-// the span at the first year every country shares.
-const RankingYears = ({ ranking, onChange }: RankingYearsProps) => {
+// Switching to over time first loads the chart's whole history, to start the
+// span at the first year every country shares.
+const SpanYears = ({ view, onChange }: SpanYearsProps) => {
   const queryClient = useQueryClient()
 
   const spanning = useMutation({
-    mutationFn: () => queryClient.fetchQuery(resolveQuery(historyOf(ranking))),
-    onSuccess: (history) => onChange(overTime(ranking, history.observations)),
+    mutationFn: () => historyFor(view, queryClient),
+    onSuccess: (history) => onChange(overTime(view, history)),
   })
 
   return (
@@ -164,11 +192,11 @@ const RankingYears = ({ ranking, onChange }: RankingYearsProps) => {
       <ToggleGroup
         aria-label="Years shown"
         variant="outline"
-        value={[ranking.span === undefined ? "one" : "over"]}
+        value={[view.span === undefined ? "one" : "over"]}
         onValueChange={(next: Array<string>) => {
-          if (next.includes("one") && ranking.span !== undefined) onChange(oneYear(ranking))
+          if (next.includes("one") && view.span !== undefined) onChange(oneYear(view))
 
-          if (next.includes("over") && ranking.span === undefined) spanning.mutate()
+          if (next.includes("over") && view.span === undefined) spanning.mutate()
         }}
       >
         <ToggleGroupItem value="one">One year</ToggleGroupItem>
@@ -176,26 +204,18 @@ const RankingYears = ({ ranking, onChange }: RankingYearsProps) => {
           Over time
         </ToggleGroupItem>
       </ToggleGroup>
-      {ranking.span === undefined ? (
+      {view.span === undefined ? (
         <YearSelect
           label="Year"
-          value={ranking.year}
+          value={view.year}
           options={years()}
-          onChange={(year) => onChange(Ranking.make({ ...ranking, year }))}
+          onChange={(year) => onChange(withYear(view, year))}
         />
       ) : (
         <Span
-          from={ranking.span.from}
-          to={ranking.span.to}
-          onChange={(span) =>
-            onChange(
-              Ranking.make({
-                ...ranking,
-                span,
-                year: Year.make(Math.min(Math.max(ranking.year, span.from), span.to)),
-              }),
-            )
-          }
+          from={view.span.from}
+          to={view.span.to}
+          onChange={(span) => onChange(withSpan(view, span))}
         />
       )}
       {spanning.isError ? (
@@ -391,7 +411,7 @@ interface ChartProps {
 const Chart = ({ resolved, picking, moving, politics }: ChartProps) => (
   <div className="space-y-3">
     {"against" in resolved ? (
-      <RelationChart resolved={resolved} />
+      <RelatedChart resolved={resolved} moving={moving} />
     ) : (
       <Single resolved={resolved} picking={picking} moving={moving} politics={politics} />
     )}
@@ -458,25 +478,38 @@ interface MovingOptions {
   onChange: (view: View) => void
 }
 
-// How a ranking over time moves through its years: from the year it saves,
-// with the agent's year marked when the agent answered with a ranking. Every
-// year the slider lets go on is saved as a change of the View.
-const movingOf = (view: View, { agent, onChange }: MovingOptions): Moving | undefined =>
-  Match.value(view).pipe(
+// How a ranking or relation over time moves through its years: from the year
+// it saves, with the agent's year marked when the agent answered with a
+// chart of one year or over time. Every year the slider lets go on, or play
+// pauses on, is saved as a change of the View.
+const movingOf = (view: View, { agent, onChange }: MovingOptions): Moving | undefined => {
+  const answered = Match.value(agent).pipe(
+    Match.tag("Ranking", "Relation", (chart) => chart.year),
+    Match.orElse(() => undefined),
+  )
+
+  return Match.value(view).pipe(
     Match.tag("Ranking", (ranking) =>
       ranking.span === undefined
         ? undefined
         : {
             year: ranking.year,
-            agent: Match.value(agent).pipe(
-              Match.tag("Ranking", (answered) => answered.year),
-              Match.orElse(() => undefined),
-            ),
+            agent: answered,
             onYear: (year: Year) => onChange(Ranking.make({ ...ranking, year })),
+          },
+    ),
+    Match.tag("Relation", (relation) =>
+      relation.span === undefined
+        ? undefined
+        : {
+            year: relation.year,
+            agent: answered,
+            onYear: (year: Year) => onChange(Relation.make({ ...relation, year })),
           },
     ),
     Match.orElse(() => undefined),
   )
+}
 
 // The About tab's headings sit one level below the card's title.
 const below = { h1: "h2", h3: "h4" } as const

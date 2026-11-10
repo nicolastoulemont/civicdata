@@ -34,3 +34,23 @@ export const pairs = (resolved: Paired) =>
 
     return x === undefined || y === undefined ? [] : [{ country, x, y }]
   })
+
+// Each country's dot in every year it has a value for both indicators,
+// oldest first: the path a relation over time moves it along.
+export const paths = (resolved: Paired) => {
+  const against = new Map(
+    resolved.against.observations.map(({ country, year, value }) => [`${country} ${year}`, value]),
+  )
+
+  return resolved.view.countries.map((country) => ({
+    country,
+    points: resolved.observations
+      .filter((observation) => observation.country === country)
+      .toSorted((left, right) => left.year - right.year)
+      .flatMap(({ year, value }) => {
+        const x = against.get(`${country} ${year}`)
+
+        return x === undefined ? [] : [{ year, x, y: value }]
+      }),
+  }))
+}

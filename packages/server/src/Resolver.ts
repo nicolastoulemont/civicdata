@@ -223,17 +223,20 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
                 }
               }),
             ),
+          // A relation over time fetches both indicators over its span.
           Relation: (relation) =>
             Effect.all(
               [
-                values({ ...relation, from: relation.year, to: relation.year }),
+                values({
+                  ...relation,
+                  ...(relation.span ?? { from: relation.year, to: relation.year }),
+                }),
                 // The View's dimensions pick the series of `indicator` only.
                 values({
                   ...relation,
                   indicator: relation.against,
                   dimensions: {},
-                  from: relation.year,
-                  to: relation.year,
+                  ...(relation.span ?? { from: relation.year, to: relation.year }),
                 }),
               ],
               { concurrency: 2 },

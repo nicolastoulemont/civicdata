@@ -87,14 +87,17 @@ export interface Change extends Schema.Schema.Type<typeof Change> {}
 
 // One indicator against another for some countries in a single year, drawn
 // as a dot per country: `indicator` up the side, `against` along the bottom.
-// `dimensions` picks the series of `indicator`.
+// `dimensions` picks the series of `indicator`. A relation with a span moves
+// each dot through its years, showing `year`.
 export const Relation = Schema.TaggedStruct("Relation", {
   indicator: IndicatorId,
   against: IndicatorId,
   countries: Countries,
   year: Year,
+  span: Schema.optionalKey(Span),
   dimensions: Schema.optionalKey(Dimensions),
 }).check(
+  within,
   Schema.makeFilter(
     (relation) => relation.indicator !== relation.against || "against must be another indicator",
   ),

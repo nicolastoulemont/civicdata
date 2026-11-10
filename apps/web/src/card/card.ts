@@ -458,10 +458,12 @@ const drawMap = async (image: Canvas, resolved: ResolvedView, box: Box) => {
 
 // Draws a resolved View as a PNG link-preview card: the indicator, the
 // countries and years, the chart, and the source. A map waits for its
-// outlines to load. A ranking over time draws the year it saved, as a ranking
-// of that year.
+// outlines to load. A chart over time draws the year it saved, as a chart of
+// that year.
 export const card = async (fetched: ResolvedView) => {
-  const resolved = isRanked(fetched) ? inYear(fetched, fetched.view.year) : fetched
+  const resolved =
+    isRanked(fetched) || "against" in fetched ? inYear(fetched, fetched.view.year) : fetched
+
   const image = canvas(width, height)
   const view = resolved.view
   const known = indicatorNames([resolved])

@@ -23,8 +23,8 @@ import { withPicks, withTransform } from "./edits.ts"
 // ?chart=trend&indicator=SP.POP.TOTL&countries=FRA,DEU&from=2000&to=2022&transform=index
 // ?chart=relation&indicator=SP.DYN.LE00.IN&against=NY.GDP.PCAP.CD&countries=FRA,DEU&year=2022
 // A ratio names the indicator it divides by: &transform=ratio&per=NY.GDP.MKTP.CD
-// A ranking drawn as a map adds &as=map, and one over time the span its year
-// lies in: &from=1990&to=2022. An SDMX indicator adds the
+// A ranking drawn as a map adds &as=map. A ranking or relation over time adds
+// the span its year lies in: &from=1990&to=2022. An SDMX indicator adds the
 // value of each dimension: &dimensions=sex:T,age:Y15-74
 // A trend lists what it draws over its lines besides the View, outside it:
 // &overlays=governments
@@ -68,6 +68,8 @@ const Search = Schema.Union([
     against: IndicatorId,
     countries: Schema.String,
     year: Year,
+    from: Schema.optionalKey(Year),
+    to: Schema.optionalKey(Year),
     dimensions: Schema.optionalKey(Schema.String),
   }),
 ])
@@ -184,11 +186,19 @@ export const toView = (search: Search): View =>
         dimensions,
       ),
     ),
-    Match.when({ chart: "relation" }, ({ indicator, against, countries, year, dimensions }) =>
-      picking(
-        Relation.make({ indicator, against, countries: countryList(countries.split(",")), year }),
-        dimensions,
-      ),
+    Match.when(
+      { chart: "relation" },
+      ({ indicator, against, countries, year, from, to, dimensions }) =>
+        picking(
+          Relation.make({
+            indicator,
+            against,
+            countries: countryList(countries.split(",")),
+            year,
+            ...spanOfParams(from, to),
+          }),
+          dimensions,
+        ),
     ),
     Match.exhaustive,
   )
@@ -238,12 +248,13 @@ export const toSearch = (view: View, overlays: ReadonlyArray<Overlay> = []): Sea
       ...transformParams(transform),
       ...dimensionParams(dimensions),
     }),
-    Relation: ({ indicator, against, countries, year, dimensions }) => ({
+    Relation: ({ indicator, against, countries, year, span, dimensions }) => ({
       chart: "relation" as const,
       indicator,
       against,
       countries: countries.join(","),
       year,
+      ...spanParams(span),
       ...dimensionParams(dimensions),
     }),
   })

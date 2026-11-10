@@ -28,14 +28,14 @@ export const flagLabels: Record<Flag, string> = {
   Break: "Break in series",
 }
 
-// The years a View covers: "2000–2022" for a trend or a ranking over time,
+// The years a View covers: "2000–2022" for a trend or a chart over time,
 // "2000 and 2022" for a change, or "2020" for a single year.
 export const period = (view: View) =>
   Match.valueTags(view, {
     Trend: ({ from, to }) => `${from}–${to}`,
     Change: ({ from, to }) => `${from} and ${to}`,
     Ranking: ({ year, span }) => (span === undefined ? `${year}` : `${span.from}–${span.to}`),
-    Relation: ({ year }) => `${year}`,
+    Relation: ({ year, span }) => (span === undefined ? `${year}` : `${span.from}–${span.to}`),
   })
 
 // What the chart's values are when the View has a transform, e.g. "per person"

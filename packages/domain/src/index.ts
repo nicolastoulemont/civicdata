@@ -110,6 +110,7 @@ export {
   isRanked,
   Observation,
   type Ranked,
+  type Related,
   ResolvedView,
 } from "./ResolvedView.ts"
 
