@@ -5,6 +5,7 @@ civicdata charts public data about countries from the World Bank, Eurostat and t
 ## Product rules
 
 - Every value a chart shows comes from a fetched observation that carries its provenance: source, dataset, URL, retrieval time. Code never computes a charted value from memory or model output. The agent's own words sit beside the charts and are not checked against the data.
+- Every reason the agent gives for why a figure changed cites a research finding from `packages/server/src/research/findings.json`, the same way every number comes from a fetched observation. The agent states no cause from the model's own knowledge, and events stay causeless: their summaries say what happened, never what it did to a chart. A finding stores our own wording and each study's bibliographic data, never the papers' text, and every study links a copy anyone can read that someone opened and read before adding it (see `packages/server/src/research/README.md`).
 - Source attribution stays visible on every chart, including shared and embedded ones. The World Bank, Eurostat and OECD all require it.
 
 ## Effect

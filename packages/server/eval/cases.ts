@@ -919,4 +919,48 @@ export const cases: ReadonlyArray<Case> = [
       }),
     ],
   },
+
+  // Why a figure moved, which the agent answers only by citing a research
+  // finding from find_research, and with none states no cause.
+  {
+    questions: ["Why did Ireland's GDP jump in 2015?"],
+    accepts: [
+      Trend({
+        indicators: [...gdp.worldBank, ...gdpGrowth.worldBank, ...gdpPerPerson.worldBank],
+        series: [...gdp.eurostat, ...gdpGrowth.eurostat, ...gdpPerPerson.eurostat],
+        countries: ["IRL"],
+        // An agreed finding.
+        cites: ["finding:ireland-gdp-2015"],
+      }),
+      Change({
+        indicators: [...gdp.worldBank, ...gdpPerPerson.worldBank],
+        series: [...gdp.eurostat, ...gdpPerPerson.eurostat],
+        countries: ["IRL"],
+        cites: ["finding:ireland-gdp-2015"],
+      }),
+    ],
+  },
+  {
+    questions: ["Why did unemployment fall in Germany after 2005?"],
+    accepts: [
+      Trend({
+        indicators: unemployment.worldBank,
+        series: [...unemployment.eurostat, ...unemployment.oecd],
+        countries: ["DEU"],
+        // A disputed finding, which the answer gives with both sides.
+        cites: ["finding:hartz-reforms"],
+      }),
+    ],
+  },
+  {
+    questions: ["Why has life expectancy risen in Japan?"],
+    accepts: [
+      Trend({
+        indicators: lifeExpectancy.worldBank,
+        countries: ["JPN"],
+        // No finding covers it: the answer states no cause and cites none.
+        cites: [],
+      }),
+    ],
+  },
 ]

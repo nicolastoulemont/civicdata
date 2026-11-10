@@ -2,6 +2,8 @@ export { Api, ConversationApi } from "./Api.ts"
 
 export { CatalogEntry } from "./Catalog.ts"
 
+export { Cited, idOf, nameOf, RecordId } from "./Cited.ts"
+
 export {
   Answered,
   Asked,
@@ -33,6 +35,8 @@ export {
   Rejected,
   Rejection,
   Rendered,
+  Research,
+  Researched,
   Running,
   Search,
   Searched,
@@ -68,30 +72,28 @@ export {
   TurnNotFound,
 } from "./Errors.ts"
 
+export { bylineOf, Evidence, Finding, type Study } from "./Finding.ts"
+
 export { Indicator, IndicatorId, IndicatorNotes } from "./Indicator.ts"
 
 export {
   areas,
   Ballot,
   type Citation,
-  Cited,
   covers,
   Day,
   type Election,
   End,
   type Event,
   type Government,
-  idOf,
   members,
   Moment,
-  nameOf,
   Overlay,
   Overlays,
   Party,
   PartyColor,
   Politics,
   Publisher,
-  RecordId,
   type Reform,
   Scope,
   When,
