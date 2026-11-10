@@ -32,6 +32,9 @@
   // Cloudflare calls a Durable Object's handlers.
   "usedClassMembers": [{ "implements": "DurableObject", "members": ["fetch", "alarm"] }],
   "effect": { "schemaExportsAsTypes": true },
+  // Two maps can project the same place at the same size, e.g. the Hawaii
+  // inset on North America and the Americas, so generated outlines repeat.
+  "duplicates": { "ignore": ["apps/web/src/explore/maps/**"] },
   // shadcn's generated components are kept close to upstream rather than
   // restructured; complexity limits apply to our own code. Build scripts run by
   // hand; tests check what they write (faces.gen.ts), not the scripts.

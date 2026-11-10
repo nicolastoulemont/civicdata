@@ -1,42 +1,23 @@
-import { type Country, countries, type ResolvedView } from "@civicdata/domain"
+import { type Country, countries, regionOf, type ResolvedView } from "@civicdata/domain"
 import { use, useId } from "react"
 
 import { countryName, formatCompact, formatValue } from "./format.ts"
 import { blend } from "./palette.ts"
-import { offMap, path, pick, type Sheet, shades } from "./sheet.ts"
-
-const titles: Record<Sheet["name"], string> = { World: "World map", Europe: "Map of Europe" }
-
-// Each map's outlines, imported the first time a map of them is shown, so a
-// world map never downloads Europe's and the reverse.
-const imports: Record<Sheet["name"], () => Promise<Sheet>> = {
-  World: () => import("./world.gen.ts").then((module) => module.world),
-  Europe: () => import("./europe.gen.ts").then((module) => module.europe),
-}
-
-const loaded = new Map<Sheet["name"], Promise<Sheet>>()
-
-// The same promise for every render, as `use` needs.
-const load = (name: Sheet["name"]) => {
-  const loading = loaded.get(name) ?? imports[name]()
-
-  loaded.set(name, loading)
-
-  return loading
-}
+import { load, offMap, path, shades } from "./sheet.ts"
 
 interface RankingMapProps {
   resolved: ResolvedView
 }
 
-// A map shaded by rank, with a key of each shade's values: Europe when every
-// country asked for is European, else the world. It suspends while that
-// map's outlines load. A country without a value, or not asked for, stays
-// blank; the land around Europe is fainter still. A note names the countries
-// too small to draw; the data table lists every value.
+// A map shaded by rank, with a key of each shade's values: of the first
+// region holding every country asked for, else of the world. It suspends
+// while that map's outlines load. A country without a value, or not asked
+// for, stays blank; the land around a region is fainter still. A note names
+// the countries too small to draw; the data table lists every value.
 export const RankingMap = ({ resolved }: RankingMapProps) => {
   const caption = useId()
-  const sheet = use(load(pick(resolved.view.countries)))
+  const region = regionOf(resolved.view.countries)
+  const sheet = use(load(region))
   const { byCountry, key } = shades(resolved.observations)
   const values = new Map(resolved.observations.map((each) => [each.country, each.value]))
 
@@ -62,7 +43,7 @@ export const RankingMap = ({ resolved }: RankingMapProps) => {
       <figcaption
         id={caption}
         className="sr-only"
-      >{`${titles[sheet.name]} ranking countries by ${resolved.title}`}</figcaption>
+      >{`${region === undefined ? "World map" : `Map of ${region.name}`} ranking countries by ${resolved.title}`}</figcaption>
       <svg
         viewBox={`0 0 ${sheet.width} ${sheet.height}`}
         className="h-auto max-h-[70svh] w-full"
