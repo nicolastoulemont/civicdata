@@ -304,6 +304,37 @@ const searched = Ended.cases.Search.make({
   }),
 })
 
+// Three questions: one chart, two charts, and one no indicator answers.
+const threeQuestions = [
+  brazilAnswer,
+  twoCharts,
+  { question: "What about happiness?", answer: Unanswered.make({}) },
+]
+
+// happy-dom has no layout. Lays the questions out 800px apart in a 600px
+// viewport, each where it sits at the viewport's scroll position.
+const layOut = () => {
+  const viewport = screen.getByRole("region", { name: "Conversation" })
+  const questions = screen.getByRole("list", { name: "Questions and answers" }).children
+
+  Object.defineProperties(viewport, {
+    clientHeight: { configurable: true, value: 600 },
+    scrollHeight: { configurable: true, value: 2400 },
+  })
+
+  for (const [place, question] of [...questions].entries()) {
+    question.getBoundingClientRect = () =>
+      new DOMRect(0, place * 800 - viewport.scrollTop, 736, 700)
+  }
+
+  return viewport
+}
+
+const findRail = () => screen.findByRole("toolbar", { name: "Questions" })
+
+const ticksOf = (rail: HTMLElement) =>
+  within(rail).getAllByRole("button", { name: /^Jump to question: / })
+
 describe("Conversation", () => {
   it("asks the question from the home page, shows each step, then the chart", async () => {
     const reply = answer()
@@ -754,6 +785,92 @@ describe("Conversation", () => {
     expect(source.compareDocumentPosition(composer) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     )
+  })
+
+  it("jumps between questions from the rail and marks the one in view", async () => {
+    const user = userEvent.setup()
+
+    network.use(turns(threeQuestions), resolve)
+    show()
+
+    const ticks = ticksOf(await findRail())
+
+    expect(ticks.map((tick) => tick.getAttribute("aria-label"))).toEqual([
+      "Jump to question: Life expectancy in Brazil",
+      "Jump to question: Life expectancy in Brazil, and in Mexico",
+      "Jump to question: What about happiness?",
+    ])
+
+    const viewport = layOut()
+
+    await user.hover(ticks[1]!)
+    const card = await screen.findByRole("tooltip")
+    expect(within(card).getByText("Life expectancy in Brazil, and in Mexico")).toBeDefined()
+    // The first chart's takeaway starts an answer of two charts.
+    expect(within(card).getByText("Life expectancy in Brazil rose.")).toBeDefined()
+
+    await user.click(ticks[1]!)
+    // The question lands 24px from the top. Browsers then fire a scroll event.
+    await vi.waitFor(() => expect(viewport.scrollTop).toBe(776))
+    fireEvent.scroll(viewport)
+
+    expect(ticks[1]!.getAttribute("aria-current")).toBe("location")
+    expect(ticks[0]!.getAttribute("aria-current")).toBeNull()
+    expect(screen.getByRole("button", { name: "Scroll to end" })).toBeDefined()
+  })
+
+  it("reaches the rail by Tab, moves between its questions with arrows, and jumps with Enter", async () => {
+    const user = userEvent.setup()
+
+    network.use(turns(threeQuestions), resolve)
+    show()
+
+    const ticks = ticksOf(await findRail())
+    const viewport = layOut()
+
+    screen.getByRole("link", { name: "civicdata" }).focus()
+    await user.tab()
+    // The previous-question button is disabled at the first question.
+    expect(document.activeElement).toBe(ticks[0])
+
+    await user.keyboard("{ArrowDown}")
+    expect(document.activeElement).toBe(ticks[1])
+    expect(
+      within(await screen.findByRole("tooltip")).getByText(
+        "Life expectancy in Brazil, and in Mexico",
+      ),
+    ).toBeDefined()
+
+    await user.keyboard("{Enter}")
+    await vi.waitFor(() => expect(viewport.scrollTop).toBe(776))
+  })
+
+  it("shows no rail for a conversation of one question", async () => {
+    network.use(turns([brazilAnswer]), resolve)
+    show()
+
+    expect(await screen.findByText("Life expectancy in Brazil rose.")).toBeDefined()
+    expect(screen.queryByRole("toolbar", { name: "Questions" })).toBeNull()
+  })
+
+  it("puts the question being answered on the rail, answering", async () => {
+    const user = userEvent.setup()
+    const reply = answer("follow")
+
+    network.use(
+      turns([brazilAnswer], { question: "And in Mexico?", started }),
+      reply.handler,
+      resolve,
+    )
+    show()
+
+    const ticks = ticksOf(await findRail())
+
+    expect(ticks).toHaveLength(2)
+    await user.hover(ticks[1]!)
+    const card = await screen.findByRole("tooltip")
+    expect(within(card).getByText("And in Mexico?")).toBeDefined()
+    expect(within(card).getByText("Answering…")).toBeDefined()
   })
 
   it("copies a question", async () => {
