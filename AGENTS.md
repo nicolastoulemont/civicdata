@@ -30,6 +30,7 @@ civicdata charts public data about countries from the World Bank, Eurostat and t
 - Server tests run inside workerd through `@cloudflare/vitest-plugin`. Its compatibility date must match the one in `packages/infra/alchemy.run.ts`.
 - Frontend tests render the feature with its real providers and fake HTTP with MSW. Register handlers on `network` from `apps/web/test/network.ts`; a request no handler answers fails the test. Use same-origin URLs: happy-dom sends a CORS preflight before any cross-origin request.
 - Module mocking (`vi.mock`) fails lint. Fake through layers or MSW instead.
+- The agent eval (`packages/server/eval`) is not a check. Run it only when the user asks for an eval run in the current task: never to verify your own change, before pushing, or because you changed the prompt, a tool or the model. Its config refuses to start unless `RUN_AGENT_EVAL=1` is set; set it only under such a request. Adding or editing cases needs no run, since `pnpm check` typechecks them.
 
 ## Cloudflare Workers
 
