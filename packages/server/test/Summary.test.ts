@@ -1,7 +1,7 @@
 import {
+  Change,
   IndicatorId,
   Ranking,
-  type Relation,
   Relation as RelationView,
   type ResolvedView,
   Trend,
@@ -16,7 +16,7 @@ const youthUnemployment = IndicatorId.make("SL.UEM.1524.ZS")
 
 // Youth unemployment in Spain and Italy, unless a test passes other data.
 const resolved = (
-  view: Exclude<ResolvedView["view"], Relation>,
+  view: Trend | typeof Ranking.Type,
   {
     indicator = {
       id: youthUnemployment,
@@ -99,6 +99,65 @@ describe("summarize", () => {
     expect(ranking).toMatchObject({
       year: 2024,
       bars: [55.48, 41.53, 27.9, 26.47, 20.31].map((value) => ({ value })),
+    })
+  })
+})
+
+describe("summarize how the source qualifies the values", () => {
+  // Ireland's GDP growth as Eurostat flags it: a break in series in 2015,
+  // and a provisional, estimated latest year.
+  const observations = [
+    { country: "IRL", year: Year.make(2014), value: 9.4 },
+    { country: "IRL", year: Year.make(2015), value: 25.2, flags: ["Break"] },
+    { country: "IRL", year: Year.make(2016), value: 2.1 },
+    {
+      country: "IRL",
+      year: Year.make(2024),
+      value: 1.2,
+      flags: ["Provisional", "Estimated"],
+    },
+  ] as const
+
+  it("names each break in series a trend crosses, by country and year", () => {
+    const summary = summarize(
+      resolved(
+        Trend.make({
+          indicator: youthUnemployment,
+          countries: ["IRL"],
+          from: Year.make(2014),
+          to: Year.make(2024),
+        }),
+        { observations },
+      ),
+    )
+
+    expect(summary.flagged).toEqual({
+      breaks: [{ country: "IRL", year: 2015 }],
+      provisional: 1,
+      estimated: 1,
+    })
+  })
+
+  it("names a break between the two years of a change, which the chart drops", () => {
+    const years = {
+      indicator: youthUnemployment,
+      countries: ["IRL"],
+      from: Year.make(2014),
+      to: Year.make(2016),
+    } as const
+
+    const summary = summarize({
+      ...resolved(Trend.make(years), {
+        observations: observations.filter(({ year }) => year === 2014 || year === 2016),
+      }),
+      view: Change.make(years),
+      breaks: [{ country: "IRL", year: Year.make(2015) }],
+    })
+
+    expect(summary.flagged).toEqual({
+      breaks: [{ country: "IRL", year: 2015 }],
+      provisional: 0,
+      estimated: 0,
     })
   })
 })

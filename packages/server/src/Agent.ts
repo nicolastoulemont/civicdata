@@ -13,6 +13,7 @@ import {
   Covered,
   Definition,
   type Dimension,
+  Dimensions,
   type DimensionsMissing,
   End,
   type Explanation,
@@ -24,6 +25,7 @@ import {
   bylineOf,
   idOf,
   IndicatorId,
+  IndicatorNotes,
   type IndicatorNotFound,
   kindOf,
   Located,
@@ -93,6 +95,7 @@ import { FetchHttpClient } from "effect/http"
 import { Catalog } from "./Catalog.ts"
 import { cite } from "./Citations.ts"
 import { Findings } from "./Findings.ts"
+import { Notes } from "./Notes.ts"
 import { Politics } from "./Politics.ts"
 import { Resolver } from "./Resolver.ts"
 import { Sdmx } from "./Sdmx.ts"
@@ -241,25 +244,16 @@ const Shown = Schema.TaggedStruct("Shown", {
 
 const Refused = Schema.TaggedStruct("Rejected", { problem: Schema.String })
 
+// What describe_indicator tells the model: the indicator's definition and
+// what its source writes about it, or null for the notes when the source
+// cannot be reached now.
 const Defined = Schema.TaggedStruct("Definition", {
   indicator: IndicatorId,
   source: Source,
   name: Schema.String,
   definition: Schema.String,
   dataset: Schema.String,
-})
-
-const DescribeIndicator = Tool.make("describe_indicator", {
-  description:
-    "Read an indicator's full definition from its source, to tell close indicators apart, e.g. GDP in current dollars from GDP adjusted for inflation.",
-  parameters: Schema.Struct({
-    indicator: Schema.String.annotate({
-      description: "An indicator code returned by search_indicators",
-    }),
-  }),
-  success: Schema.Union([Defined, Refused]),
-  failure: SourceUnavailable,
-  dependencies: [Report],
+  notes: Schema.NullOr(IndicatorNotes),
 })
 
 const FindCountries = Tool.make("find_countries", {
@@ -396,6 +390,22 @@ const subject = {
       "For a Eurostat or OECD indicator, the code of each dimension its series differ by, e.g. [{ dimension: 'sex', code: 'T' }]. A rejection lists the dimensions and their codes. null for World Bank indicators.",
   }),
 }
+
+const DescribeIndicator = Tool.make("describe_indicator", {
+  description:
+    "Read an indicator's full definition and its source's notes on it: how the source measures it, its limitations, how far it compares across countries and over time, and its breaks in series. Use it to tell close indicators apart, e.g. GDP in current dollars from GDP adjusted for inflation, and to answer why a line jumps, why two sources disagree, or how a figure is measured.",
+  parameters: Schema.Struct({
+    indicator: subject.indicator,
+    countries: Schema.Array(Schema.String).annotate({
+      description:
+        "ISO 3166-1 alpha-3 codes of the countries the question is about, e.g. IRL, for the OECD's notes on them; [] for none",
+    }),
+    dimensions: subject.dimensions,
+  }),
+  success: Schema.Union([Defined, Refused]),
+  failure: SourceUnavailable,
+  dependencies: [Report],
+})
 
 // What find_years tells the model: the indicator's name, the years it looked
 // at, and which of them have values for each country.
@@ -629,6 +639,14 @@ const noValues = (source: Source) =>
     ? "The World Bank has no values for these countries and years. Try other years."
     : `${source} has no annual values for these countries and years. Try other years, or another dataflow if this one is quarterly or monthly only.`
 
+// What describe_indicator reads the notes on: the OECD writes some on single
+// countries and series.
+const Described = Schema.Struct({
+  indicator: IndicatorId,
+  countries: Schema.Array(Country),
+  dimensions: Dimensions,
+})
+
 const forwards = Schema.makeFilter(
   ({ from, to }: { readonly from: Year; readonly to: Year }) =>
     from <= to || "from must not be after to",
@@ -756,6 +774,7 @@ const ToolsLayer = Tools.toLayer(
     const sdmx = yield* Sdmx
     const politics = yield* Politics
     const research = yield* Findings
+    const notes = yield* Notes
 
     // A View's values, or why the data cannot give them: no source has the
     // indicator, or its dataflow holds several series and the View has not
@@ -879,9 +898,18 @@ const ToolsLayer = Tools.toLayer(
       },
       // A code that is not an indicator's is the model's mistake, told to it
       // alone; one that names no indicator fails the step.
-      describe_indicator: ({ indicator }, { toolCallId }) =>
-        Schema.decodeEffect(IndicatorId)(indicator).pipe(
-          Effect.flatMap((id) => {
+      // Notes the source cannot give now leave the definition alone.
+      describe_indicator: ({ indicator, countries, dimensions }, { toolCallId }) =>
+        Schema.decodeUnknownEffect(Described)({
+          indicator,
+          countries,
+          dimensions: Object.fromEntries(
+            (dimensions ?? []).map(({ dimension, code }) => [dimension, code]),
+          ),
+        }).pipe(
+          Effect.flatMap((scope) => {
+            const id = scope.indicator
+
             const at = (state: typeof Definition.Type.state) =>
               Definition.make({
                 id: stepOf(toolCallId, "describe_indicator"),
@@ -889,18 +917,27 @@ const ToolsLayer = Tools.toLayer(
                 state,
               })
 
-            return reported(
-              sourceOf(id) === "World Bank" ? worldBank.describe(id) : sdmx.describe(id),
-              { at, done: (described) => at(Read.make({ name: described.indicator.name })) },
+            const read = Effect.all(
+              [
+                sourceOf(id) === "World Bank" ? worldBank.describe(id) : sdmx.describe(id),
+                notes.get(id, scope).pipe(Effect.orElseSucceed(() => null)),
+              ],
+              { concurrency: 2 },
             )
+
+            return reported(read, {
+              at,
+              done: ([described]) => at(Read.make({ name: described.indicator.name })),
+            })
           }),
-          Effect.map((described) =>
+          Effect.map(([described, written]) =>
             Defined.make({
               indicator: described.indicator.id,
               source: sourceOf(described.indicator.id),
               name: described.indicator.name,
               definition: described.indicator.definition,
               dataset: described.dataset,
+              notes: written,
             }),
           ),
           Effect.catchTags({
@@ -1157,6 +1194,8 @@ Political context: a trend of EU and OECD members can show their elections, thei
 To name a record find_politics returned, cite it by its id in double brackets, e.g. "Unemployment rose from 2008, the year the [[event:financial-crisis]] began." The record's name takes the id's place and links to its source: a government's is its head's name, an election's its year and ballot, e.g. "2017 presidential election". Never write the name of a head of government, party, election or event yourself, and cite only records find_politics returned.
 
 Why a figure moved: give a cause only from a research finding find_research returned, never from what you know. When the question asks why, or your words would say what made a figure rise or fall, call find_research with the chart's indicator, countries and years before you write about the chart. Cite a finding by its id in double brackets, as you cite records, and write it as what research found, never as what the chart shows: "Studies of the euro crisis found [[finding:euro-crisis-multipliers]]." The finding's name takes the id's place and its card lists the studies. For a disputed finding, give both sides: its claim and its objection. For a finding of one study, say it rests on one study. When find_research returns no finding, say the research you have does not cover why. You may still describe the chart and cite events from find_politics, but state no cause.
+
+Breaks in series and the sources' notes: show_chart's data lists under "flagged" each break in series the source marks, by country and year: the source changed how it measures from that year. When a chart you show crosses one, say so, naming the country, the year and the source, e.g. "Eurostat marks a break in series for Germany in 2020", so a change of method does not read as a change in the world. When a question asks why a line jumps, why two sources disagree, or how a figure is measured, call describe_indicator with the chart's indicator, countries and series before you write, and answer from the notes it returns, naming the source, e.g. "Eurostat's notes say". The notes say how the source measures a figure, never what made it move: give a cause only from find_research, as the paragraph above says. Quote no number the notes or the data do not give. If the notes do not explain it, say so instead of guessing.
 
 If no indicator of any source measures what the question asks, say so in one sentence and stop without calling show_chart. A question only about politics, with no data to chart, e.g. "Who governed Spain in 2008?", is one of those: you answer with charts.
 

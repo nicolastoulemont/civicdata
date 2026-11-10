@@ -11,6 +11,7 @@ import {
   type ResolvedView,
   Ranking,
   ResolvedView as ResolvedViewSchema,
+  sourceOf,
   SourceUnavailable,
   TooManyQuestions,
   transformOf,
@@ -87,6 +88,13 @@ const source = (indicator: IndicatorId) => ({
   retrievedAt: DateTime.makeUnsafe("2026-11-08T00:00:00Z"),
 })
 
+// A ratio cites the series it divides by.
+const sourcesOf = (single: Exclude<View, { readonly _tag: "Relation" }>) =>
+  Match.value(single.transform).pipe(
+    Match.when({ _tag: "Ratio" }, ({ per }) => [source(single.indicator), source(per)] as const),
+    Match.orElse(() => [source(single.indicator)] as const),
+  )
+
 // Answers like the API: the requested countries and years only, listing a
 // requested country with no values as missing. The fake publishes the same
 // values for every indicator.
@@ -135,18 +143,14 @@ const resolvedFor = (view: View): ResolvedView => {
       },
       sources: [source(relation.indicator), source(relation.against)] as const,
     })),
-    Match.orElse((single) => ({
-      view: single,
+    // A change keeps the breaks in series between its years; the fake has none.
+    Match.tag("Change", (change) => ({
+      view: change,
       ...fields,
-      // A ratio cites the series it divides by.
-      sources: Match.value(single.transform).pipe(
-        Match.when(
-          { _tag: "Ratio" },
-          ({ per }) => [source(single.indicator), source(per)] as const,
-        ),
-        Match.orElse(() => [source(single.indicator)] as const),
-      ),
+      sources: sourcesOf(change),
+      breaks: [],
     })),
+    Match.orElse((single) => ({ view: single, ...fields, sources: sourcesOf(single) })),
   )
 }
 
@@ -179,22 +183,42 @@ const explain = http.post("/api/views/explain", async ({ request }) => {
   )
 })
 
-// The World Bank's notes on any indicator.
-const notes = http.get("/api/indicators/:indicator/notes", ({ params }) =>
-  HttpResponse.json(
-    Schema.encodeSync(IndicatorNotes)({
-      indicator: IndicatorId.make(String(params["indicator"])),
-      relevance: "Population counts are the denominator of most indicators.",
-      limitations: "Censuses happen about every ten years; years between are estimates.",
-      producer: {
-        name: "World Population Prospects, United Nations (UN)",
-        url: "https://population.un.org/wpp/",
-      },
-      url: `https://api.worldbank.org/v2/sources/2/series/${String(params["indicator"])}/metadata?format=json`,
-      retrievedAt: DateTime.makeUnsafe("2026-11-08T00:00:00Z"),
-    }),
-  ),
-)
+// What each source writes about any of its indicators: the World Bank's
+// notes, or Eurostat's reference metadata.
+const notes = http.get("/api/indicators/:indicator/notes", ({ params }) => {
+  const indicator = IndicatorId.make(String(params["indicator"]))
+  const retrievedAt = DateTime.makeUnsafe("2026-11-08T00:00:00Z")
+
+  return HttpResponse.json(
+    Schema.encodeSync(IndicatorNotes)(
+      sourceOf(indicator) === "Eurostat"
+        ? IndicatorNotes.cases.Eurostat.make({
+            indicator,
+            concepts: "Population on 1 January counts usual residents.",
+            accuracy: null,
+            comparability: {
+              countries: null,
+              time: "Census years bring breaks in series.\n\nEurostat flags each break.",
+            },
+            coherence: null,
+            url: "https://ec.europa.eu/eurostat/api/dissemination/files?file=metadata/demo_pop_esms.sdmx.zip",
+            retrievedAt,
+          })
+        : IndicatorNotes.cases["World Bank"].make({
+            indicator,
+            relevance: "Population counts are the denominator of most indicators.",
+            limitations: "Censuses happen about every ten years; years between are estimates.",
+            methodology: null,
+            producer: {
+              name: "World Population Prospects, United Nations (UN)",
+              url: "https://population.un.org/wpp/",
+            },
+            url: `https://api.worldbank.org/v2/sources/2/series/${indicator}/metadata?format=json`,
+            retrievedAt,
+          }),
+    ),
+  )
+})
 
 interface PageProps {
   initial: View
@@ -591,37 +615,38 @@ describe("Explore", () => {
     expect(screen.getByRole("button", { name: "Retry" })).toBeDefined()
   })
 
-  it("credits Eurostat on a Eurostat chart and links to its data browser", async () => {
-    const eurostat = IndicatorId.make("ESTAT,TPS00001,1.0")
+  const eurostat = IndicatorId.make("ESTAT,TPS00001,1.0")
 
-    network.use(
-      http.post("/api/views/resolve", async ({ request }) => {
-        const view = Schema.decodeUnknownSync(Trend)(await request.json())
-        const resolved = resolvedFor(view)
+  // Eurostat's population on 1 January, with the fake's values.
+  const eurostatPopulation = http.post("/api/views/resolve", async ({ request }) => {
+    const view = Schema.decodeUnknownSync(Trend)(await request.json())
+    const resolved = resolvedFor(view)
 
-        return HttpResponse.json(
-          Schema.encodeSync(ResolvedViewSchema)({
-            view,
-            observations: resolved.observations,
-            missing: resolved.missing,
-            title: "Population on 1 January",
-            dimensions: [],
-            disagreements: [],
-            indicator: { id: eurostat, name: "Population on 1 January", definition: "" },
-            sources: [
-              {
-                indicator: eurostat,
-                name: "Population on 1 January",
-                source: "Eurostat",
-                dataset: "Population on 1 January",
-                url: "https://ec.europa.eu/eurostat/api/dissemination/sdmx/3.0/data/dataflow/ESTAT/TPS00001/1.0/*",
-                retrievedAt: DateTime.makeUnsafe("2026-11-08T00:00:00Z"),
-              },
-            ],
-          }),
-        )
+    return HttpResponse.json(
+      Schema.encodeSync(ResolvedViewSchema)({
+        view,
+        observations: resolved.observations,
+        missing: resolved.missing,
+        title: "Population on 1 January",
+        dimensions: [],
+        disagreements: [],
+        indicator: { id: eurostat, name: "Population on 1 January", definition: "" },
+        sources: [
+          {
+            indicator: eurostat,
+            name: "Population on 1 January",
+            source: "Eurostat",
+            dataset: "Population on 1 January",
+            url: "https://ec.europa.eu/eurostat/api/dissemination/sdmx/3.0/data/dataflow/ESTAT/TPS00001/1.0/*",
+            retrievedAt: DateTime.makeUnsafe("2026-11-08T00:00:00Z"),
+          },
+        ],
       }),
     )
+  })
+
+  it("credits Eurostat on a Eurostat chart and links to its data browser", async () => {
+    network.use(eurostatPopulation, notes)
     const user = userEvent.setup()
 
     show(Trend.make({ ...trend, indicator: eurostat }))
@@ -635,6 +660,29 @@ describe("Explore", () => {
     expect(
       (await screen.findByRole("link", { name: "ESTAT,TPS00001,1.0" })).getAttribute("href"),
     ).toBe("https://ec.europa.eu/eurostat/databrowser/view/tps00001/default/table")
+  })
+
+  it("shows Eurostat's notes on how it measures and compares its data", async () => {
+    network.use(eurostatPopulation, notes)
+    const user = userEvent.setup()
+
+    show(Trend.make({ ...trend, indicator: eurostat }))
+
+    await screen.findByRole("heading", { name: "Population on 1 January" })
+    await user.click(screen.getByRole("tab", { name: "About" }))
+
+    expect(
+      within(await screen.findByRole("region", { name: "Concepts and definitions" })).getByText(
+        "Population on 1 January counts usual residents.",
+      ),
+    ).toBeDefined()
+
+    const time = within(screen.getByRole("region", { name: "Comparability over time" }))
+
+    expect(time.getByText("Census years bring breaks in series.")).toBeDefined()
+    expect(time.getByText("Eurostat flags each break.")).toBeDefined()
+    // Eurostat wrote no section on accuracy.
+    expect(screen.queryByRole("region", { name: "Accuracy" })).toBeNull()
   })
 
   it("asks which series of a Eurostat dataset to show, then charts the pick", async () => {

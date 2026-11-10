@@ -963,4 +963,36 @@ export const cases: ReadonlyArray<Case> = [
       }),
     ],
   },
+  // Questions about how a figure is measured. The agent reads the source's
+  // notes with describe_indicator and names a break in series the chart
+  // crosses; the score checks the chart only, not those words.
+  {
+    // Eurostat flags Germany's 2020 activity rate with "b", the year Germany
+    // moved its labour force survey into a new system of household surveys.
+    questions: ["How has labour force participation changed in Germany since 2015?"],
+    accepts: [
+      Trend({
+        series: [
+          {
+            indicator: "ESTAT,LFSI_EMP_A,1.0",
+            dimensions: { indic_em: ["ACT"], sex: ["T"], age: ["Y15-64", "Y15-74"] },
+          },
+        ],
+        countries: ["DEU"],
+        from: 2015,
+      }),
+    ],
+  },
+  {
+    // Eurostat and the OECD both publish France's unemployment rate; their
+    // notes say how each counts it. A chart of either, or words alone, fits.
+    questions: ["Why does Eurostat's unemployment rate for France differ from the OECD's?"],
+    accepts: [
+      Trend({
+        series: [...unemployment.eurostat, ...unemployment.oecd],
+        countries: ["FRA"],
+      }),
+      Unanswered(),
+    ],
+  },
 ]

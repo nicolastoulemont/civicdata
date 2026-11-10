@@ -80,6 +80,7 @@ import { AiError, LanguageModel, type Response } from "effect/ai"
 import { HttpRouter, HttpServer } from "effect/http"
 import { HttpApiTest } from "effect/http-api"
 import { TestClock } from "effect/testing"
+import { strToU8, zipSync } from "fflate"
 
 import { Agent } from "../src/Agent.ts"
 import { AskLimit } from "../src/AskLimit.ts"
@@ -98,6 +99,7 @@ import { http, memory, memoryStorage } from "./fakes.ts"
 import participationFlow from "./fixtures/eurostat/participation-flow.json"
 import participationOptions from "./fixtures/eurostat/participation-options.csv?raw"
 import participation from "./fixtures/eurostat/participation.csv?raw"
+import unemploymentEsms from "./fixtures/eurostat/unemployment-esms.sdmx.xml?raw"
 import unemploymentFlow from "./fixtures/eurostat/unemployment-flow.json"
 import unemploymentOptions from "./fixtures/eurostat/unemployment-options.csv?raw"
 import unemploymentRates from "./fixtures/eurostat/unemployment-total.csv?raw"
@@ -299,8 +301,26 @@ const recordedSdmx = Sdmx.layer.pipe(
   ),
 )
 
-// These tests read no indicator notes.
-const notes = Layer.succeed(Notes, Notes.of({ get: () => Effect.die("no notes in these tests") }))
+// Eurostat's notes on unemployment, as recorded on 2026-11-10: the dataflow
+// links its ESMS file, zipped.
+const recordedNotes = Notes.layer.pipe(
+  Layer.provide(
+    http(
+      (url) =>
+        new Map([
+          [
+            `${eurostat}/sdmx/2.1/dataflow/ESTAT/UNE_RT_A/1.0?format=JSON`,
+            globalThis.Response.json(unemploymentFlow),
+          ],
+          [
+            `${eurostat}/files?file=metadata/lfsi_esms.sdmx.zip`,
+            new globalThis.Response(zipSync({ "lfsi_esms.sdmx.xml": strToU8(unemploymentEsms) })),
+          ],
+        ]).get(url) ?? new globalThis.Response("no recording", { status: 404 }),
+    ),
+  ),
+  Layer.provide(memory().layer),
+)
 
 interface ServeOptions {
   readonly limit?: Layer.Layer<AskLimit>
@@ -311,6 +331,7 @@ interface ServeOptions {
   readonly politics?: Layer.Layer<Politics>
   // The research findings. Without them, there are none.
   readonly findings?: Layer.Layer<Findings>
+  readonly notes?: Layer.Layer<Notes>
   // The conversations' Durable Object storage. Without it, each conversation
   // keeps its transcript in memory.
   readonly storage?: Storage
@@ -327,11 +348,13 @@ const serveApi = (
     sdmx = recordedSdmx,
     politics = Politics.unavailable,
     findings = Findings.holding([]),
+    notes = recordedNotes,
   }: ServeOptions = {},
 ) => {
   const agent = Agent.layer.pipe(
     Layer.provide(model),
     Layer.provide(findings),
+    Layer.provide(notes),
     Layer.provide(Resolver.layer),
     Layer.provide(catalog),
     Layer.provide(politics),
@@ -887,7 +910,9 @@ describe("conversations", () => {
 
   it.effect("reads an indicator's definition to the model when asked to", () => {
     const model = scripted([
-      Effect.succeed(call("describe_indicator", { indicator: lifeExpectancy })),
+      Effect.succeed(
+        call("describe_indicator", { indicator: lifeExpectancy, countries: [], dimensions: null }),
+      ),
       Effect.succeed(call("show_chart", brazil)),
     ])
 
@@ -966,9 +991,15 @@ describe("conversations", () => {
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
-  it.effect("reads a Eurostat dataflow's name and source to the model", () => {
+  it.effect("reads a Eurostat dataflow's name, source and notes to the model", () => {
     const model = scripted([
-      Effect.succeed(call("describe_indicator", { indicator: "ESTAT,UNE_RT_A,1.0" })),
+      Effect.succeed(
+        call("describe_indicator", {
+          indicator: "ESTAT,UNE_RT_A,1.0",
+          countries: [],
+          dimensions: null,
+        }),
+      ),
       Effect.succeed(words("No chart.")),
     ])
 
@@ -982,7 +1013,39 @@ describe("conversations", () => {
       )
       expect(model.prompts[1]).toContain('"name":"Unemployment by sex and age - annual data"')
       expect(model.prompts[1]).toContain('"source":"Eurostat"')
+      // Eurostat's notes on comparability over time, with where they came from.
+      expect(model.prompts[1]).toContain(
+        "The changes in the derivation of the labour status can cause breaks in the time series",
+      )
+      expect(model.prompts[1]).toContain(
+        `"url":"${eurostat}/files?file=metadata/lfsi_esms.sdmx.zip"`,
+      )
     }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("reads the definition alone when the source's notes cannot be reached", () => {
+    const model = scripted([
+      Effect.succeed(
+        call("describe_indicator", {
+          indicator: "ESTAT,UNE_RT_A,1.0",
+          countries: [],
+          dimensions: null,
+        }),
+      ),
+      Effect.succeed(words("No chart.")),
+    ])
+
+    const down = Notes.layer.pipe(
+      Layer.provide(http(() => new globalThis.Response("busy", { status: 503 }))),
+      Layer.provide(memory().layer),
+    )
+
+    return Effect.gen(function* () {
+      yield* answer("How does Eurostat measure unemployment?")
+
+      expect(model.prompts[1]).toContain('"name":"Unemployment by sex and age - annual data"')
+      expect(model.prompts[1]).toContain('"notes":null')
+    }).pipe(Effect.provide(serveApi(model.layer, { notes: down })))
   })
 
   it.effect("tells the model when a Eurostat dataflow has no annual values", () => {
@@ -1051,7 +1114,9 @@ describe("conversations", () => {
 
   for (const { source, indicator, options } of unavailable) {
     it.effect(`fails the step, then the answer, when ${source} is unreachable`, () => {
-      const model = scripted([Effect.succeed(call("describe_indicator", { indicator }))])
+      const model = scripted([
+        Effect.succeed(call("describe_indicator", { indicator, countries: [], dimensions: null })),
+      ])
 
       return Effect.gen(function* () {
         const seen: Array<Step> = []
@@ -1307,7 +1372,13 @@ describe("conversations", () => {
       )
 
       const model = scripted([
-        Effect.succeed(call("describe_indicator", { indicator: lifeExpectancy })),
+        Effect.succeed(
+          call("describe_indicator", {
+            indicator: lifeExpectancy,
+            countries: [],
+            dimensions: null,
+          }),
+        ),
       ])
 
       const read = Definition.make({
@@ -1367,7 +1438,13 @@ describe("conversations", () => {
 
       const model = scripted([
         Effect.succeed(call("search_indicators", { text: "life expectancy", source: null })),
-        Effect.succeed(call("describe_indicator", { indicator: lifeExpectancy })),
+        Effect.succeed(
+          call("describe_indicator", {
+            indicator: lifeExpectancy,
+            countries: [],
+            dimensions: null,
+          }),
+        ),
         Deferred.await(reply),
       ])
 
@@ -2439,5 +2516,46 @@ describe("finding years", () => {
       expect(model.prompts[1]).toContain("There is no indicator SP.NOPE. Search for one.")
       expect(model.prompts[2]).toContain("sex (F Females, M Males, T Total)")
     }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+})
+
+describe("breaks in series", () => {
+  it.effect("tells the model each break the source marks in the years a change spans", () => {
+    const model = scripted([
+      Effect.succeed(
+        call("show_chart", {
+          ...brazil,
+          chart: "change",
+          indicator: labourForce,
+          countries: withSweden,
+          dimensions: activityRate,
+          from: 2009,
+          to: 2025,
+        }),
+      ),
+    ])
+
+    return Effect.gen(function* () {
+      yield* recordedDay
+
+      yield* answer("How has labour force participation changed since 2009?")
+
+      // Eurostat flags Germany's 2010, 2011 and 2020 values, Italy's 2018 and
+      // Poland's 2010 and 2019 with "b". The chart shows 2009 and 2025 only.
+      expect(model.prompts[1]).toContain(
+        JSON.stringify({
+          breaks: [
+            { country: "DEU", year: 2010 },
+            { country: "DEU", year: 2011 },
+            { country: "DEU", year: 2020 },
+            { country: "ITA", year: 2018 },
+            { country: "POL", year: 2010 },
+            { country: "POL", year: 2019 },
+          ],
+          provisional: 0,
+          estimated: 0,
+        }),
+      )
+    }).pipe(Effect.provide(serveApi(model.layer, { sdmx: cachedEurostat().layer })))
   })
 })
