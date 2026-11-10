@@ -163,9 +163,7 @@ const isText = Schema.is(Text)
 
 // The ids of the records an answer's words cite, in order.
 const citedIn = (ending: Ending): ReadonlyArray<string> =>
-  blocksOf(ending).flatMap((block) =>
-    isText(block) ? (block.cites ?? []).map(({ record }) => idOf(record)) : [],
-  )
+  blocksOf(ending).flatMap((block) => (isText(block) ? (block.cites ?? []).map(idOf) : []))
 
 // How the records an answer's words cite differ from those a case names.
 const citesDiffer = (got: ReadonlyArray<string>, want: ReadonlyArray<string> | undefined) => {

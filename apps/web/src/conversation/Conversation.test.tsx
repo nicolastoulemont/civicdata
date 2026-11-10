@@ -1091,11 +1091,38 @@ describe("Conversation", () => {
     expect(screen.getByRole("button", { name: "Elections", pressed: false })).toBeDefined()
   })
 
+  it("renders the agent's Markdown as lists and tables, without raw HTML or images", async () => {
+    const text = [
+      "Life expectancy rose in **both** countries:",
+      "- Brazil gained the most\n- Mexico gained less",
+      "| Country | 2001 |\n| --- | --- |\n| Brazil | 70.4 |",
+      "<b>raw</b> ![chart](https://example.com/chart.png) [a link](javascript:alert(1))",
+    ].join("\n\n")
+
+    network.use(
+      ...kept([
+        { question: "Life expectancy in Brazil", answer: charted(plot(brazil), said(text)) },
+      ]).handlers,
+      resolve,
+    )
+    show()
+
+    expect(await screen.findByText("both")).toBeDefined()
+    expect(screen.getByText("both").tagName).toBe("STRONG")
+    expect(screen.getByText("Brazil gained the most").tagName).toBe("LI")
+    expect(screen.getByText("Mexico gained less").tagName).toBe("LI")
+    expect(screen.getByRole("cell", { name: "Brazil" })).toBeDefined()
+    // Raw HTML tags are dropped and their words kept as text.
+    expect(screen.queryByText("raw", { selector: "b" })).toBeNull()
+    expect(screen.queryByRole("img", { name: "chart" })).toBeNull()
+    expect(screen.getByText("a link").getAttribute("href")).toBe("")
+  })
+
   it("links each record the agent's words cite, and shows its card on hover", async () => {
     const user = userEvent.setup()
     const spain = Trend.make({ ...brazil, countries: ["ESP"] })
     // The record is cited in the second paragraph.
-    const text = "Life expectancy in Spain rose.\n\nIt rose under José María Aznar."
+    const text = "Life expectancy in Spain rose.\n\nIt rose under [José María Aznar](cite:0)."
 
     network.use(
       ...kept([
@@ -1103,15 +1130,7 @@ describe("Conversation", () => {
           question: "Life expectancy in Spain under each prime minister",
           answer: charted(
             plot(spain),
-            Text.make({
-              text,
-              cites: [
-                {
-                  at: text.indexOf("José"),
-                  record: Cited.cases.Government.make({ government: aznar }),
-                },
-              ],
-            }),
+            Text.make({ text, cites: [Cited.cases.Government.make({ government: aznar })] }),
           ),
         },
       ]).handlers,

@@ -38,7 +38,7 @@ const records = new Map<string, Cited>([
 ])
 
 describe("cite", () => {
-  it("writes each cited record's name in place of its id, and where it starts", () => {
+  it("links each cited record by its name, in the order cited", () => {
     expect(
       cite(
         "Youth unemployment in Spain peaked in 2013 under [[government:ESP:2011-12-21]], after the [[ event:financial-crisis ]].",
@@ -46,11 +46,8 @@ describe("cite", () => {
       ),
     ).toEqual(
       Option.some({
-        text: "Youth unemployment in Spain peaked in 2013 under Mariano Rajoy, after the Global financial crisis and Great Recession.",
-        cites: [
-          { at: 49, record: government },
-          { at: 74, record: event },
-        ],
+        text: "Youth unemployment in Spain peaked in 2013 under [Mariano Rajoy](cite:0), after the [Global financial crisis and Great Recession](cite:1).",
+        cites: [government, event],
       }),
     )
   })

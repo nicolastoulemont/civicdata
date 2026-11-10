@@ -10,7 +10,7 @@ import {
   SourceUnavailable,
 } from "./Errors.ts"
 import { IndicatorId } from "./Indicator.ts"
-import { Cited, nameOf, Overlays } from "./Politics.ts"
+import { Cited, Overlays } from "./Politics.ts"
 import { Source } from "./Source.ts"
 import { View, Year } from "./View.ts"
 
@@ -153,24 +153,34 @@ export const Rejected = Schema.TaggedStruct("Rejected", { reason: Rejection })
 // The agent fetches the data of the chart it proposed, which checks it.
 const fetch = <S extends Schema.Top>(state: S) => ({ id: StepId, view: View, state })
 
-// A political record the agent's words cite, and where its name starts in
-// the text.
-export const Cite = Schema.Struct({ at: Count, record: Cited })
+// A link to the record at `index` in a text's citations, as its Markdown
+// writes it: "[Mariano Rajoy](cite:0)".
+export const citeLink = (index: number) => `cite:${index}`
 
-// Each cited record's name stands at its place in the text.
-const placed = Schema.makeFilter(
-  ({ text, cites }: { readonly text: string; readonly cites?: ReadonlyArray<typeof Cite.Type> }) =>
-    cites === undefined ||
-    cites.every(({ at, record }) => text.startsWith(nameOf(record), at)) ||
-    "each cited record's name must stand at its place in the text",
+// The citation indexes a text links to, in order.
+const linkedIn = (text: string) =>
+  Array.from(text.matchAll(/\]\(cite:(\d+)\)/g), ([, index]) => Number(index))
+
+// Each citation is linked from the text, and each link names a citation.
+const linked = Schema.makeFilter(
+  ({ text, cites }: { readonly text: string; readonly cites?: ReadonlyArray<Cited> }) => {
+    const links = new Set(linkedIn(text))
+
+    return (
+      (links.size === (cites?.length ?? 0) &&
+        [...links].every((index) => index < (cites?.length ?? 0))) ||
+      "each citation must be linked from the text once, as [name](cite:index)"
+    )
+  },
 )
 
-// What the agent wrote, in plain text, with the political records it cites
-// in the order it cites them. Paragraphs are separated by a blank line.
+// What the agent wrote, in Markdown, with the political records it cites.
+// The text links each record by its place in `cites`, as
+// "[Mariano Rajoy](cite:0)".
 export const Text = Schema.TaggedStruct("Text", {
   text: Schema.NonEmptyString,
-  cites: Schema.optionalKey(Schema.NonEmptyArray(Cite)),
-}).check(placed)
+  cites: Schema.optionalKey(Schema.NonEmptyArray(Cited)),
+}).check(linked)
 
 // A chart of fetched data, with the political context it draws over a trend,
 // if any. The chart's card fetches its data and its source.

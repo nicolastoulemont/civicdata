@@ -2009,7 +2009,7 @@ describe("political context", () => {
     }).pipe(Effect.provide(serveApi(model.layer, { politics })))
   })
 
-  it.effect("streams words with the name of the record they cite, and keeps the record", () => {
+  it.effect("streams words linking the record they cite by its name, and keeps the record", () => {
     const model = scripted([
       Effect.succeed(records(["ESP"], { step: "spain" })),
       Effect.succeed(call("show_chart", { ...spain, overlays: ["governments"] })),
@@ -2018,7 +2018,7 @@ describe("political context", () => {
       ),
     ])
 
-    const text = "Life expectancy rose in Spain before Mariano Rajoy governed."
+    const text = "Life expectancy rose in Spain before [Mariano Rajoy](cite:0) governed."
 
     return Effect.gen(function* () {
       yield* built
@@ -2028,10 +2028,13 @@ describe("political context", () => {
 
       expect(written?.block).toMatchObject({
         text,
-        cites: [{ at: 37, record: { government: { head: "Mariano Rajoy", start: "2011-12-21" } } }],
+        cites: [{ government: { head: "Mariano Rajoy", start: "2011-12-21" } }],
       })
       expect((yield* turns).answered[0]?.answer).toMatchObject({
-        blocks: [{ overlays: ["governments"] }, { text, cites: [{ at: 37 }] }],
+        blocks: [
+          { overlays: ["governments"] },
+          { text, cites: [{ government: { head: "Mariano Rajoy" } }] },
+        ],
       })
     }).pipe(Effect.provide(serveApi(model.layer, { politics })))
   })

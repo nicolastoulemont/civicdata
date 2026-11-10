@@ -86,13 +86,11 @@ describe("score", () => {
 
     const event = Cited.cases.Event.make({ event: crisis })
 
-    const text = "Life expectancy rose after the Global financial crisis and Great Recession."
+    const text =
+      "Life expectancy rose after the [Global financial crisis and Great Recession](cite:0)."
 
     const cited = Answered.make({
-      blocks: [
-        Chart.make({ view: brazilAndMexico() }),
-        Text.make({ text, cites: [{ at: text.indexOf("Global"), record: event }] }),
-      ],
+      blocks: [Chart.make({ view: brazilAndMexico() }), Text.make({ text, cites: [event] })],
     })
 
     expect(score([{ ...expected, cites: ["event:financial-crisis"] }], cited)).toEqual([])

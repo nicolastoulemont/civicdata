@@ -1,20 +1,19 @@
-import { type Cite, type Country, nameOf } from "@civicdata/domain"
-import { Fragment } from "react"
+import { type Cited, type Country, nameOf } from "@civicdata/domain"
 
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 
 import { card } from "./politics.ts"
 
 interface MentionProps {
-  cite: typeof Cite.Type
+  record: Cited
   // The countries of the charts the words describe.
   countries: ReadonlyArray<Country>
 }
 
 // A record the agent's words cite, by its name: a link to the page that
 // establishes it, whose card shows what the chart's tooltip says of it.
-const Mention = ({ cite, countries }: MentionProps) => {
-  const { lines, pages, link } = card(cite.record, countries)
+export const Mention = ({ record, countries }: MentionProps) => {
+  const { lines, pages, link } = card(record, countries)
 
   return (
     <HoverCard>
@@ -22,7 +21,7 @@ const Mention = ({ cite, countries }: MentionProps) => {
         href={link}
         className="underline decoration-muted-foreground decoration-dotted underline-offset-4 hover:decoration-foreground"
       >
-        {nameOf(cite.record)}
+        {nameOf(record)}
       </HoverCardTrigger>
       <HoverCardContent className="flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2">
         <ul className="grid gap-1">
@@ -41,31 +40,5 @@ const Mention = ({ cite, countries }: MentionProps) => {
         </ol>
       </HoverCardContent>
     </HoverCard>
-  )
-}
-
-interface CitedProps {
-  text: string
-  // The records the text cites, in order, each where its name starts.
-  cites: ReadonlyArray<typeof Cite.Type>
-  // The countries of the charts the text describes, which name who an event
-  // concerns.
-  countries: ReadonlyArray<Country>
-}
-
-// The agent's words, with each record they cite as a mention in its place.
-export const Cited = ({ text, cites, countries }: CitedProps) => {
-  const ends = cites.map(({ at, record }) => at + nameOf(record).length)
-
-  return (
-    <>
-      {text.slice(0, cites[0]?.at)}
-      {cites.map((cite, index) => (
-        <Fragment key={cite.at}>
-          <Mention cite={cite} countries={countries} />
-          {text.slice(ends[index], cites[index + 1]?.at)}
-        </Fragment>
-      ))}
-    </>
   )
 }

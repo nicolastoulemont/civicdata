@@ -2,7 +2,7 @@ import { type Block, Chart } from "@civicdata/domain"
 import { Schema } from "effect"
 import type { ReactNode } from "react"
 
-import { Paragraphs } from "@/explore/Paragraphs"
+import { Prose } from "@/explore/Prose"
 
 const isChart = Schema.is(Chart)
 
@@ -30,7 +30,7 @@ export const Blocks = ({ blocks, charts, changed = false }: BlocksProps) => {
       {blocks.map((block, index) => {
         if (!isChart(block)) {
           return (
-            <Paragraphs
+            <Prose
               // oxlint-disable-next-line react/no-array-index-key -- a block keeps its place in its answer
               key={index}
               text={block.text}

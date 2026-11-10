@@ -882,11 +882,10 @@ const askedIn = (round: Round) =>
     })[0],
   )
 
-// What the model wrote as a block, with the names of the records it cites.
-// The answer shows plain text, so Markdown bold, which models write anyway,
-// is removed. Words that cite a record the agent did not look up are none.
+// What the model wrote as a block, with the records it cites linked by name.
+// Words that cite a record the agent did not look up are none.
 const textOf = (written: string, known: ReadonlyMap<string, Cited>) =>
-  Option.map(cite(written.replaceAll("**", "").trim(), known), ({ text, cites }) =>
+  Option.map(cite(written.trim(), known), ({ text, cites }) =>
     Arr.isReadonlyArrayNonEmpty(cites) ? Text.make({ text, cites }) : Text.make({ text }),
   )
 
@@ -911,7 +910,7 @@ const blocksIn = (
 
 // How the agent writes about a chart, in an answer and on its own.
 const writing =
-  "Write plain text without Markdown, in short paragraphs separated by a blank line. Say what the data shows: which way each country moves, which is highest or lowest, or how two indicators go together. Take numbers and years from the data, rounded if you like."
+  "Write Markdown: short paragraphs, and a list or a small table only when it reads better than sentences. No headings, images, links or HTML. Say what the data shows: which way each country moves, which is highest or lowest, or how two indicators go together. Take numbers and years from the data, rounded if you like."
 
 const instructions = (
   year: number,

@@ -16,7 +16,7 @@ import { Hold } from "@/hold"
 
 import { explain } from "./api.ts"
 import { named } from "./format.ts"
-import { Paragraphs } from "./Paragraphs.tsx"
+import { Prose } from "./Prose.tsx"
 import { toQuery } from "./search.ts"
 
 const problemOf = (error: Error) =>
@@ -53,10 +53,10 @@ interface TextProps {
 const Text = ({ said }: TextProps) =>
   Match.valueTags(said, {
     Nothing: () => null,
-    Current: ({ text }) => <Paragraphs text={text} />,
+    Current: ({ text }) => <Prose text={text} />,
     Earlier: ({ text }) => (
       <>
-        <Paragraphs text={text} className="text-muted-foreground" />
+        <Prose text={text} className="text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
           This describes the chart before your changes.
         </p>

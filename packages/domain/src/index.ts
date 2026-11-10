@@ -10,7 +10,7 @@ export {
   Chart,
   ChartIndex,
   chartsOf,
-  Cite,
+  citeLink,
   ConversationId,
   Definition,
   Ended,
