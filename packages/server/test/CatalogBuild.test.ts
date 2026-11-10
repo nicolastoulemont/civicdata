@@ -1,8 +1,9 @@
 import { type CatalogEntry, IndicatorId, Source, SourceUnavailable } from "@civicdata/domain"
 import { beforeEach, describe, expect, it } from "@effect/vitest"
 import { reset } from "cloudflare:test"
-import { Effect } from "effect"
+import { Deferred, Effect, Match } from "effect"
 import { FetchHttpClient } from "effect/http"
+import { TestClock } from "effect/testing"
 
 import { Catalog } from "../src/Catalog.ts"
 import { BuildFailed, CatalogBuild } from "../src/CatalogBuild.ts"
@@ -142,7 +143,9 @@ describe("CatalogBuild", () => {
           ? catalog.search("population").pipe(Effect.map((found) => void seen.push(names(found))))
           : Effect.void
 
-      yield* CatalogBuild.run(2).pipe(Effect.provide(steps(look).layer))
+      yield* CatalogBuild.run({ id: "build 2", generation: 2 }).pipe(
+        Effect.provide(steps(look).layer),
+      )
 
       expect(seen[0]).toContain("Population, total")
       expect(names(yield* catalog.search("population")).toSorted()).toEqual([
@@ -156,7 +159,7 @@ describe("CatalogBuild", () => {
     const run = steps()
 
     return Effect.gen(function* () {
-      yield* CatalogBuild.run(1).pipe(Effect.provide(run.layer))
+      yield* CatalogBuild.run({ id: "build 1", generation: 1 }).pipe(Effect.provide(run.layer))
 
       expect(run.ran().filter((name) => name.endsWith("OECD"))).toEqual([
         "write OECD",
@@ -197,13 +200,15 @@ describe("CatalogBuild", () => {
       yield* build(1)
       const embedded = upserts().length
 
-      yield* CatalogBuild.run(2).pipe(Effect.provide(run.layer))
+      yield* CatalogBuild.run({ id: "build 2", generation: 2 }).pipe(Effect.provide(run.layer))
 
       // Each source's one classify step finds every entry classified.
       expect(run.ran().toSorted()).toEqual([
         "classify Eurostat after 0",
         "classify OECD after 0",
         "classify World Bank after 0",
+        "lease after 0 waits",
+        "release the lease",
         "write Eurostat",
         "write OECD",
         "write World Bank",
@@ -352,11 +357,14 @@ describe("CatalogBuild", () => {
         lists["World Bank"] = edited
         const embedded = upserts().length
 
-        const error = yield* CatalogBuild.run(2).pipe(Effect.provide(run.layer), Effect.flip)
+        const error = yield* CatalogBuild.run({ id: "build 2", generation: 2 }).pipe(
+          Effect.provide(run.layer),
+          Effect.flip,
+        )
 
         expect(error).toEqual(new BuildFailed({ sources: ["World Bank"] }))
 
-        yield* CatalogBuild.run(2).pipe(Effect.provide(run.layer))
+        yield* CatalogBuild.run({ id: "build 2", generation: 2 }).pipe(Effect.provide(run.layer))
 
         expect(upserts().slice(embedded)).toEqual([2])
         expect(deletes()).toEqual([["SI.DST.10TH.10"]])
@@ -366,6 +374,141 @@ describe("CatalogBuild", () => {
       }).pipe(Effect.provide(catalogOver(lists, { index })))
     })
   }
+
+  // CI starts a build on every deploy, on top of the weekly one, so two can
+  // run at once: an older one listing what the previous deploy lists, and a
+  // newer one that also lists a child mortality rate. The older one publishes
+  // and removes the vectors its listing drops while the newer one has
+  // embedded the rate but not yet published it.
+  it.effect("keeps the vectors a newer build embeds while an older build publishes", () => {
+    const { index } = vectorize()
+    const mortality = entry("SH.DYN.MORT", "Mortality rate, under-five (per 1,000 live births)")
+
+    return Effect.gen(function* () {
+      const olderWrites = yield* Deferred.make<void>()
+      const newerWaits = yield* Deferred.make<void>()
+      const olderRemoved = yield* Deferred.make<void>()
+
+      // The older build publishes once the newer one has embedded, and
+      // signals once it has removed.
+      const older = steps((name) =>
+        Match.value(name).pipe(
+          Match.when("write World Bank", () => Deferred.succeed(olderWrites, undefined)),
+          Match.when("publish World Bank", () => Deferred.await(newerWaits)),
+          Match.when("classify World Bank after 0", () =>
+            Deferred.succeed(olderRemoved, undefined),
+          ),
+          Match.orElse(() => Effect.void),
+          Effect.asVoid,
+        ),
+      )
+
+      // The newer build stops before publishing, or before waiting for the
+      // older one, until the older one has published and removed.
+      const newer = steps((name) =>
+        Match.value(name).pipe(
+          Match.when("publish World Bank", () =>
+            Deferred.succeed(newerWaits, undefined).pipe(
+              Effect.andThen(Deferred.await(olderRemoved)),
+            ),
+          ),
+          Match.when(
+            (step) => step.startsWith("wait"),
+            () => Deferred.succeed(newerWaits, undefined),
+          ),
+          Match.orElse(() => Effect.void),
+          Effect.asVoid,
+        ),
+      )
+
+      yield* Effect.all(
+        [
+          CatalogBuild.run({ id: "build 1", generation: 1 }).pipe(
+            Effect.provide([older.layer, catalogOver(listings(), { index })], { local: true }),
+          ),
+          Deferred.await(olderWrites).pipe(
+            Effect.andThen(CatalogBuild.run({ id: "build 2", generation: 2 })),
+            // Local, so this build lists what its own sources list rather
+            // than sharing the other build's CatalogBuild.
+            Effect.provide(
+              [
+                newer.layer,
+                catalogOver(listings({ "World Bank": [...worldBankList, mortality] }), { index }),
+              ],
+              { local: true },
+            ),
+          ),
+        ],
+        { concurrency: "unbounded" },
+      )
+
+      expect(names(yield* (yield* Catalog).search("kids"))).toEqual([mortality.name])
+    }).pipe(Effect.provide(catalogOver(listings(), { index })))
+  })
+
+  it.effect("lends the lease to one Workflow instance until it releases it or it expires", () =>
+    Effect.gen(function* () {
+      const catalog = yield* CatalogBuild
+
+      expect(yield* catalog.take("first")).toBe(true)
+      expect(yield* catalog.take("second")).toBe(false)
+      // A replayed step takes it again, and only its holder releases it.
+      expect(yield* catalog.take("first")).toBe(true)
+      yield* catalog.release("second")
+      expect(yield* catalog.take("second")).toBe(false)
+
+      yield* catalog.release("first")
+      yield* catalog.release("first")
+
+      expect(yield* catalog.take("second")).toBe(true)
+
+      // A build that crashed never releases it.
+      yield* TestClock.adjust("12 hours")
+
+      expect(yield* catalog.take("third")).toBe(true)
+    }).pipe(Effect.provide(catalogOver(listings()))),
+  )
+
+  it.effect("removes no vector a newer generation lists before it is published", () => {
+    const lists = listings()
+    const { index, deletes } = vectorize()
+    const mortality = entry("SH.DYN.MORT", "Mortality rate, under-five (per 1,000 live births)")
+
+    return Effect.gen(function* () {
+      const catalog = yield* CatalogBuild
+
+      yield* catalog.write("World Bank", 1)
+      yield* catalog.embed("World Bank", { generation: 1, after: 0 })
+      lists["World Bank"] = [...worldBankList, mortality]
+      yield* catalog.write("World Bank", 2)
+      yield* catalog.embed("World Bank", { generation: 2, after: 0 })
+      yield* catalog.publish("World Bank", 1)
+
+      expect(yield* catalog.remove("World Bank")).toBe(0)
+
+      yield* catalog.publish("World Bank", 2)
+
+      expect(deletes()).toEqual([])
+      expect(names(yield* (yield* Catalog).search("kids"))).toEqual([mortality.name])
+    }).pipe(Effect.provide(catalogOver(lists, { index })))
+  })
+
+  it.effect("embeds nothing for an older build that runs after a newer one published", () => {
+    const lists = listings()
+    const { index, upserts } = vectorize()
+
+    return Effect.gen(function* () {
+      lists["World Bank"] = edited
+      yield* build(2)
+      const embedded = upserts().length
+
+      lists["World Bank"] = worldBankList
+      yield* build(1)
+
+      expect(upserts()).toHaveLength(embedded)
+      expect(names(yield* (yield* Catalog).search("how rich"))).toEqual(["GDP per capita, revised"])
+    }).pipe(Effect.provide(catalogOver(lists, { index })))
+  })
 
   it.effect("embeds a changed source in full once over the tables fingerprints made", () => {
     const lists = listings()
@@ -537,11 +680,14 @@ describe("CatalogBuild", () => {
       const run = steps(undefined, { lose: "classify World Bank after 0" })
 
       return Effect.gen(function* () {
-        const failed = yield* CatalogBuild.run(1).pipe(Effect.provide(run.layer), Effect.flip)
+        const failed = yield* CatalogBuild.run({ id: "build 1", generation: 1 }).pipe(
+          Effect.provide(run.layer),
+          Effect.flip,
+        )
 
         expect(failed).toEqual(new BuildFailed({ sources: ["World Bank"] }))
 
-        yield* CatalogBuild.run(1).pipe(Effect.provide(run.layer))
+        yield* CatalogBuild.run({ id: "build 1", generation: 1 }).pipe(Effect.provide(run.layer))
 
         const sizes = model
           .asked()

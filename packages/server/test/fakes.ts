@@ -82,7 +82,7 @@ export const memoryStorage = (
 // running, as when Workflows resumes a build. A failing step fails for good:
 // the test stands for a step whose retries all failed. The first run of the
 // step named `lose` runs, then fails without saving, as when the Worker stops
-// before Workflows saves the result.
+// before Workflows saves the result. A sleep runs `before`, then ends at once.
 export const steps = (
   before: (name: string) => Effect.Effect<void, unknown> = () => Effect.void,
   { lose }: { lose?: string } = {},
@@ -120,6 +120,12 @@ export const steps = (
             Effect.mapError((cause) => new StepFailed({ step: name, cause })),
           )
         }),
+      sleep: (name) =>
+        before(name).pipe(
+          Effect.andThen(Effect.sync(() => ran.push(name))),
+          Effect.andThen(Effect.yieldNow),
+          Effect.mapError((cause) => new StepFailed({ step: name, cause })),
+        ),
     }),
   )
 

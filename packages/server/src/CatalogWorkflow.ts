@@ -28,10 +28,13 @@ export class CatalogWorkflow extends WorkflowEntrypoint {
     const generation = event.timestamp.getTime()
 
     await Effect.runPromise(
-      Effect.all([CatalogBuild.run(generation), PoliticsBuild.run(generation)], {
-        concurrency: "unbounded",
-        mode: "result",
-      }).pipe(
+      Effect.all(
+        [CatalogBuild.run({ id: event.instanceId, generation }), PoliticsBuild.run(generation)],
+        {
+          concurrency: "unbounded",
+          mode: "result",
+        },
+      ).pipe(
         Effect.flatMap(([catalog, politics]) =>
           Effect.all([Effect.fromResult(catalog), Effect.fromResult(politics)]),
         ),
