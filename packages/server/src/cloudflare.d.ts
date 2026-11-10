@@ -6,6 +6,8 @@ declare module "cloudflare:workers" {
   export const WorkflowEntrypoint: typeof import("@cloudflare/workers-types").CloudflareWorkersModule.WorkflowEntrypoint
   export const env: {
     readonly CACHE?: import("./Cache.ts").Bucket
+    // Every stored series, filled by GatherWorkflow (Store.ts).
+    readonly SERIES?: import("./Store.ts").SeriesBucket
     readonly DB?: import("@cloudflare/workers-types").D1Database
     readonly AI?: import("./Vectors.ts").Ai
     readonly VECTORS?: import("./Vectors.ts").Index

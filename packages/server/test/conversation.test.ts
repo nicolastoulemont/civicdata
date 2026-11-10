@@ -150,6 +150,8 @@ const recordedWorldBank = Layer.succeed(
         retrievedAt: DateTime.makeUnsafe("2026-11-01T00:00:00Z"),
       }),
     indicators: Effect.succeed([]),
+    version: Effect.die("not used by conversations"),
+    series: () => Effect.die("not used by conversations"),
   }),
 )
 
@@ -1254,6 +1256,8 @@ describe("conversations", () => {
       describe: () => Effect.fail(new SourceUnavailable({ source: "World Bank" })),
       observations: () => Effect.fail(new SourceUnavailable({ source: "World Bank" })),
       indicators: Effect.fail(new SourceUnavailable({ source: "World Bank" })),
+      version: Effect.fail(new SourceUnavailable({ source: "World Bank" })),
+      series: () => Effect.fail(new SourceUnavailable({ source: "World Bank" })),
     }),
   )
 
@@ -1523,6 +1527,8 @@ describe("conversations", () => {
           describe: () => Effect.never,
           observations: () => Effect.die("no observations in this test"),
           indicators: Effect.succeed([]),
+          version: Effect.die("not used by conversations"),
+          series: () => Effect.die("not used by conversations"),
         }),
       )
 
