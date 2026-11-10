@@ -2,7 +2,7 @@ import { type CatalogEntry, Direction, type IndicatorId } from "@civicdata/domai
 import { Context, Effect, Layer, Option, Schema } from "effect"
 import { LanguageModel } from "effect/ai"
 
-import { about, openAi } from "./model.ts"
+import { about } from "./model.ts"
 
 // The model could not classify a batch: it is down, refused the request, or
 // the deployment has no model.
@@ -91,17 +91,5 @@ export class Classifier extends Context.Service<Classifier, Interface>()(
       classify: () =>
         Effect.fail(new ClassifierUnavailable({ cause: "The deployment has no OpenAI key" })),
     }),
-  )
-
-  // The agent's OpenAI model inside Workers, when the deployment has a key.
-  static readonly live = Layer.unwrap(
-    Effect.tryPromise(() => import("cloudflare:workers")).pipe(
-      Effect.map(({ env }) =>
-        env.OPENAI_API_KEY === undefined
-          ? Classifier.unavailable
-          : Classifier.layer.pipe(Layer.provide(openAi(env.OPENAI_API_KEY, env.OPENAI_MODEL))),
-      ),
-      Effect.orElseSucceed(() => Classifier.unavailable),
-    ),
   )
 }

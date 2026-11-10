@@ -405,11 +405,11 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
     }).pipe(Effect.orDie),
   )
 
-  // Inside Workers, where the Workflow runs, with D1 and paced sources.
+  // Inside Workers, where the Workflow runs, with D1 and paced sources. The
+  // Workflow provides the Classifier (CatalogWorkflow.ts).
   static readonly live = CatalogBuild.layer.pipe(
     Layer.provide(database),
     Layer.provide(Vectors.live),
-    Layer.provide(Classifier.live),
     Layer.provide(WorldBank.live),
     Layer.provide(Sdmx.live),
   )
