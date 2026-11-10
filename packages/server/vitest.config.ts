@@ -12,4 +12,13 @@ export const runtime = {
   d1Databases: ["DB"],
 }
 
-export default defineConfig({ plugins: [cloudflareTest({ miniflare: runtime })] })
+export default defineConfig({
+  plugins: [cloudflareTest({ miniflare: runtime })],
+  test: {
+    // Vitest serves a module it already transformed from its file cache, and
+    // the workers pool then sends @effect/ai-openai's 9 MB generated client to
+    // workerd in one message too large for it: the second test file to load
+    // the client crashed ("WebSocket protocol error: Message is too large").
+    fsModuleCache: false,
+  },
+})
