@@ -71,7 +71,6 @@ import {
   type Work,
   Year,
 } from "@civicdata/domain"
-import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai"
 import {
   Array as Arr,
   type Cause,
@@ -82,7 +81,6 @@ import {
   Match,
   Option,
   Queue,
-  Redacted,
   Ref,
   Result,
   Schema,
@@ -91,12 +89,12 @@ import {
   Struct,
 } from "effect"
 import { Chat, LanguageModel, Prompt, Tool, Toolkit } from "effect/ai"
-import { FetchHttpClient } from "effect/http"
 
 import { Catalog } from "./Catalog.ts"
 import { cite } from "./Citations.ts"
 import { Directions } from "./Directions.ts"
 import { Findings } from "./Findings.ts"
+import { openAi } from "./model.ts"
 import { Notes } from "./Notes.ts"
 import { Politics } from "./Politics.ts"
 import { Resolver } from "./Resolver.ts"
@@ -140,9 +138,6 @@ interface Interface {
   // the chart the agent showed.
   readonly explain: (view: View) => Effect.Effect<Explanation, Unexplained>
 }
-
-// Used when the deployment does not name a model in OPENAI_MODEL.
-export const defaultModel = "gpt-6.1-terra"
 
 // Model turns before the agent gives up on a question: enough for each of
 // three charts to search, read a definition, look up places, look up years,
@@ -1424,10 +1419,7 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
           ? Agent.unavailable
           : Agent.layer.pipe(
               Layer.provide(Findings.layer),
-              Layer.provide(Directions.layer),
-              Layer.provide(OpenAiLanguageModel.model(env.OPENAI_MODEL ?? defaultModel)),
-              Layer.provide(OpenAiClient.layer({ apiKey: Redacted.make(env.OPENAI_API_KEY) })),
-              Layer.provide(FetchHttpClient.layer),
+              Layer.provide(openAi(env.OPENAI_API_KEY, env.OPENAI_MODEL)),
             ),
       ),
       Effect.orElseSucceed(() => Agent.unavailable),

@@ -1,10 +1,13 @@
 import { type CatalogEntry, IndicatorId, type Source, SourceUnavailable } from "@civicdata/domain"
 import { D1Client } from "@effect/sql-d1"
 import { env } from "cloudflare:workers"
-import { Effect, Layer } from "effect"
+import { Effect, Layer, Schema, Stream } from "effect"
+import { AiError, LanguageModel } from "effect/ai"
 
 import { Catalog } from "../src/Catalog.ts"
 import { CatalogBuild, Step } from "../src/CatalogBuild.ts"
+import { Classifier } from "../src/Classifier.ts"
+import { Directions } from "../src/Directions.ts"
 import { Sdmx } from "../src/Sdmx.ts"
 import { type Ai, type Index, Vectors } from "../src/Vectors.ts"
 import { WorldBank } from "../src/WorldBank.ts"
@@ -153,6 +156,60 @@ export const vectorize = () => {
   return { index, upserts: () => upserts, deletes: () => deletes }
 }
 
+const Asked = Schema.fromJsonString(Schema.Array(Schema.Struct({ indicator: Schema.String })))
+
+// The OpenAI model as the classifier sees it: it answers each indicator it is
+// asked about with `answers[indicator]`, any string, and leaves out the rest.
+// It records the indicators of each request; while `answers.up` is false,
+// every request fails.
+export const openAi = (
+  answers: Record<string, string> = {},
+  state: { up: boolean } = { up: true },
+) => {
+  const asked: Array<ReadonlyArray<string>> = []
+
+  const layer = Layer.effect(
+    LanguageModel.LanguageModel,
+    LanguageModel.make({
+      generateText: ({ prompt }) =>
+        Effect.gen(function* () {
+          if (!state.up) {
+            return yield* new AiError.AiError({
+              module: "OpenAI",
+              method: "generateText",
+              reason: new AiError.UnknownError({ description: "upstream 500" }),
+            })
+          }
+
+          const text = prompt.content
+            .flatMap((message) => (message.role === "user" ? message.content : []))
+            .flatMap((part) => (part.type === "text" ? [part.text] : []))
+            .join("")
+
+          const indicators = (yield* Schema.decodeEffect(Asked)(text).pipe(Effect.orDie)).map(
+            ({ indicator }) => indicator,
+          )
+
+          asked.push(indicators)
+
+          const directions = indicators.flatMap((indicator) => {
+            const direction = answers[indicator]
+
+            return direction === undefined ? [] : [{ indicator, direction }]
+          })
+
+          return [
+            { type: "text", text: JSON.stringify({ directions }) },
+            { type: "finish", reason: "stop", usage: { inputTokens: {}, outputTokens: {} } },
+          ] as const
+        }),
+      streamText: () => Stream.die("the classifier does not stream"),
+    }),
+  )
+
+  return { layer, asked: () => asked }
+}
+
 const db = env.DB
 
 if (db === undefined) throw new Error("vitest.config.ts must bind a D1 database as DB")
@@ -160,7 +217,7 @@ if (db === undefined) throw new Error("vitest.config.ts must bind a D1 database 
 // The test Worker's D1 database is shared by every test that uses it.
 export const emptyCatalog = () =>
   db.exec(
-    "DROP TABLE IF EXISTS catalog; DROP TABLE IF EXISTS catalog_current; DROP TABLE IF EXISTS catalog_fingerprint; DROP TABLE IF EXISTS catalog_vector;",
+    "DROP TABLE IF EXISTS catalog; DROP TABLE IF EXISTS catalog_current; DROP TABLE IF EXISTS catalog_fingerprint; DROP TABLE IF EXISTS catalog_vector; DROP TABLE IF EXISTS catalog_direction;",
   )
 
 // Drops tables, leaving the catalog as an earlier version made it.
@@ -174,22 +231,33 @@ export const published = () =>
   ).pipe(Effect.map(({ results }) => results))
 
 // The real catalog and its build over the test Worker's local D1 database,
-// with the sources faked as services and Workers AI and Vectorize faked at
-// their bindings. Each layer built is a Worker starting: it creates the
-// tables it lacks.
+// with the sources faked as services, Workers AI and Vectorize faked at
+// their bindings, and the classifier's model faked as a LanguageModel. Each
+// layer built is a Worker starting: it creates the tables it lacks.
 export const catalogOver = (
   lists: Listings,
   {
     ai = workersAi({ up: true }),
     index = vectorize().index,
     model,
-  }: { ai?: Ai; index?: Index; model?: string } = {},
+    openAi: language = openAi().layer,
+  }: {
+    ai?: Ai
+    index?: Index
+    model?: string
+    openAi?: Layer.Layer<LanguageModel.LanguageModel>
+  } = {},
 ) =>
   Layer.mergeAll(Catalog.layer, CatalogBuild.layer).pipe(
     Layer.provide(sources(lists)),
     Layer.provide(Vectors.cloudflare({ ai, index, model })),
+    Layer.provide(Classifier.layer.pipe(Layer.provide(language))),
     Layer.provide(D1Client.layer({ db }).pipe(Layer.orDie)),
   )
+
+// The directions charts read: the hand-checked list, then what builds stored
+// in the test Worker's D1 database.
+export const stored = Directions.layer.pipe(Layer.provide(D1Client.layer({ db }).pipe(Layer.orDie)))
 
 export const build = (generation: number) =>
   CatalogBuild.run(generation).pipe(Effect.provide(Step.immediate))

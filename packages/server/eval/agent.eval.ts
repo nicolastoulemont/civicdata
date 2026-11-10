@@ -7,7 +7,9 @@ import { FetchHttpClient } from "effect/http"
 import { Agent } from "../src/Agent.ts"
 import { Catalog } from "../src/Catalog.ts"
 import { CatalogBuild, database, Step } from "../src/CatalogBuild.ts"
+import { Classifier } from "../src/Classifier.ts"
 import { Conversation } from "../src/Conversation.ts"
+import { Directions } from "../src/Directions.ts"
 import { Politics } from "../src/Politics.ts"
 import { PoliticsBuild } from "../src/PoliticsBuild.ts"
 import { Resolver } from "../src/Resolver.ts"
@@ -19,7 +21,8 @@ import { score } from "./score.ts"
 import { Tally } from "./Tally.ts"
 
 // Builds the catalog from the sources before the questions run. A source
-// that fails keeps the others in the catalog.
+// that fails keeps the others in the catalog. It classifies nothing, so the
+// eval spends no tokens on directions: charts read the stored ones.
 const Built = Layer.effectDiscard(
   Clock.currentTimeMillis.pipe(
     Effect.flatMap(CatalogBuild.run),
@@ -28,7 +31,11 @@ const Built = Layer.effectDiscard(
 ).pipe(
   Layer.provide(
     Layer.merge(
-      CatalogBuild.layer.pipe(Layer.provide(database), Layer.provide(Vectors.live)),
+      CatalogBuild.layer.pipe(
+        Layer.provide(database),
+        Layer.provide(Vectors.live),
+        Layer.provide(Classifier.unavailable),
+      ),
       Step.immediate,
     ),
   ),
@@ -51,6 +58,7 @@ const Live = Layer.mergeAll(Agent.live.pipe(Layer.provide(Resolver.layer)), Buil
   Layer.provide(Catalog.live),
   Layer.provide(Politics.live),
   Layer.provide(Sources),
+  Layer.provide(Directions.live),
   // The cases meter their own OpenAI tokens.
   Layer.provideMerge(Tally.layer),
 )

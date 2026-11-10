@@ -1,10 +1,11 @@
-import { CatalogEntry, IndicatorId, Source, SourceUnavailable } from "@civicdata/domain"
+import { CatalogEntry, Direction, IndicatorId, Source, SourceUnavailable } from "@civicdata/domain"
 import type { CloudflareWorkersModule } from "@cloudflare/workers-types"
 import { D1Client } from "@effect/sql-d1"
 import { Array as Arr, Context, Effect, Layer, Option, Order, Schema } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
 import { tables } from "./Catalog.ts"
+import { Classifier } from "./Classifier.ts"
 import { Sdmx } from "./Sdmx.ts"
 import { Vectors, type VectorsUnavailable } from "./Vectors.ts"
 import { WorldBank } from "./WorldBank.ts"
@@ -31,11 +32,18 @@ const rowsPerInsert = 250
 // per call.
 const perStep = 100
 
+// Entries classified per step, in one request to the model.
+const perRequest = 50
+
 const EntriesJson = Schema.fromJsonString(Schema.Array(CatalogEntry))
 
 const Pending = Schema.Struct({ rowid: Schema.Int, ...CatalogEntry.fields })
 
 const IdsJson = Schema.fromJsonString(Schema.Array(IndicatorId))
+
+const Classified = Schema.fromJsonString(
+  Schema.Array(Schema.Struct({ ...CatalogEntry.fields, direction: Direction })),
+)
 
 // The SHA-256 of the text, in hex. A build stores one beside each generation
 // it writes and skips a source or dataset whose fingerprint matches the
@@ -75,6 +83,13 @@ interface Interface {
   // Removes from Vectors up to 100 of the source's entries that its published
   // generation no longer lists, and answers how many it removed.
   readonly remove: (source: Source) => Effect.Effect<number, VectorsUnavailable>
+  // Asks the model which way the published generation's next entries after
+  // the row `after` are better, those without a direction for their current
+  // name and definition, and stores the answers. Answers the last row asked
+  // about, or null once every entry has a direction or the model failed: a
+  // failed request stores nothing, so the next build asks again, and never
+  // fails the build.
+  readonly classify: (source: Source, after: number) => Effect.Effect<number | null>
 }
 
 // A step that still failed after its retries.
@@ -137,7 +152,8 @@ export class Step extends Context.Service<
 }
 
 // Builds a new generation of the catalog: writes, embeds and publishes the
-// entries of every source, each in its own steps. Sources build side by side,
+// entries of every source, then classifies which way their values are
+// better, each in its own steps. Sources build side by side,
 // so one that stays down keeps its previous generation without holding back
 // the others; the build then fails, naming it.
 export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
@@ -150,6 +166,7 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
       const worldBank = yield* WorldBank
       const sdmx = yield* Sdmx
       const vectors = yield* Vectors
+      const classifier = yield* Classifier
 
       yield* tables
 
@@ -203,6 +220,26 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
             ON current.source = catalog.source AND current.generation = catalog.generation
           WHERE catalog.source = ${source}
           LIMIT ${perStep}
+        `,
+      })
+
+      // The published generation's entries after the row `after` with no
+      // direction for their current name and definition.
+      const unclassified = SqlSchema.findAll({
+        Request: Schema.Struct({ source: Source, after: Schema.Int }),
+        Result: Pending,
+        execute: ({ source, after }) => sql`
+          SELECT catalog.rowid, catalog.indicator, catalog.name, catalog.definition FROM catalog
+          JOIN catalog_current AS current
+            ON current.source = catalog.source AND current.generation = catalog.generation
+          WHERE catalog.source = ${source} AND catalog.rowid > ${after}
+            AND NOT EXISTS (
+              SELECT 1 FROM catalog_direction AS stored
+              WHERE stored.indicator = catalog.indicator AND stored.name = catalog.name
+                AND stored.definition = catalog.definition
+            )
+          ORDER BY catalog.rowid
+          LIMIT ${perRequest}
         `,
       })
 
@@ -326,7 +363,45 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
         Effect.catchTag("SqlError", Effect.die),
       )
 
-      return CatalogBuild.of({ write, embed, publish, remove })
+      const classify = Effect.fn("CatalogBuild.classify")(
+        function* (source: Source, after: number) {
+          const batch = yield* unclassified({ source, after })
+
+          if (!Arr.isReadonlyArrayNonEmpty(batch)) return null
+
+          const answered = yield* classifier.classify(batch).pipe(
+            Effect.tapError((error) =>
+              Effect.logWarning("Classifying directions failed", source, error.cause),
+            ),
+            Effect.option,
+          )
+
+          if (Option.isNone(answered)) return null
+
+          const rows = yield* Schema.encodeEffect(Classified)(
+            batch.map(({ indicator, name, definition }) => ({
+              indicator,
+              name,
+              definition,
+              direction: answered.value.get(indicator) ?? "Neutral",
+            })),
+          )
+
+          yield* sql`
+            INSERT INTO catalog_direction (indicator, name, definition, direction)
+            SELECT json_extract(value, '$.indicator'), json_extract(value, '$.name'),
+              json_extract(value, '$.definition'), json_extract(value, '$.direction')
+            FROM json_each(${rows}) WHERE true
+            ON CONFLICT (indicator) DO UPDATE SET name = excluded.name,
+              definition = excluded.definition, direction = excluded.direction
+          `
+
+          return Arr.lastNonEmpty(batch).rowid
+        },
+        Effect.catchTags({ SqlError: Effect.die, SchemaError: Effect.die }),
+      )
+
+      return CatalogBuild.of({ write, embed, publish, remove, classify })
     }).pipe(Effect.orDie),
   )
 
@@ -334,26 +409,24 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
   static readonly live = CatalogBuild.layer.pipe(
     Layer.provide(database),
     Layer.provide(Vectors.live),
+    Layer.provide(Classifier.live),
     Layer.provide(WorldBank.live),
     Layer.provide(Sdmx.live),
   )
 
   // One generation of every source, numbered by the build's start time, so
   // a resumed build writes the same generation and a later build a newer one.
-  // A source whose published generation already holds its listing stops
-  // after its write step. The step saves that decision, so a resumed build
-  // makes the same one. Every other decision, what to embed and what to
-  // remove, is read from D1 inside a step, which saves only a cursor or a
+  // A source whose published generation already holds its listing skips to
+  // classifying. The step saves that decision, so a resumed build
+  // makes the same one. Every other decision, what to embed, remove and
+  // classify, is read from D1 inside a step, which saves only a cursor or a
   // count.
   static readonly run = Effect.fn("CatalogBuild.run")(function* (generation: number) {
     const step = yield* Step
     const build = yield* CatalogBuild
 
-    const one = Effect.fn("CatalogBuild.source")(function* (source: Source) {
-      const written = yield* step.run(`write ${source}`, build.write(source, generation))
-
-      if (written === null) return source
-
+    // Embeds and publishes a written generation.
+    const refresh = Effect.fn("CatalogBuild.refresh")(function* (source: Source) {
       let after: number | null = 0
 
       while (after !== null) {
@@ -374,6 +447,20 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
       while (count === perStep) {
         count = yield* step.run(`remove ${source} after ${removed}`, build.remove(source))
         removed += count
+      }
+    })
+
+    const one = Effect.fn("CatalogBuild.source")(function* (source: Source) {
+      const written = yield* step.run(`write ${source}`, build.write(source, generation))
+
+      if (written !== null) yield* refresh(source)
+
+      // Every build, so a source whose listing did not change still gets the
+      // directions it lacks.
+      let after: number | null = 0
+
+      while (after !== null) {
+        after = yield* step.run(`classify ${source} after ${after}`, build.classify(source, after))
       }
 
       return source

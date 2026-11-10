@@ -1,9 +1,10 @@
-import { type CatalogEntry, Source, SourceUnavailable } from "@civicdata/domain"
+import { type CatalogEntry, IndicatorId, Source, SourceUnavailable } from "@civicdata/domain"
 import { beforeEach, describe, expect, it } from "@effect/vitest"
 import { Effect } from "effect"
 
 import { Catalog } from "../src/Catalog.ts"
 import { BuildFailed, CatalogBuild } from "../src/CatalogBuild.ts"
+import { Directions } from "../src/Directions.ts"
 import {
   build,
   catalogOver,
@@ -11,7 +12,9 @@ import {
   emptyCatalog,
   entry,
   listings,
+  openAi,
   published,
+  stored,
   vectorize,
   workersAi,
   worldBankList,
@@ -43,6 +46,14 @@ const edited = [
   ),
   entry("SH.DYN.MORT", "Mortality rate, under-five (per 1,000 live births)"),
 ]
+
+// Each indicator's direction, as charts read it.
+const read = (indicators: ReadonlyArray<IndicatorId>) =>
+  Effect.gen(function* () {
+    const directions = yield* Directions
+
+    return yield* Effect.forEach(indicators, directions.of)
+  }).pipe(Effect.provide(stored))
 
 const many = (count: number) =>
   Array.from({ length: count }, (_, index) => entry(`TEST.${index}`, `Indicator ${index}`))
@@ -185,7 +196,15 @@ describe("CatalogBuild", () => {
 
       yield* CatalogBuild.run(2).pipe(Effect.provide(run.layer))
 
-      expect(run.ran().toSorted()).toEqual(["write Eurostat", "write OECD", "write World Bank"])
+      // Each source's one classify step finds every entry classified.
+      expect(run.ran().toSorted()).toEqual([
+        "classify Eurostat after 0",
+        "classify OECD after 0",
+        "classify World Bank after 0",
+        "write Eurostat",
+        "write OECD",
+        "write World Bank",
+      ])
       expect(upserts()).toHaveLength(embedded)
       expect(yield* published()).toEqual([
         { source: "Eurostat", generation: 1 },
@@ -369,6 +388,135 @@ describe("CatalogBuild", () => {
       yield* build(3).pipe(Effect.provide(catalogOver(lists, { index })))
 
       expect(upserts().slice(embedded)).toEqual([edited.length, 1])
+    })
+  })
+
+  describe("classifying directions", () => {
+    // On the hand-checked list as Lower.
+    const unemployment = IndicatorId.make("SL.UEM.TOTL.ZS")
+    // Off the list.
+    const surgeons = IndicatorId.make("SH.MED.SAOP.P5")
+    const richest = IndicatorId.make("SI.DST.10TH.10")
+    const growth = IndicatorId.make("SP.POP.GROW")
+    const population = IndicatorId.make("SP.POP.TOTL")
+
+    // What the model answers: a direction for two entries off the list, one
+    // answer outside the three, one against the list, and the rest left out.
+    const answers = {
+      [surgeons]: "Higher",
+      [richest]: "Lower",
+      [growth]: "Better",
+      [unemployment]: "Higher",
+    }
+
+    it.effect(
+      "stores a direction for each new entry, Neutral for an answer outside the three",
+      () => {
+        const lists = listings()
+        const model = openAi(answers)
+
+        return Effect.gen(function* () {
+          yield* build(1)
+
+          // An answer outside the three and a left-out entry read Neutral, and
+          // the hand-checked list wins over the model.
+          expect(yield* read([surgeons, richest, growth, population, unemployment])).toEqual([
+            "Higher",
+            "Lower",
+            "Neutral",
+            "Neutral",
+            "Lower",
+          ])
+          expect(model.asked().flat().toSorted()).toEqual(
+            Source.literals
+              .flatMap((source) => {
+                const listed = lists[source]
+
+                return listed === "down" ? [] : listed.map(({ indicator }) => indicator)
+              })
+              .toSorted(),
+          )
+        }).pipe(Effect.provide(catalogOver(lists, { openAi: model.layer })))
+      },
+    )
+
+    it.effect("asks the model nothing when a second build finds nothing changed", () => {
+      const model = openAi(answers)
+
+      return Effect.gen(function* () {
+        yield* build(1)
+        const first = model.asked().length
+
+        yield* build(2)
+
+        expect(first).toBeGreaterThan(0)
+        expect(model.asked()).toHaveLength(first)
+      }).pipe(Effect.provide(catalogOver(listings(), { openAi: model.layer })))
+    })
+
+    it.effect("asks again about an entry whose definition changed, and only it", () => {
+      const lists = listings()
+      const model = openAi(answers)
+
+      return Effect.gen(function* () {
+        yield* build(1)
+        const first = model.asked().length
+
+        lists["World Bank"] = worldBankList.map((each) =>
+          each.indicator === unemployment
+            ? entry(each.indicator, each.name, "Share of the labor force without work, revised.")
+            : each,
+        )
+        yield* build(2)
+
+        expect(model.asked().slice(first)).toEqual([[unemployment]])
+      }).pipe(Effect.provide(catalogOver(lists, { openAi: model.layer })))
+    })
+
+    it.effect("publishes the catalog and leaves every entry Neutral when the model is down", () => {
+      const state = { up: false }
+      const model = openAi(answers, state)
+
+      return Effect.gen(function* () {
+        yield* build(1)
+
+        expect(yield* published()).toHaveLength(3)
+        expect(names(yield* (yield* Catalog).search("life expectancy"))).toEqual([
+          "Life expectancy at birth, total (years)",
+        ])
+        expect(yield* read([surgeons, richest])).toEqual(["Neutral", "Neutral"])
+
+        // The failed requests stored nothing, so the next build, with the
+        // model back, classifies them.
+        state.up = true
+        yield* build(2)
+
+        expect(yield* read([surgeons, richest])).toEqual(["Higher", "Lower"])
+      }).pipe(Effect.provide(catalogOver(listings(), { openAi: model.layer })))
+    })
+
+    it.effect("classifies a source in requests of 50 and resumes after losing a step", () => {
+      const model = openAi()
+      const run = steps(undefined, { lose: "classify World Bank after 0" })
+
+      return Effect.gen(function* () {
+        const failed = yield* CatalogBuild.run(1).pipe(Effect.provide(run.layer), Effect.flip)
+
+        expect(failed).toEqual(new BuildFailed({ sources: ["World Bank"] }))
+
+        yield* CatalogBuild.run(1).pipe(Effect.provide(run.layer))
+
+        const sizes = model
+          .asked()
+          .filter((indicators) => indicators.some((indicator) => indicator.startsWith("TEST.")))
+          .map((indicators) => indicators.length)
+
+        // The lost step's 50 were stored before it was lost, so the resumed
+        // build asks about the other 70 only.
+        expect(sizes).toEqual([50, 50, 20])
+      }).pipe(
+        Effect.provide(catalogOver(listings({ "World Bank": many(120) }), { openAi: model.layer })),
+      )
     })
   })
 })
