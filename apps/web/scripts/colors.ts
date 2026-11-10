@@ -102,10 +102,10 @@ interface Candidate {
   readonly points: readonly [Lab, Lab]
 }
 
-// The grid searched around each hue: up to 24 degrees either side, in OKLCH.
+// The grid searched around each hue: up to 40 degrees either side, in OKLCH.
 // A dark version is its light one made lighter by a fixed step, so the two
 // read as one colour.
-const turns = Array.from({ length: 13 }, (_, index) => index * 4 - 24)
+const turns = Array.from({ length: 21 }, (_, index) => index * 4 - 40)
 const lightnesses = [0.4, 0.45, 0.5, 0.55, 0.6]
 const chromas = [0.08, 0.11, 0.14, 0.17, 0.2, 0.23]
 const lighter = 0.24
@@ -279,6 +279,7 @@ const closest = (group: ReadonlyArray<Country>, theme: 0 | 1) =>
 for (const [label, group] of [
   ["EU 27", eu],
   ["OECD", oecd],
+  ["G7", ["CAN", "FRA", "DEU", "ITA", "JPN", "GBR", "USA"]],
   ["All", countries.map(({ code }) => code)],
 ] as const) {
   console.log(`${label}, light: ${closest(group, 0)}`)
