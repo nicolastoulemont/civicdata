@@ -217,6 +217,36 @@ describe("start", () => {
     }).pipe(Effect.scoped),
   )
 
+  it.effect("gives work the actor's input", () =>
+    Effect.gen(function* () {
+      const counter = Machine.make<Count, CountEvent>()({
+        initial: (ticks: number) => Count.Counting({ run: ticks, count: 0 }),
+        on: {
+          Counting: {
+            Tick: ({ run, count }) => Count.Counting({ run, count: count + 1 }),
+            Done: ({ count }) => Count.Counted({ count }),
+          },
+          Counted: { ignore: ["Tick", "Done"] },
+        },
+        work: {
+          Counting: {
+            key: ({ run }) => run,
+            run: (_, ticks) =>
+              Stream.range(1, ticks).pipe(
+                Stream.map(() => CountEvent.Tick()),
+                Stream.concat(Stream.make(CountEvent.Done())),
+              ),
+          },
+        },
+      })
+
+      const actor = yield* Machine.start(counter, 4)
+      const counted = yield* actor.changes.pipe(Stream.filter(Count.$is("Counted")), Stream.runHead)
+
+      expect(counted).toEqual(Option.some(Count.Counted({ count: 4 })))
+    }).pipe(Effect.scoped),
+  )
+
   it.effect("hands back outputs in order", () =>
     Effect.gen(function* () {
       const answers = yield* Answers

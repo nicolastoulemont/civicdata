@@ -72,9 +72,11 @@ type Covered<E extends Tagged, On> = {
 }
 
 // Work produces the machine's next events: one, from an effect, or many,
-// from a stream. Its errors come back as events, so it cannot fail.
-export type Run<State, E, R> = (
+// from a stream. It sees the state it runs for and the actor's input. Its
+// errors come back as events, so it cannot fail.
+export type Run<State, E, R, Input> = (
   state: State,
+  input: Input,
 ) => Effect.Effect<E, never, R> | Stream.Stream<E, never, R>
 
 // What keeps a state's work running: a value compared with Equal.equals.
@@ -82,24 +84,24 @@ export type Key = string | number | boolean | bigint | Equal.Equal
 
 // By default a state's work restarts whenever the state changes. A state that
 // collects progress from its own work names what restarts it with `key`.
-export type Job<State, E, R> =
-  | Run<State, E, R>
-  | { readonly key: (state: State) => Key; readonly run: Run<State, E, R> }
+export type Job<State, E, R, Input> =
+  | Run<State, E, R, Input>
+  | { readonly key: (state: State) => Key; readonly run: Run<State, E, R, Input> }
 
-export type Work<S extends Tagged, E extends Tagged, R> = {
-  readonly [K in S["_tag"]]?: Job<Of<S, K>, E, R>
+export type Work<S extends Tagged, E extends Tagged, R, Input> = {
+  readonly [K in S["_tag"]]?: Job<Of<S, K>, E, R, Input>
 }
 
 export interface Machine<Input, S extends Tagged, E extends Tagged, O, R> {
   readonly initial: (input: Input) => S
   readonly on: Table<S, E, O>
-  readonly work: Work<S, E, R>
+  readonly work: Work<S, E, R, Input>
 }
 
 interface Spec<Input, S extends Tagged, E extends Tagged, R, On> {
   readonly initial: (input: Input) => S
   readonly on: On & Covered<E, On>
-  readonly work?: Work<S, E, R>
+  readonly work?: Work<S, E, R, Input>
 }
 
 // Takes the state, event and output types first, so the table and the work
@@ -153,19 +155,19 @@ export const next = <Input, S extends Tagged, E extends Tagged, O, R>(
     : { state: result, output: Option.none() }
 }
 
-interface Running<S, E, R> {
+interface Running<S, E, R, Input> {
   readonly key: S | Key
-  readonly run: Run<S, E, R>
+  readonly run: Run<S, E, R, Input>
 }
 
 const jobOf = <Input, S extends Tagged, E extends Tagged, O, R>(
   machine: Machine<Input, S, E, O, R>,
   state: S,
-): Running<S, E, R> | undefined => {
+): Running<S, E, R, Input> | undefined => {
   // SAFETY: work is keyed by tag, so the job found under a state's tag takes
   // exactly that state.
   // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- see SAFETY
-  const work = machine.work as Readonly<Partial<Record<string, Job<S, E, R>>>>
+  const work = machine.work as Readonly<Partial<Record<string, Job<S, E, R, Input>>>>
   const job = work[tagOf(state)]
 
   if (job === undefined) return undefined
@@ -227,7 +229,7 @@ const run = Effect.fnUntraced(function* <Input, S extends Tagged, E extends Tagg
 
     if (job === undefined) return FiberHandle.clear(handle)
 
-    const produced = job.run(entered)
+    const produced = job.run(entered, input)
     const events = Stream.isStream(produced) ? produced : Stream.fromEffect(produced)
 
     return events.pipe(
