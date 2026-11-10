@@ -4,11 +4,10 @@ import { env } from "cloudflare:workers"
 import { Effect, Layer } from "effect"
 
 import { Catalog } from "../src/Catalog.ts"
-import { CatalogBuild } from "../src/CatalogBuild.ts"
+import { CatalogBuild, Step } from "../src/CatalogBuild.ts"
 import { Classifier } from "../src/Classifier.ts"
 import { Directions } from "../src/Directions.ts"
 import { Sdmx } from "../src/Sdmx.ts"
-import { Step } from "../src/Step.ts"
 import { type Ai, type Index, Vectors } from "../src/Vectors.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 

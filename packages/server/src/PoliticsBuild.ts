@@ -4,10 +4,9 @@ import { FetchHttpClient } from "effect/http"
 import { SqlClient, SqlSchema } from "effect/sql"
 
 import { ArchiveUnavailable, Archives, ElectionRecord, GovernmentRecord } from "./Archives.ts"
-import { database } from "./CatalogBuild.ts"
+import { database, Step } from "./CatalogBuild.ts"
 import { fingerprint } from "./fingerprint.ts"
 import { politicsTables, Records } from "./Politics.ts"
-import { Step } from "./Step.ts"
 
 // Each insert binds one JSON array of records, unpacked by SQLite's
 // json_each. 500 governments is about 150 KB, under D1's 2 MB limit for one

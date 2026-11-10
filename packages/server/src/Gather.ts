@@ -9,10 +9,9 @@ import { Array as Arr, Context, DateTime, Effect, Layer, Option, Schema, Stream 
 import { SqlClient, SqlSchema } from "effect/sql"
 
 import { tables } from "./Catalog.ts"
-import { database } from "./CatalogBuild.ts"
+import { database, Step } from "./CatalogBuild.ts"
 import { type Combination, Eurostat, isFinal, type Skip } from "./Eurostat.ts"
 import { Pace } from "./Pace.ts"
-import { Step } from "./Step.ts"
 import {
   byCountryYear,
   hashOf,
