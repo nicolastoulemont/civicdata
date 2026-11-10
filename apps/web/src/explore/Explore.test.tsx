@@ -180,11 +180,31 @@ const worldBank = http.post("/api/views/resolve", async ({ request }) => {
   return HttpResponse.json(Schema.encodeSync(ResolvedViewSchema)(resolvedFor(view)))
 })
 
-const search = http.get("/api/catalog/search", ({ request }) => {
+// The catalog entries whose name contains the searched text.
+const answer = (request: Request) => {
   const text = (new URL(request.url).searchParams.get("q") ?? "").toLowerCase()
 
   return HttpResponse.json(catalog.filter((entry) => entry.name.toLowerCase().includes(text)))
-})
+}
+
+const search = http.get("/api/catalog/search", ({ request }) => answer(request))
+
+// A search that answers only once let go, so a test sees what shows while
+// results load. `release` answers every search sent so far.
+const gatedSearch = () => {
+  const waiting: Array<() => void> = []
+
+  return {
+    handler: http.get("/api/catalog/search", async ({ request }) => {
+      await new Promise<void>((resolve) => waiting.push(resolve))
+
+      return answer(request)
+    }),
+    release: () => {
+      for (const resolve of waiting.splice(0)) resolve()
+    },
+  }
+}
 
 // The agent's explanation names the chart it was asked about, so a test can
 // tell which chart an explanation is for.
@@ -1029,6 +1049,58 @@ describe("Explore", () => {
     expect(
       await screen.findByRole("heading", { name: "Life expectancy at birth, total (years)" }),
     ).toBeDefined()
+  })
+
+  it("says it is searching until the results for the text typed arrive", async () => {
+    const gated = gatedSearch()
+    network.use(worldBank, gated.handler)
+    const user = userEvent.setup()
+
+    show(trend)
+
+    const indicator = await screen.findByRole("combobox", { name: "Indicator" })
+
+    await user.tripleClick(indicator)
+    await user.keyboard("zz")
+
+    expect(await screen.findByRole("status")).toHaveProperty("textContent", "Searching…")
+
+    gated.release()
+
+    await vi.waitFor(() =>
+      expect(screen.getByRole("status")).toHaveProperty("textContent", "No indicator matches."),
+    )
+
+    await user.keyboard("{Backspace}{Backspace}gdp")
+
+    expect(await screen.findByRole("status")).toHaveProperty("textContent", "Searching…")
+
+    gated.release()
+
+    expect(await screen.findByRole("option", { name: "GDP (current US$)" })).toBeDefined()
+    expect(screen.queryByRole("status")).toBeNull()
+  })
+
+  it("lists only the current indicator once a pick clears the search", async () => {
+    network.use(worldBank, search)
+    const user = userEvent.setup()
+
+    show(trend)
+
+    const indicator = await screen.findByRole("combobox", { name: "Indicator" })
+
+    await user.tripleClick(indicator)
+    await user.keyboard("gdp")
+    await user.click(await screen.findByRole("option", { name: "GDP (current US$)" }))
+    await screen.findByRole("heading", { name: "GDP (current US$)" })
+
+    await user.click(indicator)
+
+    await vi.waitFor(() =>
+      expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
+        "GDP (current US$)",
+      ]),
+    )
   })
 
   it("explains when indicator search is unavailable", async () => {
