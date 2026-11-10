@@ -1091,24 +1091,41 @@ describe("Explore", () => {
     expect(screen.getByRole("combobox", { name: "Year" }).textContent).toContain("2020")
   })
 
-  it("draws a map with any country outside Europe on the world map", async () => {
-    network.use(worldBank)
+  // Answers a ranking with a value for every country asked for.
+  const everywhere = http.post("/api/views/resolve", async ({ request }) => {
+    const view = Schema.decodeUnknownSync(View)(await request.json())
+    const resolved = resolvedFor(view)
 
-    show(
-      Ranking.make({
-        indicator: population,
-        countries: ["FRA", "USA"],
-        year: Year.make(2020),
-        as: "Map",
+    return HttpResponse.json(
+      Schema.encodeSync(ResolvedViewSchema)({
+        ...resolved,
+        observations: view.countries.map((country, index) => ({
+          country,
+          year: Year.make(2020),
+          value: 1000 * (index + 1),
+        })),
+        missing: [],
       }),
     )
+  })
+
+  it.each([
+    [["USA", "MEX"], "Map of North America", ["Hawaii"]],
+    [["MEX", "GTM"], "Map of Central America", []],
+    [["SAU", "ARE"], "Map of the Gulf states", []],
+    [["EGY", "MAR"], "Map of North Africa", []],
+    [["RUS", "CHN"], "Map of Northeast Asia", []],
+    [["FRA", "USA"], "World map", []],
+  ] as const)("draws %j on the %s", async (countries, title, insets) => {
+    network.use(everywhere)
+
+    show(Ranking.make({ indicator: population, countries, year: Year.make(2020), as: "Map" }))
 
     expect(
-      await screen.findByRole("figure", {
-        name: "World map ranking countries by Total population",
-      }),
+      await screen.findByRole("figure", { name: `${title} ranking countries by Total population` }),
     ).toBeDefined()
     expect(screen.queryByText("French Guiana")).toBeNull()
+    expect(insets.filter((name) => screen.queryByText(name) === null)).toEqual([])
   })
 
   it("switches a trend to the change between its first and last years", async () => {

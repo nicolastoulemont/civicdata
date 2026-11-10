@@ -54,7 +54,7 @@ export {
   type Work,
 } from "./Conversation.ts"
 
-export { Country, countries, european, locate } from "./Country.ts"
+export { Country, countries, locate } from "./Country.ts"
 
 export { type Code, Dimension, DimensionId, DimensionList, Dimensions } from "./Dimension.ts"
 
@@ -100,6 +100,8 @@ export {
   yearOf,
   yearsOf,
 } from "./Politics.ts"
+
+export { type Region, regionOf, regions } from "./Region.ts"
 
 export { type Break, type Flag, Observation, ResolvedView } from "./ResolvedView.ts"
 

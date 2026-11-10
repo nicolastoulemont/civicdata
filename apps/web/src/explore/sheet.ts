@@ -1,4 +1,6 @@
-import { type Country, european, type ResolvedView } from "@civicdata/domain"
+import { type Country, type Region, type ResolvedView } from "@civicdata/domain"
+
+import { sheets } from "./maps/sheets.gen.ts"
 
 // An outline as rings: the first point of each, then the step to each next
 // point, all in whole units.
@@ -17,7 +19,6 @@ export interface Inset {
 // One projected map, `width` by `height` units: each country it can draw,
 // the land around them, and its insets.
 export interface Sheet {
-  readonly name: "World" | "Europe"
   readonly width: number
   readonly height: number
   readonly outlines: Readonly<Partial<Record<Country, Steps>>>
@@ -25,11 +26,20 @@ export interface Sheet {
   readonly insets: ReadonlyArray<Inset>
 }
 
-// The map of Europe when every country is European, else the world. Each
-// sheet's outlines live in their own module, so a page loads only the one it
-// draws.
-export const pick = (countries: ReadonlyArray<Country>): Sheet["name"] =>
-  countries.every((country) => european.has(country)) ? "Europe" : "World"
+const loaded = new Map<Region["id"] | "world", Promise<Sheet>>()
+
+// A region's map, or the world's when there is none. Each map's outlines are
+// their own module, imported the first time it is drawn, so a page loads only
+// the maps it shows. Every call returns the same promise, as React's `use`
+// needs.
+export const load = (region: Region | undefined) => {
+  const id = region?.id ?? "world"
+  const loading = loaded.get(id) ?? sheets[id]()
+
+  loaded.set(id, loading)
+
+  return loading
+}
 
 type Point = readonly [number, number]
 

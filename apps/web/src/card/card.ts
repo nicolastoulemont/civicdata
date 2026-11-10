@@ -2,13 +2,13 @@ import {
   type Change,
   type Country,
   countries,
+  regionOf,
   type ResolvedView,
   type Trend,
 } from "@civicdata/domain"
 import { Match } from "effect"
 
 import { colors } from "@/explore/colors.gen"
-import { europe } from "@/explore/europe.gen"
 import {
   attribution,
   countryName,
@@ -22,8 +22,7 @@ import {
 import { changes, type Paired, pairs } from "@/explore/points"
 import { places } from "@/explore/preview"
 import { around, ticks } from "@/explore/scale"
-import { pick, rings, type Sheet, shades, type Steps } from "@/explore/sheet"
-import { world } from "@/explore/world.gen"
+import { load, rings, type Sheet, shades, type Steps } from "@/explore/sheet"
 
 import { type Canvas, canvas, fill, type Ink, line, png, rect, mapInks, text } from "./canvas.ts"
 import { body, label, title } from "./faces.gen.ts"
@@ -398,13 +397,10 @@ const drawInsets = (
   }
 }
 
-// The server draws cards, so it holds both maps.
-const sheets: Record<Sheet["name"], Sheet> = { World: world, Europe: europe }
-
 // A map shaded by rank, as on the site, then its insets, then the key. A
 // country without a value stays the colour of a border.
-const drawMap = (image: Canvas, resolved: ResolvedView, box: Box) => {
-  const sheet = sheets[pick(resolved.view.countries)]
+const drawMap = async (image: Canvas, resolved: ResolvedView, box: Box) => {
+  const sheet = await load(regionOf(resolved.view.countries))
   const { byCountry, key } = shades(resolved.observations)
 
   const inkOf = (country: Country): Ink => {
@@ -419,8 +415,9 @@ const drawMap = (image: Canvas, resolved: ResolvedView, box: Box) => {
 
   const room = Math.max(widest(labels), widest(["No data"])) + 30
   const column = widest(sheet.insets.map((inset) => inset.name))
-  const insets = sheet.insets.length === 0 ? 0 : 2 * column + 8 + 16
-  const row = (box.bottom - box.top) / Math.ceil(sheet.insets.length / 2)
+  const columns = Math.min(2, sheet.insets.length)
+  const insets = columns === 0 ? 0 : columns * (column + 8) + 8
+  const row = (box.bottom - box.top) / Math.max(1, Math.ceil(sheet.insets.length / 2))
 
   const scale = Math.min(
     (box.right - box.left - room - insets) / sheet.width,
@@ -458,8 +455,9 @@ const drawMap = (image: Canvas, resolved: ResolvedView, box: Box) => {
 }
 
 // Draws a resolved View as a PNG link-preview card: the indicator, the
-// countries and years, the chart, and the source.
-export const card = (resolved: ResolvedView) => {
+// countries and years, the chart, and the source. A map waits for its
+// outlines to load.
+export const card = async (resolved: ResolvedView) => {
   const image = canvas(width, height)
   const view = resolved.view
   const known = indicatorNames([resolved])
@@ -511,7 +509,7 @@ export const card = (resolved: ResolvedView) => {
   } else if ("against" in resolved) {
     drawRelation(image, resolved, box)
   } else {
-    Match.valueTags(resolved.view, {
+    await Match.valueTags(resolved.view, {
       Trend: (trend) => drawTrend(image, resolved, trend, box),
       Ranking: (ranking) =>
         ranking.as === "Map" ? drawMap(image, resolved, box) : drawRanking(image, resolved, box),
