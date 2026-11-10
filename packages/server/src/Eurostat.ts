@@ -13,7 +13,6 @@ import {
   Effect,
   Layer,
   Option,
-  Predicate,
   Schedule,
   Schema,
   Stream,
@@ -42,10 +41,11 @@ export interface Combination {
 // longer publishes it.
 export type Skip = "NoAnnual" | "NoCountries" | "TooLarge" | "NotFound"
 
-// A dataset whose bulk file holds no series to store.
+// A dataset whose bulk file holds no series to store, or more values in one
+// block (below) than a gathering step holds at once.
 export class Unstorable extends Schema.TaggedError<Unstorable, { readonly brand: unique symbol }>()(
   "Unstorable",
-  { reason: Schema.Literals(["NoAnnual", "NoCountries"]) },
+  { reason: Schema.Literals(["NoAnnual", "NoCountries", "TooLarge"]) },
 ) {}
 
 // Eurostat publishes at 11:00 and 23:00 in Luxembourg.
@@ -152,70 +152,144 @@ const rowOf = (line: string, columns: Columns) => {
 
   const combination = keys.filter((_, at) => at !== columns.freq && at !== columns.geo)
 
-  return { annual, row: { key: combination.join(","), combination, observations } }
+  return {
+    annual,
+    row: {
+      block: keys.slice(0, columns.geo).join(","),
+      key: combination.join(","),
+      combination,
+      observations,
+    },
+  }
 }
 
-// A bulk file's lines as series: the lines of one combination are adjacent,
-// one per country, so each series is complete, and can be stored, once the
-// next combination starts. The whole file is never held at once.
+type Row = NonNullable<ReturnType<typeof rowOf>["row"]>
+
+// The observations a block may hold, about 20 MB: a step reads several
+// datasets at once in a Worker's 128 MB.
+const largestBlock = 200_000
+
+// The lines that share the dimensions before geo: a bulk file is sorted by
+// its key columns in order, so they are adjacent, and each of the block's
+// series is complete once the next block starts. Most files list geo last,
+// so a block holds one series; it holds several when dimensions follow geo,
+// such as a flight's partner airport. A block past `largestBlock` keeps no
+// series.
+interface Block {
+  readonly key: string
+  readonly series: Map<
+    string,
+    { combination: ReadonlyArray<string>; observations: Array<Observation> }
+  >
+  size: number
+  tooLarge: boolean
+}
+
+const blockOf = (row: Row): Block => ({
+  key: row.block,
+  series: new Map([[row.key, { combination: row.combination, observations: row.observations }]]),
+  size: row.observations.length,
+  tooLarge: false,
+})
+
+const add = (block: Block, row: Row) => {
+  if (block.tooLarge) return
+
+  block.size += row.observations.length
+
+  if (block.size > largestBlock) {
+    block.tooLarge = true
+    block.series.clear()
+
+    return
+  }
+
+  const found = block.series.get(row.key)
+
+  if (found === undefined) {
+    block.series.set(row.key, { combination: row.combination, observations: row.observations })
+  } else {
+    found.observations.push(...row.observations)
+  }
+}
+
+// A bulk file's lines as series, a block at a time (above). The whole file
+// is never held at once.
 const parse = (lines: Stream.Stream<string, SourceUnavailable>, indicator: IndicatorId) =>
   Stream.suspend(() => {
     let annual = false
     let emitted = 0
     const done = new Set<string>()
 
+    type State = { readonly columns: Columns | undefined; readonly block: Block | undefined }
+
+    const closed = (state: State) =>
+      state.block === undefined || state.columns === undefined
+        ? []
+        : [{ columns: state.columns, block: state.block }]
+
     const series = lines.pipe(
       Stream.mapAccum(
-        (): Columns | undefined => undefined,
-        (columns, line) => {
-          if (columns === undefined) return [columnsOf(line), []] as const
+        (): State => ({ columns: undefined, block: undefined }),
+        (state, line) => {
+          if (state.columns === undefined) {
+            return [{ columns: columnsOf(line), block: undefined }, []] as const
+          }
 
-          if (line === "") return [columns, []] as const
+          if (line === "") return [state, []] as const
 
-          const read = rowOf(line, columns)
+          const read = rowOf(line, state.columns)
 
           annual ||= read.annual
 
-          return [columns, read.row === undefined ? [] : [{ columns, ...read.row }]] as const
-        },
-      ),
-      Stream.groupAdjacentBy((row) => row.key),
-      Stream.mapEffect(([key, rows]) =>
-        Effect.gen(function* () {
-          const [{ columns, combination }] = rows
+          if (read.row === undefined) return [state, []] as const
 
-          if (done.has(key)) {
-            yield* Effect.logWarning("Eurostat bulk file not grouped by series", indicator, key)
+          if (state.block?.key === read.row.block) {
+            add(state.block, read.row)
+
+            return [state, []] as const
+          }
+
+          return [{ columns: state.columns, block: blockOf(read.row) }, closed(state)] as const
+        },
+        { onHalt: closed },
+      ),
+      Stream.mapEffect(({ columns, block }) =>
+        Effect.gen(function* () {
+          if (block.tooLarge) return yield* new Unstorable({ reason: "TooLarge" })
+
+          if (done.has(block.key)) {
+            yield* Effect.logWarning("Eurostat bulk file not sorted", indicator, block.key)
 
             return yield* unavailable()
           }
 
-          done.add(key)
+          done.add(block.key)
 
-          const dimensions = decodeDimensions(
-            Object.fromEntries(
-              columns.dimensions
-                .filter((_, at) => at !== columns.freq && at !== columns.geo)
-                .map((id, at) => [id, combination[at]]),
-            ),
+          const ids = columns.dimensions.filter(
+            (_, at) => at !== columns.freq && at !== columns.geo,
           )
 
-          if (Option.isNone(dimensions)) {
-            yield* Effect.logWarning("Eurostat series codes not recognized", indicator, key)
+          const found: Array<Combination> = []
 
-            return undefined
+          for (const [key, { combination, observations }] of block.series) {
+            const dimensions = decodeDimensions(
+              Object.fromEntries(ids.map((id, at) => [id, combination[at]])),
+            )
+
+            if (Option.isNone(dimensions)) {
+              yield* Effect.logWarning("Eurostat series codes not recognized", indicator, key)
+            } else if (Arr.isArrayNonEmpty(observations)) {
+              found.push({ dimensions: dimensions.value, observations })
+            }
           }
 
-          const observations = rows.flatMap((row) => row.observations)
+          emitted += found.length
 
-          if (!Arr.isArrayNonEmpty(observations)) return undefined
-
-          emitted += 1
-
-          return { dimensions: dimensions.value, observations } satisfies Combination
+          return found
         }),
       ),
-      Stream.filter(Predicate.isNotUndefined),
+      Stream.flattenIterable,
     )
 
     return Stream.concat(
