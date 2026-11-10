@@ -1,5 +1,12 @@
-import { Country, type Observation, type ResolvedView, Year } from "@civicdata/domain"
-import { Array as Arr, Match, Option, Order, Schema } from "effect"
+import {
+  Country,
+  type Observation,
+  type Politics,
+  type ResolvedView,
+  type Unchecked,
+  Year,
+} from "@civicdata/domain"
+import { Array as Arr, Match, Order, Result, Schema } from "effect"
 
 const Point = Schema.Struct({ year: Year, value: Schema.Finite })
 
@@ -113,7 +120,25 @@ export const summarize = (resolved: ResolvedView): Summary =>
 // How a takeaway is written, for the agent's instructions and for explaining
 // a chart on its own.
 export const rules =
-  "two short sentences of plain text, without Markdown, on what the chart shows, read from its data. Say which way each country moves, which is highest or lowest, or how the two indicators go together. Take every number and year from that data, rounded if you like; never work one out, such as a difference, a ratio or an average."
+  "two short sentences of plain text, without Markdown, on what the chart shows, read from its data. Say which way each country moves, which is highest or lowest, or how the two indicators go together. Take every number and year from that data, rounded if you like; never work one out, such as a difference, a ratio or an average. Never name a head of government, a party, an election or an event, and never say what caused a movement in the data."
+
+// Words that say one thing caused another. A takeaway says what the data
+// shows beside the political records, never why it moved: "rose from 2008,
+// the year of the financial crisis", not "rose because of the crisis".
+export const causal: ReadonlyArray<string> = [
+  "because",
+  "due to",
+  "led to",
+  "leading to",
+  "caused",
+  "causing",
+  "thanks to",
+  "as a result of",
+  "resulted in",
+  "owing to",
+  "triggered",
+  "driven by",
+]
 
 // A number as a takeaway writes it, e.g. "72", "1,234.5" or "2.1 trillion".
 // Digits inside a word, as in "G7" or "CO2", are part of a name, not a number.
@@ -193,21 +218,97 @@ const fromData = (summary: Summary) => {
     points.some((point) => Math.abs(Math.abs(point.value) - value) <= tolerance * (1 + 1e-9))
 }
 
+// A phrase as a whole word or words in a text: "Rutte" is not in "Ruttel".
+const phrase = (text: string, { cased }: { readonly cased: boolean }) =>
+  new RegExp(
+    `(?<![\\p{L}\\p{N}])${text.replaceAll(/[$()*+./?[\\\]^{|}]/g, "\\$&")}(?![\\p{L}\\p{N}])`,
+    cased ? "u" : "iu",
+  )
+
+const causes = causal.map((words) => phrase(words, { cased: false }))
+
+// Months, which a surname can also be: Theresa May.
+const months = new Set([
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+])
+
+// What a takeaway might write of a head of government: their name, or their
+// surname alone when it is long enough not to be a common word.
+const headNames = (head: string) => {
+  const surname = head.split(/\s+/).at(-1) ?? head
+
+  return surname !== head && surname.length >= 4 && !months.has(surname) ? [head, surname] : [head]
+}
+
+// The names in some political records, as patterns a takeaway's text could
+// match: each head of government, each governing party by name and by an
+// abbreviation of two letters or more, each event by its name and by the
+// name before its colon ("Maastricht Treaty: signature"), and each reform.
+// People and parties match as written; events and reforms in any case.
+export const namesIn = ({ governments, events, reforms }: Politics): ReadonlyArray<RegExp> => {
+  const people = governments.flatMap(({ head, parties }) => [
+    ...headNames(head),
+    ...parties.flatMap(({ name, abbreviation }) =>
+      abbreviation === null || abbreviation.length < 2 ? [name] : [name, abbreviation],
+    ),
+  ])
+
+  const happened = [
+    ...events.flatMap(({ name }) => [name, name.split(":")[0]?.trim() ?? name]),
+    ...reforms.map(({ name }) => name),
+  ]
+
+  return [
+    ...[...new Set(people)].map((name) => phrase(name, { cased: true })),
+    ...[...new Set(happened)].map((name) => phrase(name, { cased: false })),
+  ]
+}
+
 // A takeaway that passed the check, and how many numbers it has, each checked.
 interface Checked {
   readonly text: string
   readonly numbers: number
 }
 
-// The takeaway to show from what the model wrote, if any. Every number in it
-// must come from the data the model was given; a takeaway with any other
-// number, such as a difference the model worked out, is not shown. The answer
-// shows plain text, so Markdown bold, which models write anyway, is removed.
-export const check = (text: string, summary: Summary): Option.Option<Checked> => {
+// What a takeaway is checked against: the data the model was given, and the
+// names in the political records of the chart's countries.
+interface Against {
+  readonly summary: Summary
+  readonly names: ReadonlyArray<RegExp>
+}
+
+// The takeaway to show from what the model wrote, or why it is not shown.
+// Every number in it must come from the data the model was given; a takeaway
+// with any other number, such as a difference the model worked out, is not
+// shown. Nor is one that names a head of government, party or event from the
+// political records, or one that says what caused a movement in the data.
+// The answer shows plain text, so Markdown bold, which models write anyway,
+// is removed.
+export const check = (
+  text: string,
+  { summary, names }: Against,
+): Result.Result<Checked, typeof Unchecked.Type> => {
   const takeaway = text.replaceAll("**", "").trim()
   const written = writtenIn(takeaway)
 
-  return takeaway !== "" && written.every(fromData(summary))
-    ? Option.some({ text: takeaway, numbers: written.length })
-    : Option.none()
+  if (takeaway === "") return Result.fail("empty")
+
+  if (!written.every(fromData(summary))) return Result.fail("number")
+
+  if (names.some((name) => name.test(takeaway))) return Result.fail("name")
+
+  if (causes.some((cause) => cause.test(takeaway))) return Result.fail("cause")
+
+  return Result.succeed({ text: takeaway, numbers: written.length })
 }

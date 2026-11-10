@@ -81,16 +81,19 @@ const halted = (step: Work): ReadonlyArray<Work> =>
 
 const isDrawn = Schema.is(Drawn)
 
-// The charts the agent drew before a stop, in order, with the takeaways it
-// kept. A chart whose takeaway was being written keeps none.
+// The charts the agent drew before a stop, in order, with their context and
+// the takeaways they kept. A chart whose takeaway was being written keeps
+// none.
 const drawnIn = (work: ReadonlyArray<Work>): ReadonlyArray<Chart> =>
   work.flatMap((step) => {
     if (!isDrawn(step)) return []
 
-    const { view, state } = step
+    const chart = Struct.omit(step, ["_tag", "id", "state"])
 
     return [
-      Predicate.isTagged(state, "Done") ? { view, ...Struct.omit(state, ["_tag"]) } : { view },
+      Predicate.isTagged(step.state, "Done")
+        ? { ...chart, ...Struct.omit(step.state, ["_tag"]) }
+        : chart,
     ]
   })
 

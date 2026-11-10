@@ -863,4 +863,37 @@ export const cases: ReadonlyArray<Case> = [
       Map({ indicators: ["GOV_WGI_RL_EST", "GOV_WGI_RL_SC"], countries: eu }),
     ],
   },
+
+  // Political context, which the agent draws only when the question asks
+  // for it.
+  {
+    questions: ["Unemployment in France under each president"],
+    accepts: [
+      Trend({
+        indicators: unemployment.worldBank,
+        series: [...unemployment.eurostat, ...unemployment.oecd],
+        countries: ["FRA"],
+        overlays: ["governments"],
+      }),
+    ],
+  },
+  {
+    questions: ["GDP of Japan since 2000"],
+    accepts: [
+      Trend({
+        indicators: gdp.worldBank,
+        // Japan is an OECD member outside the EU, so its national accounts
+        // come from the OECD.
+        series: [
+          {
+            indicator: "OECD.SDD.NAD,DSD_NAMAIN10@DF_TABLE1_EXPENDITURE,2.0",
+            dimensions: { TRANSACTION: ["B1GQ"] },
+          },
+        ],
+        countries: ["JPN"],
+        from: 2000,
+        overlays: [],
+      }),
+    ],
+  },
 ]

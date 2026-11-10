@@ -14,15 +14,9 @@ import {
   yearOf,
   yearsOf,
 } from "@civicdata/domain"
-import { Match, Schema } from "effect"
+import { Match } from "effect"
 
 import { countryName } from "./format.ts"
-
-// What a trend chart can draw over its lines besides the data. Kept in the
-// card and its link, not in the View: the agent's charts never set it.
-export const Overlay = Schema.Literals(["elections", "governments", "events"])
-
-export type Overlay = typeof Overlay.Type
 
 // One head of government's time in office: their consecutive governments in
 // one country, e.g. Mariano Rajoy's three cabinets from 2011 to 2018.

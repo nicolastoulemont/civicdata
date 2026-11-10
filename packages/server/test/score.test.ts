@@ -56,6 +56,22 @@ describe("score", () => {
     ])
   })
 
+  it("scores the political context a chart draws when the case names it", () => {
+    const governed = Answered.make({
+      charts: [{ view: brazilAndMexico(), overlays: ["governments"] }],
+    })
+
+    expect(score([{ ...expected, overlays: ["governments"] }], governed)).toEqual([])
+    expect(score([{ ...expected, overlays: [] }], governed)).toEqual([
+      "overlays governments, want none",
+    ])
+    expect(score([{ ...expected, overlays: ["events"] }], trend())).toEqual([
+      "overlays none, want events",
+    ])
+    // A case that names no context does not score it.
+    expect(score([expected], governed)).toEqual([])
+  })
+
   it("rejects a ranking where a trend is expected", () => {
     const ranking = charted(
       Ranking.make({ indicator: lifeExpectancy, countries: ["BRA"], year: Year.make(2020) }),

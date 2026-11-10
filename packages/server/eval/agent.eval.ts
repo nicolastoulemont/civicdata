@@ -7,6 +7,8 @@ import { Agent } from "../src/Agent.ts"
 import { Catalog } from "../src/Catalog.ts"
 import { CatalogBuild, Step } from "../src/CatalogBuild.ts"
 import { Conversation } from "../src/Conversation.ts"
+import { Politics } from "../src/Politics.ts"
+import { PoliticsBuild } from "../src/PoliticsBuild.ts"
 import { Resolver } from "../src/Resolver.ts"
 import { Sdmx } from "../src/Sdmx.ts"
 import { Transcript } from "../src/Transcript.ts"
@@ -23,9 +25,21 @@ const Built = Layer.effectDiscard(
   ),
 ).pipe(Layer.provide(Layer.merge(CatalogBuild.live, Step.immediate)))
 
+// Stores the elections and governments of the live archives before the
+// questions run. An archive that fails leaves its records out.
+const Recorded = Layer.effectDiscard(
+  Clock.currentTimeMillis.pipe(
+    Effect.flatMap(PoliticsBuild.run),
+    Effect.catchTag("PoliticsBuildFailed", (error) =>
+      Effect.logWarning("Political records build failed", error),
+    ),
+  ),
+).pipe(Layer.provide(Layer.merge(PoliticsBuild.live, Step.immediate)))
+
 // The agent as a conversation runs it, against the live sources and model.
-const Live = Layer.merge(Agent.live.pipe(Layer.provide(Resolver.layer)), Built).pipe(
+const Live = Layer.mergeAll(Agent.live.pipe(Layer.provide(Resolver.layer)), Built, Recorded).pipe(
   Layer.provide(Catalog.live),
+  Layer.provide(Politics.live),
   Layer.provide(WorldBank.live),
   Layer.provide(Sdmx.live),
 )

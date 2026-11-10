@@ -7,15 +7,19 @@ import {
   Chart,
   type ChartIndex,
   Checked,
+  Cited,
+  Country,
   Definition,
   type Dimension,
   type DimensionsMissing,
   Drawn,
   Dropped,
+  End,
   Explained,
   Failed,
   Fetch,
   Fetched,
+  idOf,
   IndicatorId,
   type IndicatorNotFound,
   kindOf,
@@ -23,9 +27,16 @@ import {
   locate,
   Lookup,
   maxCharts,
+  members,
+  Overlay,
+  type Overlays,
+  type Politics as PoliticalRecords,
   Ranking,
   Ratio,
   Read,
+  Recorded,
+  RecordId,
+  Records,
   Rejected,
   Rejection,
   Relation,
@@ -46,7 +57,9 @@ import {
   Trend,
   Unanswered,
   View,
+  When,
   type Work,
+  Year,
 } from "@civicdata/domain"
 import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai"
 import {
@@ -71,10 +84,11 @@ import { Chat, LanguageModel, Prompt, Tool, Toolkit } from "effect/ai"
 import { FetchHttpClient } from "effect/http"
 
 import { Catalog } from "./Catalog.ts"
+import { Politics } from "./Politics.ts"
 import { Form, limits, unreadable, type Unreadable } from "./readable.ts"
 import { Resolver } from "./Resolver.ts"
 import { Sdmx } from "./Sdmx.ts"
-import { check, rules, Summary, summarize } from "./Takeaway.ts"
+import { check, namesIn, rules, Summary, summarize } from "./Takeaway.ts"
 import { WorldBank } from "./WorldBank.ts"
 
 // Why an answer could not be given at all.
@@ -212,7 +226,12 @@ const SearchIndicators = Tool.make("search_indicators", {
 // What show_chart tells the model: the chart was shown with a summary of its
 // values, or why it was not. describe_indicator also answers Rejected for a
 // code that does not exist.
-const Shown = Schema.TaggedStruct("Shown", { view: View, data: Summary })
+const Shown = Schema.TaggedStruct("Shown", {
+  view: View,
+  overlays: Schema.optionalKey(Schema.NonEmptyArray(Overlay)),
+  data: Summary,
+})
+
 const Refused = Schema.TaggedStruct("Rejected", { problem: Schema.String })
 
 const Defined = Schema.TaggedStruct("Definition", {
@@ -250,6 +269,57 @@ const FindCountries = Tool.make("find_countries", {
       matches: Schema.Array(Schema.Struct({ code: Schema.String, name: Schema.String })),
     }),
   ),
+  dependencies: [Report],
+})
+
+// What find_politics tells the model: each record with its id, and the
+// countries that have no political records.
+const Found = Schema.TaggedStruct("Records", {
+  governments: Schema.Array(
+    Schema.Struct({
+      id: RecordId,
+      country: Country,
+      head: Schema.String,
+      parties: Schema.Array(Schema.String),
+      start: Schema.String,
+      end: Schema.NullOr(Schema.String),
+    }),
+  ),
+  elections: Schema.Array(
+    Schema.Struct({ id: RecordId, country: Country, ballot: Schema.String, date: Schema.String }),
+  ),
+  events: Schema.Array(
+    Schema.Struct({
+      id: RecordId,
+      name: Schema.String,
+      from: Schema.String,
+      to: Schema.NullOr(Schema.String),
+      summary: Schema.String,
+    }),
+  ),
+  reforms: Schema.Array(
+    Schema.Struct({
+      id: RecordId,
+      country: Country,
+      name: Schema.String,
+      date: Schema.String,
+      summary: Schema.String,
+    }),
+  ),
+  uncovered: Schema.Array(Country),
+})
+
+const FindPolitics = Tool.make("find_politics", {
+  description:
+    "Look up the elections, governments, major events and pension reforms of countries over a range of years, from stored records with their sources. Records cover EU and OECD members; `uncovered` lists the countries without any. Each record has an id.",
+  parameters: Schema.Struct({
+    countries: Schema.Array(Schema.String).annotate({
+      description: "ISO 3166-1 alpha-3 codes, e.g. FRA, DEU",
+    }),
+    from: Schema.Int.annotate({ description: "First year" }),
+    to: Schema.Int.annotate({ description: "Last year" }),
+  }),
+  success: Schema.Union([Found, Schema.TaggedStruct("Rejected", { problem: Schema.String })]),
   dependencies: [Report],
 })
 
@@ -305,13 +375,24 @@ const ShowChart = Tool.make("show_chart", {
       description:
         "For a Eurostat or OECD indicator, the code of each dimension its series differ by, e.g. [{ dimension: 'sex', code: 'T' }]. A rejection lists the dimensions and their codes. null for World Bank indicators.",
     }),
+    overlays: Schema.NullOr(Schema.Array(Overlay)).annotate({
+      description:
+        "For a trend, the political context drawn over its lines: elections, governments (shaded by head of government) and events (with pension reforms on pension charts). null for none, and for other charts.",
+    }),
   }),
   success: Schema.Union([Shown, Refused]),
   failure: SourceUnavailable,
   dependencies: [Report, Drawing],
 })
 
-const Tools = Toolkit.make(SearchIndicators, DescribeIndicator, FindCountries, ShowChart, AskUser)
+const Tools = Toolkit.make(
+  SearchIndicators,
+  DescribeIndicator,
+  FindCountries,
+  FindPolitics,
+  ShowChart,
+  AskUser,
+)
 
 // A chat leaves tool arguments undecoded; ask_user's are checked again to
 // show its question.
@@ -384,6 +465,7 @@ const draftOf = (view: View): Draft => {
   const transform = transformOf(view)
 
   const fields = {
+    overlays: null,
     indicator: view.indicator,
     against: null,
     countries: view.countries,
@@ -447,9 +529,10 @@ const crowded = (form: Form, { countries, reason }: { countries: number; reason:
     TooFew: ({ least }) => `Too few countries for a ${form}: ${countries}, at least ${least}.`,
   })} Instead, ${instead[form]}.`
 
-// The takeaway written for a chart, and how its step ended.
+// The takeaway written for a chart, if it passed the check, and how its
+// step ended.
 interface Written {
-  readonly chart: Chart
+  readonly takeaway?: string
   readonly state: typeof Takeaway.Type.state
 }
 
@@ -492,18 +575,83 @@ const noValues = (source: Source) =>
     ? "The World Bank has no values for these countries and years. Try other years."
     : `${source} has no annual values for these countries and years. Try other years, or another dataflow if this one is quarterly or monthly only.`
 
+// The countries and years find_politics reads the records of.
+const Span = Schema.Struct({
+  countries: Schema.NonEmptyArray(Country).check(Schema.isUnique()),
+  from: Year,
+  to: Year,
+}).check(Schema.makeFilter(({ from, to }) => from <= to || "from must not be after to"))
+
+// The overlays a chart drew, each once and in their usual order, or none.
+const overlaysOf = (draft: Draft): Overlays | undefined => {
+  const on = Overlay.literals.filter((overlay) => draft.overlays?.includes(overlay))
+
+  return Arr.isArrayNonEmpty(on) ? on : undefined
+}
+
+// The records as find_politics tells them to the model.
+const told = (records: PoliticalRecords, countries: ReadonlyArray<Country>) =>
+  Found.make({
+    governments: records.governments.map((government) => ({
+      id: idOf(Cited.cases.Government.make({ government })),
+      country: government.country,
+      head: government.head,
+      parties: government.parties.map(({ name, abbreviation }) =>
+        abbreviation === null ? name : `${name} (${abbreviation})`,
+      ),
+      start: government.start,
+      end: End.match(government.end, {
+        Next: ({ day }) => day,
+        Cutoff: ({ day }) => day,
+        Open: () => null,
+      }),
+    })),
+    elections: records.elections.map((election) => ({
+      id: idOf(Cited.cases.Election.make({ election })),
+      country: election.country,
+      ballot: election.ballot,
+      date: election.date,
+    })),
+    events: records.events.map((event) => ({
+      id: idOf(Cited.cases.Event.make({ event })),
+      name: event.name,
+      ...When.match(event.when, {
+        Point: ({ at }) => ({ from: at.date, to: at.date }),
+        Period: ({ from, to }) => ({ from: from.date, to: to?.date ?? null }),
+      }),
+      summary: event.summary,
+    })),
+    reforms: records.reforms.map((reform) => ({
+      id: idOf(Cited.cases.Reform.make({ reform })),
+      country: reform.country,
+      name: reform.name,
+      date: reform.date,
+      summary: reform.summary,
+    })),
+    uncovered: countries.filter((country) => !members.has(country)),
+  })
+
 const ToolsLayer = Tools.toLayer(
   Effect.gen(function* () {
     const catalog = yield* Catalog
     const resolver = yield* Resolver
     const worldBank = yield* WorldBank
     const sdmx = yield* Sdmx
+    const politics = yield* Politics
 
     // Draws the chart the model described, once it decodes, people can read
-    // it and the data has values for it.
+    // it and the data has values for it. Only a trend draws political context.
     const draw = (draft: Draft, toolCallId: string | undefined) =>
       toView(draft).pipe(
         Effect.flatMap((view) => {
+          const overlays = overlaysOf(draft)
+
+          if (overlays !== undefined && draft.chart !== "trend") {
+            return Effect.succeed(
+              rejected("Only a trend shows elections, governments or events. Pass overlays null."),
+            )
+          }
+
           const at = (state: typeof Fetch.Type.state) =>
             Fetch.make({ id: stepOf(toolCallId, "show_chart"), view, state })
 
@@ -562,8 +710,11 @@ const ToolsLayer = Tools.toLayer(
           }).pipe(
             Effect.map(
               Result.match({
-                onSuccess: (resolved) =>
-                  Shown.make({ view: trim(resolved), data: summarize(resolved) }),
+                onSuccess: (resolved) => {
+                  const shown = Shown.make({ view: trim(resolved), data: summarize(resolved) })
+
+                  return overlays === undefined ? shown : Struct.assign(shown, { overlays })
+                },
                 onFailure: ({ problem }) => rejected(problem),
               }),
             ),
@@ -659,6 +810,36 @@ const ToolsLayer = Tools.toLayer(
           ),
         )
       },
+      // Countries or years that do not decode are the model's mistake, told
+      // to it alone. Unavailable records fail the step, and the model
+      // answers without them.
+      find_politics: (span, { toolCallId }) =>
+        Schema.decodeUnknownEffect(Span)(span).pipe(
+          Effect.flatMap(({ countries, from, to }) => {
+            const at = (state: typeof Records.Type.state) =>
+              Records.make({ id: stepOf(toolCallId, "find_politics"), countries, from, to, state })
+
+            return reported(politics.records({ countries, from, to }), {
+              at,
+              done: ({ governments, elections, events, reforms }) =>
+                at(
+                  Recorded.make({
+                    governments: governments.length,
+                    elections: elections.length,
+                    events: events.length,
+                    reforms: reforms.length,
+                  }),
+                ),
+            }).pipe(Effect.map((records) => told(records, countries)))
+          }),
+          Effect.catchTags({
+            SchemaError: (error) => Effect.succeed(rejected(error.message)),
+            PoliticsUnavailable: () =>
+              Effect.succeed(
+                rejected("Political records are unavailable now. Answer without them."),
+              ),
+          }),
+        ),
       // The question is shown when the round ends; see `answer`.
       ask_user: () =>
         Effect.succeed("The question is shown to the person. Their reply is the next message."),
@@ -751,7 +932,9 @@ Several charts: an answer holds up to ${maxCharts} charts, drawn one at a time, 
 - The question asks both how countries compare at one point and how they changed over time, e.g. "Which EU country has the highest debt, and how has that changed since 2010?" is a ranking, then a change.
 One indicator for several countries is one chart, whatever the number of countries. "How does X go with Y?" is one relation chart, not a chart of each.
 
-If no indicator of any source measures what the question asks, stop without calling show_chart.
+Political context: a trend of EU and OECD members can show their elections, their governments, shaded by head of government, and major events, with pension reforms on pension charts. Use it only when the question asks about them, e.g. "under each president" or "since the last election" asks for governments or elections, "around the 2010 bailout" or "since the financial crisis" asks for events. Then call find_politics for the chart's countries and years, and pass the overlays the question asks for to show_chart. Never add context the question does not ask for.
+
+If no indicator of any source measures what the question asks, stop without calling show_chart. A question only about politics, with no data to chart, e.g. "Who governed Spain in 2008?", is one of those: you answer with charts.
 
 If the question can be read in ways that give different charts and none is a safe default, call ask_user instead of show_chart, with two to four short choices. Prefer a sensible default to asking: ask at most once per question.
 
@@ -765,6 +948,33 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
       const model = yield* LanguageModel.LanguageModel
       const toolkit = yield* Tools
       const resolver = yield* Resolver
+      const politics = yield* Politics
+
+      // The names in the political records of a chart's countries, over
+      // every year a chart can show, which a takeaway must not write. Without
+      // records there are none to find.
+      const namesFor = (countries: View["countries"]) =>
+        politics.records({ countries, from: Year.make(1960), to: Year.make(2100) }).pipe(
+          Effect.map(namesIn),
+          Effect.catchTag("PoliticsUnavailable", () => Effect.succeed([])),
+        )
+
+      // The takeaway the model wrote, if it passes the check against the
+      // data and the political records, and how its step ends.
+      const review = Effect.fnUntraced(function* (
+        text: string,
+        { view, data }: { view: View; data: Summary },
+      ) {
+        const names = yield* namesFor(view.countries)
+
+        return Result.match(check(text, { summary: data, names }), {
+          onFailure: (reason): Written => ({ state: Dropped.make({ reason }) }),
+          onSuccess: ({ text: kept, numbers }): Written => ({
+            takeaway: kept,
+            state: Checked.make({ numbers }),
+          }),
+        })
+      })
 
       const start = Effect.gen(function* () {
         const now = yield* DateTime.now
@@ -778,27 +988,17 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
       // returned, and how its step ended. A model that fails or writes one
       // that fails the check leaves the chart without one.
       const takeaway = Effect.fn("Agent.takeaway")(
-        function* (chat: Chat.Chat, { view, data }: typeof Shown.Type) {
+        function* (chat: Chat.Chat, shown: typeof Shown.Type) {
           const response = yield* chat.generateText({ prompt: [], toolkit, toolChoice: "none" })
 
-          return Option.match(check(response.text, data), {
-            onNone: (): Written => ({ chart: { view }, state: Dropped.make({}) }),
-            onSome: ({ text, numbers }): Written => ({
-              chart: { view, takeaway: text },
-              state: Checked.make({ numbers }),
-            }),
-          })
+          return yield* review(response.text, shown)
         },
         Effect.provideService(LanguageModel.LanguageModel, model),
-        (effect, _chat, { view }) =>
-          Effect.catchTag(effect, "AiError", (error) =>
-            Effect.logWarning("Language model failed on a takeaway", error.reason).pipe(
-              Effect.as<Written>({
-                chart: { view },
-                state: Failed.make({ reason: new AgentUnavailable() }),
-              }),
-            ),
+        Effect.catchTag("AiError", (error) =>
+          Effect.logWarning("Language model failed on a takeaway", error.reason).pipe(
+            Effect.as<Written>({ state: Failed.make({ reason: new AgentUnavailable() }) }),
           ),
+        ),
       )
 
       // Each round is one model request and the tools it calls. The round's
@@ -832,20 +1032,29 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
         // then again with the takeaway it kept. Writing the takeaway is a
         // step of its own.
         const explained = Effect.fnUntraced(function* (shown: typeof Shown.Type, place: number) {
+          const chart: Chart = Struct.omit(shown, ["_tag", "data"])
+
           const drawn = (state: typeof Drawn.Type.state) =>
-            send(Drawn.make({ id: StepId.make(`drawn-${place}`), view: shown.view, state }))
+            send(Drawn.make(Struct.assign(chart, { id: StepId.make(`drawn-${place}`), state })))
 
           const id = StepId.make(`takeaway-${place}`)
 
           yield* drawn(Running.make({}))
           yield* send(Takeaway.make({ id, state: Running.make({}) }))
 
-          const { chart, state } = yield* takeaway(chat, shown)
+          const written = yield* takeaway(chat, shown)
 
-          yield* send(Takeaway.make({ id, state }))
-          yield* drawn(Explained.make(Struct.omit(chart, ["view"])))
+          yield* send(Takeaway.make({ id, state: written.state }))
 
-          return chart
+          if (written.takeaway === undefined) {
+            yield* drawn(Explained.make({}))
+
+            return chart
+          }
+
+          yield* drawn(Explained.make({ takeaway: written.takeaway }))
+
+          return Struct.assign(chart, { takeaway: written.takeaway })
         })
 
         // The answer ends when the model stops calling tools, asks the
@@ -921,10 +1130,9 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
             ],
           })
 
-          return Option.match(check(response.text, data), {
-            onNone: (): Chart => ({ view }),
-            onSome: ({ text }): Chart => ({ view, takeaway: text }),
-          })
+          const written = yield* review(response.text, { view, data })
+
+          return written.takeaway === undefined ? { view } : { view, takeaway: written.takeaway }
         },
         Effect.catchTag("AiError", (error) =>
           Effect.logWarning("Language model failed on a takeaway", error.reason).pipe(

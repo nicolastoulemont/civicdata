@@ -4,6 +4,8 @@ import {
   type Failed,
   type Fetch,
   type Lookup,
+  type Recorded,
+  type Records,
   type Rejection,
   type Search,
   type Source,
@@ -13,6 +15,7 @@ import {
   type Thinking,
   type Turn,
   transformOf,
+  type Unchecked,
   type View,
 } from "@civicdata/domain"
 import { Match, Predicate } from "effect"
@@ -21,6 +24,7 @@ import {
   Brain,
   ChartLine,
   CircleStop,
+  Landmark,
   type LucideIcon,
   MapPin,
   MessageCircleQuestion,
@@ -59,6 +63,7 @@ const why = (reason: typeof Failed.Type.reason) =>
   Match.valueTags(reason, {
     SourceUnavailable: ({ source }) => `${of(source)} didn't answer`,
     CatalogUnavailable: () => "indicator search isn't available",
+    PoliticsUnavailable: () => "political records aren't available",
     AgentUnavailable: () => "the assistant didn't answer",
     IndicatorNotFound: ({ indicator }) => `there is no indicator ${indicator}`,
   })
@@ -144,6 +149,47 @@ const lookup = ({ names, state }: typeof Lookup.Type) => {
   })
 }
 
+// What a lookup's count of each kind of political record calls it.
+const kinds = {
+  governments: ["government", "governments"],
+  elections: ["election", "elections"],
+  events: ["event", "events"],
+  reforms: ["reform", "reforms"],
+} as const satisfies Record<string, Noun>
+
+// "France", "France and Spain", "France, Spain and Italy".
+const joined = (all: ReadonlyArray<string>) =>
+  all.length < 2 ? all.join("") : `${all.slice(0, -1).join(", ")} and ${all.at(-1)}`
+
+// "France and Spain", or "4 countries" past three.
+const countriesNamed = (countries: ReadonlyArray<Country>) =>
+  countries.length > 3
+    ? plural(countries.length, ["country", "countries"])
+    : joined(countries.map(countryName))
+
+// "4 governments and 2 elections", "1 government, 3 events and 1 reform".
+const counted = (counts: typeof Recorded.Type) => {
+  const each = (["governments", "elections", "events", "reforms"] as const).flatMap((kind) =>
+    counts[kind] === 0 ? [] : [plural(counts[kind], kinds[kind])],
+  )
+
+  return each.length === 0 ? "no political records" : joined(each)
+}
+
+const records = ({ countries, from, to, state }: typeof Records.Type) => {
+  const icon = Landmark
+  const asked = `${countriesNamed(countries)}, ${from} to ${to}`
+
+  return Match.valueTags(state, {
+    Running: () => line("Running", { icon, text: `Looking up the political record of ${asked}…` }),
+    Done: (counts) => line("Done", { icon, text: `Found ${counted(counts)} for ${asked}` }),
+    Failed: ({ reason }) =>
+      failed(reason, { icon, text: `Couldn't look up the political record of ${asked}` }),
+    Stopped: () =>
+      line("Stopped", { icon, text: `Stopped looking up the political record of ${asked}` }),
+  })
+}
+
 // The chart type of a View, as a sentence names it: "a trend", "a map".
 const typeOf = (view: View) =>
   Match.valueTags(view, {
@@ -212,6 +258,15 @@ const fetch = ({ view, state }: typeof Fetch.Type) => {
   })
 }
 
+// Why the summary was left out. Summaries dropped before the check said why
+// were dropped for a number.
+const unchecked: Record<typeof Unchecked.Type, string> = {
+  number: "it had a number that isn't in the data",
+  name: "it named a government, party or event without citing its record",
+  cause: "it said what caused a change in the data",
+  empty: "the assistant wrote none",
+}
+
 const takeaway = ({ state }: typeof Takeaway.Type) => {
   const icon = PenLine
 
@@ -225,8 +280,8 @@ const takeaway = ({ state }: typeof Takeaway.Type) => {
             ? "Wrote the summary"
             : `Checked ${plural(numbers, ["number", "numbers"])} against the data`,
       }),
-    Dropped: () =>
-      line("Done", { icon, text: "Left out the summary: it had a number that isn't in the data" }),
+    Dropped: ({ reason = "number" }) =>
+      line("Done", { icon, text: `Left out the summary: ${unchecked[reason]}` }),
     Failed: ({ reason }) => failed(reason, { icon, text: "Couldn't write the summary" }),
     Stopped: () => line("Stopped", { icon, text: "Stopped writing the summary" }),
   })
@@ -256,6 +311,7 @@ export const lineOf = (step: Step | Saved): Line | undefined =>
     Search: search,
     Definition: definition,
     Lookup: lookup,
+    Records: records,
     Fetch: fetch,
     Takeaway: takeaway,
     // A chart shows in the answer, not in the log.
@@ -293,6 +349,7 @@ const kindOf = (step: Saved): Noun | undefined =>
     Described: () => definitions,
     Lookup: () => lookups,
     Located: () => lookups,
+    Records: () => lookups,
     Fetch: ({ state }) => (Predicate.isTagged(state, "Done") ? charts : undefined),
     Rejected: () => undefined,
     Takeaway: () => summaries,

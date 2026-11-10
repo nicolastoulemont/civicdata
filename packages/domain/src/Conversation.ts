@@ -6,11 +6,13 @@ import {
   AgentUnavailable,
   CatalogUnavailable,
   IndicatorNotFound,
+  PoliticsUnavailable,
   SourceUnavailable,
 } from "./Errors.ts"
 import { IndicatorId } from "./Indicator.ts"
+import { Overlays } from "./Politics.ts"
 import { Source } from "./Source.ts"
-import { View } from "./View.ts"
+import { View, Year } from "./View.ts"
 
 // Questions are capped so one request cannot send the model an essay.
 export const Question = Schema.String.check(Schema.isMinLength(3), Schema.isMaxLength(500))
@@ -37,12 +39,13 @@ const Count = Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))
 // A step in progress.
 export const Running = Schema.TaggedStruct("Running", {})
 
-// A step that could not end: its source, the catalog or the model did not
-// answer, or the indicator it asked about does not exist.
+// A step that could not end: its source, the catalog, the political records
+// or the model did not answer, or the indicator it asked about does not exist.
 export const Failed = Schema.TaggedStruct("Failed", {
   reason: Schema.Union([
     SourceUnavailable,
     CatalogUnavailable,
+    PoliticsUnavailable,
     AgentUnavailable,
     IndicatorNotFound,
   ]),
@@ -99,6 +102,24 @@ const lookup = <S extends Schema.Top>(state: S) => ({
   state,
 })
 
+// How many political records a lookup found of each kind.
+export const Recorded = Schema.TaggedStruct("Done", {
+  governments: Count,
+  elections: Count,
+  events: Count,
+  reforms: Count,
+})
+
+// The agent looks up the elections, governments, events and reforms of some
+// countries over some years.
+const records = <S extends Schema.Top>(state: S) => ({
+  id: StepId,
+  countries: Schema.NonEmptyArray(Country),
+  from: Year,
+  to: Year,
+  state,
+})
+
 // Why the agent cannot show a chart. The step's view says which chart type,
 // indicator, countries, years and transform it asked for.
 // - NoValues: the source has no values for those countries and years.
@@ -133,18 +154,27 @@ const fetch = <S extends Schema.Top>(state: S) => ({ id: StepId, view: View, sta
 // The takeaway kept, with how many of its numbers were checked against the data.
 export const Checked = Schema.TaggedStruct("Done", { numbers: Count })
 
-// The takeaway had a number that is not in the data, so the chart shows
-// without one.
-export const Dropped = Schema.TaggedStruct("Dropped", {})
+// Why a takeaway failed the check: it wrote a number that is not in the
+// data, named a head of government, party or event from the political
+// records, said what caused a movement in the data, or was empty.
+export const Unchecked = Schema.Literals(["number", "name", "cause", "empty"])
+
+// The takeaway failed the check, so the chart shows without one. Takeaways
+// dropped before the check had several reasons were dropped for a number.
+export const Dropped = Schema.TaggedStruct("Dropped", {
+  reason: Schema.optionalKey(Unchecked),
+})
 
 // The agent writes the chart's takeaway and checks it against the data.
 const takeaway = <S extends Schema.Top>(state: S) => ({ id: StepId, state })
 
-// A chart of an answer, with what the agent says it shows. A chart has no
-// takeaway when the agent's text failed the check, and charts saved before
-// takeaways existed have none.
+// A chart of an answer, with what the agent says it shows and the political
+// context it draws over a trend, if any. A chart has no takeaway when the
+// agent's text failed the check, and charts saved before takeaways existed
+// have none.
 export const Chart = Schema.Struct({
   view: View,
+  overlays: Schema.optionalKey(Overlays),
   takeaway: Schema.optionalKey(Schema.NonEmptyString),
 })
 
@@ -168,22 +198,28 @@ export const Explained = Schema.TaggedStruct("Done", {
 
 // A step of work in any state, as it streams. Thinking is the model deciding
 // what to do next. Drawn is a chart of the answer, sent as soon as the agent
-// draws it: running while its takeaway is written, then done with the
-// takeaway it kept, if any. A stop while the takeaway is written keeps the
-// chart without one.
+// draws it, with the context it draws over a trend: running while its
+// takeaway is written, then done with the takeaway it kept, if any. A stop
+// while the takeaway is written keeps the chart without one.
 const Work = Schema.TaggedUnion({
   Thinking: { id: StepId, state: live(Thought) },
   Search: search(live(Searched)),
   Definition: definition(live(Read)),
   Lookup: lookup(live(Located)),
+  Records: records(live(Recorded)),
   Fetch: fetch(live(Fetched, Rejected)),
   Takeaway: takeaway(live(Checked, Dropped)),
-  Drawn: { id: StepId, view: View, state: Schema.Union([Running, Explained, Halted]) },
+  Drawn: {
+    id: StepId,
+    view: View,
+    overlays: Schema.optionalKey(Overlays),
+    state: Schema.Union([Running, Explained, Halted]),
+  },
 })
 
 export type Work = typeof Work.Type
 
-export const { Thinking, Search, Definition, Lookup, Fetch, Takeaway, Drawn } = Work.cases
+export const { Thinking, Search, Definition, Lookup, Records, Fetch, Takeaway, Drawn } = Work.cases
 
 // A step of work that ended, as a turn keeps it. Thinking is not kept: it
 // only fills the time between steps.
@@ -191,6 +227,7 @@ export const Ended = Schema.TaggedUnion({
   Search: search(ended(Searched)),
   Definition: definition(ended(Read)),
   Lookup: lookup(ended(Located)),
+  Records: records(ended(Recorded)),
   Fetch: fetch(ended(Fetched, Rejected)),
   Takeaway: takeaway(ended(Checked, Dropped)),
 })
