@@ -20,6 +20,8 @@ Eurostat publishes about 8,000 datasets, each with dimensions (unit, sex, age, s
 4. It reads the file as it downloads, keeping annual lines for the countries the app charts. A series' lines are adjacent, so each series is offered to the store (below) as soon as its last line is read; the file is never held whole.
 5. It records the dataset's date once every series is offered. A dataset dated today stays unrecorded, since Eurostat may update it again at 23:00 under the same date, so the next run reads it again; its unchanged series write nothing.
 
+A run gathers Eurostat for 20 hours at most, then stops and leaves the datasets it did not reach to the next run. A first pass stores millions of series at about 40 a second, since a Worker has at most six R2 calls in flight, so it spreads over a few daily runs instead of overlapping the next one.
+
 A dataset is skipped, with its reason and date in D1's `series_skipped`, when its file has no annual values (`NoAnnual`), no annual values for a country we chart (`NoCountries`), more than 25 million values (`TooLarge`, about 2% of datasets, never downloaded), or Eurostat no longer publishes it (`NotFound`). Its charts ask Eurostat, as before. A dataset that fails stays unrecorded and fails the run, and the next run reads it again; the datasets that completed are not read again.
 
 ## The store
@@ -28,7 +30,7 @@ Each series is one JSON object in the stage's `Series` R2 bucket: its name and d
 
 The bucket is separate from `Cache`: the cache holds answers that can expire and are refetched, while a stored series stays until the World Bank publishes a change, and the bucket's own size and write counts are the store's.
 
-Each object carries the SHA-256 of its values, name, definition and dataset in its metadata, leaving out when it was fetched and the release date. Before storing an answer the run compares hashes, so an unchanged series costs no write and keeps its original retrieval time. A World Bank indicator's hash costs one `head` request; a Eurostat dataset's hashes come from listing its folder, one request per thousand series.
+Each object carries the SHA-256 of its values, name, definition and dataset in its metadata, leaving out when it was fetched and the release date. Before storing an answer the run compares hashes, so an unchanged series costs no write and keeps its original retrieval time, and a series with no stored hash is new and costs one write, no read. A World Bank indicator's hash costs one `head` request; a Eurostat dataset's hashes come from listing its folder, one request per thousand series.
 
 ## Holding back a candidate
 

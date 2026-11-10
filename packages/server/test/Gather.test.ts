@@ -568,6 +568,42 @@ describe("Gather from Eurostat", () => {
     },
   )
 
+  it.effect("stops gathering after 20 hours and leaves the rest to the next run", () => {
+    const { codes, published } = publishingEurostat("LONG")
+    const source = serving(published)
+    const store = bucket()
+    const gather = gatherOver(source.layer, store.bucket)
+
+    // Two datasets of three million values each: one step each.
+    const ids = [codes.unemployment, codes.regional]
+
+    // The first Eurostat step ends 21 hours into the run.
+    const workflow = steps((name) =>
+      name === "gather Eurostat after " ? TestClock.adjust("21 hours") : Effect.void,
+    )
+
+    return Effect.gen(function* () {
+      published.contents = contents(
+        ids.map((id) => ({ id, updated: "06.11.2026", values: 3_000_000 })),
+      )
+      published.files?.set(fileOf(codes.regional), file(eurostatRecorded.unemployment))
+
+      yield* gatherNow
+      yield* catalogueEurostat("LONG", ids)
+      yield* Gather.run().pipe(Effect.provide(Layer.merge(workflow.layer, gather)))
+
+      // Datasets go in code order: REG, then UNE.
+      expect(source.downloads()).toBe(1)
+      expect(yield* gatheredOf(codes.regional)).toBe("2026-11-06")
+      expect(yield* gatheredOf(codes.unemployment)).toBeNull()
+
+      yield* run.pipe(Effect.provide(gather))
+
+      expect(source.downloads()).toBe(2)
+      expect(yield* gatheredOf(codes.unemployment)).toBe("2026-11-06")
+    })
+  })
+
   it.effect("gathers a dataset released today again on the next run", () => {
     const { codes, published } = publishingEurostat("TODAY")
     const source = serving(published)

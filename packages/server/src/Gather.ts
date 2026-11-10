@@ -5,7 +5,17 @@ import {
   Source,
   SourceUnavailable,
 } from "@civicdata/domain"
-import { Array as Arr, Context, DateTime, Effect, Layer, Option, Schema, Stream } from "effect"
+import {
+  Array as Arr,
+  Context,
+  DateTime,
+  Duration,
+  Effect,
+  Layer,
+  Option,
+  Schema,
+  Stream,
+} from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
 import { tables } from "./Catalog.ts"
@@ -45,6 +55,12 @@ const largest = 25_000_000
 
 // Series of one dataset stored at once.
 const writing = 16
+
+// How long a run gathers Eurostat at most. A first pass stores millions of
+// series, at about 40 a second, and takes more than a day: a run stops
+// before the next day's run starts and leaves the remaining datasets, whose
+// releases stay unrecorded, to it.
+const eurostatHours = Duration.hours(20)
 
 // What happened to each series a step offered: stored, unchanged (the
 // stored series already holds the same values), held back, or failed (the
@@ -282,7 +298,10 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
 
       // Stores the candidate unless the stored series holds the same values
       // (compared by hash, so only a changed series is read) or the hold-back
-      // rule keeps the stored one.
+      // rule keeps the stored one. `stored` is the stored series' hash, none
+      // when nothing is stored: every series is written with its hash, so a
+      // new series costs one write and no read. A Worker has six R2 calls in
+      // flight at most, so a first pass is bound by how many it makes.
       const offer = Effect.fn("Gather.offer")(function* (
         candidate: Stored,
         stored: Option.Option<string>,
@@ -293,10 +312,12 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
           return "Unchanged" satisfies Outcome
         }
 
-        const current = yield* store.read({
-          indicator: candidate.indicator.id,
-          dimensions: candidate.dimensions,
-        })
+        const current = Option.isNone(stored)
+          ? Option.none<Stored>()
+          : yield* store.read({
+              indicator: candidate.indicator.id,
+              dimensions: candidate.dimensions,
+            })
 
         const verdict = judge(
           Option.match(current, { onNone: () => [], onSome: (found) => found.observations }),
@@ -595,17 +616,30 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
 
 // Runs one source's gather steps from the start of its catalog, each step
 // resuming after the indicator the previous one ended on, and answers the
-// totals.
+// totals. With `until`, an epoch time, it starts no step after it.
 const steps = Effect.fn("Gather.steps")(function* (
   source: Source,
   gather: (after: string) => Effect.Effect<Gathered>,
-  options: { readonly name: (after: string) => string; readonly timeout?: "30 minutes" },
+  options: {
+    readonly name: (after: string) => string
+    readonly timeout?: "30 minutes"
+    readonly until?: number
+  },
 ) {
   const step = yield* Step
   const totals = { stored: 0, unchanged: 0, held: 0, skipped: 0, failed: 0 }
   let after: string | null = ""
 
   while (after !== null) {
+    if (
+      options.until !== undefined &&
+      DateTime.toEpochMillis(yield* DateTime.now) >= options.until
+    ) {
+      yield* Effect.logInfo(`Stopped gathering ${source} after ${after}; the next run continues`)
+
+      break
+    }
+
     const batch: Gathered = yield* step.run(
       options.name(after),
       gather(after),
@@ -667,10 +701,17 @@ const runEurostat = Effect.fn("Gather.runEurostat")(function* () {
     return 0
   }
 
+  // Saved, so a run that resumes keeps the time it started.
+  const started = yield* step.run(
+    "start Eurostat",
+    Effect.map(DateTime.now, DateTime.toEpochMillis),
+  )
+
   const totals = yield* steps("Eurostat", eurostat.gather, {
     name: (after) => `gather Eurostat after ${after}`,
     // A large dataset stores up to 50,000 series.
     timeout: "30 minutes",
+    until: started + Duration.toMillis(eurostatHours),
   })
 
   return totals.failed
