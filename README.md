@@ -77,9 +77,11 @@ A question on the home page opens a conversation at `/c/<id>`, where follow-ups 
 
 ### Agent eval
 
-`pnpm --filter @civicdata/server eval` asks the agent every question in `packages/server/eval/cases.ts` and checks each final chart against the charts the case accepts: chart type, indicator, countries, transform, and the years the question names. A failed case lists what differed, e.g. `indicator GC.DOD.TOTL.CN, want GC.DOD.TOTL.GD.ZS`. It runs in workerd against the live sources and OpenAI, builds the catalog first, reads `OPENAI_API_KEY` and `OPENAI_MODEL` like `alchemy dev` does, and takes about three minutes. CI never runs it, since each question costs a few model requests.
+`pnpm --filter @civicdata/server eval` asks the agent every question in `packages/server/eval/cases.ts` and checks each final chart against the charts the case accepts: chart type, indicator, countries, transform, and the years the question names. A failed case lists what differed, e.g. `indicator GC.DOD.TOTL.CN, want GC.DOD.TOTL.GD.ZS`. It runs in workerd against OpenAI and the sources' recorded answers, builds the catalog first, reads `OPENAI_API_KEY` and `OPENAI_MODEL` like `alchemy dev` does, and takes about 25 minutes. CI never runs it, since each question costs a few model requests.
 
-Run it before changing the prompt, the tools or the model, and compare the passed count. A case that fails with `SourceUnavailable` hit a stalled World Bank request, not a wrong answer; rerun it alone with `-t "<question>"`.
+Run it before changing the prompt, the tools or the model, and compare the passed count. A case that fails with `SourceUnavailable` asked a source live and was refused; rerun it alone with `-t "<question>"`.
+
+`packages/server/eval/recordings` holds one gzipped JSON file per request the eval made to a source: its URL, `Accept` header, retrieval time, status and body. The eval answers a request from its file and never asks the source, so a run spends almost none of the OECD's 60 requests an hour. A request without a file goes to the source through the pacer, and its answer is saved for the next run; commit the new files. At the end, a run prints the requests it sent to each source and the answers it replayed. To refresh a source's answers, delete its folder (`oecd`, `eurostat` or `world-bank`) and run the eval. A refresh asks the OECD about 50 times, so refresh it at most once an hour. A replayed series reports the run's time as its retrieval time, since the adapters stamp an answer when it arrives; the file keeps when the source sent it.
 
 ### Editor
 

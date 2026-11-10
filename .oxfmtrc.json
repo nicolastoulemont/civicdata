@@ -8,6 +8,7 @@
     "**/routeTree.gen.ts",
     ".claude/skills/**",
     "tools/oxlint/anti-slop/**",
-    ".agents/skills/**"
+    ".agents/skills/**",
+    "packages/server/eval/recordings/**"
   ]
 }

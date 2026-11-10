@@ -5,25 +5,33 @@ import { Array as Arr, Clock, Effect, Layer, Predicate, Schedule, Stream } from 
 
 import { Agent } from "../src/Agent.ts"
 import { Catalog } from "../src/Catalog.ts"
-import { CatalogBuild, Step } from "../src/CatalogBuild.ts"
+import { CatalogBuild, database, Step } from "../src/CatalogBuild.ts"
 import { Conversation } from "../src/Conversation.ts"
 import { Politics } from "../src/Politics.ts"
 import { PoliticsBuild } from "../src/PoliticsBuild.ts"
 import { Resolver } from "../src/Resolver.ts"
-import { Sdmx } from "../src/Sdmx.ts"
 import { Transcript } from "../src/Transcript.ts"
-import { WorldBank } from "../src/WorldBank.ts"
+import { Vectors } from "../src/Vectors.ts"
 import { type Case, cases } from "./cases.ts"
+import { Sources } from "./Recordings.ts"
 import { score } from "./score.ts"
+import { Tally } from "./Tally.ts"
 
-// Builds the catalog from the live sources before the questions run. A
-// source that fails keeps the others in the catalog.
+// Builds the catalog from the sources before the questions run. A source
+// that fails keeps the others in the catalog.
 const Built = Layer.effectDiscard(
   Clock.currentTimeMillis.pipe(
     Effect.flatMap(CatalogBuild.run),
     Effect.catchTag("BuildFailed", (error) => Effect.logWarning("Catalog build failed", error)),
   ),
-).pipe(Layer.provide(Layer.merge(CatalogBuild.live, Step.immediate)))
+).pipe(
+  Layer.provide(
+    Layer.merge(
+      CatalogBuild.layer.pipe(Layer.provide(database), Layer.provide(Vectors.live)),
+      Step.immediate,
+    ),
+  ),
+)
 
 // Stores the elections and governments of the live archives before the
 // questions run. An archive that fails leaves its records out.
@@ -36,12 +44,13 @@ const Recorded = Layer.effectDiscard(
   ),
 ).pipe(Layer.provide(Layer.merge(PoliticsBuild.live, Step.immediate)))
 
-// The agent as a conversation runs it, against the live sources and model.
+// The agent as a conversation runs it, against the live model and archives
+// and the sources' recorded answers (eval/Recordings.ts).
 const Live = Layer.mergeAll(Agent.live.pipe(Layer.provide(Resolver.layer)), Built, Recorded).pipe(
   Layer.provide(Catalog.live),
   Layer.provide(Politics.live),
-  Layer.provide(WorldBank.live),
-  Layer.provide(Sdmx.live),
+  Layer.provide(Sources),
+  Layer.provide(Tally.layer),
 )
 
 // Asks the questions in one conversation, as a person would, and returns the
@@ -65,10 +74,10 @@ const answer = Effect.fn("eval.answer")(
     return yield* Effect.fromOption(Arr.last((yield* conversation.turns).answered))
   },
   Effect.provide(Conversation.layer.pipe(Layer.provide(Transcript.memory))),
-  // The eval asks the OECD faster than the pacer in src/Pace.ts allows, and a
-  // spent budget fails the answer with SourceUnavailable. That measures the
-  // pacer, not the agent, so the case is asked again in a new conversation
-  // once the pacer's minute window has moved on.
+  // A run that asks the OECD what no recording answers can spend the budget
+  // in src/Pace.ts, which fails the answer with SourceUnavailable. That
+  // measures the pacer, not the agent, so the case is asked again in a new
+  // conversation once the pacer's minute window has moved on.
   Effect.retry({
     while: Predicate.isTagged("SourceUnavailable"),
     schedule: Schedule.spaced("1 minute"),
