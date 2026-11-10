@@ -1,6 +1,7 @@
 import { Source } from "@civicdata/domain"
 import { env } from "cloudflare:workers"
 import { DateTime, Effect, Layer, Option, Result, Schema } from "effect"
+import { Base64 } from "effect/encoding"
 import {
   FetchHttpClient,
   HttpClient,
@@ -11,6 +12,7 @@ import {
 } from "effect/http"
 
 import { Cache } from "../src/Cache.ts"
+import { Notes } from "../src/Notes.ts"
 import { hosts, Pace } from "../src/Pace.ts"
 import { Sdmx } from "../src/Sdmx.ts"
 import { WorldBank } from "../src/WorldBank.ts"
@@ -25,6 +27,9 @@ const Recording = Schema.Struct({
   status: Schema.Int,
   contentType: Schema.String,
   body: Schema.String,
+  // A binary body, such as a zip of Eurostat's reference metadata, is kept
+  // in base64.
+  encoding: Schema.optionalKey(Schema.Literal("base64")),
 })
 
 const RecordingJson = Schema.fromJsonString(Schema.toCodecJson(Recording))
@@ -32,6 +37,9 @@ const RecordingJson = Schema.fromJsonString(Schema.toCodecJson(Recording))
 // A source's answer to keep: anything but a refusal or a server error, which
 // say nothing about the data.
 const kept = (status: number) => status < 500 && status !== 429
+
+// A body that is not text, which a recording keeps in base64.
+const binary = (contentType: string) => /zip|octet-stream/.test(contentType)
 
 const folders: Record<Source, string> = {
   OECD: "oecd",
@@ -101,10 +109,12 @@ const recorded = Layer.effect(
       const answer = (recording: typeof Recording.Type) =>
         HttpClientResponse.fromWeb(
           request,
-          new Response(recording.body, {
-            status: recording.status,
-            headers: { "content-type": recording.contentType },
-          }),
+          new Response(
+            recording.encoding === "base64"
+              ? Uint8Array.from(Result.getOrThrow(Base64.decode(recording.body)))
+              : recording.body,
+            { status: recording.status, headers: { "content-type": recording.contentType } },
+          ),
         )
 
       if (Option.isSome(found)) {
@@ -122,13 +132,20 @@ const recorded = Layer.effect(
 
       if (!kept(response.status)) return response
 
+      const contentType = response.headers["content-type"] ?? ""
+
       const recording = {
         source,
         ...asked,
         retrievedAt: yield* DateTime.now,
         status: response.status,
-        contentType: response.headers["content-type"] ?? "",
-        body: yield* response.text,
+        contentType,
+        ...(binary(contentType)
+          ? {
+              body: Base64.encode(new Uint8Array(yield* response.arrayBuffer)),
+              encoding: "base64" as const,
+            }
+          : { body: yield* response.text }),
       }
 
       yield* keep(path, yield* Schema.encodeEffect(RecordingJson)(recording).pipe(Effect.orDie))
@@ -156,10 +173,10 @@ const counted = Layer.effect(
   }),
 ).pipe(Layer.provide(FetchHttpClient.layer))
 
-// The World Bank and SDMX adapters as deployed, cached and paced, with each
-// source's answers replayed from eval/recordings above the pacer: a replayed
-// answer spends none of a source's request budget.
-export const Sources = Layer.merge(Sdmx.cached, WorldBank.cached).pipe(
+// The World Bank and SDMX adapters and the sources' notes as deployed, cached
+// and paced, with each source's answers replayed from eval/recordings above
+// the pacer: a replayed answer spends none of a source's request budget.
+export const Sources = Layer.mergeAll(Sdmx.cached, WorldBank.cached, Notes.layer).pipe(
   Layer.provide(recorded),
   Layer.provide(Pace.client),
   Layer.provide(counted),

@@ -1,4 +1,4 @@
-import { Schema } from "effect"
+import { Schema, SchemaGetter } from "effect"
 
 // Generated on 2026-11-08 from https://api.worldbank.org/v2/country?format=json&per_page=400,
 // keeping the 217 entries whose region is not "Aggregates" (regions, income groups).
@@ -304,3 +304,12 @@ export const locate = (name: string): ReadonlyArray<(typeof countries)[number]> 
         .slice(0, 5)
         .map(({ country }) => country)
 }
+
+// "FRA,DEU" ⇄ ["FRA", "DEU"], as a query parameter.
+export const CountryList = Schema.String.pipe(
+  Schema.decodeTo(Schema.Array(Schema.String), {
+    decode: SchemaGetter.split(),
+    encode: SchemaGetter.transform((list) => list.join(",")),
+  }),
+  Schema.decodeTo(Schema.NonEmptyArray(Country).check(Schema.isUnique())),
+)

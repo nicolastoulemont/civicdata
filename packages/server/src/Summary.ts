@@ -1,9 +1,27 @@
-import { Country, type Covered, type Observation, type ResolvedView, Year } from "@civicdata/domain"
+import {
+  type Break,
+  Country,
+  type Covered,
+  type Flag,
+  type Observation,
+  type ResolvedView,
+  Year,
+} from "@civicdata/domain"
 import { Array as Arr, Match, Order, Schema } from "effect"
 
 const Point = Schema.Struct({ year: Year, value: Schema.Finite })
 
 type Point = typeof Point.Type
+
+// How the source qualifies the charted values: each break in series, by
+// country and year, and how many values are provisional or estimated. A break
+// means the source changed how it measures from that year, so a jump there
+// may be the method rather than the world.
+const Flagged = Schema.Struct({
+  breaks: Schema.Array(Schema.Struct({ country: Country, year: Year })),
+  provisional: Schema.Int,
+  estimated: Schema.Int,
+})
 
 // Where one line of a trend or a change starts, ends, and is lowest and
 // highest.
@@ -21,6 +39,7 @@ const Lines = Schema.TaggedStruct("Lines", {
   to: Year,
   lines: Schema.Array(Line),
   missing: Schema.Array(Country),
+  flagged: Flagged,
 })
 
 // A ranking's values, highest first.
@@ -29,6 +48,7 @@ const Bars = Schema.TaggedStruct("Bars", {
   year: Year,
   bars: Schema.Array(Schema.Struct({ country: Country, value: Schema.Finite })),
   missing: Schema.Array(Country),
+  flagged: Flagged,
 })
 
 // A relation's dots: each country's value of the indicator and of the one it
@@ -41,19 +61,36 @@ const Dots = Schema.TaggedStruct("Dots", {
     Schema.Struct({ country: Country, value: Schema.Finite, against: Schema.Finite }),
   ),
   missing: Schema.Array(Country),
+  flagged: Flagged,
 })
 
 // What show_chart tells the model about the values it charted, so it can
 // write about it: the indicator's official name, which carries its unit,
 // the years the chart covers, and a trend's or a change's lines, a ranking's
 // bars, or a relation's dots. `missing` lists the countries the chart has no
-// value for.
+// value for, and `flagged` how the source qualifies the indicator's values.
 export const Summary = Schema.Union([Lines, Bars, Dots])
 
 export type Summary = typeof Summary.Type
 
 const byYear = Order.mapInput(Order.Number, (observation: Observation) => observation.year)
 const byValue = Order.mapInput(Order.Number, (observation: Observation) => observation.value)
+
+const marked = (observations: ReadonlyArray<Observation>, flag: Flag) =>
+  observations.filter((observation) => observation.flags?.includes(flag) === true)
+
+// A change passes its own breaks: it shows two years and drops those between.
+const flaggedOf = (
+  shown: ReadonlyArray<Observation>,
+  breaks: ReadonlyArray<Break> = marked(shown, "Break").map(({ country, year }) => ({
+    country,
+    year,
+  })),
+) => ({
+  breaks,
+  provisional: marked(shown, "Provisional").length,
+  estimated: marked(shown, "Estimated").length,
+})
 
 const pointOf = ({ year, value }: Observation): Point => ({ year, value })
 
@@ -67,7 +104,11 @@ const lineOf = (observations: Arr.NonEmptyReadonlyArray<Observation>) => ({
 
 const lines = (
   { indicator, observations, missing }: ResolvedView,
-  { from, to }: { readonly from: Year; readonly to: Year },
+  {
+    from,
+    to,
+    breaks,
+  }: { readonly from: Year; readonly to: Year; readonly breaks?: ReadonlyArray<Break> },
 ) =>
   Lines.make({
     name: indicator.name,
@@ -77,6 +118,7 @@ const lines = (
       lineOf,
     ),
     missing,
+    flagged: flaggedOf(observations, breaks),
   })
 
 const bars = ({ indicator, observations, missing }: ResolvedView, year: Year) =>
@@ -88,11 +130,15 @@ const bars = ({ indicator, observations, missing }: ResolvedView, year: Year) =>
       value,
     })),
     missing,
+    flagged: flaggedOf(observations),
   })
 
-// Only a relation holds the values it is plotted against.
-export const summarize = (resolved: ResolvedView): Summary =>
-  "against" in resolved
+// Only a relation holds the values it is plotted against, and only a change
+// the breaks between its two years.
+export const summarize = (resolved: ResolvedView): Summary => {
+  if ("breaks" in resolved) return lines(resolved, { ...resolved.view, breaks: resolved.breaks })
+
+  return "against" in resolved
     ? Dots.make({
         name: resolved.indicator.name,
         against: resolved.against.indicator.name,
@@ -103,12 +149,13 @@ export const summarize = (resolved: ResolvedView): Summary =>
             .map((other) => ({ country, value, against: other.value })),
         ),
         missing: resolved.missing,
+        flagged: flaggedOf(resolved.observations),
       })
     : Match.valueTags(resolved.view, {
         Trend: (trend) => lines(resolved, trend),
-        Change: (change) => lines(resolved, change),
         Ranking: ({ year }) => bars(resolved, year),
       })
+}
 
 // The runs of consecutive years in `years`, which are sorted: 2009, 2010,
 // 2012 runs 2009 to 2010, then 2012 to 2012.

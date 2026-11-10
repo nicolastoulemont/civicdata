@@ -1,7 +1,8 @@
 import {
   Change,
   Country,
-  Dimensions,
+  DimensionList,
+  type Dimensions,
   IndicatorId,
   Overlay,
   Ranking,
@@ -115,27 +116,14 @@ export type Search = typeof Search.Encoded
 
 const countryList = Schema.decodeUnknownSync(Schema.NonEmptyArray(Country))
 
-const dimensionList = Schema.decodeUnknownSync(Dimensions)
-
-// "sex:T,age:Y15-74" ⇄ { sex: "T", age: "Y15-74" }. Codes and dimension ids
-// hold neither ":" nor ",".
 const dimensionParams = (dimensions: Dimensions | undefined): { readonly dimensions?: string } =>
   dimensions === undefined || Object.keys(dimensions).length === 0
     ? {}
-    : {
-        dimensions: Object.entries(dimensions)
-          .map(([id, code]) => `${id}:${code}`)
-          .join(","),
-      }
+    : { dimensions: Schema.encodeSync(DimensionList)(dimensions) }
 
 // Sets the dimensions a link names on the View it describes.
 const picking = (view: View, param: string | undefined) =>
-  param === undefined
-    ? view
-    : withPicks(
-        view,
-        dimensionList(Object.fromEntries(param.split(",").map((pair) => pair.split(":")))),
-      )
+  param === undefined ? view : withPicks(view, Schema.decodeSync(DimensionList)(param))
 
 // Throws on a link that does not describe a valid View, which the route turns
 // into its error page. The `make` constructors reject duplicate countries,

@@ -1,6 +1,6 @@
-import { Schema, SchemaGetter } from "effect"
+import { Schema } from "effect"
 
-import { Country } from "./Country.ts"
+import { Country, CountryList } from "./Country.ts"
 import { IndicatorId } from "./Indicator.ts"
 import { Year } from "./View.ts"
 
@@ -359,15 +359,6 @@ export const Politics = Schema.Struct({
 })
 
 export interface Politics extends Schema.Schema.Type<typeof Politics> {}
-
-// "FRA,DEU" ⇄ ["FRA", "DEU"], as a query parameter.
-const CountryList = Schema.String.pipe(
-  Schema.decodeTo(Schema.Array(Schema.String), {
-    decode: SchemaGetter.split(),
-    encode: SchemaGetter.transform((list) => list.join(",")),
-  }),
-  Schema.decodeTo(Schema.NonEmptyArray(Country).check(Schema.isUnique())),
-)
 
 // Which countries and years to read the records of. A year counts whole:
 // a government in office on any day of it is in, and an election with any

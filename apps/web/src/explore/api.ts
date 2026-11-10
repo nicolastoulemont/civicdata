@@ -1,4 +1,4 @@
-import type { IndicatorId, Trend, View } from "@civicdata/domain"
+import type { Trend, View } from "@civicdata/domain"
 import { keepPreviousData, queryOptions, skipToken } from "@tanstack/react-query"
 
 import { call, page } from "@/api"
@@ -39,13 +39,22 @@ export const searchQuery = (text: string) =>
 // TooManyQuestions or one of resolve's errors.
 export const explain = (view: View) => call(page, (api) => api.views.explain({ payload: view }))
 
-// What the World Bank says about an indicator beyond its definition. Rejects
-// with IndicatorNotFound or SourceUnavailable.
-export const notesQuery = (indicator: IndicatorId) =>
+// What the source writes about a View's indicator beyond its definition: the
+// OECD's notes on the View's countries and series among them. Rejects with
+// IndicatorNotFound or SourceUnavailable.
+export const notesQuery = ({ indicator, countries, dimensions }: View) =>
   queryOptions({
-    queryKey: ["notes", indicator],
-    queryFn: () => call(page, (api) => api.indicators.notes({ params: { indicator } })),
+    queryKey: ["notes", indicator, countries.join(","), dimensions],
+    queryFn: () =>
+      call(page, (api) =>
+        api.indicators.notes({
+          params: { indicator },
+          query: dimensions === undefined ? { countries } : { countries, dimensions },
+        }),
+      ),
     retry: false,
+    // While another country's notes load, the indicator's stay on screen.
+    placeholderData: (previous) => (previous?.indicator === indicator ? previous : undefined),
     staleTime: 24 * 60 * 60 * 1000,
   })
 
