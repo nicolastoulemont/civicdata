@@ -112,9 +112,6 @@ export const hosts = new Map<string, Source>([
   ["sdmx.oecd.org", "OECD"],
 ])
 
-// How long a request may wait for a slot before it fails as refused.
-const hold = Duration.seconds(2)
-
 // Paces the requests the app sends to each source, so that all its Workers
 // together stay within the source's limits.
 export class Pace extends Context.Service<Pace, Interface>()("@civicdata/server/Pace") {
@@ -188,46 +185,57 @@ export class Pace extends Context.Service<Pace, Interface>()("@civicdata/server/
   )
 
   // Wraps the HttpClient the adapters use. A request waits for its source's
-  // slot; when none is free within two seconds, it gets a 429 without leaving
-  // the Worker, which the adapters already read as the source refusing. A
-  // real 429 from the source starts its cooldown.
-  static readonly client = Layer.effect(
-    HttpClient.HttpClient,
-    Effect.gen(function* () {
-      const client = yield* HttpClient.HttpClient
-      const pace = yield* Pace
+  // slot; when none is free within `hold`, it gets a 429 without leaving the
+  // Worker, which the adapters already read as the source refusing. A real
+  // 429 from the source starts its cooldown.
+  static readonly paced = (hold: Duration.Duration) =>
+    Layer.effect(
+      HttpClient.HttpClient,
+      Effect.gen(function* () {
+        const client = yield* HttpClient.HttpClient
+        const pace = yield* Pace
 
-      return HttpClient.transform(client, (send, request) => {
-        const source = hosts.get(new URL(request.url).host)
+        return HttpClient.transform(client, (send, request) => {
+          const source = hosts.get(new URL(request.url).host)
 
-        if (source === undefined) return send
+          if (source === undefined) return send
 
-        return pace.take(source, hold).pipe(
-          Effect.flatMap((slot) =>
-            Slot.match(slot, {
-              Granted: ({ wait }) =>
-                Effect.sleep(Duration.millis(wait)).pipe(
-                  Effect.andThen(send),
-                  Effect.tap((response) =>
-                    response.status === 429 ? pace.refused(source) : Effect.void,
+          return pace.take(source, hold).pipe(
+            Effect.flatMap((slot) =>
+              Slot.match(slot, {
+                Granted: ({ wait }) =>
+                  Effect.sleep(Duration.millis(wait)).pipe(
+                    Effect.andThen(send),
+                    Effect.tap((response) =>
+                      response.status === 429 ? pace.refused(source) : Effect.void,
+                    ),
                   ),
-                ),
-              Full: () =>
-                Effect.succeed(
-                  HttpClientResponse.fromWeb(
-                    request,
-                    new Response("Paced: this source's request budget is spent", { status: 429 }),
+                Full: () =>
+                  Effect.succeed(
+                    HttpClientResponse.fromWeb(
+                      request,
+                      new Response("Paced: this source's request budget is spent", { status: 429 }),
+                    ),
                   ),
-                ),
-            }),
-          ),
-        )
-      })
-    }),
-  )
+              }),
+            ),
+          )
+        })
+      }),
+    )
+
+  // A request for a visitor waits at most two seconds for a slot.
+  static readonly client = Pace.paced(Duration.seconds(2))
 
   // What the adapters send through when deployed: fetch, paced.
   static readonly http = Pace.client.pipe(
+    Layer.provide(FetchHttpClient.layer),
+    Layer.provide(Pace.live),
+  )
+
+  // What a gathering run sends through. Nobody waits on it, so a request
+  // waits up to ten seconds for a slot.
+  static readonly gathering = Pace.paced(Duration.seconds(10)).pipe(
     Layer.provide(FetchHttpClient.layer),
     Layer.provide(Pace.live),
   )

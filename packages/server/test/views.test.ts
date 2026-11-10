@@ -128,6 +128,8 @@ const worldBankNoting = (asked: Array<string> = []) =>
           }),
         ),
       indicators: Effect.succeed([]),
+      version: Effect.die("not used by charts"),
+      series: () => Effect.die("not used by charts"),
     }),
   )
 
@@ -139,6 +141,8 @@ const down = Layer.succeed(
     describe: () => Effect.fail(new SourceUnavailable({ source: "World Bank" })),
     observations: () => Effect.fail(new SourceUnavailable({ source: "World Bank" })),
     indicators: Effect.fail(new SourceUnavailable({ source: "World Bank" })),
+    version: Effect.fail(new SourceUnavailable({ source: "World Bank" })),
+    series: () => Effect.fail(new SourceUnavailable({ source: "World Bank" })),
   }),
 )
 

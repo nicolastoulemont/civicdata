@@ -5,7 +5,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./workflow": {
-      "workerd": "./src/CatalogWorkflow.ts",
+      "workerd": "./src/workflows.ts",
       "default": "./src/workflow.node.ts"
     }
   },

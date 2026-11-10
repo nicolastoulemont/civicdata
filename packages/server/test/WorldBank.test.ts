@@ -3,14 +3,17 @@ import { describe, expect, it } from "@effect/vitest"
 import { DateTime, Effect, Fiber, Layer } from "effect"
 import { TestClock } from "effect/testing"
 
+import { type SeriesBucket, Store } from "../src/Store.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 import { http, memory } from "./fakes.ts"
 import catalog from "./fixtures/worldbank/catalog.json"
 import gaps from "./fixtures/worldbank/gaps.json"
 import unknownIndicator from "./fixtures/worldbank/indicator-unknown.json"
 import population from "./fixtures/worldbank/indicator.json"
+import sources from "./fixtures/worldbank/sources.json"
 import wgiGaps from "./fixtures/worldbank/wgi-gaps.json"
 import corruption from "./fixtures/worldbank/wgi-indicator.json"
+import { bucket, bulk, charts, recorded as bulks, serving } from "./series.ts"
 
 const base = "https://api.worldbank.org/v2"
 
@@ -22,6 +25,7 @@ const recorded = [
   [`${base}/indicator?format=json&source=2&per_page=20000`, catalog],
   [`${base}/indicator/GOV_WGI_CC_EST?format=json`, corruption],
   [`${base}/country/HUN/indicator/GOV_WGI_CC_EST?format=json&date=1996:2002&per_page=7`, wgiGaps],
+  [`${base}/sources/2?format=json`, sources],
 ] as const
 
 const replay = (respond: (url: string) => Response) =>
@@ -107,6 +111,68 @@ describe("WorldBank", () => {
       expect(series.observations.map(({ year }) => year)).toEqual([2002, 2000, 1998, 1996])
     }).pipe(Effect.provide(recording)),
   )
+
+  it.effect("reads the day the World Development Indicators last changed", () =>
+    Effect.gen(function* () {
+      expect(yield* (yield* WorldBank).version).toBe("2026-10-08")
+    }).pipe(Effect.provide(recording)),
+  )
+
+  it.effect("reads every country's values from the bulk download, leaving out regions", () => {
+    const source = serving({
+      version: "2026-10-08",
+      answers: new Map([["SP.POP.TOTL", bulk(bulks.population)]]),
+    })
+
+    return Effect.gen(function* () {
+      const series = yield* (yield* WorldBank).series(IndicatorId.make("SP.POP.TOTL"))
+
+      expect(new Set(series.observations.map(({ country }) => country))).toEqual(
+        new Set(["DEU", "ESP", "FRA"]),
+      )
+      expect(
+        series.observations.find(({ country, year }) => country === "FRA" && year === 1960)?.value,
+      ).toBe(47412964)
+      expect(series.url).toBe(`${base}/en/indicator/SP.POP.TOTL?downloadformat=csv`)
+    }).pipe(Effect.provide(WorldBank.layer.pipe(Layer.provide(source.layer))))
+  })
+
+  it.effect("retries a bulk download for longer than a visitor's request", () => {
+    let attempts = 0
+
+    const flaky = http(() => {
+      attempts += 1
+
+      return attempts <= 3
+        ? new Response("upstream down", { status: 503 })
+        : new Response(bulk(bulks.population))
+    })
+
+    return Effect.gen(function* () {
+      const fiber = yield* (yield* WorldBank)
+        .series(IndicatorId.make("SP.POP.TOTL"))
+        .pipe(Effect.forkScoped)
+
+      yield* TestClock.adjust("1 minute")
+
+      const series = yield* Fiber.join(fiber)
+
+      expect(attempts).toBe(4)
+      expect(series.observations.length).toBeGreaterThan(0)
+    }).pipe(Effect.provide(WorldBank.layer.pipe(Layer.provide(flaky))))
+  })
+
+  it.effect("reports an indicator the bulk download does not know", () => {
+    const source = serving({ version: "2026-10-08", answers: new Map() })
+
+    return Effect.gen(function* () {
+      const error = yield* (yield* WorldBank)
+        .series(IndicatorId.make("NOT.A.REAL"))
+        .pipe(Effect.flip)
+
+      expect(error).toBeInstanceOf(IndicatorNotFound)
+    }).pipe(Effect.provide(WorldBank.layer.pipe(Layer.provide(source.layer))))
+  })
 
   it.effect("lists the World Development Indicators with their definitions", () =>
     Effect.gen(function* () {
@@ -224,5 +290,103 @@ describe("WorldBank.cached", () => {
       expect(world.requests()).toBe(2)
       expect(described.indicator.name).toBe("Population, total")
     }).pipe(Effect.provide(world.layer))
+  })
+})
+
+// A stored series of GDP per capita: France and South Sudan, 2014 to 2016.
+const storedGdp = {
+  indicator: {
+    id: gdp.indicator,
+    name: "GDP per capita (current US$)",
+    definition: "GDP divided by population.",
+  },
+  dataset: "World Development Indicators",
+  version: "2026-10-08",
+  retrievedAt: DateTime.makeUnsafe("2026-10-09T05:00:00Z"),
+  observations: [
+    { country: "FRA", year: Year.make(2014), value: 43000 },
+    { country: "FRA", year: Year.make(2015), value: 36702 },
+    { country: "FRA", year: Year.make(2016), value: 37024 },
+    { country: "SSD", year: Year.make(2015), value: 1080 },
+  ],
+} as const
+
+const storing = (store: SeriesBucket) =>
+  Effect.gen(function* () {
+    yield* (yield* Store).write(storedGdp)
+  }).pipe(Effect.provide(Store.r2(store)))
+
+const failing: SeriesBucket = {
+  get: () => Promise.reject(new Error("R2 is down")),
+  head: () => Promise.reject(new Error("R2 is down")),
+  put: () => Promise.reject(new Error("R2 is down")),
+}
+
+describe("WorldBank.stored", () => {
+  it.effect("draws a stored series without asking the World Bank", () => {
+    const store = bucket()
+    // A World Bank with nothing published: any request it gets is counted.
+    const source = serving({ version: "2026-10-08", answers: new Map() })
+
+    return Effect.gen(function* () {
+      yield* storing(store.bucket)
+
+      const worldBank = yield* WorldBank
+      const series = yield* worldBank.observations(gdp)
+      const described = yield* worldBank.describe(gdp.indicator)
+
+      expect(source.requests()).toBe(0)
+      expect(series.observations).toEqual([
+        { country: "FRA", year: 2015, value: 36702 },
+        { country: "FRA", year: 2016, value: 37024 },
+        { country: "SSD", year: 2015, value: 1080 },
+      ])
+      // The link returns the chart's values; the time is the stored series'.
+      expect(series.url).toBe(
+        `${base}/country/FRA;SSD/indicator/NY.GDP.PCAP.CD?format=json&date=2015:2016&per_page=4`,
+      )
+      expect(DateTime.formatIso(series.retrievedAt)).toBe("2026-10-09T05:00:00.000Z")
+      expect(described.indicator.name).toBe("GDP per capita (current US$)")
+      expect(described.dataset).toBe("World Development Indicators")
+    }).pipe(Effect.provide(charts(source.layer, store.bucket)))
+  })
+
+  it.effect("asks the World Bank for an indicator with no stored series", () => {
+    let requests = 0
+
+    const source = http((url) => {
+      requests += 1
+
+      return fromRecording(url)
+    })
+
+    return Effect.gen(function* () {
+      const series = yield* (yield* WorldBank).observations({
+        indicator: IndicatorId.make("GOV_WGI_CC_EST"),
+        countries: ["HUN"],
+        from: Year.make(1996),
+        to: Year.make(2002),
+      })
+
+      expect(requests).toBe(1)
+      expect(series.observations).toHaveLength(4)
+    }).pipe(Effect.provide(charts(source, bucket().bucket)))
+  })
+
+  it.effect("asks the World Bank when the store fails", () => {
+    let requests = 0
+
+    const source = http((url) => {
+      requests += 1
+
+      return fromRecording(url)
+    })
+
+    return Effect.gen(function* () {
+      const series = yield* (yield* WorldBank).observations(gdp)
+
+      expect(requests).toBe(1)
+      expect(series.observations).toHaveLength(3)
+    }).pipe(Effect.provide(charts(source, failing)))
   })
 })
