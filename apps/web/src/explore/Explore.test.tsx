@@ -1448,6 +1448,43 @@ describe("Explore", () => {
     expect(screen.getByRole("combobox", { name: "Year" }).textContent).toContain("2020")
   })
 
+  it("keeps a chart type picked while the history for over time still loads", async () => {
+    const { promise: loaded, resolve: load } = Promise.withResolvers<void>()
+
+    network.use(
+      http.post("/api/views/resolve", async ({ request }) => {
+        const view = Schema.decodeUnknownSync(View)(await request.json())
+
+        // The whole history, which "Over time" loads first, waits.
+        const whole = Match.value(view).pipe(
+          Match.tag("Trend", ({ from }) => from === 1960),
+          Match.orElse(() => false),
+        )
+
+        if (whole) await loaded
+
+        return HttpResponse.json(Schema.encodeSync(ResolvedViewSchema)(resolvedFor(view)))
+      }),
+    )
+
+    const user = userEvent.setup()
+
+    show(Ranking.make({ indicator: population, countries: ["FRA", "DEU"], year: Year.make(2020) }))
+
+    await screen.findByText("Bar chart ranking countries by Total population")
+    await user.click(screen.getByRole("button", { name: "Over time" }))
+    await user.click(screen.getByRole("button", { name: "Line chart over years" }))
+
+    expect(await screen.findByRole("combobox", { name: "From" })).toBeDefined()
+
+    load()
+
+    // The trend's own history arrives with the one "Over time" asked for.
+    expect(await screen.findByRole("slider", { name: "First year" })).toBeDefined()
+    expect(screen.getByRole("combobox", { name: "From" })).toBeDefined()
+    expect(screen.queryByText("Bar chart ranking countries by Total population")).toBeNull()
+  })
+
   it("shades a map over time by value on a key that stays the same in every year", async () => {
     network.use(worldBank)
     const user = userEvent.setup()

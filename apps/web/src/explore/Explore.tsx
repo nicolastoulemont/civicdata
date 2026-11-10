@@ -18,8 +18,8 @@ import {
   type View,
   Year,
 } from "@civicdata/domain"
-import { type QueryClient, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { Match, Struct } from "effect"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
+import { Match } from "effect"
 import { Fragment, type ReactNode, use, useState } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -38,6 +38,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Toggle } from "@/components/ui/toggle"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Hold } from "@/hold"
+import { useMachine } from "@/machine"
 
 import { About } from "./About.tsx"
 import { politicsQuery, resolveQuery } from "./api.ts"
@@ -51,15 +52,12 @@ import { Disagreements } from "./Disagreements.tsx"
 import type { Years } from "./drag.ts"
 import {
   oneYear,
-  overTime,
   type Spanned,
   withAgainst,
   withCountries,
   withIndicator,
   withPer,
-  withPicks,
   withSpan,
-  withTransform,
   withYear,
 } from "./edits.ts"
 import { Flags } from "./Flags.tsx"
@@ -73,6 +71,7 @@ import {
   subject,
   transformLabel,
 } from "./format.ts"
+import { historyOf, SpanEvent, Spanning, spanning } from "./history.ts"
 import { Indicator } from "./Indicator.tsx"
 import type { Moving } from "./OverTime.tsx"
 import type { Paired } from "./points.ts"
@@ -144,48 +143,12 @@ interface SpanYearsProps {
   onChange: (view: View) => void
 }
 
-// The years a chart over time starts from: its indicator's whole history, or
-// for a relation, the years each country has a value for both indicators.
-const historyFor = async (view: Spanned, queryClient: QueryClient) => {
-  const main = queryClient.fetchQuery(resolveQuery(historyOf(view)))
-
-  return Match.value(view).pipe(
-    Match.tag("Ranking", async () => (await main).observations),
-    Match.tag("Relation", async (relation) => {
-      const [own, against] = await Promise.all([
-        main,
-        // The indicator it is plotted against, as published.
-        queryClient.fetchQuery(
-          resolveQuery(
-            historyOf(
-              Relation.make({
-                ...Struct.omit(relation, ["dimensions"]),
-                indicator: relation.against,
-                against: relation.indicator,
-              }),
-            ),
-          ),
-        ),
-      ])
-
-      const held = new Set(against.observations.map(({ country, year }) => `${country} ${year}`))
-
-      return own.observations.filter(({ country, year }) => held.has(`${country} ${year}`))
-    }),
-    Match.exhaustive,
-  )
-}
-
 // One year, or a span of years the chart moves through with a slider.
 // Switching to over time first loads the chart's whole history, to start the
 // span at the first year every country shares.
 const SpanYears = ({ view, onChange }: SpanYearsProps) => {
   const queryClient = useQueryClient()
-
-  const spanning = useMutation({
-    mutationFn: () => historyFor(view, queryClient),
-    onSuccess: (history) => onChange(overTime(view, history)),
-  })
+  const [state, send] = useMachine(spanning, { input: { view, queryClient }, on: onChange })
 
   return (
     <>
@@ -196,11 +159,11 @@ const SpanYears = ({ view, onChange }: SpanYearsProps) => {
         onValueChange={(next: Array<string>) => {
           if (next.includes("one") && view.span !== undefined) onChange(oneYear(view))
 
-          if (next.includes("over") && view.span === undefined) spanning.mutate()
+          if (next.includes("over") && view.span === undefined) send(SpanEvent.Ask())
         }}
       >
         <ToggleGroupItem value="one">One year</ToggleGroupItem>
-        <ToggleGroupItem value="over" disabled={spanning.isPending}>
+        <ToggleGroupItem value="over" disabled={Spanning.$is("Loading")(state)}>
           Over time
         </ToggleGroupItem>
       </ToggleGroup>
@@ -218,7 +181,7 @@ const SpanYears = ({ view, onChange }: SpanYearsProps) => {
           onChange={(span) => onChange(withSpan(view, span))}
         />
       )}
-      {spanning.isError ? (
+      {Spanning.$is("Failed")(state) ? (
         <Alert variant="destructive">
           <AlertTitle>The years could not be loaded</AlertTitle>
           <AlertDescription>Try again in a moment.</AlertDescription>
@@ -419,25 +382,6 @@ const Chart = ({ resolved, picking, moving, politics }: ChartProps) => (
     <Disagreements resolved={resolved} />
   </div>
 )
-
-// A View's whole history: every year the World Bank could have, with the
-// View's series and transform. An index starts at the first year shown, so
-// the history of an indexed trend holds the values as published.
-const historyOf = (view: View) => {
-  const transform = transformOf(view)
-
-  const history = Trend.make({
-    indicator: view.indicator,
-    countries: view.countries,
-    from: Year.make(1960),
-    to: Year.make(new Date().getUTCFullYear()),
-  })
-
-  return withTransform(
-    view.dimensions === undefined ? history : withPicks(history, view.dimensions),
-    transform === "Index" ? undefined : transform,
-  )
-}
 
 interface PickingOptions {
   // Whether the controls are open. The history loads only then, so a
