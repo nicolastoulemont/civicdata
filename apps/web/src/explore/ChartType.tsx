@@ -8,7 +8,7 @@ import { chartOf, withChart } from "./edits.ts"
 const choices = [
   { value: "Trend", label: "Line", description: "Line chart over years", Icon: ChartLine },
   { value: "Ranking", label: "Bar", description: "Bar chart ranking one year", Icon: ChartColumn },
-  { value: "Map", label: "Map", description: "World map ranking one year", Icon: Earth },
+  { value: "Map", label: "Map", description: "Map ranking one year", Icon: Earth },
   { value: "Change", label: "Change", description: "Change between two years", Icon: ChartGantt },
   {
     value: "Relation",

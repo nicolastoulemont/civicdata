@@ -54,7 +54,7 @@ export {
   type Work,
 } from "./Conversation.ts"
 
-export { Country, countries, locate } from "./Country.ts"
+export { Country, countries, european, locate } from "./Country.ts"
 
 export { type Code, Dimension, DimensionId, DimensionList, Dimensions } from "./Dimension.ts"
 

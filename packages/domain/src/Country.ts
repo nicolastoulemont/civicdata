@@ -228,6 +228,71 @@ export const Country = Schema.Literals(countries.map((country) => country.code))
 
 export type Country = typeof Country.Type
 
+// The countries a map of Europe draws, so a map of only these draws Europe
+// instead of the world. They are the ones Eurostat maps: the EU 27, the EFTA
+// four, the United Kingdom, and the candidate and potential candidate
+// countries. Then every other economy inside the frame those need: Andorra,
+// Armenia, Belarus, the Channel Islands, the Faroe Islands, Gibraltar, the Isle
+// of Man, Monaco and San Marino. Russia and Kazakhstan reach Asia, so they
+// keep the world map.
+export const european: ReadonlySet<Country> = new Set<Country>([
+  // The EU 27.
+  "AUT",
+  "BEL",
+  "BGR",
+  "CYP",
+  "CZE",
+  "DEU",
+  "DNK",
+  "ESP",
+  "EST",
+  "FIN",
+  "FRA",
+  "GRC",
+  "HRV",
+  "HUN",
+  "IRL",
+  "ITA",
+  "LTU",
+  "LUX",
+  "LVA",
+  "MLT",
+  "NLD",
+  "POL",
+  "PRT",
+  "ROU",
+  "SVK",
+  "SVN",
+  "SWE",
+  // EFTA and the United Kingdom.
+  "CHE",
+  "GBR",
+  "ISL",
+  "LIE",
+  "NOR",
+  // Candidates and potential candidates.
+  "ALB",
+  "BIH",
+  "GEO",
+  "MDA",
+  "MKD",
+  "MNE",
+  "SRB",
+  "TUR",
+  "UKR",
+  "XKX",
+  // The rest of the frame.
+  "AND",
+  "ARM",
+  "BLR",
+  "CHI",
+  "FRO",
+  "GIB",
+  "IMN",
+  "MCO",
+  "SMR",
+])
+
 // Names people use that the World Bank spells differently, e.g. "Viet Nam"
 // for Vietnam, or that its names do not contain, e.g. "UK".
 const aliases = new Map<string, Country>([

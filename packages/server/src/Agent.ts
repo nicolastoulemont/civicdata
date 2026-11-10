@@ -427,7 +427,8 @@ const FindYears = Tool.make("find_years", {
   dependencies: [Report],
 })
 
-// The chart types show_chart draws. A map is a ranking drawn on a world map.
+// The chart types show_chart draws. A map is a ranking drawn on a map of
+// Europe when every country is European, else on a world map.
 const Form = Schema.Literals(["trend", "ranking", "map", "change", "relation"])
 
 const ShowChart = Tool.make("show_chart", {
@@ -436,7 +437,7 @@ const ShowChart = Tool.make("show_chart", {
   parameters: Schema.Struct({
     chart: Form.annotate({
       description:
-        "trend: one line per country over a range of years. ranking: countries compared in one year, as bars. map: a ranking drawn as a world map. change: each country's value in two years, from and to. relation: one dot per country in one year, the indicator against another.",
+        "trend: one line per country over a range of years. ranking: countries compared in one year, as bars. map: a ranking drawn as a map, of Europe when every country is European, else of the world. change: each country's value in two years, from and to. relation: one dot per country in one year, the indicator against another.",
     }),
     indicator: subject.indicator,
     against: Schema.NullOr(Schema.String).annotate({

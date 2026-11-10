@@ -14,12 +14,14 @@ const faces = [
 ]
 
 // Printable ASCII covers every World Bank indicator and economy name, apart
-// from the en dash. The card adds "·" and "…".
+// from the en dash. The card adds "·" and "…", and the map of Europe "é" for
+// Réunion.
 const characters = [
   ...Array.from({ length: 95 }, (_, index) => String.fromCodePoint(32 + index)),
   "–",
   "·",
   "…",
+  "é",
 ]
 
 // Sub-rows per pixel row. Coverage along each sub-row is exact.

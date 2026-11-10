@@ -1,10 +1,12 @@
 import { type Face, glyph } from "./font.ts"
 
-// Light theme tokens as sRGB, including the five OKLab map blends.
+// Light theme tokens as sRGB, including the five OKLab map blends and the
+// land around a map's countries, which the page fills with --muted at 60%.
 const inks = {
   foreground: [10, 10, 10],
   muted: [115, 115, 115],
   border: [229, 229, 229],
+  land: [249, 249, 249],
   "chart-1": [42, 120, 214],
   "chart-other": [133, 133, 133],
   "chart-faint": [221, 221, 221],

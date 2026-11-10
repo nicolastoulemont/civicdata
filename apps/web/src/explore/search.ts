@@ -22,7 +22,7 @@ import { withPicks, withTransform } from "./edits.ts"
 // ?chart=trend&indicator=SP.POP.TOTL&countries=FRA,DEU&from=2000&to=2022&transform=index
 // ?chart=relation&indicator=SP.DYN.LE00.IN&against=NY.GDP.PCAP.CD&countries=FRA,DEU&year=2022
 // A ratio names the indicator it divides by: &transform=ratio&per=NY.GDP.MKTP.CD
-// A ranking drawn as a world map adds &as=map. An SDMX indicator adds the
+// A ranking drawn as a map adds &as=map. An SDMX indicator adds the
 // value of each dimension: &dimensions=sex:T,age:Y15-74
 // A trend lists what it draws over its lines besides the View, outside it:
 // &overlays=governments

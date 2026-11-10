@@ -6,7 +6,7 @@ civicdata makes data about the economy and public policy easier to read and unde
 
 ## What you can do
 
-- Ask about one country or several. The answer is a line over the years, a ranking of countries in one year as bars or a world map, the change between two years, or one indicator plotted against another.
+- Ask about one country or several. The answer is a line over the years, a ranking of countries in one year as bars or a map (of Europe when every country is European, else the world), the change between two years, or one indicator plotted against another.
 - Read what the assistant writes before, between and after the charts, as much as the question needs. Once you change a chart, the answer's words grey out, and "Explain this chart" asks what the changed chart shows.
 - Change the chart where it is: add countries, pick the years, switch the chart type, or show the values per person, as yearly growth, as an index or as a ratio of another indicator. None of these changes calls the assistant.
 - Follow up in the same conversation, such as "add Portugal" or "now per person". A follow-up starts from the chart as you last changed it.
