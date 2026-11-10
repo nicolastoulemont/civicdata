@@ -80,9 +80,10 @@ export type Run<State, E, R, Input> = (
 ) => Effect.Effect<E, never, R> | Stream.Stream<E, never, R>
 
 // What keeps a state's work running: a value compared with Equal.equals.
-export type Key = string | number | boolean | bigint | Equal.Equal
+export type Key = string | number | boolean | bigint | Equal.Equal | ReadonlyArray<Key>
 
-// By default a state's work restarts whenever the state changes. A state that
+// By default a state's work restarts whenever a handler returns a new state;
+// a handler that returns the state it got leaves it running. A state that
 // collects progress from its own work names what restarts it with `key`.
 export type Job<State, E, R, Input> =
   | Run<State, E, R, Input>
@@ -155,8 +156,9 @@ export const next = <Input, S extends Tagged, E extends Tagged, O, R>(
     : { state: result, output: Option.none() }
 }
 
+// The work a state runs, and its key: none when any new state restarts it.
 interface Running<S, E, R, Input> {
-  readonly key: S | Key
+  readonly key: Option.Option<Key>
   readonly run: Run<S, E, R, Input>
 }
 
@@ -173,12 +175,12 @@ const jobOf = <Input, S extends Tagged, E extends Tagged, O, R>(
   if (job === undefined) return undefined
 
   return Predicate.isFunction(job)
-    ? { key: state, run: job }
-    : { key: job.key(state), run: job.run }
+    ? { key: Option.none(), run: job }
+    : { key: Option.some(job.key(state)), run: job.run }
 }
 
-// Whether moving from one state to another keeps the work running: the same
-// state, or one whose work names the same key.
+// Whether moving to a new state keeps the work running: a state of the same
+// tag whose work names the same key.
 const keeps = <Input, S extends Tagged, E extends Tagged, O, R>(
   machine: Machine<Input, S, E, O, R>,
   previous: S,
@@ -189,7 +191,11 @@ const keeps = <Input, S extends Tagged, E extends Tagged, O, R>(
   const before = jobOf(machine, previous)
   const after = jobOf(machine, state)
 
-  return before === undefined || after === undefined || Equal.equals(before.key, after.key)
+  if (before === undefined || after === undefined) return true
+
+  return Option.isSome(before.key) && Option.isSome(after.key)
+    ? Equal.equals(before.key.value, after.key.value)
+    : false
 }
 
 export interface Actor<S, E, O> {
@@ -246,7 +252,9 @@ const run = Effect.fnUntraced(function* <Input, S extends Tagged, E extends Tagg
 
     if (Option.isSome(result.output)) yield* Queue.offer(outputs, result.output.value)
 
-    if (!Equal.equals(previous, result.state)) {
+    // States compare by reference: a state may hold values, such as errors,
+    // that cannot be compared by value.
+    if (previous !== result.state) {
       yield* SubscriptionRef.set(state, result.state)
 
       if (!keeps(machine, previous, result.state)) yield* begin(result.state)
@@ -259,9 +267,11 @@ const run = Effect.fnUntraced(function* <Input, S extends Tagged, E extends Tagg
     transition(event).pipe(Effect.uninterruptible, Semaphore.withPermit(lock))
 
   // The generation is read under the lock: a transition may start new work
-  // between the letter's arrival and its turn.
+  // between the letter's arrival and its turn. A handler that throws is
+  // logged, and the machine goes on with the next event.
   const deliver = ({ event, from }: Letter<E>) =>
     Effect.suspend(() => (from === generation ? transition(event) : Effect.void)).pipe(
+      Effect.catchDefect((defect) => Effect.logError("Machine event not handled", defect)),
       Effect.uninterruptible,
       Semaphore.withPermit(lock),
     )

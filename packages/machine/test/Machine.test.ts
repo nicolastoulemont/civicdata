@@ -247,6 +247,28 @@ describe("start", () => {
     }).pipe(Effect.scoped),
   )
 
+  it.effect(
+    "compares states by reference, so a state may hold a value that cannot be compared",
+    () =>
+      Effect.gen(function* () {
+        const holder = Machine.make<Hold, HoldEvent>()({
+          initial: () => Hold.Empty(),
+          on: {
+            Empty: { Put: (_, { value }) => Hold.Holding({ value }) },
+            Holding: { Put: (_, { value }) => Hold.Holding({ value }) },
+          },
+        })
+
+        const actor = yield* Machine.start(holder)
+        const second = unreadable()
+
+        yield* actor.send(HoldEvent.Put({ value: unreadable() }))
+        yield* actor.send(HoldEvent.Put({ value: second }))
+
+        expect(yield* actor.get).toEqual(Hold.Holding({ value: second }))
+      }).pipe(Effect.scoped),
+  )
+
   it.effect("hands back outputs in order", () =>
     Effect.gen(function* () {
       const answers = yield* Answers
@@ -292,3 +314,26 @@ type CountEvent = Data.TaggedEnum<{
 }>
 
 const CountEvent = Data.taggedEnum<CountEvent>()
+
+// Holds a value, such as an error that carries its request and response.
+type Hold = Data.TaggedEnum<{
+  Empty: {}
+  Holding: { readonly value: object }
+}>
+
+const Hold = Data.taggedEnum<Hold>()
+
+type HoldEvent = Data.TaggedEnum<{
+  Put: { readonly value: object }
+}>
+
+const HoldEvent = Data.taggedEnum<HoldEvent>()
+
+// A value whose fields throw when read, as some errors' getters do.
+const unreadable = (): object =>
+  Object.defineProperty({}, "response", {
+    enumerable: true,
+    get: () => {
+      throw new Error("read")
+    },
+  })
