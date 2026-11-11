@@ -69,6 +69,7 @@ export {
   DimensionsMissing,
   IndicatorNotFound,
   NoChart,
+  isRefusal,
   PoliticsUnavailable,
   SourceUnavailable,
   TooManyQuestions,
