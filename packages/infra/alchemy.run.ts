@@ -17,13 +17,19 @@ export default Alchemy.Stack(
       Alchemy.RemovalPolicy.retain(stage === "prod"),
     )
 
+    // R2 refuses to delete a bucket that holds objects. Both buckets hold
+    // only what can be fetched again, so destroying any other stage empties
+    // them first; production keeps the refusal. A destroy reads this from the
+    // stage's last deploy, not from this file.
+    const forceDestroy = stage !== "prod"
+
     // Series cache. Every object can be fetched again from its source.
-    const cache = yield* Cloudflare.R2.Bucket("Cache")
+    const cache = yield* Cloudflare.R2.Bucket("Cache", { forceDestroy })
 
     // Every stored series, one object each, which the gathering Workflow
     // fills and charts read. A bucket of its own: unlike the cache it never
     // expires, and its size and writes are the store's alone.
-    const series = yield* Cloudflare.R2.Bucket("Series")
+    const series = yield* Cloudflare.R2.Bucket("Series", { forceDestroy })
 
     // Indicator meaning for catalog search, embedded with the model in
     // packages/server/src/Vectors.ts. Each catalog build fills it again.

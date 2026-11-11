@@ -1,0 +1,83 @@
+name: Remove previews
+
+# Destroys the preview stages of closed pull requests whose cleanup failed,
+# then lists the R2 buckets left in the account. A destroy reads each bucket's
+# forceDestroy from the stage's last deploy, so a stage last deployed before
+# packages/infra/alchemy.run.ts set it would refuse again. The job first
+# redeploys only the two buckets from main, which records forceDestroy, then
+# destroys the stage. Run it from the Actions tab or with
+# `gh workflow run remove.yml -f prs="100 109"`.
+on:
+  workflow_dispatch:
+    inputs:
+      prs:
+        description: "Closed pull request numbers, separated by spaces"
+        required: true
+        type: string
+
+permissions: {}
+
+jobs:
+  remove:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      pull-requests: read
+    environment: preview
+    concurrency:
+      group: remove-previews
+      cancel-in-progress: false
+    env:
+      PRS: ${{ inputs.prs }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+        with:
+          require-lockfile: true
+      # Stages are only ever pr-<number>, so prod is out of reach, and an open
+      # pull request's preview is still in use.
+      - name: Check every pull request is closed
+        run: |
+          for n in $PRS; do
+            if [[ ! "$n" =~ ^[0-9]+$ ]]; then
+              echo "::error::Not a pull request number: $n"
+              exit 1
+            fi
+            if [[ $(gh pr view "$n" --json state --jq .state) == OPEN ]]; then
+              echo "::error::#$n is open"
+              exit 1
+            fi
+          done
+      - name: Destroy each stage
+        run: |
+          for n in $PRS; do
+            pnpm --filter @civicdata/infra exec alchemy deploy --yes --stage "pr-$n" --include Series --include Cache
+            pnpm --filter @civicdata/infra exec alchemy destroy --yes --stage "pr-$n"
+          done
+      # Fails when a closed pull request still has a bucket, and prints the
+      # rest: production's and open pull requests'.
+      - name: List the remaining buckets
+        if: always()
+        run: |
+          names=$(curl --fail-with-body --silent --show-error \
+            -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/r2/buckets?name_contains=civicdata-&per_page=1000" \
+            | jq -r '.result.buckets[].name')
+          left=0
+          for name in $names; do
+            if [[ "$name" =~ -pr-([0-9]+)- ]] && [[ $(gh pr view "${BASH_REMATCH[1]}" --json state --jq .state) != OPEN ]]; then
+              echo "::error::$name belongs to closed pull request #${BASH_REMATCH[1]}"
+              left=1
+            else
+              echo "$name"
+            fi
+          done
+          exit $left
