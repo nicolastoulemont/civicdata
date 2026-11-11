@@ -1,6 +1,6 @@
 import { IndicatorId, IndicatorNotFound, SourceUnavailable, Year } from "@civicdata/domain"
 import { describe, expect, it } from "@effect/vitest"
-import { DateTime, Effect, Fiber, Layer, Option, Stream } from "effect"
+import { DateTime, Effect, Fiber, Layer, Stream } from "effect"
 import { TestClock } from "effect/testing"
 
 import { Policy } from "../src/Adapter.ts"
@@ -128,8 +128,9 @@ describe("WorldBank", () => {
     Effect.gen(function* () {
       const { changed } = yield* mirror
 
-      expect(yield* changed(Option.none())).toEqual(Option.some("2026-10-08"))
-      expect(yield* changed(Option.some("2026-10-08"))).toEqual(Option.none())
+      expect(yield* changed([total])).toEqual([
+        { indicator: total.indicator, version: "2026-10-08" },
+      ])
     }).pipe(Effect.provide(recording)),
   )
 

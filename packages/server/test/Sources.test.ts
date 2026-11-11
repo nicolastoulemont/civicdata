@@ -11,7 +11,7 @@ import { D1Client } from "@effect/sql-d1"
 import { beforeEach, describe, expect, it } from "@effect/vitest"
 import { reset } from "cloudflare:test"
 import { env } from "cloudflare:workers"
-import { DateTime, Effect, Layer, Option, Schema, Stream } from "effect"
+import { DateTime, Effect, Layer, Schema, Stream } from "effect"
 
 import { type Adapter, Policy } from "../src/Adapter.ts"
 import { Step } from "../src/CatalogBuild.ts"
@@ -37,8 +37,8 @@ const retrievedAt = DateTime.makeUnsafe("2026-11-10T05:00:00Z")
 // other series. It notes each series its API is asked for.
 const madeUp = (asked: Array<Query>): Adapter => ({
   policy: Policy.Full({
-    changed: (gathered) =>
-      Effect.succeed(Option.isSome(gathered) ? Option.none() : Option.some("2026-11")),
+    changed: (entries) =>
+      Effect.succeed(entries.map(({ indicator }) => ({ indicator, version: "2026-11" }))),
     gather: ({ indicator, name, definition }: CatalogEntry, release) =>
       Stream.fromIterable(
         (["F", "M"] as const).map((code, at) => ({
