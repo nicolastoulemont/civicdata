@@ -1,4 +1,5 @@
 import {
+  Action,
   AgentUnavailable,
   Answered,
   type Block,
@@ -163,9 +164,10 @@ const showing = (turn: Turn, { chart, view }: { chart: number; view: View }): Tu
 }
 
 // A conversation the server keeps between page loads, with the charts people
-// changed its turns' charts to and their votes. Showing the agent's own chart changes it back.
+// changed its turns' charts to, their votes, and what they did with the charts. Showing the agent's own chart changes it back.
 const kept = (answered: ReadonlyArray<Turn>) => {
   let current = answered
+  const acted: Array<{ turn: number; action: Action }> = []
 
   const handlers = [
     http.get(`/api/conversations/${id}`, () =>
@@ -191,9 +193,18 @@ const kept = (answered: ReadonlyArray<Turn>) => {
 
       return new HttpResponse(null, { status: 204 })
     }),
+    http.post(`/api/conversations/${id}/turns/:turn/actions`, async ({ params, request }) => {
+      const { action } = Schema.decodeUnknownSync(Schema.Struct({ action: Action }))(
+        await request.json(),
+      )
+
+      acted.push({ turn: Number(params["turn"]), action })
+
+      return new HttpResponse(null, { status: 204 })
+    }),
   ]
 
-  return { handlers, turns: () => current }
+  return { handlers, turns: () => current, actions: () => acted }
 }
 
 const brazilAnswer = {
@@ -1771,6 +1782,30 @@ describe("Conversation", () => {
 
     await vi.waitFor(() => expect(conversation.turns()[0]?.vote).toEqual(Up.make({})))
     expect(screen.queryByRole("group", { name: "What went wrong?" })).toBeNull()
+  })
+
+  it("counts a download of an answer's data and a copy of its link", async () => {
+    const user = userEvent.setup()
+    const conversation = kept([brazilAnswer])
+
+    network.use(...conversation.handlers, resolve)
+    show()
+
+    await user.click(await screen.findByRole("button", { name: "Copy link" }))
+    await user.click(screen.getByRole("tab", { name: "Data" }))
+    const download = await screen.findByRole("link", { name: "Download CSV" })
+
+    // happy-dom would navigate the page to the link's data: URL, ending the
+    // test's document; the click still reaches the page's handler.
+    download.addEventListener("click", (event) => event.preventDefault())
+    await user.click(download)
+
+    await vi.waitFor(() =>
+      expect(conversation.actions()).toEqual([
+        { turn: 0, action: "share" },
+        { turn: 0, action: "download" },
+      ]),
+    )
   })
 
   it("says why a vote could not be kept, and shows the vote kept before", async () => {

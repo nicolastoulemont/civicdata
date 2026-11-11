@@ -1,6 +1,8 @@
 import type { Country, Flag, ResolvedView } from "@civicdata/domain"
 import { Download } from "lucide-react"
+import { use } from "react"
 
+import { Act } from "@/act"
 import { buttonVariants } from "@/components/ui/button"
 import {
   Table,
@@ -100,6 +102,7 @@ interface DataProps {
 // Every observation behind the chart, as a table and a CSV, with the
 // exact request made to the source.
 export const Data = ({ resolved }: DataProps) => {
+  const act = use(Act)
   const table = tableOf(resolved)
 
   return (
@@ -109,6 +112,7 @@ export const Data = ({ resolved }: DataProps) => {
           className={buttonVariants({ variant: "outline", size: "sm" })}
           href={`data:text/csv;charset=utf-8,${encodeURIComponent(csv(table))}`}
           download={`${resolved.indicator.id}.csv`}
+          onClick={() => act("download")}
         >
           <Download data-icon="inline-start" aria-hidden />
           Download CSV

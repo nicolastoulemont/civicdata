@@ -81,6 +81,7 @@ const ConversationRoutes = HttpApiBuilder.group(
       .handleRaw("stop", forward)
       .handleRaw("show", forward)
       .handleRaw("vote", forward)
+      .handleRaw("act", forward)
   }),
 )
 

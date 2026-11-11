@@ -1,4 +1,5 @@
 import {
+  type Action,
   type ChartIndex,
   chartsOf,
   type ConversationId,
@@ -468,6 +469,21 @@ const showing = (turn: Turn, { chart, view }: { chart: ChartIndex; view: View })
     : Struct.assign(turn, { shown })
 }
 
+// The loaded conversation with the turn at `turn` as the server now keeps it.
+const saved = (
+  client: QueryClient,
+  { id, turn }: { id: ConversationId; turn: TurnIndex },
+  change: (turn: Turn) => Turn,
+) =>
+  client.setQueryData(turnsQuery(id).queryKey, (previous?: Turns) =>
+    previous === undefined
+      ? previous
+      : Struct.evolve(previous, {
+          answered: (answered) =>
+            answered.map((each, index) => (index === turn ? change(each) : each)),
+        }),
+  )
+
 // Keeps the chart a person changed one of a turn's charts to, one save at a
 // time and in order. While a save runs, `variables` holds the chart to show;
 // once the server keeps it, the saved conversation shows it too. Rejects with
@@ -483,16 +499,7 @@ export const useShow = (
     mutationFn: (view: View) =>
       call(page, (api) => api.conversation.show({ params: { id, turn, chart }, payload: view })),
     onSuccess: (_, view) =>
-      queryClient.setQueryData(turnsQuery(id).queryKey, (previous?: Turns) =>
-        previous === undefined
-          ? previous
-          : Struct.evolve(previous, {
-              answered: (answered) =>
-                answered.map((each, index) =>
-                  index === turn ? showing(each, { chart, view }) : each,
-                ),
-            }),
-      ),
+      saved(queryClient, { id, turn }, (each) => showing(each, { chart, view })),
   })
 }
 
@@ -507,19 +514,17 @@ export const useVote = (id: ConversationId, turn: TurnIndex) => {
     scope: { id: `conversation-${id}-turn-${turn}-vote` },
     mutationFn: (vote: Vote) =>
       call(page, (api) => api.conversation.vote({ params: { id, turn }, payload: vote })),
-    onSuccess: (_, vote) =>
-      queryClient.setQueryData(turnsQuery(id).queryKey, (previous?: Turns) =>
-        previous === undefined
-          ? previous
-          : Struct.evolve(previous, {
-              answered: (answered) =>
-                answered.map((each, index) =>
-                  index === turn ? Struct.assign(each, { vote }) : each,
-                ),
-            }),
-      ),
+    onSuccess: (_, vote) => saved(queryClient, { id, turn }, Struct.assign({ vote })),
   })
 }
+
+// Counts what the person did with a turn's charts. Nothing shows whether the
+// count arrived: it changes nothing the person sees.
+export const useAct = (id: ConversationId, turn: TurnIndex) =>
+  useMutation({
+    mutationFn: (action: Action) =>
+      call(page, (api) => api.conversation.act({ params: { id, turn }, payload: { action } })),
+  })
 
 declare module "@tanstack/react-router" {
   interface HistoryState {

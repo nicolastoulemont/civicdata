@@ -1,4 +1,5 @@
 import {
+  type Action,
   AgentUnavailable,
   Answered,
   Api,
@@ -476,6 +477,12 @@ const show = (turn: number, view: View, { chart = 0 }: { chart?: number } = {}) 
 const vote = (turn: number, choice: Vote) =>
   Effect.flatMap(client, (api) =>
     api.conversation.vote({ params: { id, turn: TurnIndex.make(turn) }, payload: choice }),
+  )
+
+// Counts what the person did with the charts of the turn at `turn`.
+const act = (turn: number, action: Action) =>
+  Effect.flatMap(client, (api) =>
+    api.conversation.act({ params: { id, turn: TurnIndex.make(turn) }, payload: { action } }),
   )
 
 // An answer of these blocks, in order.
@@ -3382,6 +3389,9 @@ const Logged = Schema.Struct({
   version: Schema.NullOr(Schema.String),
   trace: Schema.NullOr(Schema.String),
   vote: Schema.NullOr(Schema.fromJsonString(Vote)),
+  changes: Schema.Number,
+  downloads: Schema.Number,
+  shares: Schema.Number,
 })
 
 // Every row of the answer log, oldest first.
@@ -3421,6 +3431,9 @@ describe("answer log", () => {
             version: "abc123",
             trace: expect.any(String),
             vote: null,
+            changes: 0,
+            downloads: 0,
+            shares: 0,
           },
           expect.objectContaining({
             asked: "1970-01-01T00:01:00.000Z",
@@ -3513,7 +3526,7 @@ describe("answer log", () => {
     }).pipe(Effect.provide(serveApi(model.layer, { answers: logged })))
   })
 
-  it.effect("keeps votes in a log made before votes were kept", () => {
+  it.effect("keeps votes and counts in a log made before they were kept", () => {
     const model = scripted([Effect.succeed(call("show_chart", brazil))])
 
     return Effect.gen(function* () {
@@ -3525,8 +3538,35 @@ describe("answer log", () => {
 
       yield* answer("Life expectancy in Brazil")
       yield* vote(0, Up.make({}))
+      yield* act(0, "share")
 
-      expect((yield* rows)[0]?.vote).toEqual(Up.make({}))
+      expect((yield* rows)[0]).toMatchObject({ vote: Up.make({}), shares: 1 })
+    }).pipe(Effect.provide(serveApi(model.layer, { answers: logged })))
+  })
+
+  it.effect("counts the chart changes, downloads and shares of each answer", () => {
+    const model = scripted([Effect.succeed(call("show_chart", brazil))])
+
+    return Effect.gen(function* () {
+      yield* answer("Life expectancy in Brazil")
+      yield* show(0, Trend.make({ ...brazilTrend, countries: ["MEX"] }))
+      yield* show(0, brazilTrend)
+      yield* act(0, "download")
+      yield* act(0, "share")
+
+      expect((yield* rows)[0]).toMatchObject({ changes: 2, downloads: 1, shares: 1 })
+    }).pipe(Effect.provide(serveApi(model.layer, { answers: logged })))
+  })
+
+  it.effect("refuses an action on a turn the conversation does not have", () => {
+    const model = scripted([Effect.succeed(call("show_chart", brazil))])
+
+    return Effect.gen(function* () {
+      yield* answer("Life expectancy in Brazil")
+
+      expect(yield* Effect.flip(act(1, "download"))).toEqual(
+        new TurnNotFound({ turn: TurnIndex.make(1) }),
+      )
     }).pipe(Effect.provide(serveApi(model.layer, { answers: logged })))
   })
 

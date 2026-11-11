@@ -39,6 +39,7 @@ const Handlers = HttpApiBuilder.group(
         conversation.show(params.turn, { chart: params.chart, view: payload }),
       )
       .handle("vote", ({ params, payload }) => conversation.vote(params.turn, payload))
+      .handle("act", ({ params, payload }) => conversation.act(params.turn, payload.action))
       .handle("ask", ({ params, payload, request }) =>
         conversation.open.pipe(
           Effect.andThen(limit.count(request.headers["cf-connecting-ip"] ?? "unknown")),

@@ -1,6 +1,8 @@
 import type { Overlay, View } from "@civicdata/domain"
 import { Check, Link } from "lucide-react"
+import { use } from "react"
 
+import { Act } from "@/act"
 import { useCopy } from "@/clipboard"
 import { Button } from "@/components/ui/button"
 
@@ -19,12 +21,16 @@ interface CopyLinkProps {
 export const CopyLink = ({ view, overlays }: CopyLinkProps) => {
   const query = toQuery(view, overlays)
   const { outcome, copy } = useCopy(query)
+  const act = use(Act)
 
   return (
     <Button
       variant="outline"
       size="sm"
-      onClick={() => copy(new URL(`/explore${query}`, window.location.origin).href)}
+      onClick={() => {
+        copy(new URL(`/explore${query}`, window.location.origin).href)
+        act("share")
+      }}
     >
       {outcome === "copied" ? <Check aria-hidden /> : <Link aria-hidden />}
       {outcome === undefined ? "Copy link" : labels[outcome]}

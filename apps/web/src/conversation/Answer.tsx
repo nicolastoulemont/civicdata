@@ -11,10 +11,11 @@ import {
 } from "@civicdata/domain"
 import { useState } from "react"
 
+import { Act } from "@/act"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Explore } from "@/explore/Explore"
 
-import { useShow } from "./useConversation.ts"
+import { useAct, useShow } from "./useConversation.ts"
 
 // Why a changed chart could not be kept, in plain words.
 const problemOf = (error: Error) =>
@@ -45,9 +46,11 @@ interface AnswerProps {
 // the server refuses returns to the chart kept before, with why. A change made
 // while the answer runs shows here and is not kept. The chart stays the same
 // card from the moment the agent draws it, so it does not redraw when the
-// answer is kept.
+// answer is kept. Once kept, a download of its data or a copy of its link is
+// counted on the answer.
 export const Answer = ({ id, turn, chart, agent, shown, kept }: AnswerProps) => {
   const showing = useShow(id, { turn, chart })
+  const acting = useAct(id, turn)
   const [drawn, setDrawn] = useState(agent.view)
   const saved = showing.isPending ? showing.variables : (shown ?? agent.view)
   const view = kept ? saved : drawn
@@ -56,7 +59,7 @@ export const Answer = ({ id, turn, chart, agent, shown, kept }: AnswerProps) => 
   const [overlays, setOverlays] = useState<ReadonlyArray<Overlay>>(agent.overlays ?? [])
 
   return (
-    <>
+    <Act value={(action) => (kept ? acting.mutate(action) : undefined)}>
       <Explore
         view={view}
         onChange={(next) => (kept ? showing.mutate(next) : setDrawn(next))}
@@ -71,6 +74,6 @@ export const Answer = ({ id, turn, chart, agent, shown, kept }: AnswerProps) => 
           <AlertDescription>{problemOf(showing.error)}</AlertDescription>
         </Alert>
       ) : null}
-    </>
+    </Act>
   )
 }
