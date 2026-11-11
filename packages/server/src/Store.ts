@@ -22,12 +22,39 @@ import { Array as Arr, Context, Data, Effect, Layer, Option, Order, Schema, Stre
 import { fingerprint } from "./fingerprint.ts"
 import { Described } from "./Series.ts"
 
+const imfCoherent = (value: {
+  readonly indicator?: { readonly id: IndicatorId }
+  readonly version: string
+  readonly observations: ReadonlyArray<Observation>
+  readonly qualifications?: ReadonlyArray<Qualification>
+}) =>
+  value.indicator?.id !== "IMF:NGDP_RPCH" ||
+  (value.observations.every((point) =>
+    (value.qualifications ?? []).some(
+      (item) =>
+        item.source === "IMF" &&
+        item.country === point.country &&
+        item.year === point.year &&
+        !item.missing &&
+        value.version.startsWith(`${item.vintage}/`),
+    ),
+  ) &&
+    (value.qualifications ?? []).every(
+      (item) =>
+        item.source === "IMF" &&
+        item.missing ===
+          !value.observations.some(
+            (point) => point.country === item.country && point.year === item.year,
+          ),
+    ))
+
 const coherent = (value: {
   readonly indicator?: { readonly id: IndicatorId }
   readonly version: string
   readonly observations: ReadonlyArray<Observation>
   readonly qualifications?: ReadonlyArray<Qualification>
 }) =>
+  imfCoherent(value) &&
   (value.indicator?.id !== "V-Dem:v2x_polyarchy" ||
     value.observations.every((point) =>
       (value.qualifications ?? []).some(

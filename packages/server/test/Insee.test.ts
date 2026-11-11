@@ -15,6 +15,7 @@ import { Catalog } from "../src/Catalog.ts"
 import { Directions } from "../src/Directions.ts"
 import { Faostat } from "../src/Faostat.ts"
 import { Ilostat } from "../src/Ilostat.ts"
+import { Imf } from "../src/Imf.ts"
 import { Insee } from "../src/Insee.ts"
 import { Resolver } from "../src/Resolver.ts"
 import { Sdmx } from "../src/Sdmx.ts"
@@ -178,6 +179,7 @@ describe("INSEE", () => {
             Layer.mergeAll(
               Vdem.layer,
               Wid.layer,
+              Imf.layer,
               Who.layer,
               Faostat.layer,
               Ilostat.layer,

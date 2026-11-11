@@ -218,3 +218,16 @@ complete cross-country series before immutable release staging. Publisher qualit
 and per-input evidence survive chart output. [Evidence and operator limits](research/wid/README.md)
 record the noncommercial scope. This PR needs `own-catalog`; fills need separate
 owner approval. NTO-219 remains In Progress for IMF, coverage and approved fills.
+
+## IMF WEO initial slice
+
+Only IMF `NGDP_RPCH` real GDP growth for France and Sweden, annual 2020–2030,
+is registered. Explicit frequency, percent units and constant prices accompany
+StoredOnly reads. Each year retains publication vintage, publisher last-actual
+cutoff and actual versus staff estimate/projection status. The Node-only fill
+assembles a complete cross-country series through shared coherent releases and
+input checkpoints. Two response hashes pin a reviewed snapshot of the mutable
+SDMX route, not an immutable IMF release. No manual fill ran. The PR requires
+`own-catalog`; first fill requires owner approval and explicit D1/R2 targets.
+[Evidence, terms, snapshot limits and operator prerequisites](research/imf/README.md)
+cover the narrow scope; wider coverage and approved fills remain outstanding.

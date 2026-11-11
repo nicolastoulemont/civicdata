@@ -126,10 +126,20 @@ export const credits = (resolved: ResolvedView) => {
     .flatMap((source) => source.inputs ?? [])
     .map(
       (input) =>
-        `${input.url} (${DateTime.formatIso(input.retrievedAt)}; ETag ${input.etag}; Last-Modified ${input.lastModified}; SHA-256 ${input.sha256})`,
+        `${input.url} (${[DateTime.formatIso(input.retrievedAt), ...(input.etag === undefined ? [] : [`ETag ${input.etag}`]), ...(input.lastModified === undefined ? [] : [`Last-Modified ${input.lastModified}`]), `SHA-256 ${input.sha256}`].join("; ")})`,
     )
 
-  return [...labels, ...inputs].join("; ")
+  const outlook = new Set(
+    (resolved.qualifications ?? []).flatMap((item) =>
+      item.source === "IMF"
+        ? [
+            `IMF WEO ${item.vintage}, ${item.country}, LATEST_ACTUAL_ANNUAL_DATA=${item.latestActual}, ${item.status.label}`,
+          ]
+        : [],
+    ),
+  )
+
+  return [...labels, ...inputs, ...outlook].join("; ")
 }
 
 export const attribution = (resolved: ResolvedView) =>

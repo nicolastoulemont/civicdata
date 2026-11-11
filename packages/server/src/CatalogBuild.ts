@@ -21,6 +21,7 @@ import { Classifier, Classifying } from "./Classifier.ts"
 import { Faostat } from "./Faostat.ts"
 import { fingerprint } from "./fingerprint.ts"
 import { Ilostat } from "./Ilostat.ts"
+import { Imf } from "./Imf.ts"
 import { Insee } from "./Insee.ts"
 import { searchable, Outline, Outlines } from "./Outlines.ts"
 import { Pace } from "./Pace.ts"
@@ -649,6 +650,7 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
     Layer.provide(Sources.layer),
     Layer.provide(Insee.cached),
     Layer.provide(Wid.layer),
+    Layer.provide(Imf.layer),
     Layer.provide(Who.cached),
     Layer.provide(Ilostat.layer),
     Layer.provide(Vdem.layer),

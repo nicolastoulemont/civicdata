@@ -1,0 +1,19 @@
+{
+  "retrievedAt": "2026-11-11T22:29:28.741612+00:00",
+  "metadataUrl": "https://api.imf.org/external/sdmx/2.1/datastructure/IMF.RES/DSD_WEO/9.0.0?references=all",
+  "metadataFullResponseSha256": "627394c11b932fb6058bf8c7562202bbe95e44ab8b8ff19d65a035acd39eb52a",
+  "inputs": [
+    {
+      "url": "https://api.imf.org/external/sdmx/2.1/data/IMF.RES,WEO,latest/FRA.NGDP_RPCH.A?startPeriod=2020&endPeriod=2030",
+      "accept": "application/vnd.sdmx.data+csv;version=2.0.0",
+      "sha256": "bdccd9d4a42b4fe8ac6fceb830ef4cb18634f1d2dbe73d9adcaccedcb62ca605",
+      "retrievedAt": "2026-11-11T22:29:45.999742+00:00"
+    },
+    {
+      "url": "https://api.imf.org/external/sdmx/2.1/data/IMF.RES,WEO,latest/SWE.NGDP_RPCH.A?startPeriod=2020&endPeriod=2030",
+      "accept": "application/vnd.sdmx.data+csv;version=2.0.0",
+      "sha256": "220b5921b5ef6f3e62e07677620004e883b8795a2ba9e19f35e55d1cda8f595b",
+      "retrievedAt": "2026-11-11T22:29:56.969563+00:00"
+    }
+  ]
+}

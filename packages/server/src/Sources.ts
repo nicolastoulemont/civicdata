@@ -12,6 +12,7 @@ import { type Adapter, Policy } from "./Adapter.ts"
 import { Cache } from "./Cache.ts"
 import { Faostat } from "./Faostat.ts"
 import { Ilostat } from "./Ilostat.ts"
+import { Imf } from "./Imf.ts"
 import { Insee } from "./Insee.ts"
 import { Pace } from "./Pace.ts"
 import { Releases } from "./Releases.ts"
@@ -93,6 +94,7 @@ export class Sources extends Context.Service<Sources, Interface>()("@openfacts/s
       const ilostat = yield* Ilostat
       const faostat = yield* Faostat
       const vdem = yield* Vdem
+      const imf = yield* Imf
       const wid = yield* Wid
       const who = yield* Who
 
@@ -104,6 +106,7 @@ export class Sources extends Context.Service<Sources, Interface>()("@openfacts/s
         FAOSTAT: faostat,
         "V-Dem": vdem,
         WID: wid,
+        IMF: imf,
         WHO: who,
       })
     }),
@@ -220,6 +223,7 @@ export class Sources extends Context.Service<Sources, Interface>()("@openfacts/s
     Layer.provide(Sources.layer),
     Layer.provide(Insee.cached),
     Layer.provide(Wid.layer),
+    Layer.provide(Imf.layer),
     Layer.provide(Who.cached),
     Layer.provide(Ilostat.layer),
     Layer.provide(Vdem.layer),

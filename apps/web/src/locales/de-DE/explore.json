@@ -187,5 +187,8 @@
   "Excluded reference period": "Ausgeschlossener Bezugszeitraum",
   "Excluded geography": "Ausgeschlossene geografische Abdeckung",
   "Estimate {{estimate}}; 68% HPD interval {{lower}}–{{upper}} ({{version}})": "Schätzwert {{estimate}}; 68-%-HPD-Intervall {{lower}}–{{upper}} ({{version}})",
-  "WHO estimate {{estimate}}; 95% uncertainty bounds {{lower}}–{{upper}} ({{version}}).": "WHO-Schätzung {{estimate}}; 95%-Unsicherheitsgrenzen {{lower}}–{{upper}} ({{version}})."
+  "WHO estimate {{estimate}}; 95% uncertainty bounds {{lower}}–{{upper}} ({{version}}).": "WHO-Schätzung {{estimate}}; 95%-Unsicherheitsgrenzen {{lower}}–{{upper}} ({{version}}).",
+  "WEO {{vintage}}; {{status}}; latest actual {{year}}.": "WEO {{vintage}}; {{status}}; letzter Istwert {{year}}.",
+  "Publisher actual (revisable)": "Istwert des Herausgebers (revidierbar)",
+  "IMF estimate/projection": "IWF-Schätzung/Projektion"
 }

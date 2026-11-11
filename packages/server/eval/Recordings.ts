@@ -14,6 +14,7 @@ import {
 import { Cache } from "../src/Cache.ts"
 import { Faostat } from "../src/Faostat.ts"
 import { Ilostat } from "../src/Ilostat.ts"
+import { Imf } from "../src/Imf.ts"
 import { Insee } from "../src/Insee.ts"
 import { Notes } from "../src/Notes.ts"
 import { hosts, Pace } from "../src/Pace.ts"
@@ -189,6 +190,7 @@ export const Replayed = Layer.mergeAll(
       Layer.mergeAll(
         Vdem.layer,
         Wid.layer,
+        Imf.layer,
         Who.layer,
         Faostat.layer,
         Ilostat.layer,

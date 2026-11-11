@@ -20,7 +20,8 @@
     "ilostat": "node scripts/ilostat.ts",
     "faostat": "node scripts/faostat.ts",
     "vdem": "node scripts/vdem.ts",
-    "wid": "node scripts/wid.ts"
+    "wid": "node scripts/wid.ts",
+    "imf": "node scripts/imf.ts"
   },
   "dependencies": {
     "@effect/ai-openai": "4.1.2",
