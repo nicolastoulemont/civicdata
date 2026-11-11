@@ -1,4 +1,5 @@
 import {
+  type Action,
   type AgentUnavailable,
   type Block,
   type CatalogUnavailable,
@@ -77,6 +78,9 @@ interface Interface {
   // Keeps what the person thought of a turn's answer, replacing their earlier
   // vote, and logs it with the answer. Fails with TurnNotFound.
   readonly vote: (turn: TurnIndex, vote: Vote) => Effect.Effect<void, TurnNotFound>
+  // Counts what the person did with one of a turn's charts on its logged
+  // answer, as `show` counts each change. Fails with TurnNotFound.
+  readonly act: (turn: TurnIndex, action: Action) => Effect.Effect<void, TurnNotFound>
   // Deletes the conversation once no answer is running: now, or when the
   // answer in progress fails. An answer that keeps its turn keeps the
   // conversation too, as saving it moves the alarm on, even when this alarm
@@ -479,34 +483,35 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
 
       // A chart the model has not heard of changing yet becomes an edit,
       // which knows the chart that was on screen before.
-      const show = Effect.fn("Conversation.show")(function* (
-        turn: TurnIndex,
-        change: Pick<Changed, "chart" | "view">,
-      ) {
-        const saved = yield* transcript.load
-        const found = Option.flatMap(saved, ({ turns: all }) => Arr.get(all, turn))
+      const show = Effect.fn("Conversation.show")(
+        function* (turn: TurnIndex, change: Pick<Changed, "chart" | "view">) {
+          const saved = yield* transcript.load
+          const found = Option.flatMap(saved, ({ turns: all }) => Arr.get(all, turn))
 
-        if (Option.isNone(saved) || Option.isNone(found)) return yield* new TurnNotFound({ turn })
+          if (Option.isNone(saved) || Option.isNone(found)) return yield* new TurnNotFound({ turn })
 
-        const next = showing(found.value, change)
-        const known = onScreen(found.value)[change.chart]
+          const next = showing(found.value, change)
+          const known = onScreen(found.value)[change.chart]
 
-        if (next === undefined || known === undefined) {
-          return yield* new NoChart({ turn, chart: change.chart })
-        }
+          if (next === undefined || known === undefined) {
+            return yield* new NoChart({ turn, chart: change.chart })
+          }
 
-        const edit = { turn, chart: change.chart, known }
-        const { edits } = saved.value
+          const edit = { turn, chart: change.chart, known }
+          const { edits } = saved.value
 
-        return yield* transcript.save({
-          ...saved.value,
-          turns: saved.value.turns.with(turn, next),
-          edits:
-            edits !== undefined && edits.some((each) => samePlace(each, edit))
-              ? edits
-              : Arr.append(edits ?? [], edit),
-        })
-      }, Semaphore.withPermit(lock))
+          return yield* transcript.save({
+            ...saved.value,
+            turns: saved.value.turns.with(turn, next),
+            edits:
+              edits !== undefined && edits.some((each) => samePlace(each, edit))
+                ? edits
+                : Arr.append(edits ?? [], edit),
+          })
+        },
+        (effect, turn) =>
+          effect.pipe(Semaphore.withPermit(lock), Effect.andThen(answers.count(turn, "change"))),
+      )
 
       const vote = Effect.fn("Conversation.vote")(function* (turn: TurnIndex, choice: Vote) {
         yield* Effect.gen(function* () {
@@ -526,6 +531,14 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
         yield* answers.vote(turn, choice)
       })
 
+      const act = Effect.fn("Conversation.act")(function* (turn: TurnIndex, action: Action) {
+        const found = Option.flatMap(yield* transcript.load, ({ turns: all }) => Arr.get(all, turn))
+
+        if (Option.isNone(found)) return yield* new TurnNotFound({ turn })
+
+        return yield* answers.count(turn, action)
+      })
+
       // Waits out a deletion the alarm started. An answer running is not
       // waited for.
       const expire = phase
@@ -538,7 +551,7 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
           Effect.withSpan("Conversation.expire"),
         )
 
-      return Conversation.of({ turns, open, ask, follow, stop, show, vote, expire })
+      return Conversation.of({ turns, open, ask, follow, stop, show, vote, act, expire })
     }),
   )
 }

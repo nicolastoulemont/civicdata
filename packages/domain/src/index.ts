@@ -5,6 +5,7 @@ export { CatalogEntry } from "./Catalog.ts"
 export { Cited, idOf, nameOf, RecordId } from "./Cited.ts"
 
 export {
+  Action,
   Answered,
   Asked,
   Block,

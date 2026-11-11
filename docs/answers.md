@@ -19,6 +19,9 @@ The conversation writes a row each time it keeps a turn: answered, asked back, u
 | `version`   | the commit deployed, when CI set it                                                                                                  |
 | `trace`     | the trace id, to open the full trace in Grafana while it is kept                                                                     |
 | `vote`      | what the person thought of the answer, as the domain's `Vote` in JSON: `Up`, or `Down` with an optional reason; null until they vote |
+| `changes`   | times the person changed one of the answer's charts, changing back included                                                          |
+| `downloads` | times the person downloaded a chart's data as CSV                                                                                    |
+| `shares`    | times the person copied a chart's link                                                                                               |
 
 A row never holds the conversation's id, since whoever has it can read the conversation, nor an IP address, user agent or referrer. Its own id lets a vote find the row with nothing more stored: only this Worker can turn a conversation's link into its object's id, and the hash cannot be turned back. A conversation deleted after 30 days and asked again from the same link reuses its object, so its new answers replace the old rows at the same places. Its trace id does lead to the conversation id for the 14 days Grafana keeps the trace.
 
@@ -27,6 +30,10 @@ The conversation writes the row after the answer's last step goes out, so the pa
 ## Votes
 
 Under each answer that ended on its own (answered, unanswered or cut short, not asked back or stopped), the page asks "Was this answer useful?" with a thumbs up and a thumbs down. A thumbs down asks what went wrong: wrong measure, wrong countries, wrong years, missing data, wrong text, or something else. `PUT /api/conversations/<id>/turns/<turn>/vote` keeps the vote on the turn, so the page shows it again, and sets the row's `vote`. The last vote counts. The `Answers.vote` span records `civicdata.vote` (`up` or `down`) and `civicdata.vote.reason`.
+
+## What people did with an answer
+
+Few people vote, but every answer can show what the person did next. `show` adds one to `changes` each time it keeps a changed chart. Once the answer is kept, the CSV link and Copy link in its chart send `POST /api/conversations/<id>/turns/<turn>/actions` with `download` or `share`; on `/explore` they send nothing. The page shows nothing about these counts, and a count that fails to arrive is dropped. They are hints for triage, not a score: changing a chart can just mean exploring.
 
 ## Scrubbing
 

@@ -1,4 +1,5 @@
 import {
+  type Action,
   ChartIndex,
   Down,
   Ended,
@@ -36,7 +37,13 @@ interface Interface {
   // Keeps what the person thought of the answer at `turn`, replacing their
   // earlier vote. An answer that was never logged keeps no vote.
   readonly vote: (turn: TurnIndex, vote: Vote) => Effect.Effect<void>
+  // Counts one more change of the answer's charts, download of their data or
+  // copy of their link. An answer that was never logged counts nothing.
+  readonly count: (turn: TurnIndex, what: Tally) => Effect.Effect<void>
 }
+
+// What the person did with an answer's charts.
+type Tally = Action | "change"
 
 // How long a row is kept.
 const keep = Duration.days(365)
@@ -73,7 +80,7 @@ const isDown = Schema.is(Down)
 
 // One row per answer kept: its questions scrubbed, how it ended and what the
 // agent did, the model and version that answered, its trace, and the
-// person's vote. Nothing in a row names the conversation: its id lets anyone
+// person's vote and what they did with its charts. Nothing in a row names the conversation: its id lets anyone
 // read it. A row's id is a hash of the conversation's object and the turn's
 // place (see idOf).
 const tables = Effect.gen(function* () {
@@ -91,18 +98,30 @@ const tables = Effect.gen(function* () {
       model TEXT NOT NULL,
       version TEXT,
       trace TEXT,
-      vote TEXT
+      vote TEXT,
+      changes INTEGER NOT NULL DEFAULT 0,
+      downloads INTEGER NOT NULL DEFAULT 0,
+      shares INTEGER NOT NULL DEFAULT 0
     )
   `
   yield* sql`CREATE INDEX IF NOT EXISTS answers_asked ON answers (asked)`
 
-  // Tables made before votes were kept have no column for them.
-  const columns = yield* sql<{ readonly name: string }>`PRAGMA table_info(answers)`
+  // Tables made before votes and counts were kept have no columns for them.
+  const columns = new Set(
+    (yield* sql<{ readonly name: string }>`PRAGMA table_info(answers)`).map(({ name }) => name),
+  )
 
-  if (!columns.some((column) => column.name === "vote")) {
-    yield* sql`ALTER TABLE answers ADD COLUMN vote TEXT`
+  if (!columns.has("vote")) yield* sql`ALTER TABLE answers ADD COLUMN vote TEXT`
+
+  for (const column of ["changes", "downloads", "shares"]) {
+    if (!columns.has(column)) {
+      yield* sql`ALTER TABLE answers ADD COLUMN ${sql(column)} INTEGER NOT NULL DEFAULT 0`
+    }
   }
 })
+
+// The column that counts each tally.
+const columnOf = { change: "changes", download: "downloads", share: "shares" } as const
 
 // The id of the row for the answer at `turn`: a SHA-256 hash of the
 // conversation's Durable Object id and the turn's place, so a vote finds its
@@ -206,14 +225,24 @@ export class Answers extends Context.Service<Answers, Interface>()("@civicdata/s
           yield* sql`UPDATE answers SET vote = ${json} WHERE id = ${id}`
         }, kept)
 
-        return Answers.of({ log, vote })
+        const count = Effect.fn("Answers.count")(function* (turn: TurnIndex, what: Tally) {
+          yield* Effect.annotateCurrentSpan("civicdata.answer.action", what)
+
+          const id = yield* idOf(conversation, turn)
+          const column = sql(columnOf[what])
+
+          yield* ready
+          yield* sql`UPDATE answers SET ${column} = ${column} + 1 WHERE id = ${id}`
+        }, kept)
+
+        return Answers.of({ log, vote, count })
       }),
     )
 
   // Keeps nothing: outside Workers, and in the eval.
   static readonly none = Layer.succeed(
     Answers,
-    Answers.of({ log: () => Effect.void, vote: () => Effect.void }),
+    Answers.of({ log: () => Effect.void, vote: () => Effect.void, count: () => Effect.void }),
   )
 
   // The answers of the conversation whose Durable Object has this id, in D1

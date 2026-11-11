@@ -392,6 +392,12 @@ export const Vote = Schema.Union([Up, Down])
 
 export type Vote = typeof Vote.Type
 
+// What a person did with one of an answer's charts, besides changing it:
+// downloaded its data as CSV, or copied its link.
+export const Action = Schema.Literals(["download", "share"])
+
+export type Action = typeof Action.Type
+
 // A question and how the agent answered it: the steps it ended on the way,
 // and how long the answer took from the question to its ending. Turns saved
 // before the work log have neither. `shown` holds the charts on screen where
