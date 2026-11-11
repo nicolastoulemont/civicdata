@@ -44,7 +44,7 @@ it("uses the browser language, saves an explicit choice, and keeps the URL", asy
 
   expect(screen.getByLabelText("Current locale").textContent).toBe("de-DE")
   await userEvent.click(screen.getByRole("combobox"))
-  await userEvent.click(await screen.findByRole("option", { name: "🇫🇷 Français" }))
+  await userEvent.click(await screen.findByRole("option", { name: /🇫🇷\s+Français/u }))
 
   expect(await screen.findByRole("combobox", { name: "Langue" })).toBeDefined()
   expect(localStorage.getItem("i18nextLng")).toBe("fr-FR")
@@ -69,7 +69,7 @@ it("sends the chosen locale on API requests and updates it after a change", asyn
 
   await send()
   await userEvent.click(screen.getByRole("combobox"))
-  await userEvent.click(await screen.findByRole("option", { name: "🇧🇷 Português (Brasil)" }))
+  await userEvent.click(await screen.findByRole("option", { name: /🇧🇷\s+Português \(Brasil\)/u }))
   await send()
 
   expect(received).toEqual(["pt-PT", "pt-BR"])
@@ -89,7 +89,7 @@ it("changes language even when the browser blocks storage", async () => {
   })
   show()
   await userEvent.click(screen.getByRole("combobox"))
-  await userEvent.click(await screen.findByRole("option", { name: "🇫🇷 Français" }))
+  await userEvent.click(await screen.findByRole("option", { name: /🇫🇷\s+Français/u }))
 
   expect(await screen.findByRole("combobox", { name: "Langue" })).toBeDefined()
 })
