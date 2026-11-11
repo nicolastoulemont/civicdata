@@ -227,6 +227,9 @@ importers:
       '@civicdata/domain':
         specifier: workspace:*
         version: link:../../packages/domain
+      '@civicdata/machine':
+        specifier: workspace:*
+        version: link:../../packages/machine
       '@civicdata/server':
         specifier: workspace:*
         version: link:../../packages/server
@@ -415,6 +418,19 @@ importers:
       effect:
         specifier: 'catalog:'
         version: 4.1.2
+
+  packages/machine:
+    dependencies:
+      effect:
+        specifier: 'catalog:'
+        version: 4.1.2
+    devDependencies:
+      '@effect/vitest':
+        specifier: 'catalog:'
+        version: 4.1.2(effect@4.1.2)(vitest@5.1.0(@types/node@26.6.6)(happy-dom@21.0.4)(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
+      vitest:
+        specifier: 'catalog:'
+        version: 5.1.0(@types/node@26.6.6)(happy-dom@21.0.4)(vite@8.3.6(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1))
 
   packages/server:
     dependencies:

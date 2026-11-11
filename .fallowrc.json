@@ -47,19 +47,23 @@
     "unused-tagged-errors": "error",
     "unproduced-catch-tags": "error"
   },
-  // Dependencies point one way: web -> server -> domain. Infra deploys the app
-  // and nothing imports it. A new package needs a zone before CI passes.
+  // Dependencies point one way: web -> server -> domain. The machine package
+  // depends on nothing of ours, so web and server both build on it. Infra
+  // deploys the app and nothing imports it. A new package needs a zone before
+  // CI passes.
   "boundaries": {
     "zones": [
       { "name": "domain", "patterns": ["packages/domain/**"] },
+      { "name": "machine", "patterns": ["packages/machine/**"] },
       { "name": "server", "patterns": ["packages/server/**"] },
       { "name": "web", "patterns": ["apps/web/**"] },
       { "name": "infra", "patterns": ["packages/infra/**"] }
     ],
     "rules": [
       { "from": "domain", "allow": [] },
-      { "from": "server", "allow": ["domain"] },
-      { "from": "web", "allow": ["server", "domain"] },
+      { "from": "machine", "allow": [] },
+      { "from": "server", "allow": ["domain", "machine"] },
+      { "from": "web", "allow": ["server", "domain", "machine"] },
       { "from": "infra", "allow": [] }
     ],
     "coverage": { "requireAllFiles": true }
