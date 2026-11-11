@@ -6,7 +6,7 @@ import { SqlClient, SqlSchema } from "effect/sql"
 import { ArchiveUnavailable, Archives, ElectionRecord, GovernmentRecord } from "./Archives.ts"
 import { database, Step } from "./CatalogBuild.ts"
 import { fingerprint } from "./fingerprint.ts"
-import { politicsTables, Records } from "./Politics.ts"
+import { Dataset, datasets, politicsTables } from "./Politics.ts"
 
 // Each insert binds one JSON array of records, unpacked by SQLite's
 // json_each. 500 governments is about 150 KB, under D1's 2 MB limit for one
@@ -25,15 +25,6 @@ const GovernmentsPrint = Schema.fromJsonString(
 
 const ElectionsPrint = Schema.fromJsonString(
   Schema.Array(ElectionRecord.mapFields(Struct.omit(["retrievedAt"]))),
-)
-
-// One publisher's records of one kind, stored and published together.
-const Dataset = Schema.Struct({ records: Records, publisher: Publisher })
-
-type Dataset = typeof Dataset.Type
-
-const datasets: ReadonlyArray<Dataset> = Records.literals.flatMap((records) =>
-  Publisher.literals.map((publisher) => ({ records, publisher })),
 )
 
 interface Interface {
