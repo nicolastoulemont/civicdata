@@ -10,13 +10,14 @@
 import { writeFileSync } from "node:fs"
 
 import type { CatalogEntry } from "@civicdata/domain"
-import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai"
-import { Array as Arr, Config, Effect, Layer, Schema } from "effect"
+import { OpenAiClient } from "@effect/ai-openai"
+import { Array as Arr, Config, Effect, Layer, Option, Schema } from "effect"
 import { LanguageModel } from "effect/ai"
 import { FetchHttpClient } from "effect/http"
 
 import { Cache } from "../src/Cache.ts"
-import { about, defaultModel } from "../src/model.ts"
+import { about } from "../src/model.ts"
+import { languageModel } from "../src/OpenAi.ts"
 import { fits } from "../src/Titles.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 
@@ -83,18 +84,18 @@ const program = Effect.gen(function* () {
   yield* Effect.logInfo(`Titled ${rows.length} of ${entries.length} indicators`)
 })
 
-const languageModel = Layer.unwrap(
+const model = Layer.unwrap(
   Effect.gen(function* () {
-    const name = yield* Config.String("OPENAI_MODEL").pipe(Config.withDefault(defaultModel))
+    const name = yield* Config.option(Config.String("OPENAI_MODEL"))
 
-    return OpenAiLanguageModel.model(name)
+    return languageModel(Option.getOrUndefined(name))
   }),
 )
 
 await Effect.runPromise(
   program.pipe(
     Effect.provide(
-      languageModel.pipe(
+      model.pipe(
         Layer.provideMerge(WorldBank.layer.pipe(Layer.provide(Cache.none))),
         Layer.provide(OpenAiClient.layerConfig({ apiKey: Config.Redacted("OPENAI_API_KEY") })),
         Layer.provide(FetchHttpClient.layer),
