@@ -84,6 +84,7 @@ import {
   Exit,
   Fiber,
   Layer,
+  Match,
   Option,
   Schema,
   Stream,
@@ -3236,6 +3237,40 @@ const parentOf = (span: Tracer.Span | undefined) =>
   span === undefined ? undefined : Option.getOrUndefined(span.parent)?.spanId
 
 describe("traces", () => {
+  // A series left open is sent back to the model, not a failure: the spans
+  // that refused it end as successes and name the refusal.
+  it.effect("records a series left open as a refusal, not an error", () => {
+    const model = scripted([
+      Effect.succeed(
+        call("find_years", {
+          indicator: "ESTAT,UNE_RT_A,1.0",
+          countries: ["FRA"],
+          dimensions: null,
+          from: null,
+        }),
+      ),
+    ])
+
+    const traces = recording()
+
+    return Effect.gen(function* () {
+      yield* recordedDay
+      yield* answer("Unemployment in France")
+
+      const ended = traces.spans.flatMap((span) =>
+        Match.valueTags(span.status, {
+          Started: () => [],
+          Ended: ({ exit }) => [{ span, exit }],
+        }),
+      )
+
+      expect(ended.filter(({ exit }) => Exit.isFailure(exit))).toEqual([])
+      expect(
+        ended.some(({ span }) => span.attributes.get("civicdata.refusal") === "DimensionsMissing"),
+      ).toBe(true)
+    }).pipe(Effect.provide(serveApi(model.layer, { traces: traces.layer })))
+  })
+
   it.effect(
     "traces an answer as the agent's run, with each model request and tool call in it",
     () => {
@@ -3262,9 +3297,7 @@ describe("traces", () => {
           "gen_ai.operation.name": "invoke_agent",
           "gen_ai.agent.name": "civicdata",
           "gen_ai.conversation.id": id,
-          "gen_ai.input.messages": expect.stringContaining(
-            "How has life expectancy changed in Brazil?",
-          ),
+          "civicdata.question": "How has life expectancy changed in Brazil?",
           "civicdata.answer.rounds": 4,
           "civicdata.answer.ending": "answered",
         })
@@ -3289,8 +3322,8 @@ describe("traces", () => {
         expect(requests.map((request) => parent(parent(request))?.spanId)).toEqual(
           Array.from({ length: 4 }, () => run?.spanId),
         )
-        expect(requests[0]?.attributes.get("gen_ai.output.messages")).toContain("search_indicators")
-        expect(requests[3]?.attributes.get("gen_ai.output.messages")).toContain(takeaway)
+        expect(requests[0]?.attributes.get("civicdata.output")).toContain("search_indicators")
+        expect(requests[3]?.attributes.get("civicdata.output")).toContain(takeaway)
 
         // Each tool call sits in the request that made it, with its arguments,
         // its result, and why it sent the model's chart back.
@@ -3315,8 +3348,10 @@ describe("traces", () => {
           },
           { name: "execute_tool show_chart", id: "chart-2", request: 2 },
         ])
-        expect(tools[0]?.attributes.get("gen_ai.tool.call.arguments")).toContain("life expectancy")
-        expect(tools[2]?.attributes.get("gen_ai.tool.call.result")).toContain("SP.DYN.LE00.IN")
+        expect(tools[0]?.attributes.get("parameters")).toMatchObject({
+          text: expect.stringContaining("life expectancy"),
+        })
+        expect(tools[2]?.attributes.get("civicdata.tool.result")).toContain("SP.DYN.LE00.IN")
       }).pipe(Effect.provide(serveApi(model.layer, { traces: traces.layer })))
     },
   )

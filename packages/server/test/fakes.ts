@@ -3,6 +3,7 @@ import { HttpClient, HttpClientResponse } from "effect/http"
 
 import { Cache } from "../src/Cache.ts"
 import { Step, StepFailed } from "../src/CatalogBuild.ts"
+import * as Traces from "../src/Traces.ts"
 import type { Storage } from "../src/Transcript.ts"
 
 // An HttpClient that answers every request with `respond`, never the network.
@@ -15,7 +16,8 @@ export const http = (respond: (url: string) => Response) =>
   )
 
 // A tracer that keeps every span it starts, for a test to read what a trace
-// records. Nothing is exported.
+// records, settled as the deployed tracer is (Traces.settled). Nothing is
+// exported.
 export const recording = () => {
   const spans: Array<Tracer.Span> = []
 
@@ -31,7 +33,7 @@ export const recording = () => {
 
   return {
     spans,
-    layer: Layer.succeed(Tracer.Tracer, tracer),
+    layer: Layer.succeed(Tracer.Tracer, Traces.settled(tracer)),
   }
 }
 

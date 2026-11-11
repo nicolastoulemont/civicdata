@@ -1240,9 +1240,11 @@ const clip = (text: string) => (text.length > longest ? `${text.slice(0, longest
 const isRefused = Schema.is(Refused)
 
 // Each tool call as an execute_tool span, as OpenTelemetry's GenAI
-// conventions name it, with its arguments and result, and the problem when
-// the tool sent the model's call back to fix. The span runs from the call
-// to its last result.
+// conventions name it, with its result, and the problem when the tool sent
+// the model's call back to fix. Effect's Toolkit writes the arguments as
+// `parameters`. The span runs from the call to its last result. Grafana Cloud
+// drops the GenAI conventions' content attributes (`gen_ai.tool.call.result`,
+// `gen_ai.input.messages`, ...), so the agent writes its own.
 const traced = <T extends Record<string, Tool.Any>>(
   toolkit: Toolkit.WithHandler<T>,
 ): Toolkit.WithHandler<T> => ({
@@ -1255,7 +1257,7 @@ const traced = <T extends Record<string, Tool.Any>>(
             if (preliminary) return
 
             yield* Effect.annotateCurrentSpan(
-              "gen_ai.tool.call.result",
+              "civicdata.tool.result",
               clip(JSON.stringify(encodedResult)),
             )
 
@@ -1270,7 +1272,6 @@ const traced = <T extends Record<string, Tool.Any>>(
             "gen_ai.tool.name": String(name),
             "gen_ai.tool.type": "function",
             "gen_ai.tool.call.id": id,
-            "gen_ai.tool.call.arguments": clip(JSON.stringify(params)),
           },
         }),
       ),
@@ -1278,7 +1279,7 @@ const traced = <T extends Record<string, Tool.Any>>(
 })
 
 // Writes on each model request's span what the model answered: its words
-// and the tools it called, in OpenTelemetry's GenAI message form.
+// and the tools it called, in the parts of OpenTelemetry's GenAI messages.
 const output: Telemetry.SpanTransformer = ({ response, span }) => {
   const parts = response.flatMap((part): ReadonlyArray<object> => {
     if (part.type === "text") return [{ type: "text", content: part.text }]
@@ -1290,7 +1291,7 @@ const output: Telemetry.SpanTransformer = ({ response, span }) => {
     return []
   })
 
-  span.attribute("gen_ai.output.messages", clip(JSON.stringify([{ role: "assistant", parts }])))
+  span.attribute("civicdata.output", clip(JSON.stringify(parts)))
 }
 
 // How an answer ended, as its span records it.
@@ -1455,9 +1456,7 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
         yield* Effect.annotateCurrentSpan({
           "gen_ai.operation.name": "invoke_agent",
           "gen_ai.agent.name": "civicdata",
-          "gen_ai.input.messages": clip(
-            JSON.stringify([{ role: "user", parts: [{ type: "text", content: asked.question }] }]),
-          ),
+          "civicdata.question": clip(asked.question),
           "civicdata.charts.changed": asked.changed.length,
         })
 

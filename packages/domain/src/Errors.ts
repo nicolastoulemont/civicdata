@@ -50,6 +50,13 @@ export class DimensionsMissing extends Schema.TaggedError<
   { httpApiStatus: 422 },
 ) {}
 
+// What the data cannot give a View: no such indicator, a series left open, or
+// a transform its values cannot take. Nothing failed: the page asks the person
+// to pick again, and the agent sends the model's call back to fix.
+const Refusal = Schema.Union([IndicatorNotFound, DimensionsMissing, TransformNotApplicable])
+
+export const isRefusal = Schema.is(Refusal)
+
 // The language model failed, refused, or is not configured in this runtime.
 export class AgentUnavailable extends Schema.TaggedError<
   AgentUnavailable,
