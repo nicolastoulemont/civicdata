@@ -37,7 +37,7 @@ export const Language = () => {
           <SelectTrigger id={id} aria-describedby={`${id}-description`} className="w-full sm:w-72">
             <SelectValue />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent alignItemWithTrigger={false} align="start">
             {Locale.literals.map((code) => (
               <SelectItem key={code} value={code}>
                 <span lang={code}>{languages[code]}</span>
