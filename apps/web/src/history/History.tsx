@@ -92,7 +92,7 @@ export const History = () => {
             render={
               <a
                 className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
-                href="https://github.com/nicolastoulemont/civicdata"
+                href="https://github.com/nicolastoulemont/openfacts"
                 aria-label={t(($) => $.github)}
               />
             }

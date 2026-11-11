@@ -1541,7 +1541,7 @@ export class Agent extends Context.Service<Agent, Interface>()("@openfacts/serve
         // agent's run, with the question it answers.
         yield* Effect.annotateCurrentSpan({
           "gen_ai.operation.name": "invoke_agent",
-          "gen_ai.agent.name": "civicdata",
+          "gen_ai.agent.name": "openfacts",
           "civicdata.question": clip(asked.question),
           "civicdata.country": Option.getOrElse(asked.country, () => "unknown"),
           "civicdata.charts.changed": asked.changed.length,

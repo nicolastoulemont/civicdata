@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url"
 const plugin = fileURLToPath(new URL("./plugin.mjs", import.meta.url))
 
 const lint = (source) => {
-  const directory = mkdtempSync(join(tmpdir(), "civicdata-i18n-"))
+  const directory = mkdtempSync(join(tmpdir(), "openfacts-i18n-"))
 
   try {
     const config = join(directory, ".oxlintrc.json")
