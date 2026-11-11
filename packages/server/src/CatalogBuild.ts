@@ -1,7 +1,17 @@
 import { CatalogEntry, Direction, IndicatorId, Source, SourceUnavailable } from "@civicdata/domain"
 import type { CloudflareWorkersModule, Rpc } from "@cloudflare/workers-types"
 import { D1Client } from "@effect/sql-d1"
-import { Array as Arr, Context, Effect, Layer, Option, Order, Schema } from "effect"
+import {
+  Array as Arr,
+  Clock,
+  Context,
+  Duration,
+  Effect,
+  Layer,
+  Option,
+  Order,
+  Schema,
+} from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
 import { tables } from "./Catalog.ts"
@@ -36,6 +46,17 @@ const perStep = 100
 // Entries classified per step, in one request to the model.
 const perRequest = 50
 
+// How long a build holds the lease unless it releases it first. A step that
+// keeps failing gives up after about an hour of retries, which fails its
+// source, and a first build of every source makes about 110 embedding and
+// 214 classifying steps in a row. Twelve hours outlasts such a build with
+// room to spare, and still frees the lease of a build that crashed within
+// the day, well before the weekly build.
+const leaseFor = Duration.hours(12)
+
+// How long a build waits before it asks for the lease again.
+const poll = Duration.minutes(10)
+
 const EntriesJson = Schema.fromJsonString(Schema.Array(CatalogEntry))
 
 const Pending = Schema.Struct({ rowid: Schema.Int, ...CatalogEntry.fields })
@@ -47,16 +68,29 @@ const Classified = Schema.fromJsonString(
 )
 
 // What a step hands back, which Workflows saves: a count, a cursor, a few of
-// them or nothing, never rows, so a saved result stays far below its 1 MiB
-// limit.
-type Saved = number | string | null | void | { readonly [key: string]: number | string | null }
+// them, whether the build holds the lease, or nothing, never rows, so a
+// saved result stays far below its 1 MiB limit.
+type Saved =
+  | number
+  | string
+  | boolean
+  | null
+  | void
+  | { readonly [key: string]: number | string | null }
 
 interface Interface {
+  // Takes the lease that lets one build at a time change the catalog, for
+  // the Workflow instance `holder`, and answers whether it holds it. An
+  // instance that already holds it takes it again, so a replayed step
+  // answers the same.
+  readonly take: (holder: string) => Effect.Effect<boolean>
+  // Releases the lease, if `holder` still holds it.
+  readonly release: (holder: string) => Effect.Effect<void>
   // Lists the source's indicators into the generation, replacing what an
   // earlier attempt wrote there, and answers how many it wrote. It writes
   // nothing and answers null when the published generation holds the same
-  // entries, embedded by the same model. An empty list is the source failing,
-  // so it never replaces a published one.
+  // entries, embedded by the same model, or is newer. An empty list is the
+  // source failing, so it never replaces a published one.
   readonly write: (
     source: Source,
     generation: number,
@@ -118,6 +152,8 @@ export class Step extends Context.Service<
       name: string,
       effect: Effect.Effect<A, E>,
     ) => Effect.Effect<A, StepFailed>
+    // Sleeps as one named step: a resumed build skips a sleep that ended.
+    readonly sleep: (name: string, duration: Duration.Duration) => Effect.Effect<void, StepFailed>
   }
 >()("@civicdata/server/CatalogBuild/Step") {
   static readonly workflow = (step: CloudflareWorkersModule.WorkflowStep) =>
@@ -127,6 +163,11 @@ export class Step extends Context.Service<
         run: (name, effect) =>
           Effect.tryPromise({
             try: () => step.do(name, retried, () => Effect.runPromise(effect)),
+            catch: (cause) => new StepFailed({ step: name, cause }),
+          }),
+        sleep: (name, duration) =>
+          Effect.tryPromise({
+            try: () => step.sleep(name, Duration.toMillis(duration)),
             catch: (cause) => new StepFailed({ step: name, cause }),
           }),
       }),
@@ -139,6 +180,7 @@ export class Step extends Context.Service<
     Step.of({
       run: (name, effect) =>
         effect.pipe(Effect.mapError((cause) => new StepFailed({ step: name, cause }))),
+      sleep: (_name, duration) => Effect.sleep(duration),
     }),
   )
 }
@@ -178,6 +220,24 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
         )
       `
 
+      // The one build allowed to change the catalog, until it releases the
+      // lease or the lease expires (milliseconds since the epoch). Builds
+      // that overlap would remove the vectors of entries a newer build
+      // embedded but has not published yet.
+      yield* sql`
+        CREATE TABLE IF NOT EXISTS catalog_lease (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          holder TEXT NOT NULL,
+          expires INTEGER NOT NULL
+        )
+      `
+
+      const leased = SqlSchema.findOneOption({
+        Request: Schema.Void,
+        Result: Schema.Struct({ holder: Schema.String }),
+        execute: () => sql`SELECT holder FROM catalog_lease`,
+      })
+
       const pending = SqlSchema.findAll({
         Request: Schema.Struct({
           source: Source,
@@ -199,8 +259,9 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
         `,
       })
 
-      // The source's entries in Vectors that its published generation does
-      // not list.
+      // The source's entries in Vectors that neither its published generation
+      // nor a newer one lists: a newer generation's vectors stay while its
+      // build is still embedding them.
       const dropped = SqlSchema.findAll({
         Request: Source,
         Result: Schema.Struct({ indicator: IndicatorId }),
@@ -209,7 +270,7 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
           EXCEPT
           SELECT catalog.indicator FROM catalog
           JOIN catalog_current AS current
-            ON current.source = catalog.source AND current.generation = catalog.generation
+            ON current.source = catalog.source AND catalog.generation >= current.generation
           WHERE catalog.source = ${source}
           LIMIT ${perStep}
         `,
@@ -235,13 +296,13 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
         `,
       })
 
-      // The fingerprint of the source's published generation, if a build
+      // The source's published generation and its fingerprint, if a build
       // stored one.
       const published = SqlSchema.findOneOption({
         Request: Source,
-        Result: Schema.Struct({ fingerprint: Schema.String }),
+        Result: Schema.Struct({ generation: Schema.Int, fingerprint: Schema.String }),
         execute: (source) => sql`
-          SELECT fingerprint FROM catalog_fingerprint
+          SELECT generation, fingerprint FROM catalog_fingerprint
           JOIN catalog_current USING (source, generation)
           WHERE source = ${source}
         `,
@@ -249,6 +310,29 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
 
       const list = (source: Source) =>
         source === "World Bank" ? worldBank.indicators : sdmx.indicators(source)
+
+      const take = Effect.fn("CatalogBuild.take")(
+        function* (holder: string) {
+          const now = yield* Clock.currentTimeMillis
+
+          yield* sql`
+            INSERT INTO catalog_lease (id, holder, expires)
+            VALUES (1, ${holder}, ${now + Duration.toMillis(leaseFor)})
+            ON CONFLICT (id) DO UPDATE SET holder = excluded.holder, expires = excluded.expires
+            WHERE catalog_lease.holder = excluded.holder OR catalog_lease.expires <= ${now}
+          `
+
+          return Option.exists(yield* leased(), (lease) => lease.holder === holder)
+        },
+        Effect.catchTags({ SqlError: Effect.die, SchemaError: Effect.die }),
+      )
+
+      const release = Effect.fn("CatalogBuild.release")(
+        function* (holder: string) {
+          yield* sql`DELETE FROM catalog_lease WHERE holder = ${holder}`
+        },
+        Effect.catchTag("SqlError", Effect.die),
+      )
 
       const write = Effect.fn("CatalogBuild.write")(
         function* (source: Source, generation: number) {
@@ -265,7 +349,15 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
 
           const print = yield* fingerprint(`${vectors.model}\n${listed}`)
 
-          if (Option.exists(yield* published(source), (found) => found.fingerprint === print)) {
+          // A newer build already published what this one would: an older
+          // build that waited for the lease must not embed its stale
+          // listing over the newer one's vectors.
+          if (
+            Option.exists(
+              yield* published(source),
+              (found) => found.fingerprint === print || found.generation > generation,
+            )
+          ) {
             return null
           }
 
@@ -393,7 +485,7 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
         Effect.catchTags({ SqlError: Effect.die, SchemaError: Effect.die }),
       )
 
-      return CatalogBuild.of({ write, embed, publish, remove, classify })
+      return CatalogBuild.of({ take, release, write, embed, publish, remove, classify })
     }).pipe(Effect.orDie),
   )
 
@@ -408,14 +500,36 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
 
   // One generation of every source, numbered by the build's start time, so
   // a resumed build writes the same generation and a later build a newer one.
-  // A source whose published generation already holds its listing skips to
+  // The build first waits for the lease, held by the Workflow instance `id`,
+  // so builds never overlap: CI starts one on every deploy, on top of the
+  // weekly one. It waits rather than giving up, so the build a deploy
+  // started still runs that deploy's code once the earlier build ends. A
+  // source whose published generation already holds its listing skips to
   // classifying. The step saves that decision, so a resumed build
   // makes the same one. Every other decision, what to embed, remove and
   // classify, is read from D1 inside a step, which saves only a cursor or a
   // count.
-  static readonly run = Effect.fn("CatalogBuild.run")(function* (generation: number) {
+  static readonly run = Effect.fn("CatalogBuild.run")(function* ({
+    id,
+    generation,
+  }: {
+    id: string
+    generation: number
+  }) {
     const step = yield* Step
     const build = yield* CatalogBuild
+
+    let waits = 0
+
+    while (!(yield* step.run(`lease after ${waits} waits`, build.take(id)))) {
+      waits += 1
+      yield* step.sleep(`wait ${waits} for the lease`, poll)
+    }
+
+    // A release that fails leaves the lease to expire.
+    const release = step
+      .run("release the lease", build.release(id))
+      .pipe(Effect.catch((error) => Effect.logWarning("Releasing the catalog lease failed", error)))
 
     // Embeds and publishes a written generation.
     const refresh = Effect.fn("CatalogBuild.refresh")(function* (source: Source) {
@@ -466,7 +580,7 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
           Effect.mapError(() => source),
         ),
       { concurrency: "unbounded" },
-    )
+    ).pipe(Effect.ensuring(release))
 
     return yield* Arr.isArrayNonEmpty(failed)
       ? Effect.fail(new BuildFailed({ sources: failed }))

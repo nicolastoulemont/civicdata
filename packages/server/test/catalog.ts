@@ -201,4 +201,4 @@ export const catalogOver = (
 export const stored = Directions.layer.pipe(Layer.provide(D1Client.layer({ db }).pipe(Layer.orDie)))
 
 export const build = (generation: number) =>
-  CatalogBuild.run(generation).pipe(Effect.provide(Step.immediate))
+  CatalogBuild.run({ id: `build ${generation}`, generation }).pipe(Effect.provide(Step.immediate))

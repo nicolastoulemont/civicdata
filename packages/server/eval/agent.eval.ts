@@ -25,7 +25,7 @@ import { Tally } from "./Tally.ts"
 // eval spends no tokens on directions: charts read the stored ones.
 const Built = Layer.effectDiscard(
   Clock.currentTimeMillis.pipe(
-    Effect.flatMap(CatalogBuild.run),
+    Effect.flatMap((generation) => CatalogBuild.run({ id: "eval", generation })),
     Effect.catchTag("BuildFailed", (error) => Effect.logWarning("Catalog build failed", error)),
   ),
 ).pipe(
