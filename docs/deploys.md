@@ -6,7 +6,19 @@
 | Pull request closed         | `pr-<n>` destroyed | `preview`          |
 | Push to `main`              | `prod`             | `production`       |
 
-Deploys run only after the `check` job passes. Fork pull requests run `check` without secrets and never deploy. Each stage gets its own Worker, D1 database, R2 bucket and conversation Durable Objects. The `prod` D1 database survives `alchemy destroy`.
+Deploys run only after the `check` job passes. Fork pull requests run `check` without secrets and never deploy. Each stage gets its own Worker, D1 database, `Cache` and `Series` R2 buckets and conversation Durable Objects. The `prod` D1 database survives `alchemy destroy`.
+
+R2 refuses to delete a bucket that holds objects. Every stage but `prod` sets `forceDestroy` on its two buckets, so `alchemy destroy` empties them first; on `prod` the destroy fails instead. A destroy reads `forceDestroy` from the stage's last deploy, not from the code it runs.
+
+## Removing a preview the cleanup left behind
+
+If the `cleanup` job fails, the closed pull request's comment says "Failed" and its stage keeps whatever the destroy could not delete. Run the Remove previews workflow from `main` with the pull request numbers:
+
+```sh
+gh workflow run remove.yml -f prs="100 109"
+```
+
+It refuses an open pull request. For each stage, it deploys only the two buckets, which records `forceDestroy` on a stage last deployed without it, then destroys the stage. Its last step lists every `civicdata-` bucket left in the account and fails if one belongs to a closed pull request.
 
 ## One-time setup
 
