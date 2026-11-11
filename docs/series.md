@@ -107,3 +107,7 @@ One read path serves every source, `Sources.stored`. For a source whose policy i
 ## Start a run by hand
 
 Run the `Gather series` GitHub workflow with the stage, `prod` or `pr-<number>`, from the Actions tab or with `gh workflow run gather.yml -f stage=pr-123`. It refuses a pull request without the `own-catalog` label, whose preview reads production's store. It starts one instance of `civicdata-<stage>-gather`, the same as the schedule does. The Cloudflare dashboard (Workers & Pages, Workflows) starts one too. To gather again although the date has not moved, delete the relevant entries from `series_gathered` under scope `series/v2/World Bank` first.
+
+## Identity compatibility
+
+Adding explicit publisher ids does not change `series/v2`, the three deployed publishers' names, `pathOf`, pack prefixes or gather ledger scopes. Existing World Bank packs and `series/v2/World Bank` ledger decisions are reused, without a full refetch. New publishers' indicator keys include their name (`Publisher:native-code`), so identical native codes cannot collide across publishers. Gather discovers only registered adapters whose policy is `Full`; accepting an id never creates coverage or starts a gather for an unregistered publisher. An unregistered indicator answers `IndicatorNotFound` at chart resolution. New publisher metadata and storage policies will be added by later slices.

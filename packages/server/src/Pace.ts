@@ -15,7 +15,7 @@ interface Budget {
 
 // Workers send from one IP shared with every other Worker (NTO-89), so these
 // budgets leave room for traffic that is not ours.
-const budgets: Record<Source, Budget> = {
+const budgets = {
   // OECD refused the Workers' IP after about 20 requests in a minute, and for
   // five minutes after about 60 in ten. It documents 60 an hour.
   OECD: {
@@ -29,7 +29,15 @@ const budgets: Record<Source, Budget> = {
   Eurostat: { windows: [{ count: 60, period: minute }], cooldown: minute },
   // The World Bank documents no limit.
   "World Bank": { windows: [{ count: 120, period: minute }], cooldown: minute },
-}
+} satisfies Record<string, Budget>
+
+// New API adapters must choose and register their measured budget here.
+// Unregistered publishers are paced conservatively until then.
+const budget = (source: Source): Budget =>
+  Object.entries(budgets).find(([name]) => name === source)?.[1] ?? {
+    windows: [{ count: 1, period: minute }],
+    cooldown: minute,
+  }
 
 // What a source's limiter remembers: when it let each recent request go,
 // oldest first, and until when the source is refusing us.
@@ -58,7 +66,7 @@ export const take = (
   source: Source,
   { ledger, now, patience }: { ledger: Ledger; now: number; patience: number },
 ): { readonly slot: Slot; readonly ledger: Ledger } => {
-  const { windows } = budgets[source]
+  const { windows } = budget(source)
   const longest = Math.max(...windows.map((window) => window.period))
   const sent = ledger.sent.filter((at) => at > now - longest)
 
@@ -85,7 +93,7 @@ export const refuse = (
   { ledger, now }: { ledger: Ledger; now: number },
 ): Ledger => ({
   sent: ledger.sent,
-  blockedUntil: Math.max(ledger.blockedUntil, now + budgets[source].cooldown),
+  blockedUntil: Math.max(ledger.blockedUntil, now + budget(source).cooldown),
 })
 
 interface Interface {

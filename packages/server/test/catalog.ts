@@ -70,7 +70,11 @@ const oecdList = [
 
 // What each source lists, or "down" when it fails. Tests change it between
 // builds.
-export type Listings = Record<Source, ReadonlyArray<CatalogEntry> | "down">
+export type Listings = Record<Source, ReadonlyArray<CatalogEntry> | "down"> & {
+  "World Bank": ReadonlyArray<CatalogEntry> | "down"
+  Eurostat: ReadonlyArray<CatalogEntry> | "down"
+  OECD: ReadonlyArray<CatalogEntry> | "down"
+}
 
 export const listings = (changes: Partial<Listings> = {}): Listings => ({
   "World Bank": worldBankList,
@@ -81,7 +85,7 @@ export const listings = (changes: Partial<Listings> = {}): Listings => ({
 
 const list = (lists: Listings, source: Source) =>
   Effect.suspend(() => {
-    const listed = lists[source]
+    const listed = lists[source] ?? []
 
     return listed === "down"
       ? Effect.fail(new SourceUnavailable({ source }))
@@ -101,6 +105,7 @@ const sources = (lists: Listings) =>
   Layer.succeed(
     Sources,
     Sources.of({
+      ...Object.fromEntries(Object.keys(lists).map((source) => [source, listing(lists, source)])),
       "World Bank": listing(lists, "World Bank"),
       Eurostat: listing(lists, "Eurostat"),
       OECD: listing(lists, "OECD"),

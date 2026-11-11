@@ -128,7 +128,7 @@ export const attribution = (resolved: ResolvedView) => {
 }
 
 // The source's own page for a series fetched to draw the chart.
-export const page = ({ source, indicator }: ResolvedView["sources"][number]) => {
+export const page = ({ source, indicator, url }: ResolvedView["sources"][number]) => {
   const [agency = "", id = ""] = indicator.split(",")
 
   return Match.value(source).pipe(
@@ -142,6 +142,6 @@ export const page = ({ source, indicator }: ResolvedView["sources"][number]) => 
       () =>
         `https://data-explorer.oecd.org/vis?df[ds]=dsDisseminateFinalDMZ&df[id]=${encodeURIComponent(id)}&df[ag]=${agency}`,
     ),
-    Match.exhaustive,
+    Match.orElse(() => url),
   )
 }

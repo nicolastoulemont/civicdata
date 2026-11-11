@@ -1,4 +1,10 @@
-import { type IndicatorId, type SeriesKey, type Source, sourceOf } from "@civicdata/domain"
+import {
+  type IndicatorId,
+  IndicatorNotFound,
+  type SeriesKey,
+  type Source,
+  sourceOf,
+} from "@civicdata/domain"
 import { Context, Effect, Layer, Option, Record } from "effect"
 
 import { type Adapter, Policy } from "./Adapter.ts"
@@ -9,9 +15,25 @@ import { Store } from "./Store.ts"
 import { WorldBank } from "./WorldBank.ts"
 
 // Every source's adapter, by name. A caller picks one with `sourceOf`.
-type Interface = { readonly [source in Source]: Adapter }
+type Interface = Readonly<Record<Source, Adapter>> & {
+  readonly "World Bank": Adapter
+  readonly Eurostat: Adapter
+  readonly OECD: Adapter
+}
 
 export class Sources extends Context.Service<Sources, Interface>()("@civicdata/server/Sources") {
+  // A syntactically valid id need not name a registered publisher.
+  static get(
+    sources: Interface,
+    indicator: IndicatorId,
+  ): Effect.Effect<Adapter, IndicatorNotFound> {
+    const adapter = sources[sourceOf(indicator)]
+
+    return adapter === undefined
+      ? Effect.fail(new IndicatorNotFound({ indicator }))
+      : Effect.succeed(adapter)
+  }
+
   // Each source's adapter as its layer builds it.
   static readonly layer = Layer.effect(
     Sources,
@@ -86,7 +108,7 @@ export class Sources extends Context.Service<Sources, Interface>()("@civicdata/s
           }),
         })
 
-      return Sources.of(Record.map(sources, stored))
+      return Sources.of({ ...sources, ...Record.map(sources, stored) })
     }),
   )
 

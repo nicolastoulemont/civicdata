@@ -127,7 +127,7 @@ export {
 
 export { codesOf, pathOf, SeriesKey } from "./SeriesKey.ts"
 
-export { Source, sourceOf } from "./Source.ts"
+export { Source, sourceOf, NativeId, nativeId, identify } from "./Source.ts"
 
 export { applies, kindOf, Ratio, Transform } from "./Transform.ts"
 

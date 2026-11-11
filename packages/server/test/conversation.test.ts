@@ -249,6 +249,11 @@ const catalog = Layer.succeed(
             name: "Monthly unemployment rates",
             definition: "",
           },
+          {
+            indicator: IndicatorId.make("Fixture:measure"),
+            name: "Fixture annual measure",
+            definition: "Only published by Fixture.",
+          },
         ].filter(
           ({ indicator, name }) =>
             name.toLowerCase().includes(text.toLowerCase()) &&
@@ -1372,6 +1377,43 @@ describe("conversations", () => {
       ])
       // The model reads each match's source.
       expect(model.prompts[1]).toContain('"source":"OECD"')
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("routes a requested fourth publisher through catalog search", () => {
+    const model = scripted([
+      Effect.succeed(
+        call(
+          "search_indicators",
+          { text: "measure", source: "Fixture" },
+          { step: "fixture-search" },
+        ),
+      ),
+      Effect.succeed(
+        call(
+          "search_indicators",
+          { text: "measure", source: "Eurostat" },
+          { step: "estat-search" },
+        ),
+      ),
+      silent,
+    ])
+
+    return Effect.gen(function* () {
+      const steps = log(yield* answer("Find Fixture's measure for France"))
+      expect(steps).toContainEqual(
+        expect.objectContaining({
+          source: "Fixture",
+          state: expect.objectContaining({ count: 1 }),
+        }),
+      )
+      expect(steps).toContainEqual(
+        expect.objectContaining({
+          source: "Eurostat",
+          state: expect.objectContaining({ count: 0 }),
+        }),
+      )
+      expect(model.prompts[1]).toContain('"indicator":"Fixture:measure","source":"Fixture"')
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 

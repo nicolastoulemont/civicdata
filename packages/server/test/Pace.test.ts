@@ -220,8 +220,15 @@ describe("PaceObject", () => {
     expect(Slot.guards.Full(Schema.decodeSync(SlotJson)(await answer.text()))).toBe(true)
   })
 
-  it("rejects a source it does not know", async () => {
-    expect((await post(new PaceObject(state()), "/take?source=Nowhere")).status).toBe(400)
+  it("paces a newly registered publisher conservatively", async () => {
+    const pace = new PaceObject(state())
+    expect((await post(pace, "/take?source=Fixture&patience=0")).status).toBe(200)
+    const answer = await post(pace, "/take?source=Fixture&patience=0")
+    expect(Slot.guards.Full(Schema.decodeSync(SlotJson)(await answer.text()))).toBe(true)
+  })
+
+  it("rejects a malformed source name", async () => {
+    expect((await post(new PaceObject(state()), "/take?source=invalid/name")).status).toBe(400)
   })
 })
 

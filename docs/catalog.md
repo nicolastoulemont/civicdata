@@ -91,3 +91,13 @@ Like the catalog's, the write step skips a publisher's records of one kind when 
 ## Rebuild by hand
 
 To rebuild a deployed stage, start an instance from the Cloudflare dashboard (Workers & Pages, Workflows, `civicdata-<stage>-catalog`) or with `POST /accounts/<account>/workflows/civicdata-<stage>-catalog/instances`. A preview without the `own-catalog` label has no catalog Workflow to start.
+
+## Indicator identity and new publishers
+
+`Source` decodes a publisher's name, used as its adapter registry key, search filter and chart credit. Names contain ASCII letters and numbers separated by spaces or hyphens. `NativeId` decodes its own code (ASCII letters, numbers, dots, underscores, hyphens, commas and `@`). Neither admits a colon or a path separator. `identify(source, native)` constructs an `IndicatorId`; `sourceOf` and `nativeId` recover its publisher and code. New publishers always use `Publisher:native-code`, including bare file column names and other SDMX agencies. Register the adapter in `Sources.layer`; catalog builds and gather enumerate that registry. No production publisher or data is added by the identity change.
+
+The three deployed forms remain canonical: bare World Bank codes, `ESTAT,flow,version` and `OECD[.directorate],flow,version`. Their share parameters, saved conversation charts, findings, direction overrides, counterparts, titles, catalog rows, vector ids and cache keys keep their bytes. There is no rewrite or backfill, and unchanged catalog fingerprints remain unchanged. New namespaced ids longer than Vectorize's 64-byte limit use word search only, like existing long OECD ids; admitted ids are ASCII, so character and byte lengths agree.
+
+Search tools return the catalog's dataset-wide country and year bounds when an outline exists, or null when unknown. The agent searches the catalog instead of choosing a publisher from EU or OECD membership. It filters by a requested publisher and checks the selected series with `find_years`; dataset bounds do not promise that every series covers every country and year.
+
+This changes how the catalog build enumerates adapters, so the PR needs `own-catalog`. Its preview builds its own catalog and starts with an empty series bucket, per the normal preview contract. Production needs no manual operation. Later adapters must publish ids through `identify`, implement `Adapter`, preserve source attribution and terms, and register HTTP hosts and reviewed pacing budgets for API reads. Publishers without a budget get one request per minute and a one-minute cooldown. File metadata, store-only/selective policies, asset progress, coherent releases and observation quality remain separate slices.
