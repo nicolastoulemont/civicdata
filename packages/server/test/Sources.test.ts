@@ -3,7 +3,6 @@ import {
   Dimensions,
   identify,
   IndicatorNotFound,
-  IndicatorId,
   NativeId,
   nativeId,
   pathOf,
@@ -113,10 +112,13 @@ describe("a source that implements the contract", () => {
   it.effect("returns a missing indicator for an unregistered publisher", () =>
     Effect.gen(function* () {
       const resolver = yield* Resolver
-      const indicator = IndicatorId.make("Missing:measure")
-      expect(yield* resolver.resolve({ ...view("F"), indicator }).pipe(Effect.flip)).toEqual(
-        new IndicatorNotFound({ indicator }),
-      )
+
+      for (const source of ["Missing", "constructor", "toString"]) {
+        const indicator = identify(source, NativeId.make("measure"))
+        expect(yield* resolver.resolve({ ...view("F"), indicator }).pipe(Effect.flip)).toEqual(
+          new IndicatorNotFound({ indicator }),
+        )
+      }
     }).pipe(
       Effect.provide(
         Resolver.layer.pipe(Layer.provide(registry([])), Layer.provide(Directions.listed)),

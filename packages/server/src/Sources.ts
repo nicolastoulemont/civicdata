@@ -27,7 +27,8 @@ export class Sources extends Context.Service<Sources, Interface>()("@civicdata/s
     sources: Interface,
     indicator: IndicatorId,
   ): Effect.Effect<Adapter, IndicatorNotFound> {
-    const adapter = sources[sourceOf(indicator)]
+    const source = sourceOf(indicator)
+    const adapter = Object.hasOwn(sources, source) ? sources[source] : undefined
 
     return adapter === undefined
       ? Effect.fail(new IndicatorNotFound({ indicator }))
