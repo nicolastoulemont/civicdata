@@ -102,10 +102,11 @@ export default Alchemy.Stack(
 
     const { catalogDatabase, series, vectors, workflows } = yield* shared ? production : owned
 
-    // The agent's OpenAI key and model, from the shell, CI, or `.env` next to
-    // this file (see `.env.example`). A stage deployed without a key still
-    // works; asking a question answers "unavailable". GitHub passes a missing
-    // secret as an empty string, so empty means unset.
+    // The agent's OpenAI key and model, from the shell, CI, the Keychain
+    // through `with-key.sh`, or `.env` next to this file (see `.env.example`).
+    // A stage deployed without a key still works; asking a question answers
+    // "unavailable". GitHub passes a missing secret as an empty string, so
+    // empty means unset.
     const openAiKey = Option.filter(
       yield* Config.option(Config.Redacted("OPENAI_API_KEY")),
       (key) => Redacted.value(key) !== "",

@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process"
 import { randomUUID } from "node:crypto"
 import { existsSync } from "node:fs"
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
@@ -19,7 +20,28 @@ if (process.env["RUN_AGENT_EVAL"] !== "1") {
   )
 }
 
-// The key `alchemy dev` reads. A variable exported in the shell overrides it.
+// The key `alchemy dev` gets from `packages/infra/with-key.sh`: from the
+// shell, else the Keychain. The settings in `packages/infra/.env` fill what is
+// still unset.
+const keychain = (): string | undefined => {
+  try {
+    const args = ["find-generic-password", "-s", "civicdata-dev", "-a", "OPENAI_API_KEY", "-w"]
+
+    return execFileSync("security", args, {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"],
+    }).trim()
+  } catch {
+    return undefined
+  }
+}
+
+if ((process.env["OPENAI_API_KEY"] ?? "") === "") {
+  const stored = keychain()
+
+  if (stored !== undefined) process.env["OPENAI_API_KEY"] = stored
+}
+
 const keys = fileURLToPath(new URL("../infra/.env", import.meta.url))
 
 if (existsSync(keys)) process.loadEnvFile(keys)
@@ -28,7 +50,9 @@ const key = process.env["OPENAI_API_KEY"]
 const model = process.env["OPENAI_MODEL"]
 
 if (key === undefined || key === "") {
-  throw new Error("The eval asks the model: set OPENAI_API_KEY, e.g. in packages/infra/.env")
+  throw new Error(
+    "The eval asks the model: store OPENAI_API_KEY in the Keychain (packages/infra/.env.example) or export it",
+  )
 }
 
 const recordings = fileURLToPath(new URL("eval/recordings", import.meta.url))
