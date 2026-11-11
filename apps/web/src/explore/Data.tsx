@@ -15,6 +15,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
+import { Flags } from "./Flags.tsx"
 import {
   countryName as englishCountryName,
   flagLabels as englishFlagLabels,
@@ -178,6 +179,7 @@ export const Data = ({ resolved }: DataProps) => {
           ))}
         </TableBody>
       </Table>
+      <Flags resolved={resolved} />
     </div>
   )
 }

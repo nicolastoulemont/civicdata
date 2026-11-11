@@ -19,6 +19,7 @@ import { Notes } from "../src/Notes.ts"
 import { hosts, Pace } from "../src/Pace.ts"
 import { Sdmx } from "../src/Sdmx.ts"
 import { Sources } from "../src/Sources.ts"
+import { Vdem } from "../src/Vdem.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 import { Tally } from "./Tally.ts"
 
@@ -183,7 +184,14 @@ const counted = Layer.effect(
 export const Replayed = Layer.mergeAll(
   Sources.layer.pipe(
     Layer.provide(
-      Layer.mergeAll(Faostat.layer, Ilostat.layer, Sdmx.cached, WorldBank.cached, Insee.cached),
+      Layer.mergeAll(
+        Vdem.layer,
+        Faostat.layer,
+        Ilostat.layer,
+        Sdmx.cached,
+        WorldBank.cached,
+        Insee.cached,
+      ),
     ),
   ),
   Notes.layer,

@@ -11,23 +11,28 @@ import { Pace } from "../src/Pace.ts"
 import { Sdmx } from "../src/Sdmx.ts"
 import { Sources } from "../src/Sources.ts"
 import { Store } from "../src/Store.ts"
+import { Vdem } from "../src/Vdem.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 import { d1 } from "./d1.ts"
 import { faoArchive } from "./faostat-archive.ts"
 import { archiveLayer as iloArchive } from "./ilostat-archive.ts"
 import { storage } from "./ilostat-storage.ts"
+import { vdemArchive } from "./vdem-archive.ts"
 
-export const fill = (source: "FAOSTAT" | "ILOSTAT") =>
+export const fill = (source: "FAOSTAT" | "ILOSTAT" | "V-Dem") =>
   Effect.gen(function* () {
     const account = yield* Config.String("CLOUDFLARE_ACCOUNT_ID")
     const token = yield* Config.Redacted("CLOUDFLARE_API_TOKEN")
-    const database = yield* Config.String(`${source}_D1_ID`)
-    const bucket = yield* Config.String(`${source}_R2_BUCKET`)
-    const bucketTransport = yield* storage({ account, token, bucket })
+    const accessKeyId = yield* Config.Redacted("R2_ACCESS_KEY_ID")
+    const secretAccessKey = yield* Config.Redacted("R2_SECRET_ACCESS_KEY")
+    const database = yield* Config.String(`${source === "V-Dem" ? "VDEM" : source}_D1_ID`)
+    const bucket = yield* Config.String(`${source === "V-Dem" ? "VDEM" : source}_R2_BUCKET`)
+    const bucketTransport = yield* storage({ account, accessKeyId, secretAccessKey, bucket })
 
     const gather = Gather.layer.pipe(
       Layer.provide(Sources.layer),
       Layer.provide(Insee.layer),
+      Layer.provide(source === "V-Dem" ? Vdem.layer.pipe(Layer.provide(vdemArchive)) : Vdem.layer),
       Layer.provide(Faostat.layer.pipe(Layer.provide(faoArchive))),
       Layer.provide(Ilostat.layer.pipe(Layer.provide(iloArchive))),
       Layer.provide(WorldBank.layer),

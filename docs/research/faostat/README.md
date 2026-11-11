@@ -92,7 +92,9 @@ The Worker has no archive transport and no FAO gather enrollment.
 
 After a separately explained and approved operation, an operator can run
 `pnpm --filter @openfacts/server faostat` with `CLOUDFLARE_ACCOUNT_ID`,
-`CLOUDFLARE_API_TOKEN`, `FAOSTAT_D1_ID` and `FAOSTAT_R2_BUCKET`. This is a real
+`CLOUDFLARE_API_TOKEN`, `FAOSTAT_D1_ID`, `FAOSTAT_R2_BUCKET`, `R2_ACCESS_KEY_ID`
+and `R2_SECRET_ACCESS_KEY`. The API token accesses D1; the R2 credentials sign
+S3 object operations on the approved bucket. This is a real
 D1/R2 transport through shared Gather/Store, not an alternative ledger. It
 requires Node, `unzip` and POSIX `sort`. It downloads only the AE ZIP to a
 scoped temporary folder, extracts only the normalized CSV, parses and sorts rows

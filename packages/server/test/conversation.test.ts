@@ -118,6 +118,7 @@ import { Resolver } from "../src/Resolver.ts"
 import { Sdmx } from "../src/Sdmx.ts"
 import { Sources } from "../src/Sources.ts"
 import { keep, type Storage, Transcript } from "../src/Transcript.ts"
+import { Vdem } from "../src/Vdem.ts"
 import { Verification } from "../src/Verification.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 import { http, memory, memoryStorage, offline, recording } from "./fakes.ts"
@@ -495,6 +496,7 @@ const serveApi = (
     Layer.provide(Sources.layer),
     Layer.provide(insee),
     Layer.provide(Ilostat.layer.pipe(Layer.provide(offline))),
+    Layer.provide(Vdem.layer),
     Layer.provide(Faostat.layer.pipe(Layer.provide(offline))),
     Layer.provide(worldBank),
     Layer.provide(sdmx),
@@ -526,6 +528,7 @@ const serveApi = (
             Layer.provide(Sources.layer),
             Layer.provide(Insee.layer.pipe(Layer.provide(offline))),
             Layer.provide(Ilostat.layer.pipe(Layer.provide(offline))),
+            Layer.provide(Vdem.layer),
             Layer.provide(Faostat.layer.pipe(Layer.provide(offline))),
             Layer.provide(worldBank),
             Layer.provide(sdmx),

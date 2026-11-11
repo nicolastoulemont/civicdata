@@ -30,18 +30,7 @@ export const series = (
 ) => {
   const unavailable = () => new SourceUnavailable({ source: sourceOf(metadata.indicator.id) })
 
-  return NodeStream.fromReadable({
-    evaluate: () => createReadStream(path),
-    onError: unavailable,
-  }).pipe(
-    Stream.decodeText(),
-    Stream.splitLines,
-    Stream.filter((line) => line !== ""),
-    Stream.mapEffect((line) =>
-      Schema.decodeUnknownEffect(
-        Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown)),
-      )(line.slice(line.indexOf("\t") + 1)),
-    ),
+  return jsonRows(path, sourceOf(metadata.indicator.id)).pipe(
     Stream.mapEffect((row) => Schema.decodeUnknownEffect(Stored)({ ...metadata, ...row })),
     Stream.groupAdjacentBy((row) => JSON.stringify(row.dimensions)),
     Stream.mapEffect(([, rows]) => Effect.try({ try: () => assemble(rows), catch: unavailable })),
@@ -68,3 +57,20 @@ const assemble = (rows: ReadonlyArray<Stored>): Stored => {
     qualifications,
   }
 }
+
+// Disk staging and native extraction both write one JSON record per line.
+export const jsonRows = (path: string, source: Source) =>
+  NodeStream.fromReadable({
+    evaluate: () => createReadStream(path),
+    onError: () => new SourceUnavailable({ source }),
+  }).pipe(
+    Stream.decodeText(),
+    Stream.splitLines,
+    Stream.filter((line) => line !== ""),
+    Stream.mapEffect((line) =>
+      Schema.decodeUnknownEffect(
+        Schema.fromJsonString(Schema.Record(Schema.String, Schema.Unknown)),
+      )(line.slice(line.indexOf("\t") + 1)),
+    ),
+    Stream.mapError(() => new SourceUnavailable({ source })),
+  )

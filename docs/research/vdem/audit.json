@@ -1,0 +1,28 @@
+{
+  "verifiedAt": "2026-11-11T21:25:23.557501+00:00",
+  "releaseTag": "V16",
+  "releasePublishedAt": "2026-03-17T07:25:20Z",
+  "commit": "f4dd26922e658442524dfd954bf14f7ebe622d5d",
+  "repository": "https://github.com/vdeminstitute/vdemdata",
+  "files": {
+    "vdem.RData": {
+      "bytes": 33878255,
+      "sha256": "39b412d39a061c18f20c98e4ad4d6355b05a0441df31be4ee9aec420dc3d95ea"
+    },
+    "codebook.RData": {
+      "bytes": 148633,
+      "sha256": "2840d879cb9071b1f742f5f18c5373518a586ac90454b58dbf5f4309077f0700"
+    },
+    "records.json": {
+      "bytes": 1277,
+      "sha256": "deb687bb6dad6420c83bdcb4d2a2496fa056ded6efc49521ff0f499a14a9715d"
+    },
+    "coverage.json": {
+      "bytes": 15829,
+      "sha256": "a7637acf412b3bd609897a3f609484bd5e29b71967427e53c1017c525f9075c5"
+    }
+  },
+  "extraction": "packages/server/scripts/vdem-extract.py",
+  "pyreadr": "0.5.9",
+  "pandas": "3.1.1"
+}

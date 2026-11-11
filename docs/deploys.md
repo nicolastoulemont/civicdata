@@ -122,3 +122,20 @@ This change requires `own-catalog`. No manual production/preview fill or catalog
 build is part of delivery. Stored data needs an explained, owner-approved fill.
 [Coverage, exclusions, terms, evidence and operator prerequisites](research/faostat/README.md)
 record the exact limits and annual financial-year convention.
+
+## V-Dem electoral democracy
+
+Only `V-Dem:v2x_polyarchy`, France and Sweden in 1991–2025, is admitted from
+the pinned V16 official R package asset. Local discovery describes the reviewed
+70 country-years; stored coverage reads establish availability. Publisher
+estimates and 68% HPD bounds remain together through typed qualifications,
+hashes, range filters, resolver/tools and visible restored/shared/embedded chart
+evidence. Qualified transforms remain rejected. Coherent release order 16,
+complete membership, immutable staging and reader pinning use the shared release
+contract. RData parsing runs only in the operational Node fill command; chart
+misses return `NotStored` with no archive request.
+
+The preview requires `own-catalog`. No manual production/preview fill, gather or
+catalog build ran; each operation needs an explained, owner-approved target.
+[Evidence, exclusions, terms and the operational first-fill path](research/vdem/README.md)
+state the narrow scope. NTO-219 remains in progress for the remaining sources.

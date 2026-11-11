@@ -21,6 +21,38 @@ import { Array as Arr, Context, Data, Effect, Layer, Option, Order, Schema, Stre
 import { fingerprint } from "./fingerprint.ts"
 import { Described } from "./Series.ts"
 
+const coherent = (value: {
+  readonly indicator?: { readonly id: IndicatorId }
+  readonly version: string
+  readonly observations: ReadonlyArray<Observation>
+  readonly qualifications?: ReadonlyArray<Qualification>
+}) =>
+  (value.indicator?.id !== "V-Dem:v2x_polyarchy" ||
+    value.observations.every((point) =>
+      (value.qualifications ?? []).some(
+        (item) =>
+          item.source === "V-Dem" &&
+          item.country === point.country &&
+          item.year === point.year &&
+          item.estimate === point.value,
+      ),
+    )) &&
+  (value.qualifications ?? []).every(
+    (item) =>
+      item.source !== "V-Dem" ||
+      (item.version === value.version &&
+        (item.missing
+          ? !value.observations.some(
+              (point) => point.country === item.country && point.year === item.year,
+            )
+          : value.observations.some(
+              (point) =>
+                point.country === item.country &&
+                point.year === item.year &&
+                point.value === item.estimate,
+            ))),
+  )
+
 // One stored series: its values for every country and year we chart, what
 // the source calls its indicator, the value of each of its dimensions, when
 // the source was asked, and the source's own date for the release the values
@@ -31,7 +63,7 @@ export const Stored = Schema.Struct({
   version: Schema.NonEmptyString,
   observations: Schema.Array(Observation),
   qualifications: Schema.optionalKey(Schema.Array(Qualification)),
-})
+}).check(Schema.makeFilter(coherent))
 
 export interface Stored extends Schema.Schema.Type<typeof Stored> {}
 
@@ -55,7 +87,7 @@ const Part = Schema.Struct({
   retrievedAt: Schema.DateTimeUtc,
   observations: Schema.Array(Observation),
   qualifications: Schema.optionalKey(Schema.Array(Qualification)),
-})
+}).check(Schema.makeFilter(coherent))
 
 const PartJson = Schema.toCodecJson(Part)
 
@@ -96,6 +128,29 @@ const size = 1_000_000
 // that a gather can tell an unchanged series without decoding it. Built with
 // JSON.stringify rather than a Schema encoding, which costs five times the
 // CPU for 14,000 observations.
+const uncertaintyOf = (item: Qualification) => {
+  if (item.source !== "V-Dem") return []
+
+  const interval = item.interval
+
+  return [
+    item.version,
+    [item.evidence.commit, item.evidence.sha256],
+    item.estimate,
+    interval === null
+      ? null
+      : [
+          interval.lower,
+          interval.upper,
+          interval.level,
+          interval.method,
+          interval.lowerField,
+          interval.upperField,
+          interval.codebook,
+        ],
+  ]
+}
+
 const hashOf = (
   observations: ReadonlyArray<Observation>,
   qualifications: ReadonlyArray<Qualification>,
@@ -112,6 +167,7 @@ const hashOf = (
               flags ?? [],
             ]),
             qualifications.map((item) => [
+              ...uncertaintyOf(item),
               item.source,
               item.series.indicator,
               codesOf(item.series.dimensions),
@@ -375,7 +431,7 @@ export class Store extends Context.Service<Store, Interface>()("@openfacts/serve
 
         const part = yield* Schema.decodeUnknownEffect(PartJson)(element[2])
 
-        return Option.some({ indicator, dataset, ...part })
+        return Option.some(yield* Schema.decodeEffect(Stored)({ indicator, dataset, ...part }))
       },
       Effect.catchTag("SchemaError", (error) =>
         Effect.logWarning("Stored series no longer decodes", error).pipe(
@@ -608,7 +664,7 @@ export class Store extends Context.Service<Store, Interface>()("@openfacts/serve
         })
 
       const offer = Effect.fnUntraced(function* (offered: Stored) {
-        yield* Schema.decodeEffect(Schema.Array(Qualification))(offered.qualifications ?? []).pipe(
+        yield* Schema.decodeEffect(Stored)(offered).pipe(
           Effect.mapError(() => new SourceUnavailable({ source: sourceOf(indicator) })),
         )
 

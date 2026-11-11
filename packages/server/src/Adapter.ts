@@ -94,6 +94,8 @@ export interface Discovery {
 
 // One source, as the catalog, the gather and charts use it.
 export interface Adapter {
+  // Pin stored release reads even when this runtime has no local ingestion transport.
+  readonly coherent?: true
   readonly snapshot?: Effect.Effect<Adapter, SourceUnavailable>
   readonly discovery?: Discovery
 

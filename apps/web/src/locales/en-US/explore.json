@@ -185,5 +185,6 @@
   "Unreliable": "Unreliable",
   "Missing value": "Missing value",
   "Excluded reference period": "Excluded reference period",
-  "Excluded geography": "Excluded geography"
+  "Excluded geography": "Excluded geography",
+  "Estimate {{estimate}}; 68% HPD interval {{lower}}–{{upper}} ({{version}})": "Estimate {{estimate}}; 68% HPD interval {{lower}}–{{upper}} ({{version}})"
 }

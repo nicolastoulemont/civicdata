@@ -20,6 +20,7 @@ import { Releases } from "./Releases.ts"
 import { Sdmx } from "./Sdmx.ts"
 import type { Query } from "./Series.ts"
 import { Store } from "./Store.ts"
+import { Vdem } from "./Vdem.ts"
 import { WorldBank } from "./WorldBank.ts"
 
 // Every source's adapter, by name. A caller picks one with `sourceOf`.
@@ -91,6 +92,7 @@ export class Sources extends Context.Service<Sources, Interface>()("@openfacts/s
       const insee = yield* Insee
       const ilostat = yield* Ilostat
       const faostat = yield* Faostat
+      const vdem = yield* Vdem
 
       return Sources.of({
         "World Bank": worldBank,
@@ -98,6 +100,7 @@ export class Sources extends Context.Service<Sources, Interface>()("@openfacts/s
         INSEE: insee,
         ILOSTAT: ilostat,
         FAOSTAT: faostat,
+        "V-Dem": vdem,
       })
     }),
   )
@@ -193,7 +196,7 @@ export class Sources extends Context.Service<Sources, Interface>()("@openfacts/s
       }
 
       const wrapped = Record.map(sources, (adapter, source): Adapter => {
-        if (adapter.bulk?.release === undefined) return stored(adapter)
+        if (adapter.coherent !== true && adapter.bulk?.release === undefined) return stored(adapter)
 
         const snapshot = Effect.gen(function* () {
           const publisher = Source.make(source)
@@ -231,6 +234,7 @@ export class Sources extends Context.Service<Sources, Interface>()("@openfacts/s
     Layer.provide(Sources.layer),
     Layer.provide(Insee.cached),
     Layer.provide(Ilostat.layer),
+    Layer.provide(Vdem.layer),
     Layer.provide(Faostat.layer),
     Layer.provide(Store.layer),
     Layer.provide(Releases.live),

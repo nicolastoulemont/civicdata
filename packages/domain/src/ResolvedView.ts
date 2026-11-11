@@ -94,7 +94,54 @@ const FaoQualification = Schema.Struct({
   ),
 }).check(Schema.makeFilter((item) => item.series.indicator === "FAOSTAT:AE"))
 
-export const Qualification = Schema.Union([IloQualification, FaoQualification])
+const score = Schema.Finite.check(Schema.isBetween({ minimum: 0, maximum: 1 }))
+
+const VdemQualification = Schema.Struct({
+  source: Schema.Literal("V-Dem"),
+  series: SeriesKey,
+  ...place,
+  status: Schema.optionalKey(
+    Schema.Struct({ code: Schema.NonEmptyString, label: Schema.NonEmptyString }),
+  ),
+  notes: Schema.Array(
+    Schema.Struct({
+      category: Schema.Literal("Method"),
+      code: Schema.NonEmptyString,
+      label: Schema.NonEmptyString,
+    }),
+  ),
+  version: Schema.NonEmptyString,
+  evidence: Schema.Struct({
+    commit: Schema.String.check(Schema.isPattern(/^[a-f0-9]{40}$/)),
+    sha256: Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/)),
+  }),
+  estimate: Schema.NullOr(score),
+  interval: Schema.NullOr(
+    Schema.Struct({
+      lower: score,
+      upper: score,
+      level: Schema.Literal(0.68),
+      method: Schema.Literal("HPD"),
+      lowerField: Schema.Literal("v2x_polyarchy_codelow"),
+      upperField: Schema.Literal("v2x_polyarchy_codehigh"),
+      codebook: Schema.Literal("https://v-dem.net/documents/70/codebook_v16.pdf"),
+    }).check(Schema.makeFilter(({ lower, upper }) => lower <= upper)),
+  ),
+}).check(
+  Schema.makeFilter(
+    (item) =>
+      item.series.indicator === "V-Dem:v2x_polyarchy" &&
+      item.version === `V16/${item.evidence.commit}/${item.evidence.sha256}` &&
+      (item.missing
+        ? item.estimate === null && item.interval === null
+        : item.estimate !== null &&
+          item.interval !== null &&
+          item.interval.lower <= item.estimate &&
+          item.estimate <= item.interval.upper),
+  ),
+)
+
+export const Qualification = Schema.Union([IloQualification, FaoQualification, VdemQualification])
 
 export type Qualification = typeof Qualification.Type
 

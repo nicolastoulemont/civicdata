@@ -26,6 +26,7 @@ import { searchable, Outline, Outlines } from "./Outlines.ts"
 import { Pace } from "./Pace.ts"
 import { Sdmx } from "./Sdmx.ts"
 import { Sources } from "./Sources.ts"
+import { Vdem } from "./Vdem.ts"
 import { Vectors, type VectorsUnavailable } from "./Vectors.ts"
 import { WorldBank } from "./WorldBank.ts"
 
@@ -646,6 +647,7 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
     Layer.provide(Sources.layer),
     Layer.provide(Insee.cached),
     Layer.provide(Ilostat.layer),
+    Layer.provide(Vdem.layer),
     Layer.provide(Faostat.layer),
     Layer.provide(WorldBank.cached),
     Layer.provide(Sdmx.cached),
