@@ -13,6 +13,7 @@
     "typecheck": "effect-tsgo tsc --noEmit && effect-tsgo tsc --noEmit -p scripts",
     "test": "vitest run",
     "titles": "node scripts/titles.ts",
+    "triage": "node scripts/triage.ts",
     "eval": "vitest run --config vitest.eval.config.ts"
   },
   "dependencies": {

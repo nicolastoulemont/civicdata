@@ -61,3 +61,29 @@ ORDER BY asked DESC
 ```
 
 `asked` compares as text, so write the bound in the same ISO 8601 form, as `strftime` does here.
+
+## Turning answers into eval cases
+
+`pnpm --filter @civicdata/server run triage` prints the answers of the last 7 days worth a look, worst first. It reads the stage's log through Cloudflare's D1 API:
+
+```sh
+CLOUDFLARE_ACCOUNT_ID=... CLOUDFLARE_API_TOKEN=... DATABASE_ID=... DAYS=30 \
+  pnpm --filter @civicdata/server run triage
+```
+
+The token needs D1 read access. `DATABASE_ID` is the stage's database, under Storage and databases, then D1, in the Cloudflare dashboard. `DAYS` is optional.
+
+An answer is a candidate when the person voted it down (weighs 8), it was cut short or unanswered (4), the server sent charts back (1 each), or the person changed its charts (1 each change). One voted up is never a candidate. `eval/candidates.ts` holds the rules.
+
+Each candidate prints as the start of a case for `packages/server/eval/cases.ts`, with why it is one and its trace id:
+
+```ts
+// 2026-11-10T12:00:00.000Z · voted down: countries · trace 4bf92f3577b34da6a3ce929d0e0e4736
+{
+  questions: ["Life expectancy in Brazil","Add Mexico"],
+  // charted {"_tag":"Trend","indicator":"SP.DYN.LE00.IN","countries":["BRA"],"from":2000,"to":2002}
+  accepts: [],
+},
+```
+
+To keep one, paste it into `cases`, turn a `// shown` line into the case's `shown` View, and write what it `accepts` with the `Expected` constructors. The printed charts are what the agent did, not what it should have done. The questions are scrubbed, so check a `[number]` or `[email]` reads as a question the agent can answer. The next eval run records the case's source data; adding a case needs no run.

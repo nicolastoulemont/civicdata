@@ -18,8 +18,6 @@ import {
   Definition,
   DimensionId,
   Down,
-  Ended,
-  Ending,
   Evidence,
   Exhausted,
   Finding,
@@ -98,6 +96,7 @@ import { HttpApiTest } from "effect/http-api"
 import { TestClock } from "effect/testing"
 import { strToU8, zipSync } from "fflate"
 
+import { Logged } from "../eval/candidates.ts"
 import { Agent } from "../src/Agent.ts"
 import { Answers } from "../src/Answers.ts"
 import { AskLimit } from "../src/AskLimit.ts"
@@ -3374,25 +3373,6 @@ const logged = Answers.layer({
   model: "gpt-test",
   version: "abc123",
 }).pipe(Layer.provide(D1Client.layer({ db }).pipe(Layer.orDie)))
-
-// A row of the answer log.
-const Logged = Schema.Struct({
-  asked: Schema.String,
-  questions: Schema.fromJsonString(Schema.Array(Schema.String)),
-  changed: Schema.fromJsonString(
-    Schema.Array(Schema.Struct({ turn: TurnIndex, chart: ChartIndex, view: View })),
-  ),
-  ending: Schema.fromJsonString(Ending),
-  steps: Schema.fromJsonString(Schema.Array(Ended)),
-  took: Schema.NullOr(Schema.Number),
-  model: Schema.String,
-  version: Schema.NullOr(Schema.String),
-  trace: Schema.NullOr(Schema.String),
-  vote: Schema.NullOr(Schema.fromJsonString(Vote)),
-  changes: Schema.Number,
-  downloads: Schema.Number,
-  shares: Schema.Number,
-})
 
 // Every row of the answer log, oldest first.
 const rows = Effect.promise(() => db.prepare("SELECT * FROM answers ORDER BY asked").all()).pipe(
