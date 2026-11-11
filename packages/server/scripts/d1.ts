@@ -41,7 +41,10 @@ export interface Target {
 
 const failed = (cause: unknown) =>
   new SqlError.SqlError({
-    reason: new SqlError.UnknownError({ cause, message: "D1's HTTP API refused the statement" }),
+    reason: new SqlError.UnknownError({
+      cause: Schema.is(Schema.String)(cause) ? cause : "D1 request failed",
+      message: "D1's HTTP API refused the statement",
+    }),
   })
 
 // The client, and what it counts.
@@ -50,7 +53,7 @@ export const d1 = ({ account, database, token }: Target) => {
 
   const layer = Layer.effectContext(
     Effect.gen(function* () {
-      const http = (yield* HttpClient.HttpClient).pipe(HttpClient.filterStatusOk)
+      const http = yield* HttpClient.HttpClient
       const base = `https://api.cloudflare.com/client/v4/accounts/${account}/d1/database/${database}`
 
       const send = <A extends { readonly result: readonly [{ readonly meta: typeof Meta.Type }] }>(
@@ -65,7 +68,17 @@ export const d1 = ({ account, database, token }: Target) => {
           HttpClientRequest.bearerToken(token),
           HttpClientRequest.bodyJsonUnsafe({ sql, params }),
           http.execute,
-          Effect.flatMap(HttpClientResponse.schemaBodyJson(schema)),
+          Effect.flatMap((response) =>
+            Effect.gen(function* () {
+              if (response.status < 200 || response.status >= 300) {
+                const body = yield* response.text
+
+                return yield* Effect.fail(`D1 answered ${response.status}: ${body.slice(0, 1000)}`)
+              }
+
+              return yield* HttpClientResponse.schemaBodyJson(schema)(response)
+            }),
+          ),
           Effect.tap(({ result: [{ meta }] }) =>
             Effect.sync(() => {
               usage.read += meta.rows_read

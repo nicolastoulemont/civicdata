@@ -44,7 +44,9 @@ const login = Effect.gen(function* () {
     readFileSync(join(homedir(), ".alchemy/profiles/default/cloudflare.json"), "utf8"),
   )
 
-  const { values } = yield* Schema.decodeEffect(Profile)(text)
+  const { values } = yield* Schema.decodeEffect(Profile)(text).pipe(
+    Effect.mapError(() => "Cannot decode Alchemy's Cloudflare login"),
+  )
 
   if (values.expires <= Date.now()) {
     return yield* Effect.fail(
@@ -73,6 +75,7 @@ const find = Effect.fn("outlines.find")(function* ({
     HttpClientRequest.bearerToken(token),
     client.execute,
     Effect.flatMap(HttpClientResponse.schemaBodyJson(Databases)),
+    Effect.mapError(() => "Cannot list stage databases with Alchemy's Cloudflare login"),
   )
 
   const found = result.filter(({ name }) => name.startsWith(`civicdata-Database-${stage}-`))

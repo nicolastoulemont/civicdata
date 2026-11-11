@@ -44,7 +44,7 @@ The metabase names no frequency: a period of four digits is a year. A dataset ha
 
 ### What a Worker can read
 
-Decoded, the two codelist files outgrow a Worker's 128 MB: in Node, the Eurostat file grows the heap by 250 MB and the OECD's by 134 MB. The constraints take 18 MB and the structures 7 MB, and the metabase is unzipped and read a line at a time as it streams. So the catalog Workflow reads only those three, and asks for a single codelist when it meets codes without labels. A local script reads all five, once per stage.
+Decoded, the two codelist files outgrow a Worker's 128 MB: in separate Node processes, JSON parsing, Schema decoding and building the label maps grew the heap by 295 MB for Eurostat and 150 MB for the OECD. Decoding the constraints took 31 MB and the structures 8 MB, and the metabase is unzipped and read a line at a time as it streams. The OECD structures file is also needed to map dimensions to codelists; constraints alone do not give that mapping. So the catalog Workflow reads only those three, and asks for a single codelist when it meets codes without labels. A local script reads all five, once per stage.
 
 ### The first fill
 
@@ -54,7 +54,7 @@ Decoded, the two codelist files outgrow a Worker's 128 MB: in Node, the Eurostat
 STAGE=prod pnpm --filter @civicdata/server run outlines
 ```
 
-It writes to the database named `civicdata-Database-<STAGE>-*`, creates the catalog's tables if no build has, and logs what it wrote, the rows D1 counted, how long it took and the database's size before and after. It writes only what changed, so running it again is safe. Then start a catalog build ([Rebuild by hand](#rebuild-by-hand)): it leaves the datasets no chart can show out of search and embeds the labels. The script and the Workflow share the parsing and writing code in `Outlines.ts` and `Structures.ts`; only where the labels come from differs.
+It writes to the database named `civicdata-Database-<STAGE>-*`, creates the catalog's tables if no build has, and logs what it wrote, the rows D1 counted, how long it took and the database's size before and after. It writes only what changed, so running it again is safe. Run the fill while no catalog build is active: the script does not take the Workflow lease. Then start a catalog build ([Rebuild by hand](#rebuild-by-hand)): it leaves the datasets no chart can show out of search and embeds the labels. The script and the Workflow share the parsing and writing code in `Outlines.ts` and `Structures.ts`; only where the labels come from differs.
 
 ### The weekly refresh
 
