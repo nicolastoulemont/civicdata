@@ -3,14 +3,14 @@
 // adds indicators, with OPENAI_API_KEY set (and OPENAI_MODEL to try another
 // model):
 //
-//   pnpm --filter @civicdata/server run titles
+//   pnpm --filter @openfacts/server run titles
 //
 // Every title is checked with `fits` against the official name; one that
 // fails twice is left out, and the chart shows the official name instead.
 import { writeFileSync } from "node:fs"
 
-import type { CatalogEntry } from "@civicdata/domain"
 import { OpenAiClient } from "@effect/ai-openai"
+import type { CatalogEntry } from "@openfacts/domain"
 import { Array as Arr, Config, Effect, Layer, Option, Schema } from "effect"
 import { LanguageModel } from "effect/ai"
 import { FetchHttpClient } from "effect/http"

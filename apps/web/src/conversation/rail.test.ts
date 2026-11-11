@@ -11,7 +11,7 @@ import {
   TurnIndex,
   Unanswered,
   Year,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import { describe, expect, it } from "vitest"
 
 import { createI18n } from "../locale.tsx"

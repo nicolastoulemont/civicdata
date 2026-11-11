@@ -74,7 +74,7 @@ import {
   When,
   type Work,
   Year,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import {
   Array as Arr,
   type Cause,
@@ -176,13 +176,13 @@ const forget = (prompt: Prompt.Prompt) => {
 
 // Where a tool reports its step while it runs: to the answer that called it.
 class Report extends Context.Service<Report, (step: Work) => Effect.Effect<void>>()(
-  "@civicdata/server/Agent/Report",
+  "@openfacts/server/Agent/Report",
 ) {}
 
 // The political records the answer's lookups found, by id: the only ones
 // its words can cite.
 class Known extends Context.Service<Known, Ref.Ref<ReadonlyMap<string, Cited>>>()(
-  "@civicdata/server/Agent/Known",
+  "@openfacts/server/Agent/Known",
 ) {}
 
 // Why a step failed.
@@ -1508,7 +1508,7 @@ If the question can be read in ways that give different charts and none is a saf
 
 A later question can follow up on your last answer, e.g. "add Chile" or "now per person". Apply it to the charts it names, or else to every chart it fits: "add Italy" adds Italy to each chart, "only since 2015" changes the years of every trend. Show each changed chart again, in the same order, keep the rest of each chart, and write about each one again. When a question starts with charts on screen, the person changed them since your last answer: follow up on those charts instead, each by the answer it belongs to and its place in that answer.`
 
-export class Agent extends Context.Service<Agent, Interface>()("@civicdata/server/Agent") {
+export class Agent extends Context.Service<Agent, Interface>()("@openfacts/server/Agent") {
   // Needs a LanguageModel, a Catalog, a Resolver, the Sources, the
   // political records, the research findings and the indicators' directions.
   static readonly layer = Layer.effect(

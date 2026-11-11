@@ -1,4 +1,4 @@
-import { type Turn, TurnIndex } from "@civicdata/domain"
+import { type Turn, TurnIndex } from "@openfacts/domain"
 import { Data } from "effect"
 
 import type { Failure, useConversation } from "./useConversation.ts"

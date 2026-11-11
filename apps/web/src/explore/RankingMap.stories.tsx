@@ -6,7 +6,7 @@ import {
   regions,
   type ResolvedView,
   Year,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import type { Meta, StoryObj } from "@storybook/react-vite"
 
 import { RankingMap } from "./RankingMap.tsx"

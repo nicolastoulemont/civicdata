@@ -1,4 +1,4 @@
-import type { Change, Country, Direction, ResolvedView } from "@civicdata/domain"
+import type { Change, Country, Direction, ResolvedView } from "@openfacts/domain"
 
 type Observations = ResolvedView["observations"]
 

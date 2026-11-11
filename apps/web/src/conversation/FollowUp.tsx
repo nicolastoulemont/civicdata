@@ -1,4 +1,4 @@
-import type { ConversationId, Ending } from "@civicdata/domain"
+import type { ConversationId, Ending } from "@openfacts/domain"
 import { Match } from "effect"
 import type { TFunction } from "i18next"
 import { useTranslation } from "react-i18next"

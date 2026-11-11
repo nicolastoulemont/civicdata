@@ -1,4 +1,4 @@
-import type { View } from "@civicdata/domain"
+import type { View } from "@openfacts/domain"
 import { ChartColumn, ChartGantt, ChartLine, ChartScatter, Earth } from "lucide-react"
 import { useTranslation } from "react-i18next"
 

@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it } from "@effect/vitest"
 import {
   type CatalogEntry,
   IndicatorId,
@@ -6,8 +7,7 @@ import {
   Code,
   Country,
   DimensionId,
-} from "@civicdata/domain"
-import { beforeEach, describe, expect, it } from "@effect/vitest"
+} from "@openfacts/domain"
 import { reset } from "cloudflare:test"
 import { env } from "cloudflare:workers"
 import { Effect, Schema, Stream } from "effect"

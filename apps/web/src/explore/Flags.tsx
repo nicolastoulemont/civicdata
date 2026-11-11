@@ -1,4 +1,4 @@
-import type { Country, Flag, ResolvedView } from "@civicdata/domain"
+import type { Country, Flag, ResolvedView } from "@openfacts/domain"
 import { useTranslation } from "react-i18next"
 
 import { useFormat } from "./useFormat.ts"

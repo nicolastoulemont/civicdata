@@ -1,3 +1,4 @@
+import { D1Client } from "@effect/sql-d1"
 import {
   type Action,
   ChartIndex,
@@ -8,8 +9,7 @@ import {
   TurnIndex,
   View,
   Vote,
-} from "@civicdata/domain"
-import { D1Client } from "@effect/sql-d1"
+} from "@openfacts/domain"
 import { Context, DateTime, Duration, Effect, Exit, Layer, Option, Schema } from "effect"
 import { SqlClient } from "effect/sql"
 
@@ -154,7 +154,7 @@ interface Source {
 
 // The answers people got, kept a year so the bad ones can be found and turned
 // into eval cases after their conversation is gone (docs/answers.md).
-export class Answers extends Context.Service<Answers, Interface>()("@civicdata/server/Answers") {
+export class Answers extends Context.Service<Answers, Interface>()("@openfacts/server/Answers") {
   // Needs a SqlClient.
   static readonly layer = ({ conversation, model, version }: Source) =>
     Layer.effect(

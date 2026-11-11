@@ -13,7 +13,7 @@ import {
   Text,
   transformOf,
   type View,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import { Array as Arr, Data, Match, Schema } from "effect"
 
 // Series of an SDMX dataflow that answer a question: the values the chart may

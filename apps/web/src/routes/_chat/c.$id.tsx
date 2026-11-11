@@ -1,4 +1,4 @@
-import { ConversationId } from "@civicdata/domain"
+import { ConversationId } from "@openfacts/domain"
 import { createFileRoute, notFound, useLocation } from "@tanstack/react-router"
 import { Option, Schema, Struct } from "effect"
 import { useEffect } from "react"

@@ -1,4 +1,4 @@
-import { AgentUnavailable, type ConversationId } from "@civicdata/domain"
+import { AgentUnavailable, type ConversationId } from "@openfacts/domain"
 import { Context, Effect, Layer } from "effect"
 import { HttpTraceContext } from "effect/http"
 
@@ -29,7 +29,7 @@ interface Interface {
 // Where conversations live: one Durable Object each, named by the
 // conversation's id, which answers its requests itself.
 export class Conversations extends Context.Service<Conversations, Interface>()(
-  "@civicdata/server/Conversations",
+  "@openfacts/server/Conversations",
 ) {
   static readonly unavailable = Layer.succeed(
     Conversations,

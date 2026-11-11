@@ -51,7 +51,7 @@ Decoded, the two codelist files outgrow a Worker's 128 MB: in separate Node proc
 `packages/server/scripts/outlines.ts` fills a stage's outlines and labels from the five files, writing through Cloudflare's D1 HTTP API as Alchemy's default login:
 
 ```sh
-STAGE=prod pnpm --filter @civicdata/server run outlines
+STAGE=prod pnpm --filter @openfacts/server run outlines
 ```
 
 It writes to the database named `civicdata-Database-<STAGE>-*`, creates the catalog's tables if no build has, and logs what it wrote, the rows D1 counted, how long it took and the database's size before and after, from statement metadata rather than the database listing's stale size. It writes only what changed, so running it again is safe. Run the fill while no catalog build is active: the script does not take the Workflow lease. Then start a catalog build ([Rebuild by hand](#rebuild-by-hand)): it leaves the datasets no chart can show out of search and embeds the labels. The script and the Workflow share the parsing and writing code in `Outlines.ts` and `Structures.ts`; only where the labels come from differs.

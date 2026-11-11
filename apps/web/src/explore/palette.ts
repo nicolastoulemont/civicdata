@@ -1,4 +1,4 @@
-import type { Country, Direction } from "@civicdata/domain"
+import type { Country, Direction } from "@openfacts/domain"
 import { Match } from "effect"
 
 import { colors } from "./colors.gen.ts"

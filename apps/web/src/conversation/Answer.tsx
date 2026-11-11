@@ -8,7 +8,7 @@ import {
   type TurnIndex,
   TurnNotFound,
   type View,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import type { TFunction } from "i18next"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"

@@ -1,4 +1,4 @@
-import type { Related, ResolvedView, Year } from "@civicdata/domain"
+import type { Related, ResolvedView, Year } from "@openfacts/domain"
 import type { Meta, StoryObj } from "@storybook/react-vite"
 import { useState } from "react"
 

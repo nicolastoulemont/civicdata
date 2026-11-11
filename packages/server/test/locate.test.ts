@@ -1,4 +1,4 @@
-import { locate } from "@civicdata/domain"
+import { locate } from "@openfacts/domain"
 import { describe, expect, it } from "vitest"
 
 const codes = (name: string) => locate(name).map((country) => country.code)

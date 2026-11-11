@@ -1,4 +1,4 @@
-import type { Country } from "@civicdata/domain"
+import type { Country } from "@openfacts/domain"
 import { useTranslation } from "react-i18next"
 import { CartesianGrid, LabelList, Scatter, ScatterChart, XAxis, YAxis } from "recharts"
 

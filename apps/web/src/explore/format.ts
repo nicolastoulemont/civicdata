@@ -7,7 +7,7 @@ import {
   type Source,
   transformOf,
   type View,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import { DateTime, Match } from "effect"
 
 const countryNames = new Map(countries.map((country) => [country.code, country.name]))

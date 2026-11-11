@@ -1,3 +1,5 @@
+import { D1Client } from "@effect/sql-d1"
+import { beforeEach, expect, it } from "@effect/vitest"
 import {
   Dimensions,
   identify,
@@ -6,9 +8,7 @@ import {
   SourceUnavailable,
   Trend,
   Year,
-} from "@civicdata/domain"
-import { D1Client } from "@effect/sql-d1"
-import { beforeEach, expect, it } from "@effect/vitest"
+} from "@openfacts/domain"
 import { reset } from "cloudflare:test"
 import { env } from "cloudflare:workers"
 import { DateTime, Effect, Layer, Schema, Stream } from "effect"

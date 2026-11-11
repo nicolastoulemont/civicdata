@@ -9,7 +9,7 @@ import {
   type Related,
   type ResolvedView,
   Year,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import { Array as Arr, Match, Order, Schema } from "effect"
 
 const Point = Schema.Struct({ year: Year, value: Schema.Finite })

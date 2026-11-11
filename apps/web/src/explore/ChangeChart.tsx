@@ -1,4 +1,4 @@
-import type { Change, ResolvedView } from "@civicdata/domain"
+import type { Change, ResolvedView } from "@openfacts/domain"
 import { useTranslation } from "react-i18next"
 import { Bar, CartesianGrid, ComposedChart, Scatter, XAxis, YAxis } from "recharts"
 

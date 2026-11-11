@@ -6,7 +6,7 @@ import {
   type ResolvedView,
   Trend,
   Year,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import { DateTime } from "effect"
 import { describe, expect, it } from "vitest"
 

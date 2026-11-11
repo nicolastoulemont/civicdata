@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { readFileSync } from "node:fs"
 
-import { countries } from "@civicdata/domain"
+import { countries } from "@openfacts/domain"
 import { describe, expect, it } from "vitest"
 
 import { colors } from "./colors.gen.ts"

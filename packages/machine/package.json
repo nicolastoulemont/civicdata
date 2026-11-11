@@ -1,5 +1,5 @@
 {
-  "name": "@civicdata/machine",
+  "name": "@openfacts/machine",
   "private": true,
   "type": "module",
   "exports": {

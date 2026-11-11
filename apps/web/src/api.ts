@@ -1,4 +1,4 @@
-import { Api } from "@civicdata/domain"
+import { Api } from "@openfacts/domain"
 import { Effect, Layer } from "effect"
 import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/http"
 import { HttpApiClient } from "effect/http-api"

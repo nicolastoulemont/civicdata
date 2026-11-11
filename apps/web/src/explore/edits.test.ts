@@ -8,7 +8,7 @@ import {
   transformOf,
   Trend,
   Year,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import { Schema } from "effect"
 import { describe, expect, it } from "vitest"
 

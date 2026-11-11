@@ -7,7 +7,7 @@ import {
   IndicatorId,
   pathOf,
   Source,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import {
   Array as Arr,
   Context,
@@ -86,7 +86,7 @@ const KeysJson = Schema.fromJsonString(Schema.Array(Schema.String))
 // Consumes each selected asset once and records progress only after all its
 // entries have been persisted. Workflows and local runners supply the same
 // services, with different Step layers. Store owns hashing and hold-back.
-export class Gather extends Context.Service<Gather, Interface>()("@civicdata/server/Gather") {
+export class Gather extends Context.Service<Gather, Interface>()("@openfacts/server/Gather") {
   static readonly layer = Layer.effect(
     Gather,
     Effect.gen(function* () {

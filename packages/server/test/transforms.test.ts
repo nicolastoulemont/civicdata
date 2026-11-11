@@ -1,4 +1,4 @@
-import { Year } from "@civicdata/domain"
+import { Year } from "@openfacts/domain"
 import { describe, expect, it } from "vitest"
 
 import { divide, growth, indexed } from "../src/transforms.ts"

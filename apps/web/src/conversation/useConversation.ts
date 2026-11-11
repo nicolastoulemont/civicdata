@@ -15,8 +15,8 @@ import {
   type View,
   type Vote,
   withShown,
-} from "@civicdata/domain"
-import { Machine } from "@civicdata/machine"
+} from "@openfacts/domain"
+import { Machine } from "@openfacts/machine"
 import {
   MutationObserver,
   type QueryClient,

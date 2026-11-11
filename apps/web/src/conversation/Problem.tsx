@@ -3,7 +3,7 @@ import {
   CatalogUnavailable,
   ConversationBusy,
   TooManyQuestions,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import type { TFunction } from "i18next"
 import { X } from "lucide-react"
 import { useEffect, useState } from "react"

@@ -1,4 +1,4 @@
-import { type CatalogEntry, Direction, IndicatorId } from "@civicdata/domain"
+import { type CatalogEntry, Direction, IndicatorId } from "@openfacts/domain"
 import { Effect, Layer, Option, type Redacted, Schema } from "effect"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
 

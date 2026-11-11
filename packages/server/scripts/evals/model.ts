@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto"
 
-import { Vote } from "@civicdata/domain"
+import { Vote } from "@openfacts/domain"
 import { Schema } from "effect"
 
 export const Digest = Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/)).pipe(

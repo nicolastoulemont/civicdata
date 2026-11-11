@@ -5,7 +5,7 @@ import {
   IndicatorNotFound,
   SourceUnavailable,
   Year,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import { Context, DateTime, Duration, Effect, Layer, Schedule, Schema, Stream } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
 import { unzipSync } from "fflate"
@@ -298,7 +298,7 @@ const keys = {
 // the store from their bulk downloads, and read through the API for a series
 // not stored yet.
 export class WorldBank extends Context.Service<WorldBank, Adapter>()(
-  "@civicdata/server/WorldBank",
+  "@openfacts/server/WorldBank",
 ) {
   static readonly layer = Layer.effect(WorldBank, Effect.map(make, adapterOf))
 

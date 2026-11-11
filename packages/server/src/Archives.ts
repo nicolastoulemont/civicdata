@@ -1,4 +1,4 @@
-import { Ballot, countries, Country, Day, members, Party, Publisher } from "@civicdata/domain"
+import { Ballot, countries, Country, Day, members, Party, Publisher } from "@openfacts/domain"
 import { Context, DateTime, Effect, Layer, Match, Schedule, Schema } from "effect"
 import { HttpClient } from "effect/http"
 import { unzipSync } from "fflate"
@@ -479,7 +479,7 @@ const unavailable =
       Effect.mapError((cause) => new ArchiveUnavailable({ publisher, cause })),
     )
 
-export class Archives extends Context.Service<Archives, Interface>()("@civicdata/server/Archives") {
+export class Archives extends Context.Service<Archives, Interface>()("@openfacts/server/Archives") {
   static readonly layer = Layer.effect(
     Archives,
     Effect.gen(function* () {

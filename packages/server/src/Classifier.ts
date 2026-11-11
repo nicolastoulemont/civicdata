@@ -1,4 +1,4 @@
-import type { CatalogEntry, Direction, IndicatorId } from "@civicdata/domain"
+import type { CatalogEntry, Direction, IndicatorId } from "@openfacts/domain"
 import { Context, Data, type Effect, Layer, Schema } from "effect"
 
 // The model could not classify a batch: it is down, refused the request, or
@@ -30,7 +30,7 @@ export const Classifying = Data.taggedEnum<Classifying>()
 // Classifies catalog entries by which way their values are better. The
 // model's classifier is in ModelClassifier.ts.
 export class Classifier extends Context.Service<Classifier, Classifying>()(
-  "@civicdata/server/Classifier",
+  "@openfacts/server/Classifier",
 ) {
   static readonly off = Layer.succeed(Classifier, Classifier.of(Classifying.Off()))
 }

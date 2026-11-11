@@ -13,7 +13,7 @@ import {
   directionAfter,
   type View,
   Year,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import { Array as Arr, Context, Effect, Layer, Match, Option } from "effect"
 
 import { counterparts, disagreeing } from "./Counterparts.ts"
@@ -46,7 +46,7 @@ const missing = (countries: View["countries"], series: ReadonlyArray<ReadonlyArr
     (country) => !series.every((values) => values.some((value) => value.country === country)),
   )
 
-export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata/server/Resolver") {
+export class Resolver extends Context.Service<Resolver, Interface>()("@openfacts/server/Resolver") {
   static readonly layer = Layer.effect(
     Resolver,
     Effect.gen(function* () {

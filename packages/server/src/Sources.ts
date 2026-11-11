@@ -5,7 +5,7 @@ import {
   Source,
   sourceOf,
   SourceUnavailable,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import { Context, Effect, Layer, Option, Record } from "effect"
 
 import { type Adapter, Policy } from "./Adapter.ts"
@@ -44,7 +44,7 @@ const read = (key: SeriesKey, { policy, target }: { policy: Policy; target: Stor
     ),
   )
 
-export class Sources extends Context.Service<Sources, Interface>()("@civicdata/server/Sources") {
+export class Sources extends Context.Service<Sources, Interface>()("@openfacts/server/Sources") {
   // A syntactically valid id need not name a registered publisher.
   static get(
     sources: Interface,

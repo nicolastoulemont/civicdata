@@ -1,3 +1,5 @@
+import { D1Client } from "@effect/sql-d1"
+import { beforeEach, describe, expect, it } from "@effect/vitest"
 import {
   type Action,
   AgentUnavailable,
@@ -67,9 +69,7 @@ import {
   View,
   Vote,
   Year,
-} from "@civicdata/domain"
-import { D1Client } from "@effect/sql-d1"
-import { beforeEach, describe, expect, it } from "@effect/vitest"
+} from "@openfacts/domain"
 import { reset } from "cloudflare:test"
 import { env } from "cloudflare:workers"
 import {

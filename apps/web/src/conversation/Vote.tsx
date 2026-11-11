@@ -7,7 +7,7 @@ import {
   TurnNotFound,
   Up,
   type Vote as Choice,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import { Schema } from "effect"
 import type { TFunction } from "i18next"
 import { ThumbsDown, ThumbsUp } from "lucide-react"

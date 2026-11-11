@@ -1,4 +1,4 @@
-import { type Country, countries, type View } from "@civicdata/domain"
+import { type Country, countries, type View } from "@openfacts/domain"
 import { useId, useState } from "react"
 import { useTranslation } from "react-i18next"
 

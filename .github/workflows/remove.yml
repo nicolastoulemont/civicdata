@@ -63,8 +63,8 @@ jobs:
       - name: Destroy each stage
         run: |
           for n in $PRS; do
-            pnpm --filter @civicdata/infra exec alchemy deploy --yes --stage "pr-$n" --include Series --include Cache
-            pnpm --filter @civicdata/infra exec alchemy destroy --yes --stage "pr-$n"
+            pnpm --filter @openfacts/infra exec alchemy deploy --yes --stage "pr-$n" --include Series --include Cache
+            pnpm --filter @openfacts/infra exec alchemy destroy --yes --stage "pr-$n"
           done
       # Fails when a closed pull request still has a bucket, and prints the
       # rest: production's and open pull requests'.

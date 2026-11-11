@@ -19,7 +19,7 @@ import {
   When,
   yearOf,
   yearsOf,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import { Array as Arr, Match } from "effect"
 import type { TFunction } from "i18next"
 import { useMemo } from "react"

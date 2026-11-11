@@ -14,7 +14,7 @@ import {
   Unanswered,
   type View,
   Year,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import { Array as Arr, Schema } from "effect"
 import { describe, expect, it } from "vitest"
 

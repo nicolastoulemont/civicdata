@@ -1,5 +1,5 @@
-import type { Turn } from "@civicdata/domain"
 import { layer } from "@effect/vitest"
+import type { Turn } from "@openfacts/domain"
 import { env } from "cloudflare:workers"
 import { Cause, DateTime, Duration, Effect, Exit, Schema } from "effect"
 import { FetchHttpClient } from "effect/http"

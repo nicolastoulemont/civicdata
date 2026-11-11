@@ -1,5 +1,5 @@
-import { Relation, transformOf, Trend, type View, Year } from "@civicdata/domain"
-import { Machine } from "@civicdata/machine"
+import { Relation, transformOf, Trend, type View, Year } from "@openfacts/domain"
+import { Machine } from "@openfacts/machine"
 import type { QueryClient } from "@tanstack/react-query"
 import { Data, Effect, Match, Struct } from "effect"
 

@@ -1,3 +1,4 @@
+import { describe, expect, it } from "@effect/vitest"
 import {
   Answered,
   Chart,
@@ -16,8 +17,7 @@ import {
   Unanswered,
   Up,
   Year,
-} from "@civicdata/domain"
-import { describe, expect, it } from "@effect/vitest"
+} from "@openfacts/domain"
 
 import { candidates, type Logged, print } from "../eval/candidates.ts"
 

@@ -1,4 +1,4 @@
-import type { Country } from "@civicdata/domain"
+import type { Country } from "@openfacts/domain"
 
 // The code Eurostat's "geo" dimension uses for each country: ISO 3166-1 alpha-2,
 // except EL for Greece and UK for the United Kingdom. Generated on 2026-11-09

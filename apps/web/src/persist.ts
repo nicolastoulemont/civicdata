@@ -1,4 +1,4 @@
-import { ConversationNotFound, ResolvedView, Turns } from "@civicdata/domain"
+import { ConversationNotFound, ResolvedView, Turns } from "@openfacts/domain"
 import {
   type AsyncStorage,
   experimental_createQueryPersister,

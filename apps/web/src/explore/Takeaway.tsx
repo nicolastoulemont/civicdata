@@ -4,7 +4,7 @@ import {
   type View,
   SourceUnavailable,
   TooManyQuestions,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import { useMutation } from "@tanstack/react-query"
 import { Data, Match } from "effect"
 import type { TFunction } from "i18next"

@@ -1,4 +1,4 @@
-import { type Country, type Region, type ResolvedView } from "@civicdata/domain"
+import { type Country, type Region, type ResolvedView } from "@openfacts/domain"
 
 import { sheets } from "./maps/sheets.gen.ts"
 

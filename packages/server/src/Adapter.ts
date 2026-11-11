@@ -5,7 +5,7 @@ import {
   SeriesKey,
   type IndicatorNotFound,
   type SourceUnavailable,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import { Data, type Effect, Schema, type Stream } from "effect"
 
 import type { Codelist, Outline } from "./Outlines.ts"

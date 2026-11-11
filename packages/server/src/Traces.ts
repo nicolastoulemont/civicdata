@@ -1,4 +1,4 @@
-import { isRefusal, Locale } from "@civicdata/domain"
+import { isRefusal, Locale } from "@openfacts/domain"
 import {
   Cause,
   Config,
@@ -195,7 +195,7 @@ interface Limit {
 // deployment caps how often one visitor sends one. The cap itself lives in
 // the TRACE_LIMIT binding's configuration.
 export class TraceLimit extends Context.Service<TraceLimit, Limit>()(
-  "@civicdata/server/Traces/TraceLimit",
+  "@openfacts/server/Traces/TraceLimit",
 ) {
   static readonly none = Layer.succeed(
     TraceLimit,
