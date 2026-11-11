@@ -5,6 +5,7 @@ import {
   SourceUnavailable,
 } from "@civicdata/domain"
 import { type UseQueryResult, useQuery } from "@tanstack/react-query"
+import { Data, Match } from "effect"
 import { useDeferredValue, useId, useMemo, useState } from "react"
 
 import {
@@ -25,16 +26,60 @@ const problem = (error: Error) =>
       ? "The World Bank catalog is not responding. Try again in a moment."
       : "Indicator search failed."
 
-// The line under the search box: why there are no results, or nothing.
-const statusOf = (text: string, search: UseQueryResult<ReadonlyArray<CatalogEntry>>) => {
-  if (text.length < 2) return null
+// Where the search for the typed text stands. Idle until two characters are
+// typed, so a pick, which clears the text, lists no earlier results. While
+// the results for the text load, the previous text's stay listed.
+type Status = Data.TaggedEnum<{
+  Idle: {}
+  Searching: { readonly previous: ReadonlyArray<CatalogEntry> }
+  Found: { readonly entries: ReadonlyArray<CatalogEntry> }
+  Empty: {}
+  Failed: { readonly error: Error }
+}>
 
-  if (search.isError) return problem(search.error)
+const Status = Data.taggedEnum<Status>()
 
-  if (search.isPending) return "Searching…"
-
-  return search.data.length === 0 ? "No indicator matches." : null
+interface Typed {
+  readonly text: string
+  // The text the query searches, which trails `text` while React defers it.
+  readonly searched: string
 }
+
+const statusOf = (
+  { text, searched }: Typed,
+  search: UseQueryResult<ReadonlyArray<CatalogEntry>>,
+): Status => {
+  if (text.length < 2) return Status.Idle()
+
+  if (search.isError) return Status.Failed({ error: search.error })
+
+  if (search.isPending) return Status.Searching({ previous: [] })
+
+  if (search.isPlaceholderData || searched !== text)
+    return Status.Searching({ previous: search.data })
+
+  return search.data.length === 0 ? Status.Empty() : Status.Found({ entries: search.data })
+}
+
+// The line under the search box: what the search is doing, why there are no
+// results, or nothing.
+const line = (status: Status) =>
+  Match.valueTags(status, {
+    Idle: () => null,
+    Searching: () => "Searching…",
+    Found: () => null,
+    Empty: () => "No indicator matches.",
+    Failed: ({ error }) => problem(error),
+  })
+
+const listed = (status: Status): ReadonlyArray<CatalogEntry> =>
+  Match.valueTags(status, {
+    Idle: () => [],
+    Searching: ({ previous }) => previous,
+    Found: ({ entries }) => entries,
+    Empty: () => [],
+    Failed: () => [],
+  })
 
 interface IndicatorProps {
   // Names which of the chart's indicators this picks, e.g. "Against".
@@ -49,7 +94,9 @@ interface IndicatorProps {
 export const Indicator = ({ label = "Indicator", current, onChange }: IndicatorProps) => {
   const id = useId()
   const [text, setText] = useState("")
-  const search = useQuery(searchQuery(useDeferredValue(text.trim())))
+  const typed = text.trim()
+  const searched = useDeferredValue(typed)
+  const search = useQuery(searchQuery(searched))
 
   // A stable value: a new object on each render reads as a new selection,
   // and Base UI would rewrite the input with its name while the user types.
@@ -58,13 +105,14 @@ export const Indicator = ({ label = "Indicator", current, onChange }: IndicatorP
     [current.indicator, current.name],
   )
 
-  const found = search.data ?? []
+  const status = statusOf({ text: typed, searched }, search)
+  const found = listed(status)
 
   const items = found.some((entry) => entry.indicator === current.indicator)
     ? found
     : [selected, ...found]
 
-  const status = statusOf(text.trim(), search)
+  const shown = line(status)
 
   return (
     <Field>
@@ -89,8 +137,8 @@ export const Indicator = ({ label = "Indicator", current, onChange }: IndicatorP
       >
         <ComboboxInput id={id} placeholder="Search indicators" />
         <ComboboxContent>
-          {status === null ? null : (
-            <output className="block px-3 py-2 text-sm text-muted-foreground">{status}</output>
+          {shown === null ? null : (
+            <output className="block px-3 py-2 text-sm text-muted-foreground">{shown}</output>
           )}
           <ComboboxList>
             {(entry: CatalogEntry) => (
