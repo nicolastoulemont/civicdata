@@ -23,9 +23,11 @@ export const fill = (source: "FAOSTAT" | "ILOSTAT" | "V-Dem") =>
   Effect.gen(function* () {
     const account = yield* Config.String("CLOUDFLARE_ACCOUNT_ID")
     const token = yield* Config.Redacted("CLOUDFLARE_API_TOKEN")
+    const accessKeyId = yield* Config.Redacted("R2_ACCESS_KEY_ID")
+    const secretAccessKey = yield* Config.Redacted("R2_SECRET_ACCESS_KEY")
     const database = yield* Config.String(`${source === "V-Dem" ? "VDEM" : source}_D1_ID`)
     const bucket = yield* Config.String(`${source === "V-Dem" ? "VDEM" : source}_R2_BUCKET`)
-    const bucketTransport = yield* storage({ account, token, bucket })
+    const bucketTransport = yield* storage({ account, accessKeyId, secretAccessKey, bucket })
 
     const gather = Gather.layer.pipe(
       Layer.provide(Sources.layer),

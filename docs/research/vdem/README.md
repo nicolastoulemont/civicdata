@@ -22,9 +22,9 @@ Verified on 2026-11-11:
   index on an interval scale from 0 to 1, not a count or a percentage. The
   publisher assigns country-year values using day-weighted means. We preserve
   their published values, without performing aggregation ourselves.
-- Codebook §§1.4.3 and 1.5.1 identify `_codelow` and `_codehigh` as 68% highest
-  posterior density (HPD) bounds. For high-level indices these use posterior
-  component samples. They are not 95% frequentist confidence intervals, nor
+- Codebook §1.4.3 defines the `_codelow` and `_codehigh` suffixes; §1.5.1 gives
+  68% highest posterior density (HPD) intervals for these high-level indices,
+  using posterior component samples. They are not 95% frequentist confidence intervals, nor
   symmetric error bars computed from a standard deviation. The data contract
   keeps the raw field names, method, level and codebook URL.
 - Codebook §2.1.1 notes the preliminary aggregation formula in releases 1–5.
@@ -91,13 +91,19 @@ requirements above, then run:
 
 ```sh
 export VDEM_PYTHON=/tmp/vdem-python/bin/python
-# Set CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN, VDEM_D1_ID and VDEM_R2_BUCKET
+# Set CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN, VDEM_D1_ID, VDEM_R2_BUCKET,
+# R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY
 # to the approved stage's existing catalog database and series bucket.
 pnpm --filter @openfacts/server vdem
 ```
 
 The command requires Node 24 and POSIX `sort`. It uses the shared operational
-D1/R2 transport, Gather/Store ledger and sorted-series helper. Only the original
+D1/R2 transport, Gather/Store ledger and sorted-series helper. The Cloudflare API
+token accesses D1; the R2 S3 access key and secret access the approved bucket.
+Signed S3 writes preserve object hash metadata and send atomic
+[`If-None-Match: *`](https://developers.cloudflare.com/r2/api/s3/conditional-operations/)
+for immutable staging. A conflicting object is never overwritten; an identical
+retry can reuse it. No credential is created by this command. Only the original
 pinned RData is downloaded, checked, parsed outside Workers, sorted on disk and
 assembled into one complete series. Extraction currently loads the RData in
 Python, so allow several GB of RAM and temporary disk; the 34 MB compressed

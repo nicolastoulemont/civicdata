@@ -464,6 +464,9 @@ importers:
       '@openfacts/machine':
         specifier: workspace:*
         version: link:../machine
+      aws4fetch:
+        specifier: 1.0.20
+        version: 1.0.20
       effect:
         specifier: 'catalog:'
         version: 4.1.2
@@ -3143,6 +3146,9 @@ packages:
   atomically@1.7.0:
     resolution: {integrity: sha512-Xcz9l0z7y9yQ9rdDaxlmaI4uJHf/T8g9hOEzJcsEqX2SjCj4J20uK7+ldkDHMbpJDK76wF7xEIgxc/vSlsfw5w==}
     engines: {node: '>=10.12.0'}
+
+  aws4fetch@1.0.20:
+    resolution: {integrity: sha512-/djoAN709iY65ETD6LKCtyyEI04XIBP5xVvfmNxsEP0uJB5tyaGBztSryRr4HqMStr9R06PisQE7m9zDTXKu6g==}
 
   babel-dead-code-elimination@1.0.12:
     resolution: {integrity: sha512-GERT7L2TiYcYDtYk1IpD+ASAYXjKbLTDPhBtYj7X1NuRMDTMtAx9kyBenub1Ev41lo91OHCKdmP+egTDmfQ7Ig==}
@@ -7362,6 +7368,8 @@ snapshots:
       tslib: 2.9.1
 
   atomically@1.7.0: {}
+
+  aws4fetch@1.0.20: {}
 
   babel-dead-code-elimination@1.0.12(supports-color@10.2.2):
     dependencies:
