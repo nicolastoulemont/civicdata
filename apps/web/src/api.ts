@@ -11,14 +11,19 @@ export interface Transport {
 
 export const page: Transport = { baseUrl: undefined, layer: FetchHttpClient.layer }
 
+// One request, failing with the API's typed error or a transport error.
+// Interrupting it aborts the request.
+export const request = <A, E>(
+  transport: Transport,
+  use: (api: HttpApiClient.ForApi<typeof Api>) => Effect.Effect<A, E>,
+) =>
+  HttpApiClient.make(Api, { baseUrl: transport.baseUrl }).pipe(
+    Effect.flatMap(use),
+    Effect.provide(transport.layer),
+  )
+
 // Runs one request, rejecting with the API's typed error or a transport error.
 export const call = <A, E>(
   transport: Transport,
-  request: (api: HttpApiClient.ForApi<typeof Api>) => Effect.Effect<A, E>,
-) =>
-  Effect.runPromise(
-    HttpApiClient.make(Api, { baseUrl: transport.baseUrl }).pipe(
-      Effect.flatMap(request),
-      Effect.provide(transport.layer),
-    ),
-  )
+  use: (api: HttpApiClient.ForApi<typeof Api>) => Effect.Effect<A, E>,
+) => Effect.runPromise(request(transport, use))

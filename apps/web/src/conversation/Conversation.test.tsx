@@ -56,8 +56,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import {
   createMemoryHistory,
   createRootRoute,
+  createRoute,
   createRouter,
+  Outlet,
   RouterProvider,
+  useParams,
 } from "@tanstack/react-router"
 import {
   act,
@@ -246,15 +249,18 @@ const events = (text: string) =>
   )
 
 // An answer the test sends one event at a time, in reply to a question or to
-// following the answer in progress.
-const answer = (via: "ask" | "follow" = "ask") => {
+// following the answer in progress, in `conversation`. `dropped` resolves
+// once the page stops reading it.
+const answer = (via: "ask" | "follow" = "ask", conversation: ConversationId = id) => {
   const encoder = new TextEncoder()
+  const { promise: dropped, resolve: drop } = Promise.withResolvers<void>()
   let controller: ReadableStreamDefaultController<Uint8Array> | undefined
 
   const body = new ReadableStream<Uint8Array>({
     start: (opened) => {
       controller = opened
     },
+    cancel: () => drop(),
   })
 
   const reply = () => new HttpResponse(body, { headers: { "content-type": "text/event-stream" } })
@@ -262,11 +268,12 @@ const answer = (via: "ask" | "follow" = "ask") => {
   return {
     handler:
       via === "ask"
-        ? http.post(`/api/conversations/${id}/questions`, reply)
-        : http.get(`/api/conversations/${id}/answer`, reply),
+        ? http.post(`/api/conversations/${conversation}/questions`, reply)
+        : http.get(`/api/conversations/${conversation}/answer`, reply),
     send: (event: string) => controller?.enqueue(encoder.encode(event)),
     end: () => controller?.close(),
     cut: () => controller?.error(new TypeError("The connection was lost")),
+    dropped,
   }
 }
 
@@ -285,6 +292,52 @@ const show = (first?: string) => {
       <RouterProvider router={createRouter({ routeTree: root, history: createMemoryHistory() })} />
     </QueryClientProvider>,
   )
+}
+
+// Another conversation, opened after the first one.
+const other = ConversationId.make("6a1e2f3d-4c5b-4a69-8f7e-0d1c2b3a4f5e")
+
+const decodeId = Schema.decodeUnknownSync(ConversationId)
+
+// The conversation whose id the page's path names, with no key, as in the
+// app's route.
+const Page = () => {
+  const params = useParams({ strict: false })
+
+  return (
+    <SidebarProvider>
+      <Conversation id={decodeId(params.id)} first={undefined} />
+    </SidebarProvider>
+  )
+}
+
+// The conversation page at /c/$id, opened on the first conversation. Like the
+// app's route, it keeps the same page when another conversation opens.
+// Returns how to open another one.
+const browse = () => {
+  const root = createRootRoute({ component: Outlet })
+
+  const conversation = createRoute({
+    getParentRoute: () => root,
+    path: "/c/$id",
+    component: Page,
+  })
+
+  const router = createRouter({
+    routeTree: root.addChildren([conversation]),
+    history: createMemoryHistory({ initialEntries: [`/c/${id}`] }),
+  })
+
+  render(
+    <QueryClientProvider client={new QueryClient()}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  )
+
+  return {
+    open: (next: ConversationId) =>
+      act(() => router.navigate({ to: "/c/$id", params: { id: next } })),
+  }
 }
 
 // A question in the timeline, not in the header that repeats the first one.
@@ -1918,6 +1971,70 @@ describe("Conversation", () => {
     )
   })
 
+  it("keeps the stop button off from the stop until the answer ends as stopped", async () => {
+    const reply = answer()
+    const user = userEvent.setup()
+    const stops: Array<string> = []
+
+    network.use(
+      turns([]),
+      reply.handler,
+      // The server takes the stop and ends the answer later.
+      http.delete(`/api/conversations/${id}/answer`, ({ request }) => {
+        stops.push(request.url)
+
+        return new HttpResponse(null, { status: 204 })
+      }),
+    )
+    show("Life expectancy in Brazil")
+
+    reply.send(message(searching()))
+    expect(await findStep("Searching for “life expectancy”…")).toBeDefined()
+
+    await user.click(screen.getByRole("button", { name: "Stop" }))
+
+    // A step that arrives after the server took the stop.
+    reply.send(message(searching(Stopped.make({}))))
+    expect(await findStep("Stopped searching for “life expectancy”")).toBeDefined()
+    expect(screen.getByRole("button", { name: "Stop" }).hasAttribute("disabled")).toBe(true)
+
+    reply.send(message(Stopped.make({})))
+    reply.end()
+
+    expect(await screen.findByText("You stopped")).toBeDefined()
+    expect(screen.queryByRole("button", { name: "Stop" })).toBeNull()
+    expect(stops).toHaveLength(1)
+  })
+
+  it("says a stop could not be sent, and offers to stop again", async () => {
+    const reply = answer()
+    const user = userEvent.setup()
+
+    network.use(
+      turns([]),
+      reply.handler,
+      http.delete(`/api/conversations/${id}/answer`, () =>
+        HttpResponse.json(Schema.encodeSync(AgentUnavailable)(new AgentUnavailable()), {
+          status: 503,
+        }),
+      ),
+    )
+    show("Life expectancy in Brazil")
+
+    reply.send(message(searching()))
+    expect(await findStep("Searching for “life expectancy”…")).toBeDefined()
+
+    await user.click(screen.getByRole("button", { name: "Stop" }))
+
+    const alert = await screen.findByRole("alert")
+
+    expect(within(alert).getByText("The answer could not be stopped")).toBeDefined()
+    expect(screen.getByRole("button", { name: "Stop" }).hasAttribute("disabled")).toBe(false)
+    expect(await findStep("Searching for “life expectancy”…")).toBeDefined()
+
+    reply.end()
+  })
+
   it("shows each block as soon as the agent sends it, and keeps them when the answer stops", async () => {
     const reply = answer()
     const user = userEvent.setup()
@@ -2256,6 +2373,82 @@ describe("Conversation", () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it("leaves a failed question with its conversation when another opens", async () => {
+    const user = userEvent.setup()
+
+    network.use(
+      turns([]),
+      http.post(`/api/conversations/${id}/questions`, () =>
+        HttpResponse.json(Schema.encodeSync(TooManyQuestions)(new TooManyQuestions()), {
+          status: 429,
+        }),
+      ),
+      http.get(`/api/conversations/${other}`, () =>
+        HttpResponse.json(encodeTurns({ answered: [] })),
+      ),
+    )
+    const { open } = browse()
+
+    await user.type(await findComposer(), "Life expectancy in Brazil{Enter}")
+    expect(await screen.findByText("Too many questions in a minute")).toBeDefined()
+
+    await open(other)
+
+    expect(await screen.findByText(/No questions yet/)).toBeDefined()
+    expect(screen.queryByText("Too many questions in a minute")).toBeNull()
+    expect(screen.queryByText("Life expectancy in Brazil")).toBeNull()
+    expect(screen.queryByRole("button", { name: "Ask again" })).toBeNull()
+  })
+
+  it("shows none of the steps of an answer still running in the conversation left", async () => {
+    const user = userEvent.setup()
+    const asked = answer()
+    const followed = answer("follow", other)
+
+    network.use(
+      turns([]),
+      asked.handler,
+      http.get(`/api/conversations/${other}`, () =>
+        HttpResponse.json(
+          encodeTurns({ answered: [], answering: { question: "Happiness in Chile", started } }),
+        ),
+      ),
+      followed.handler,
+    )
+    const { open } = browse()
+
+    await user.type(await findComposer(), "Life expectancy in Brazil{Enter}")
+    asked.send(message(searching()))
+    expect(await findStep("Searching for “life expectancy”…")).toBeDefined()
+
+    await open(other)
+
+    expect(await findQuestion("Happiness in Chile")).toBeDefined()
+    followed.send(message(looking(Running.make({}))))
+    expect(await findStep("Looking up the political record of France, 2000 to 2024…")).toBeDefined()
+
+    // The page stops reading the first conversation's answer, and the open
+    // one's goes on.
+    await asked.dropped
+    followed.send(
+      message(looking(Recorded.make({ governments: 4, elections: 2, events: 0, reforms: 0 }))),
+    )
+    expect(
+      await findStep("Found 4 governments and 2 elections for France, 2000 to 2024"),
+    ).toBeDefined()
+
+    const steps = within(screen.getByRole("list", { name: "Steps" })).getAllByRole("listitem")
+
+    expect(steps.map((step) => step.textContent)).toEqual([
+      "Found 4 governments and 2 elections for France, 2000 to 2024",
+      "Thinking…",
+    ])
+    expect(screen.queryByText(/life expectancy/)).toBeNull()
+    expect(screen.queryByText("Life expectancy in Brazil")).toBeNull()
+
+    followed.end()
   })
 
   it("says an empty conversation has no questions", async () => {

@@ -9,7 +9,7 @@ import { preview } from "./rail.ts"
 import { Scroll } from "./Scroll.tsx"
 import { entries } from "./timeline.ts"
 import { Timeline } from "./Timeline.tsx"
-import { useConversation } from "./useConversation.ts"
+import { Stop, useConversation } from "./useConversation.ts"
 
 interface ConversationProps {
   id: ConversationId
@@ -19,7 +19,7 @@ interface ConversationProps {
 // A conversation with the agent, newest question last. `first` is a question
 // to ask as soon as the conversation opens: the one typed on the home page.
 export const Conversation = ({ id, first }: ConversationProps) => {
-  const { turns, pending, failures, retry, answering, stop, stopping, ask } = useConversation(id)
+  const { turns, pending, failures, retry, stop, ask } = useConversation(id)
   const [dismissed, setDismissed] = useState<Error | null>(null)
   const sent = useRef(false)
 
@@ -47,9 +47,12 @@ export const Conversation = ({ id, first }: ConversationProps) => {
           composer={
             <FollowUp
               id={id}
-              pending={pending !== undefined}
               last={all.at(-1)?.answer}
-              answering={answering ? { stop, stopping } : undefined}
+              answering={
+                pending === undefined
+                  ? undefined
+                  : { stop, stopping: Stop.$is("Sent")(pending.stop) }
+              }
               ask={ask}
             />
           }
@@ -64,7 +67,12 @@ export const Conversation = ({ id, first }: ConversationProps) => {
                   No questions yet. A conversation is deleted 30 days after its last question.
                 </p>
               ) : null}
-              <Timeline id={id} entries={questions} retry={retry} answering={answering} />
+              <Timeline
+                id={id}
+                entries={questions}
+                retry={retry}
+                answering={pending !== undefined}
+              />
             </div>
           </Lane>
         </Scroll>

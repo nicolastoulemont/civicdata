@@ -22,17 +22,14 @@ interface FollowUpProps {
   id: ConversationId
   last: Ending | undefined
   answering: Answering | undefined
-  pending: boolean
   ask: (question: string) => void
 }
 
 // The composer at the bottom of the lane, docked by the conversation's Scroll.
 // Panels about the next question go above the composer.
-export const FollowUp = ({ id, last, answering, pending, ask }: FollowUpProps) => {
+export const FollowUp = ({ id, last, answering, ask }: FollowUpProps) => {
   const question =
-    !pending && answering === undefined && last !== undefined && "choices" in last
-      ? last
-      : undefined
+    answering === undefined && last !== undefined && "choices" in last ? last : undefined
 
   return (
     <div className="pb-3 sm:pb-4">
