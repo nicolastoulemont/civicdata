@@ -35,16 +35,35 @@ export const memory = () => {
   return { store, layer }
 }
 
-// Durable Object storage in memory, recording each alarm set. `deleted`
-// completes once everything has been deleted.
-export const memoryStorage = (values = new Map<string, string>()) => {
+// Durable Object storage in memory, recording each alarm set. A transaction
+// keeps its writes only when its closure resolves. With `alarmFails`, setting
+// an alarm rejects, as when storage fails. `deleted` completes once
+// everything has been deleted.
+export const memoryStorage = (
+  values = new Map<string, string>(),
+  { alarmFails = false }: { alarmFails?: boolean } = {},
+) => {
   const alarms: Array<number> = []
   const deleted = Deferred.makeUnsafe<void>()
 
   const fake: Storage = {
     get: (key) => Promise.resolve(values.get(key)),
-    put: (key, value) => Promise.resolve(void values.set(key, value)),
-    setAlarm: (time) => Promise.resolve(void alarms.push(time)),
+    getAlarm: () => Promise.resolve(alarms.at(-1) ?? null),
+    transaction: async (closure) => {
+      const puts = new Map<string, string>()
+      const set: Array<number> = []
+
+      await closure({
+        put: (key, value) => Promise.resolve(void puts.set(key, value)),
+        setAlarm: (time) =>
+          alarmFails
+            ? Promise.reject(new Error("The alarm could not be set"))
+            : Promise.resolve(void set.push(time)),
+      })
+
+      for (const [key, value] of puts) values.set(key, value)
+      alarms.push(...set)
+    },
     deleteAll: () => {
       values.clear()
       Deferred.doneUnsafe(deleted, Exit.void)
