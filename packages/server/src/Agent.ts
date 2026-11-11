@@ -102,10 +102,9 @@ import { Notes } from "./Notes.ts"
 import { openAi } from "./OpenAi.ts"
 import { Politics } from "./Politics.ts"
 import { Resolver } from "./Resolver.ts"
-import { Sdmx } from "./Sdmx.ts"
 import { recent } from "./Series.ts"
+import { Sources } from "./Sources.ts"
 import { coverage, Summary, summarize } from "./Summary.ts"
-import { WorldBank } from "./WorldBank.ts"
 
 // Why an answer could not be given at all.
 type Failure = AgentUnavailable | CatalogUnavailable
@@ -873,8 +872,7 @@ const ToolsLayer = Tools.toLayer(
   Effect.gen(function* () {
     const catalog = yield* Catalog
     const resolver = yield* Resolver
-    const worldBank = yield* WorldBank
-    const sdmx = yield* Sdmx
+    const sources = yield* Sources
     const politics = yield* Politics
     const research = yield* Findings
     const notes = yield* Notes
@@ -1030,7 +1028,7 @@ const ToolsLayer = Tools.toLayer(
 
             const read = Effect.all(
               [
-                sourceOf(id) === "World Bank" ? worldBank.describe(id) : sdmx.describe(id),
+                sources[sourceOf(id)].describe(id),
                 notes.get(id, scope).pipe(Effect.orElseSucceed(() => null)),
                 directions.of(id),
               ],
@@ -1422,7 +1420,7 @@ If the question can be read in ways that give different charts and none is a saf
 A later question can follow up on your last answer, e.g. "add Chile" or "now per person". Apply it to the charts it names, or else to every chart it fits: "add Italy" adds Italy to each chart, "only since 2015" changes the years of every trend. Show each changed chart again, in the same order, keep the rest of each chart, and write about each one again. When a question starts with charts on screen, the person changed them since your last answer: follow up on those charts instead, each by the answer it belongs to and its place in that answer.`
 
 export class Agent extends Context.Service<Agent, Interface>()("@civicdata/server/Agent") {
-  // Needs a LanguageModel, a Catalog, a Resolver, a WorldBank, an Sdmx, the
+  // Needs a LanguageModel, a Catalog, a Resolver, the Sources, the
   // political records, the research findings and the indicators' directions.
   static readonly layer = Layer.effect(
     Agent,

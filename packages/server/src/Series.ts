@@ -1,10 +1,16 @@
-import { type Country, Indicator, type IndicatorId, Observation, Year } from "@civicdata/domain"
+import {
+  type Country,
+  Dimension,
+  Indicator,
+  Observation,
+  type SeriesKey,
+  Year,
+} from "@civicdata/domain"
 import { DateTime, Effect, Schema } from "effect"
 
-// What the Resolver asks a source adapter for: one indicator's values for
-// some countries and years.
-export interface Query {
-  readonly indicator: IndicatorId
+// What the Resolver asks a source adapter for: one series' values for some
+// countries and years.
+export interface Query extends SeriesKey {
   readonly countries: ReadonlyArray<Country>
   readonly from: Year
   readonly to: Year
@@ -27,6 +33,13 @@ export const Series = Schema.Struct({
 })
 
 export type Series = typeof Series.Type
+
+// What a source answers for one series: its values, and what else the
+// indicator's series differ by, with the values each dimension takes, so the
+// page can offer the others. A World Bank indicator differs by none.
+export const Answer = Schema.Struct({ ...Series.fields, dimensions: Schema.Array(Dimension) })
+
+export type Answer = typeof Answer.Type
 
 // How many years before this one a cached adapter asks a source for.
 const depth = 30

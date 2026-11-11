@@ -6,7 +6,7 @@ import { TestClock } from "effect/testing"
 
 import { Step, StepFailed } from "../src/CatalogBuild.ts"
 import { Gather, GatherFailed } from "../src/Gather.ts"
-import { WorldBank } from "../src/WorldBank.ts"
+import { Sources } from "../src/Sources.ts"
 import { entry } from "./catalog.ts"
 import { steps } from "./fakes.ts"
 import {
@@ -32,10 +32,11 @@ const run = Gather.run().pipe(Effect.provide(Step.immediate))
 
 // Spain's population since 2020, as charts read it.
 const spain = Effect.fn(function* (codes: ReturnType<typeof indicators>) {
-  const chart = yield* WorldBank
+  const sources = yield* Sources
 
-  return yield* chart.observations({
+  return yield* sources["World Bank"].fetch({
     indicator: codes.population,
+    dimensions: {},
     countries: ["ESP"],
     from: Year.make(2020),
     to: Year.make(2025),

@@ -118,6 +118,8 @@ export {
   ResolvedView,
 } from "./ResolvedView.ts"
 
+export { codesOf, pathOf, SeriesKey } from "./SeriesKey.ts"
+
 export { Source, sourceOf } from "./Source.ts"
 
 export { applies, kindOf, Ratio, Transform } from "./Transform.ts"

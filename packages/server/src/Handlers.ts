@@ -83,7 +83,7 @@ const ConversationRoutes = HttpApiBuilder.group(
   }),
 )
 
-// Every API route, needing a WorldBank, an Sdmx, Notes, a Catalog, Politics,
+// Every API route, needing the Sources, Notes, a Catalog, Politics,
 // Conversations, an Agent, an AskLimit and Directions.
 export const Handlers = Layer.mergeAll(
   System,

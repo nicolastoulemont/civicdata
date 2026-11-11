@@ -5,9 +5,10 @@
 
 import {
   type Country,
-  type IndicatorId,
+  Dimensions,
   Observation,
-  type Source,
+  pathOf,
+  type SeriesKey,
   sourceOf,
   type Year,
 } from "@civicdata/domain"
@@ -16,12 +17,14 @@ import { Array as Arr, Context, Data, Effect, Layer, Option, Order, Schema } fro
 import { fingerprint } from "./fingerprint.ts"
 import { Described } from "./Series.ts"
 
-// One stored series: an indicator's values for every country and year we
-// chart, what the source calls it, when the source was asked, and the
-// source's own date for the release the values came from, such as the World
-// Development Indicators' last update.
+// One stored series: its values for every country and year we chart, what
+// the source calls its indicator, the value of each of its dimensions, when
+// the source was asked, and the source's own date for the release the values
+// came from, such as the World Development Indicators' last update. Objects
+// stored before series had dimensions have none.
 export const Stored = Schema.Struct({
   ...Described.fields,
+  dimensions: Dimensions.pipe(Schema.withDecodingDefaultKey(Effect.succeed({}))),
   version: Schema.NonEmptyString,
   observations: Schema.Array(Observation),
 })
@@ -36,9 +39,16 @@ export const byCountryYear = Order.combine(
   Order.mapInput(Order.Number, (observation: Observation) => observation.year),
 )
 
+// The series' key: its indicator and dimensions.
+export const keyOf = (series: Stored): SeriesKey => ({
+  indicator: series.indicator.id,
+  dimensions: series.dimensions,
+})
+
 // The SHA-256 of what a series holds, in hex: its values and what the source
 // calls them, without when they were fetched or the release date, which
-// change on runs that bring nothing new. Observations are sorted first, so
+// change on runs that bring nothing new, nor its key, which the object's
+// place in the bucket already names. Observations are sorted first, so
 // the same values in another order hash the same. Built with JSON.stringify
 // rather than a Schema encoding, which costs five times the CPU for 14,000
 // observations.
@@ -58,18 +68,14 @@ export const hashOf = ({ indicator, dataset, observations }: Stored) =>
     ]),
   )
 
-const folders: Record<Source, string> = {
-  "World Bank": "world-bank",
-  Eurostat: "eurostat",
-  OECD: "oecd",
-}
-
-// Where a series lives in the bucket: `series/v1/<source>/<indicator>`.
-// Eurostat and OECD series will add their dimension values after the
-// indicator. Bump the version when what an object holds changes, so a reader
-// never decodes an object of another format.
-export const keyOf = (indicator: IndicatorId) =>
-  `series/v1/${folders[sourceOf(indicator)]}/${indicator}`
+// The object a series lives in, in the bucket:
+// `series/v1/<source>/<indicator>`, then `/<dimension>=<code>,...` for a
+// series with dimensions. The source's folder is its name in lower case,
+// words joined by "-", such as "world-bank". Bump the version when what an
+// object holds changes, so a reader never decodes an object of another
+// format.
+export const objectOf = (key: SeriesKey) =>
+  `series/v1/${sourceOf(key.indicator).toLowerCase().replaceAll(" ", "-")}/${pathOf(key)}`
 
 // What the store needs from an R2 bucket binding.
 export interface SeriesBucket {
@@ -91,11 +97,11 @@ class StoreUnavailable extends Schema.TaggedError<
 >()("StoreUnavailable", { cause: Schema.Defect() }) {}
 
 interface Interface {
-  // The stored series of the indicator, if one is stored. An object that no
-  // longer decodes counts as none.
-  readonly read: (indicator: IndicatorId) => Effect.Effect<Option.Option<Stored>, StoreUnavailable>
+  // The stored series of the key, if one is stored. An object that no longer
+  // decodes counts as none.
+  readonly read: (key: SeriesKey) => Effect.Effect<Option.Option<Stored>, StoreUnavailable>
   // The hash of the stored series, read without reading the series.
-  readonly hash: (indicator: IndicatorId) => Effect.Effect<Option.Option<string>, StoreUnavailable>
+  readonly hash: (key: SeriesKey) => Effect.Effect<Option.Option<string>, StoreUnavailable>
   // Stores the series with its hash, replacing the stored one.
   readonly write: (series: Stored) => Effect.Effect<void, StoreUnavailable>
 }
@@ -111,8 +117,8 @@ export class Store extends Context.Service<Store, Interface>()("@civicdata/serve
     Layer.succeed(
       Store,
       Store.of({
-        read: (indicator) =>
-          attempt(() => bucket.get(keyOf(indicator))).pipe(
+        read: (key) =>
+          attempt(() => bucket.get(objectOf(key))).pipe(
             Effect.flatMap((object) =>
               object === null
                 ? Effect.succeedNone
@@ -125,7 +131,7 @@ export class Store extends Context.Service<Store, Interface>()("@civicdata/serve
                   Schema.decodeEffect(StoredJson)(text).pipe(
                     Effect.asSome,
                     Effect.catchTag("SchemaError", (error) =>
-                      Effect.logWarning("Stored series no longer decodes", indicator, error).pipe(
+                      Effect.logWarning("Stored series no longer decodes", pathOf(key), error).pipe(
                         Effect.as(Option.none()),
                       ),
                     ),
@@ -134,8 +140,8 @@ export class Store extends Context.Service<Store, Interface>()("@civicdata/serve
             ),
             Effect.withSpan("Store.read"),
           ),
-        hash: (indicator) =>
-          attempt(() => bucket.head(keyOf(indicator))).pipe(
+        hash: (key) =>
+          attempt(() => bucket.head(objectOf(key))).pipe(
             Effect.map((object) => Option.fromNullishOr(object?.customMetadata?.["hash"])),
           ),
         write: (series) =>
@@ -144,7 +150,7 @@ export class Store extends Context.Service<Store, Interface>()("@civicdata/serve
             const hash = yield* hashOf(series)
 
             yield* attempt(() =>
-              bucket.put(keyOf(series.indicator.id), text, { customMetadata: { hash } }),
+              bucket.put(objectOf(keyOf(series)), text, { customMetadata: { hash } }),
             )
           }).pipe(Effect.withSpan("Store.write")),
       }),

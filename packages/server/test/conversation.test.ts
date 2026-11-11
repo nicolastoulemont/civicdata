@@ -89,6 +89,7 @@ import { HttpApiTest } from "effect/http-api"
 import { TestClock } from "effect/testing"
 import { strToU8, zipSync } from "fflate"
 
+import { Policy } from "../src/Adapter.ts"
 import { Agent } from "../src/Agent.ts"
 import { AskLimit } from "../src/AskLimit.ts"
 import { Catalog } from "../src/Catalog.ts"
@@ -101,6 +102,7 @@ import { Notes } from "../src/Notes.ts"
 import { Politics } from "../src/Politics.ts"
 import { Resolver } from "../src/Resolver.ts"
 import { Sdmx } from "../src/Sdmx.ts"
+import { Sources } from "../src/Sources.ts"
 import { keep, type Storage, Transcript } from "../src/Transcript.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 import { http, memory, memoryStorage, recording } from "./fakes.ts"
@@ -144,7 +146,7 @@ const recordedWorldBank = Layer.succeed(
             retrievedAt: DateTime.makeUnsafe("2026-11-01T00:00:00Z"),
           })
     },
-    observations: (query) =>
+    fetch: (query) =>
       Effect.succeed({
         observations: (["BRA", "MEX", "ESP"] as const).flatMap((country) =>
           [2000, 2001, 2002].flatMap((year) =>
@@ -155,10 +157,10 @@ const recordedWorldBank = Layer.succeed(
         ),
         url: `https://api.worldbank.org/v2/indicator/${query.indicator}`,
         retrievedAt: DateTime.makeUnsafe("2026-11-01T00:00:00Z"),
+        dimensions: [],
       }),
-    indicators: Effect.succeed([]),
-    version: Effect.die("not used by conversations"),
-    series: () => Effect.die("not used by conversations"),
+    policy: Policy.None(),
+    list: Effect.succeed([]),
   }),
 )
 
@@ -386,6 +388,7 @@ const serveApi = (
     Layer.provide(Directions.listed),
     Layer.provide(catalog),
     Layer.provide(politics),
+    Layer.provide(Sources.layer),
     Layer.provide(worldBank),
     Layer.provide(sdmx),
   )
@@ -410,6 +413,7 @@ const serveApi = (
             Layer.provide(notes),
             Layer.provide(catalog),
             Layer.provide(politics),
+            Layer.provide(Sources.layer),
             Layer.provide(worldBank),
             Layer.provide(sdmx),
             Layer.provide(Directions.listed),
@@ -1355,10 +1359,9 @@ describe("conversations", () => {
     WorldBank,
     WorldBank.of({
       describe: () => Effect.fail(new SourceUnavailable({ source: "World Bank" })),
-      observations: () => Effect.fail(new SourceUnavailable({ source: "World Bank" })),
-      indicators: Effect.fail(new SourceUnavailable({ source: "World Bank" })),
-      version: Effect.fail(new SourceUnavailable({ source: "World Bank" })),
-      series: () => Effect.fail(new SourceUnavailable({ source: "World Bank" })),
+      fetch: () => Effect.fail(new SourceUnavailable({ source: "World Bank" })),
+      policy: Policy.None(),
+      list: Effect.fail(new SourceUnavailable({ source: "World Bank" })),
     }),
   )
 
@@ -1403,7 +1406,7 @@ describe("conversations", () => {
         WorldBank.of({
           ...bank,
           describe: () => Effect.never,
-          observations: () => Effect.die("boom"),
+          fetch: () => Effect.die("boom"),
         }),
       ),
     )
@@ -1722,10 +1725,9 @@ describe("conversations", () => {
         WorldBank,
         WorldBank.of({
           describe: () => Effect.never,
-          observations: () => Effect.die("no observations in this test"),
-          indicators: Effect.succeed([]),
-          version: Effect.die("not used by conversations"),
-          series: () => Effect.die("not used by conversations"),
+          fetch: () => Effect.die("no observations in this test"),
+          policy: Policy.None(),
+          list: Effect.succeed([]),
         }),
       )
 

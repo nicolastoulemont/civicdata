@@ -112,22 +112,22 @@ describe("Pace.client", () => {
     return Effect.gen(function* () {
       const sdmx = yield* Sdmx
 
-      expect(yield* sdmx.describe(lfs).pipe(Effect.flip)).toEqual(
+      expect(yield* sdmx.OECD.describe(lfs).pipe(Effect.flip)).toEqual(
         new SourceUnavailable({ source: "OECD" }),
       )
 
       yield* TestClock.adjust("4 minutes")
 
-      expect(yield* sdmx.describe(lfs).pipe(Effect.flip)).toEqual(
+      expect(yield* sdmx.OECD.describe(lfs).pipe(Effect.flip)).toEqual(
         new SourceUnavailable({ source: "OECD" }),
       )
       expect(source.asked.filter((url) => url.startsWith(oecd))).toHaveLength(1)
 
-      yield* sdmx.describe(tps00001)
+      yield* sdmx.Eurostat.describe(tps00001)
 
       yield* TestClock.adjust("1 minute")
 
-      const described = yield* sdmx.describe(lfs)
+      const described = yield* sdmx.OECD.describe(lfs)
 
       expect(described.indicator.name).toBe("Monthly unemployment rates")
       expect(source.asked.filter((url) => url.startsWith(oecd))).toHaveLength(2)
@@ -158,7 +158,7 @@ describe("Pace.client", () => {
     )
 
     return Effect.gen(function* () {
-      const fiber = yield* (yield* Sdmx).describe(lfs).pipe(Effect.forkScoped)
+      const fiber = yield* (yield* Sdmx).OECD.describe(lfs).pipe(Effect.forkScoped)
 
       yield* TestClock.adjust("1 second")
 
@@ -238,14 +238,14 @@ describe("Sdmx stale results", () => {
 
     return Effect.gen(function* () {
       const sdmx = yield* Sdmx
-      const first = yield* sdmx.describe(tps00001)
+      const first = yield* sdmx.Eurostat.describe(tps00001)
 
       down = true
 
       yield* TestClock.adjust("2 days")
 
       // Eurostat is asked three times, a second and two seconds apart.
-      const fiber = yield* sdmx.describe(tps00001).pipe(Effect.forkScoped)
+      const fiber = yield* sdmx.Eurostat.describe(tps00001).pipe(Effect.forkScoped)
 
       yield* TestClock.adjust("3 seconds")
 

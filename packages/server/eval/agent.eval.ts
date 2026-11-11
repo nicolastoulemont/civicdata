@@ -16,7 +16,7 @@ import { Resolver } from "../src/Resolver.ts"
 import { Transcript } from "../src/Transcript.ts"
 import { Vectors } from "../src/Vectors.ts"
 import { type Case, cases } from "./cases.ts"
-import { Sources } from "./Recordings.ts"
+import { Replayed } from "./Recordings.ts"
 import { score } from "./score.ts"
 import { Tally } from "./Tally.ts"
 
@@ -57,7 +57,7 @@ const Recorded = Layer.effectDiscard(
 const Live = Layer.mergeAll(Agent.live.pipe(Layer.provide(Resolver.layer)), Built, Recorded).pipe(
   Layer.provide(Catalog.live),
   Layer.provide(Politics.live),
-  Layer.provide(Sources),
+  Layer.provide(Replayed),
   Layer.provide(Directions.live),
   // The cases meter their own OpenAI tokens.
   Layer.provideMerge(Tally.layer),
