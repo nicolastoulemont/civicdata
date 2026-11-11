@@ -107,6 +107,7 @@ import { Conversations } from "../src/Conversations.ts"
 import { Directions } from "../src/Directions.ts"
 import { Findings } from "../src/Findings.ts"
 import { Handlers } from "../src/Handlers.ts"
+import { Insee } from "../src/Insee.ts"
 import { Notes } from "../src/Notes.ts"
 import { Politics } from "../src/Politics.ts"
 import { Resolver } from "../src/Resolver.ts"
@@ -114,7 +115,7 @@ import { Sdmx } from "../src/Sdmx.ts"
 import { Sources } from "../src/Sources.ts"
 import { keep, type Storage, Transcript } from "../src/Transcript.ts"
 import { WorldBank } from "../src/WorldBank.ts"
-import { http, memory, memoryStorage, recording } from "./fakes.ts"
+import { http, memory, memoryStorage, recording, offline } from "./fakes.ts"
 import participationFlow from "./fixtures/eurostat/participation-flow.json"
 import participationOptions from "./fixtures/eurostat/participation-options.csv?raw"
 import participation from "./fixtures/eurostat/participation.csv?raw"
@@ -122,6 +123,10 @@ import unemploymentEsms from "./fixtures/eurostat/unemployment-esms.sdmx.xml?raw
 import unemploymentFlow from "./fixtures/eurostat/unemployment-flow.json"
 import unemploymentOptions from "./fixtures/eurostat/unemployment-options.csv?raw"
 import unemploymentRates from "./fixtures/eurostat/unemployment-total.csv?raw"
+import inseeCatalog from "./fixtures/insee/catalog.json"
+import inseePage1 from "./fixtures/insee/page1.json"
+import inseePage2 from "./fixtures/insee/page2.json"
+import inseeRange from "./fixtures/insee/range.json"
 import { build, politicsOver, recorded as archived } from "./politics.ts"
 
 const lifeExpectancy = IndicatorId.make("SP.DYN.LE00.IN")
@@ -427,6 +432,7 @@ interface ServeOptions {
   // The political records. Without them, none are available.
   readonly politics?: Layer.Layer<Politics>
   // The research findings. Without them, there are none.
+  readonly insee?: Layer.Layer<Insee>
   readonly findings?: Layer.Layer<Findings>
   readonly notes?: Layer.Layer<Notes>
   // The conversations' Durable Object storage. Without it, each conversation
@@ -460,6 +466,7 @@ const serveApi = (
   {
     limit = AskLimit.none,
     storage,
+    insee = Insee.layer.pipe(Layer.provide(offline)),
     worldBank = recordedWorldBank,
     sdmx = recordedSdmx,
     politics = Politics.unavailable,
@@ -479,6 +486,7 @@ const serveApi = (
     Layer.provide(catalog),
     Layer.provide(politics),
     Layer.provide(Sources.layer),
+    Layer.provide(insee),
     Layer.provide(worldBank),
     Layer.provide(sdmx),
   )
@@ -506,6 +514,7 @@ const serveApi = (
             Layer.provide(catalog),
             Layer.provide(politics),
             Layer.provide(Sources.layer),
+            Layer.provide(Insee.layer.pipe(Layer.provide(offline))),
             Layer.provide(worldBank),
             Layer.provide(sdmx),
             Layer.provide(Directions.listed),
@@ -3780,5 +3789,70 @@ describe("answer log", () => {
       )
       expect((yield* turns).answered).toHaveLength(1)
     }).pipe(Effect.provide(serveApi(model.layer, { answers: logged })))
+  })
+})
+
+describe("INSEE chart tools", () => {
+  it.effect("rejects a multi-country ranking then draws the France trend", () => {
+    const dimensions = {
+      TRANSFORMATION: "N",
+      PRICES: "V",
+      EXPENDITURE: "_Z",
+      STO: "B1GQ",
+      GEO: "2025-FRANCE-F",
+      ACCOUNTING_ENTRY: "B",
+      PRODUCT: "_T",
+      REF_SECTOR: "S1",
+      COUNTERPART_AREA: "W0",
+      UNIT_MEASURE: "XDC",
+      INSTR_ASSET: "_Z",
+      ACTIVITY: "_T",
+      REF_YEAR_PRICE: "_Z",
+    }
+
+    const asked = {
+      ...brazil,
+      indicator: "INSEE:DD_CNA_AGREGATS",
+      countries: ["FRA"],
+      from: 2024,
+      to: 2025,
+      dimensions: Object.entries(dimensions).map(([dimension, code]) => ({ dimension, code })),
+    }
+
+    const model = scripted([
+      Effect.succeed(
+        call("show_chart", {
+          ...asked,
+          chart: "ranking",
+          countries: ["FRA", "DEU"],
+          from: null,
+          to: null,
+          year: 2025,
+        }),
+      ),
+      Effect.succeed(call("show_chart", asked)),
+    ])
+
+    const insee = Insee.layer.pipe(
+      Layer.provide(
+        http((url) => {
+          if (url.includes("/catalog/")) return globalThis.Response.json(inseeCatalog)
+
+          if (url.includes("/range/")) return globalThis.Response.json(inseeRange)
+
+          return globalThis.Response.json(
+            new URL(url).searchParams.get("page") === "2" ? inseePage2 : inseePage1,
+          )
+        }),
+      ),
+    )
+
+    return Effect.gen(function* () {
+      const steps = yield* answer("Show French GDP from INSEE in 2024 and 2025")
+
+      expect(model.prompts[1]).toContain("INSEE covers France only")
+      expect(JSON.stringify(steps.at(-1))).toContain('"indicator":"INSEE:DD_CNA_AGREGATS"')
+      expect(JSON.stringify(steps.at(-1))).toContain('"GEO":"2025-FRANCE-F"')
+    }).pipe(Effect.provide(serveApi(model.layer, { insee })))
   })
 })

@@ -26,6 +26,7 @@ import { AssetId, type Bulk, Release, Versions } from "./Adapter.ts"
 import { tables } from "./Catalog.ts"
 import { database, Step } from "./CatalogBuild.ts"
 import { ledger } from "./GatherLedger.ts"
+import { Insee } from "./Insee.ts"
 import { Pace } from "./Pace.ts"
 import { Releases, releaseTables } from "./Releases.ts"
 import { Sdmx } from "./Sdmx.ts"
@@ -533,6 +534,7 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
     Layer.provide(database),
     Layer.provide(Store.layer),
     Layer.provide(Sources.layer),
+    Layer.provide(Insee.layer.pipe(Layer.provide(Pace.gathering))),
     Layer.provide(Layer.merge(WorldBank.layer, Sdmx.layer).pipe(Layer.provide(Pace.gathering))),
   )
 

@@ -1,0 +1,341 @@
+{
+  "abstract": [
+    {
+      "content": "Données annuelles de Produit Intérieur Brut (PIB) et grands agrégats économiques associés au PIB: revenu national brut (RNB), capacité ou besoin de financement de la Nation, grandes composantes de l'équilibre de l'offre et de la demande, ventilation des facteurs de production.",
+      "lang": "fr"
+    },
+    {
+      "content": "Annual data on Gross Domestic Product (GDP) and the main economic aggregates associated with GDP: gross national income (GNI), the nation's capacity or need for financing, the main components of the balance between supply and demand, and the breakdown of factors of production.",
+      "lang": "en"
+    }
+  ],
+  "accessRights": [
+    {
+      "content": "Public",
+      "lang": "fr"
+    },
+    {
+      "content": "Public",
+      "lang": "en"
+    }
+  ],
+  "accrualPeriodicity": {
+    "label": [
+      {
+        "content": "Annuel",
+        "lang": "fr"
+      },
+      {
+        "content": "Annual",
+        "lang": "en"
+      }
+    ]
+  },
+  "confidentialityStatus": [
+    {
+      "content": "Libre",
+      "lang": "fr"
+    },
+    {
+      "lang": "en"
+    }
+  ],
+  "creator": "Insee",
+  "description": [
+    {
+      "content": "Le produit intérieur brut (PIB) est le principal agrégat mesurant l'activité économique. Il correspond à la somme des valeurs ajoutées brutes nouvellement créées par les unités productrices résidentes une année donnée, évaluées au prix du marché. Il donne une mesure des richesses nouvelles créées chaque année par le système productif et permet des comparaisons internationales. Le produit intérieur brut est publié à prix courants et en volume aux prix de l'année précédente chaînés. Son évolution en volume (c'est-à-dire hors effet de prix) mesure la croissance économique.\n\nLes grands agrégats économiques associés au PIB sont le revenu national brut (RNB), la capacité ou le besoin de financement de la Nation, les grandes composantes de l'équilibre entre les éléments de l'offre (PIB, importations) et de la demande (consommation, investissement, exportations), la ventilation des facteurs de production (emploi, stock de capital) par secteurs institutionnels (entreprises, ménages, administrations publiques considérés comme producteurs de richesses) et la valeur ajoutée brute qu'ils génèrent.\n\nLes données annuelles des grands agrégats économiques associés au PIB suivent les concepts et méthodes des comptes nationaux en base 2020 (première publication fin mai 2024) et font partie des données à forte valeur désignées par Eurostat (HVD). ",
+      "lang": "fr"
+    },
+    {
+      "content": "Gross domestic product (GDP) is the main aggregate measuring economic activity. It corresponds to the sum of gross value added newly created by resident producer units in a given year, valued at market prices. It provides a measure of the new wealth created each year by the productive system and enables international comparisons. Gross domestic product is published at current prices and in volume terms at the previous year's chain-linked prices. Its change in volume (i.e. excluding the price effect) measures economic growth.\n\nThe main economic aggregates associated with GDP are gross national income (GNI), the nation's net lending or borrowing, the main components of the balance between supply (GDP, imports) and demand (consumption, investment, exports), the breakdown of factors of production (employment, capital stock) by institutional sector (companies, households, general government considered as wealth producers) and the gross value added they generate.\n\nThe annual data for the major economic aggregates associated with GDP are part of the high-value data designated by Eurostat (HVD).",
+      "lang": "en"
+    }
+  ],
+  "identifier": "DD_CNA_AGREGATS",
+  "issued": "2024-06-10T15:39:49.000570341",
+  "keyword": [
+    {
+      "label": [
+        {
+          "content": "HVD",
+          "lang": "fr"
+        },
+        {
+          "content": "HVD",
+          "lang": "en"
+        }
+      ]
+    }
+  ],
+  "landingPage": [
+    [
+      {
+        "lang": "fr",
+        "url": ""
+      },
+      {
+        "lang": "en",
+        "url": ""
+      }
+    ]
+  ],
+  "modified": "2026-08-31T15:53:44.131033164",
+  "numObservations": 228727,
+  "numSeries": 3672,
+  "ordreComposants": [
+    "ACCOUNTING_ENTRY",
+    "ACTIVITY",
+    "COUNTERPART_AREA",
+    "EXPENDITURE",
+    "INSTR_ASSET",
+    "PRODUCT",
+    "PRICES",
+    "REF_YEAR_PRICE",
+    "REF_SECTOR",
+    "STO",
+    "TRANSFORMATION",
+    "UNIT_MEASURE",
+    "TIME_PERIOD",
+    "OBS_VALUE",
+    "OBS_STATUS_FR",
+    "OBS_STATUS",
+    "UNIT_MULT",
+    "GEO",
+    "REF_PERIOD_DETAIL",
+    "DECIMALS",
+    "FREQ",
+    "CONF_STATUS",
+    "LAST_UPDATE",
+    "TABLE_IDENTIFIER"
+  ],
+  "processStep": [
+    {
+      "content": "inseeApi",
+      "lang": "fr"
+    },
+    {
+      "content": "inseeApi",
+      "lang": "en"
+    }
+  ],
+  "product": [
+    {
+      "accessURL": "https://api.insee.fr/melodi/file/DD_CNA_AGREGATS/DD_CNA_AGREGATS_CSV_FR",
+      "byteSize": 2115978,
+      "format": "CSV",
+      "id": "DD_CNA_AGREGATS_CSV_FR",
+      "issued": "2026-08-31T15:49:26.131421444",
+      "language": "FR",
+      "mediaType": "text/csv",
+      "modified": "2026-08-31T15:49:26.131421444",
+      "packageFormat": "application/zip",
+      "title": "Produit Intérieur Brut (PIB) et grands agrégats économiques"
+    }
+  ],
+  "publisher": {
+    "id": "INSEE",
+    "label": [
+      {
+        "content": "Institut national de la statistique et des etudes economiques (INSEE)",
+        "lang": "fr"
+      },
+      {
+        "content": "National Institute of Statistics and Economic Studies",
+        "lang": "en"
+      }
+    ]
+  },
+  "relations": [
+    {
+      "title": [
+        {
+          "content": "Insee Résultats",
+          "lang": "fr"
+        },
+        {
+          "content": "Insee Results",
+          "lang": "en"
+        }
+      ],
+      "titleComplement": [
+        {
+          "lang": "fr"
+        },
+        {
+          "lang": "en"
+        }
+      ],
+      "url": [
+        {
+          "content": "https://www.insee.fr/fr/statistiques/8988934",
+          "lang": "fr"
+        },
+        {
+          "content": "https://www.insee.fr/en/statistiques/8988972",
+          "lang": "en"
+        }
+      ]
+    }
+  ],
+  "scopeNote": [
+    {
+      "content": "Les données ont été actualisées à l’occasion de la publication du compte semi-définitif avancé des administrations publiques.",
+      "lang": "fr"
+    },
+    {
+      "content": "The data were updated on the occasion of the publication of the early semi-final account of public administrations.",
+      "lang": "en"
+    }
+  ],
+  "spatial": {
+    "id": "FE",
+    "label": [
+      {
+        "content": "France entière",
+        "lang": "fr"
+      },
+      {
+        "content": "France",
+        "lang": "en"
+      }
+    ]
+  },
+  "spatialResolution": [
+    {
+      "id": "FRANCE",
+      "label": [
+        {
+          "content": "France",
+          "lang": "fr"
+        },
+        {
+          "content": "France",
+          "lang": "en"
+        }
+      ]
+    }
+  ],
+  "spatialTemporal": "2025-01-01T01:00:00",
+  "status": {
+    "id": "publie",
+    "label": [
+      {
+        "content": "Publié",
+        "lang": "fr"
+      },
+      {
+        "content": "Completed",
+        "lang": "en"
+      }
+    ]
+  },
+  "structure": {
+    "dsd": "DSD_NA_MAIN"
+  },
+  "subtitle": [
+    {
+      "content": "Comptes nationaux annuels - Base 2020",
+      "lang": "fr"
+    },
+    {
+      "content": "Base 2020 - Annual Results",
+      "lang": "en"
+    }
+  ],
+  "temporal": {
+    "endPeriod": "2025-01-01T00:00:00",
+    "startPeriod": "1949-01-01T00:00:00"
+  },
+  "temporalResolution": [
+    {
+      "label": [
+        {
+          "content": "Annuel",
+          "lang": "fr"
+        },
+        {
+          "content": "Annual",
+          "lang": "en"
+        }
+      ]
+    }
+  ],
+  "theme": [
+    {
+      "label": [
+        {
+          "content": "2.2 Comptes nationaux",
+          "lang": "fr"
+        },
+        {
+          "content": "2.2 Economic accounts",
+          "lang": "en"
+        }
+      ],
+      "themeTaxonomy": "classificationOfStatisticalDomain"
+    },
+    {
+      "label": [
+        {
+          "content": "Comptes nationaux annuels",
+          "lang": "fr"
+        },
+        {
+          "content": "Annual national accounts",
+          "lang": "en"
+        }
+      ],
+      "themeTaxonomy": "inseeTheme"
+    }
+  ],
+  "title": [
+    {
+      "content": "Produit Intérieur Brut (PIB) et grands agrégats économiques",
+      "lang": "fr"
+    },
+    {
+      "content": "Gross domestic product (GDP) and main economic aggregates",
+      "lang": "en"
+    }
+  ],
+  "type": [
+    {
+      "content": "Datacube",
+      "lang": "fr"
+    },
+    {
+      "content": "Datacube",
+      "lang": "en"
+    }
+  ],
+  "uri": "http://id.insee.fr/catalogues/jeuDeDonnees/8b0887f4-ecfb-4675-9e50-5b357b38c8f5",
+  "uuid": "cd40e0ec-0d69-5b96-417a-9f3c0384e69e",
+  "wasGeneratedBy": [
+    {
+      "id": "s2144",
+      "label": [
+        {
+          "content": "Comptes nationaux annuels (base 2020)",
+          "lang": "fr"
+        },
+        {
+          "content": "Annual national accounts (2020 Base)",
+          "lang": "en"
+        }
+      ]
+    },
+    {
+      "id": "s30",
+      "label": [
+        {
+          "content": "Comptes nationaux",
+          "lang": "fr"
+        },
+        {
+          "content": "National accounts",
+          "lang": "en"
+        }
+      ]
+    }
+  ]
+}

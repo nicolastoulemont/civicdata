@@ -5,12 +5,13 @@ import { Effect, Layer } from "effect"
 import { strToU8, zipSync } from "fflate"
 
 import { Gather } from "../src/Gather.ts"
+import { Insee } from "../src/Insee.ts"
 import { Sdmx } from "../src/Sdmx.ts"
 import { Sources } from "../src/Sources.ts"
 import { type SeriesBucket, Store } from "../src/Store.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 import { build, catalogOver, entry, listings } from "./catalog.ts"
-import { http, memory } from "./fakes.ts"
+import { http, memory, offline } from "./fakes.ts"
 import population from "./fixtures/worldbank/bulk-population.csv?raw"
 import unemployment from "./fixtures/worldbank/bulk-unemployment.csv?raw"
 import unknown from "./fixtures/worldbank/bulk-unknown.xml?raw"
@@ -162,6 +163,7 @@ export const gatherOver = (client: ReturnType<typeof serving>["layer"], store: S
   Gather.layer.pipe(
     Layer.provide(Store.r2(store)),
     Layer.provide(Sources.layer),
+    Layer.provide(Insee.layer.pipe(Layer.provide(offline))),
     Layer.provide(Layer.merge(WorldBank.layer, Sdmx.layer).pipe(Layer.provide(client))),
     Layer.provide(D1Client.layer({ db }).pipe(Layer.orDie)),
   )
@@ -171,6 +173,7 @@ export const gatherOver = (client: ReturnType<typeof serving>["layer"], store: S
 export const charts = (client: ReturnType<typeof serving>["layer"], store: SeriesBucket) =>
   Sources.stored.pipe(
     Layer.provide(Sources.layer),
+    Layer.provide(Insee.layer.pipe(Layer.provide(offline))),
     Layer.provide(Store.r2(store)),
     Layer.provide(Layer.merge(WorldBank.cached, Sdmx.cached)),
     Layer.provide(client),

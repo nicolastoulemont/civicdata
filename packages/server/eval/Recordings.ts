@@ -12,6 +12,7 @@ import {
 } from "effect/http"
 
 import { Cache } from "../src/Cache.ts"
+import { Insee } from "../src/Insee.ts"
 import { Notes } from "../src/Notes.ts"
 import { hosts, Pace } from "../src/Pace.ts"
 import { Sdmx } from "../src/Sdmx.ts"
@@ -178,7 +179,7 @@ const counted = Layer.effect(
 // source's answers replayed from eval/recordings above the pacer: a replayed
 // answer spends none of a source's request budget. Nothing is stored.
 export const Replayed = Layer.mergeAll(
-  Sources.layer.pipe(Layer.provide(Layer.merge(Sdmx.cached, WorldBank.cached))),
+  Sources.layer.pipe(Layer.provide(Layer.mergeAll(Sdmx.cached, WorldBank.cached, Insee.cached))),
   Notes.layer,
 ).pipe(
   Layer.provide(recorded),

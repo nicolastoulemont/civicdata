@@ -321,3 +321,60 @@ describe("persist", () => {
     expect(screen.queryByText("How has life expectancy changed in Brazil?")).toBeNull()
   })
 })
+
+it("renders INSEE attribution and the publisher's last update on a restored France trend", async () => {
+  const indicator = IndicatorId.make("INSEE:DD_CNA_AGREGATS")
+
+  const view = Trend.make({
+    indicator,
+    countries: ["FRA"],
+    from: Year.make(2024),
+    to: Year.make(2025),
+  })
+
+  const name = "Gross domestic product (GDP) and main economic aggregates"
+  const dataset = "DD_CNA_AGREGATS; Source: Insee; updated 2026-08-31T15:53:44.131033164"
+
+  const turn: Turn = {
+    steps: [],
+    took: Duration.seconds(1),
+    question: "French GDP",
+    answer: Answered.make({ blocks: [Chart.make({ view })] }),
+  }
+
+  network.use(
+    turns({ answered: [turn] }),
+    http.post("/api/views/resolve", () =>
+      HttpResponse.json(
+        Schema.encodeSync(ResolvedView)({
+          view,
+          title: name,
+          indicator: { id: indicator, name, definition: "" },
+          observations: [
+            { country: "FRA", year: Year.make(2025), value: 2991055900000, flags: ["Provisional"] },
+          ],
+          missing: [],
+          dimensions: [],
+          disagreements: [],
+          direction: "Neutral",
+          sources: [
+            {
+              indicator,
+              name,
+              source: "INSEE",
+              dataset,
+              url: "https://api.insee.fr/melodi/data/DD_CNA_AGREGATS?page=1",
+              retrievedAt: DateTime.makeUnsafe("2026-11-11T00:00:00Z"),
+            },
+          ],
+        }),
+      ),
+    ),
+  )
+  show(memory().store)
+
+  expect(await screen.findByRole("heading", { name })).toBeDefined()
+  expect(
+    await screen.findByText(`Source: INSEE, ${dataset}. Retrieved November 11, 2026.`),
+  ).toBeDefined()
+})
