@@ -1802,6 +1802,30 @@ describe("Explore", () => {
     expect(await screen.findByText("Too many questions in a minute")).toBeDefined()
   })
 
+  it("drops an explanation's error once the chart it was asked for is changed", async () => {
+    network.use(
+      worldBank,
+      http.post("/api/views/explain", () =>
+        HttpResponse.json(Schema.encodeSync(TooManyQuestions)(new TooManyQuestions()), {
+          status: 429,
+        }),
+      ),
+    )
+    const user = userEvent.setup()
+
+    show(trend)
+
+    await screen.findByRole("heading", { name: "Total population" })
+    await user.click(screen.getByRole("button", { name: "Explain this chart" }))
+
+    expect(await screen.findByText("Too many questions in a minute")).toBeDefined()
+
+    await user.click(screen.getByRole("button", { name: "Bar chart ranking one year" }))
+
+    expect(await screen.findByText("France and Germany · 2020")).toBeDefined()
+    expect(screen.queryByText("Too many questions in a minute")).toBeNull()
+  })
+
   it("shows each paragraph of a source's definition as text", async () => {
     network.use(
       http.post("/api/views/resolve", async ({ request }) => {

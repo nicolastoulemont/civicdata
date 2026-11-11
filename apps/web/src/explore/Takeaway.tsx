@@ -73,7 +73,8 @@ interface TakeawayProps {
 
 // What the agent says the chart on screen shows, asked for on demand.
 // Changes never ask the agent, so after one the explanation describes an
-// earlier chart: it greys out and the button asks again. In a conversation,
+// earlier chart: it greys out and the button asks again, while a failed
+// request's alert goes, since it was about that chart. In a conversation,
 // the agent's own chart needs none: its answer says what the chart shows. A
 // chart changed from it can go back to it.
 export const Takeaway = ({ view, agent, onChange }: TakeawayProps) => {
@@ -83,6 +84,9 @@ export const Takeaway = ({ view, agent, onChange }: TakeawayProps) => {
   if (agent !== undefined && toQuery(agent) === toQuery(view)) return null
 
   const said = saidOf(view, explaining.data)
+
+  // A request for an earlier chart says nothing about the one on screen.
+  const failed = explaining.isError && toQuery(explaining.variables) === toQuery(view)
 
   return (
     <section aria-label="Takeaway" className="flex flex-col items-start gap-2">
@@ -108,7 +112,7 @@ export const Takeaway = ({ view, agent, onChange }: TakeawayProps) => {
           </Button>
         )}
       </div>
-      {explaining.isError ? (
+      {failed ? (
         <Alert variant="destructive">
           <AlertTitle>{problemOf(explaining.error)}</AlertTitle>
           <AlertDescription>Try again in a moment.</AlertDescription>
