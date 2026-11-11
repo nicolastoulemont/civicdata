@@ -44,7 +44,7 @@ export const Choices = ({ question, choices, choose }: ChoicesProps) => {
   return (
     <section
       aria-labelledby={heading}
-      className="max-h-[40svh] overflow-y-auto rounded-t-2xl border border-b-0 bg-card/80 p-3 backdrop-blur-md"
+      className="max-h-[40svh] overflow-y-auto rounded-t-2xl border border-b-0 bg-card p-3"
     >
       <h2 id={heading} className="px-2 pb-2 text-sm font-medium" aria-live="polite">
         {question}

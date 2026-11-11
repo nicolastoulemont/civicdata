@@ -28,7 +28,7 @@ const BrokenLink = () => {
         </CardHeader>
         <CardFooter>
           <Link className={buttonVariants({ variant: "outline" })} to="/">
-            {t(($) => $.backExamples)}
+            {t(($) => $.back)}
           </Link>
         </CardFooter>
       </Card>

@@ -187,15 +187,34 @@ afterEach(() => {
 })
 
 describe("History", () => {
-  it("says where conversations will be listed before there are any", async () => {
+  it("lists no conversations before there are any, and links to start one", async () => {
     show()
 
     expect(
-      (await sidebar()).getByText(
-        "The conversations you start are listed here, in this browser only.",
-      ),
-    ).toBeDefined()
-    expect(screen.getByRole("link", { name: "New conversation" }).getAttribute("href")).toBe("/")
+      (await screen.findByRole("link", { name: "New conversation" })).getAttribute("href"),
+    ).toBe("/")
+    expect(screen.queryByRole("navigation", { name: "Conversations" })).toBeNull()
+  })
+
+  it("finds conversations by title, ignoring case and accents", async () => {
+    const user = userEvent.setup()
+
+    store(
+      entry({ id: happiness, title: "Which countries are happiest?" }),
+      entry({ title: "Dette publique des États-Unis" }),
+    )
+    network.use(turns(brazil, { answered: [] }), turns(happiness, { answered: [] }))
+    show()
+
+    await user.type(await screen.findByRole("searchbox", { name: "Search conversations" }), "etats")
+
+    expect((await sidebar()).getAllByRole("link").map((link) => link.textContent)).toEqual([
+      expect.stringContaining("Dette publique des États-Unis"),
+    ])
+
+    await user.type(screen.getByRole("searchbox", { name: "Search conversations" }), "z")
+
+    expect((await sidebar()).getByText("No conversation matches the search.")).toBeDefined()
   })
 
   it("links to the source on GitHub", async () => {
@@ -459,7 +478,8 @@ describe("History", () => {
     await user.unhover(link)
     await waitFor(() => expect(screen.queryByRole("tooltip")).toBeNull())
 
-    // The sidebar's toggle, then "New conversation", then the conversation.
+    // The sidebar's toggle, the search, "New conversation", then the conversation.
+    await user.tab()
     await user.tab()
     await user.tab()
     await user.tab()
@@ -534,6 +554,27 @@ describe("History", () => {
     expect(localStorage.getItem(key)).toContain(brazil)
   })
 
+  it("closes beside the page on desktop, and opens again from the keyboard", async () => {
+    const user = userEvent.setup()
+
+    store(entry())
+    network.use(turns(brazil, { answered: [] }))
+    show()
+
+    await sidebar()
+    expect(screen.getByRole("separator", { name: "Resize the sidebar" })).toBeDefined()
+
+    await user.click(screen.getByRole("button", { name: "Toggle sidebar" }))
+
+    await waitFor(() =>
+      expect(screen.queryByRole("navigation", { name: "Conversations" })).toBeNull(),
+    )
+
+    await user.keyboard("{Control>}b{/Control}")
+
+    expect(await sidebar()).toBeDefined()
+  })
+
   it("opens as a drawer on phones, and closes once a conversation is picked", async () => {
     const user = userEvent.setup()
 
@@ -569,11 +610,8 @@ describe("History", () => {
     localStorage.setItem(key, `[{"id":"not a conversation"}]`)
     show()
 
-    expect(
-      (await sidebar()).getByText(
-        "The conversations you start are listed here, in this browser only.",
-      ),
-    ).toBeDefined()
+    await screen.findByRole("link", { name: "New conversation" })
+    expect(screen.queryByRole("navigation", { name: "Conversations" })).toBeNull()
   })
 
   it("still answers when the browser blocks storage", async () => {
@@ -593,10 +631,6 @@ describe("History", () => {
     reply.unanswered()
 
     expect(await screen.findByText("No World Bank indicator answers this question")).toBeDefined()
-    expect(
-      (await sidebar()).getByText(
-        "The conversations you start are listed here, in this browser only.",
-      ),
-    ).toBeDefined()
+    expect(screen.queryByRole("navigation", { name: "Conversations" })).toBeNull()
   })
 })

@@ -194,12 +194,10 @@ it("says how long questions are kept before the visitor asks one", async () => {
   expect(await screen.findByText(/Questions and answers are kept for a year/)).toBeDefined()
 })
 
-it("changes the home and sidebar language from Settings without changing chart links", async () => {
+it("changes the home and sidebar language from Settings", async () => {
   const router = open()
-  const example = await screen.findByRole("link", { name: "GDP per person in the G7, 2023" })
-  const href = example.getAttribute("href")
 
-  await userEvent.click(screen.getByRole("link", { name: "Settings" }))
+  await userEvent.click(await screen.findByRole("link", { name: "Settings" }))
   await userEvent.click(await screen.findByRole("link", { name: "Language" }))
   await userEvent.click(screen.getByRole("combobox", { name: "Language" }))
   await userEvent.click(await screen.findByRole("option", { name: /🇫🇷\s+Français/u }))
@@ -212,9 +210,6 @@ it("changes the home and sidebar language from Settings without changing chart l
     await screen.findByRole("textbox", { name: "Poser une question sur un pays" }),
   ).toBeDefined()
   expect(screen.getByRole("link", { name: "Nouvelle conversation" })).toBeDefined()
-  expect(
-    screen.getByRole("link", { name: "PIB par habitant dans le G7, 2023" }).getAttribute("href"),
-  ).toBe(href)
   expect(router.state.location.pathname).toBe("/")
   expect(localStorage.getItem("i18nextLng")).toBe("fr-FR")
 })

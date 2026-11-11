@@ -1,25 +1,23 @@
 import { Link, useParams } from "@tanstack/react-router"
 import { DateTime } from "effect"
-import { Settings, SquarePen } from "lucide-react"
-import { useEffect, useId, useState } from "react"
+import { Search, Settings, SquarePen } from "lucide-react"
+import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { buttonVariants } from "@/components/ui/button"
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarRail,
   SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import { Mark } from "@/Mark"
 
 import { Row } from "./Row.tsx"
 import { useEntries } from "./store.ts"
@@ -37,6 +35,9 @@ const useNow = () => {
   return now
 }
 
+// Lower case with accents dropped, so "etats" finds "États".
+const fold = (text: string) => text.normalize("NFD").replace(/\p{M}/gu, "").toLocaleLowerCase()
+
 // GitHub's mark. Lucide dropped brand icons, so the path is GitHub's own.
 const GitHub = () => (
   <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden>
@@ -44,64 +45,80 @@ const GitHub = () => (
   </svg>
 )
 
-// The sidebar: its toggle, at the spot the page's toggle takes once it is
-// closed, and a link to start a conversation, then the conversations asked
-// in this browser, newest first, and links to the source and to Settings at
-// the bottom. A drawer on phones.
+// The sidebar: the mark and name with its toggle at the top right, a search
+// over titles and a link to start a conversation, then the conversations
+// asked in this browser, newest first, and Settings and the source at the
+// bottom, at either end. It fills its panel on desktop and is a drawer on
+// phones.
 export const History = () => {
   const { t } = useTranslation("home")
   const entries = useEntries()
   const { id } = useParams({ strict: false })
-  const { setOpenMobile } = useSidebar()
+  const { isMobile, setOpenMobile } = useSidebar()
   const now = useNow()
-  const label = useId()
+  const [query, setQuery] = useState("")
+  const shown = entries.filter((entry) => fold(entry.title).includes(fold(query.trim())))
 
   return (
-    <Sidebar>
+    <Sidebar collapsible={isMobile ? "offcanvas" : "none"} className="w-full">
       <SidebarHeader>
-        <SidebarTrigger className="mt-1 ml-1" />
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton render={<Link to="/" onClick={() => setOpenMobile(false)} />}>
+        <div className="mt-1 mb-2 flex items-center gap-2">
+          <span className="flex items-center gap-1.5 pl-2 text-sm font-semibold tracking-tight">
+            <Mark className="size-4" />
+            openfacts
+          </span>
+          <SidebarTrigger className="ml-auto" />
+        </div>
+        <div className="flex items-center gap-1">
+          <InputGroup variant="muted" className="flex-1">
+            <InputGroupAddon>
+              <Search aria-hidden />
+            </InputGroupAddon>
+            <InputGroupInput
+              type="search"
+              aria-label={t(($) => $.search)}
+              placeholder={t(($) => $.searchPlaceholder)}
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </InputGroup>
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <Link
+                  className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
+                  to="/"
+                  onClick={() => setOpenMobile(false)}
+                  aria-label={t(($) => $.newConversation)}
+                />
+              }
+            >
               <SquarePen aria-hidden />
-              <span>{t(($) => $.newConversation)}</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+            </TooltipTrigger>
+            <TooltipContent side="right">{t(($) => $.newConversation)}</TooltipContent>
+          </Tooltip>
+        </div>
       </SidebarHeader>
       <SidebarContent>
-        <nav aria-labelledby={label}>
-          <SidebarGroup>
-            <SidebarGroupLabel id={label}>{t(($) => $.conversations)}</SidebarGroupLabel>
-            {entries.length === 0 ? (
-              <p className="px-2 text-sm text-muted-foreground">{t(($) => $.empty)}</p>
-            ) : (
-              <SidebarMenu className="gap-1.5">
-                {entries.map((entry) => (
-                  <Row key={entry.id} entry={entry} current={entry.id === id} now={now} />
-                ))}
-              </SidebarMenu>
-            )}
-          </SidebarGroup>
-        </nav>
+        {entries.length === 0 ? null : (
+          <nav aria-label={t(($) => $.conversations)}>
+            <SidebarGroup>
+              {shown.length === 0 ? (
+                <p className="px-2 text-sm text-muted-foreground">{t(($) => $.noMatch)}</p>
+              ) : (
+                <SidebarMenu className="gap-1.5">
+                  {shown.map((entry) => (
+                    <Row key={entry.id} entry={entry} current={entry.id === id} now={now} />
+                  ))}
+                </SidebarMenu>
+              )}
+            </SidebarGroup>
+          </nav>
+        )}
       </SidebarContent>
       <SidebarFooter className="flex-row gap-1">
         <Tooltip>
           {/* Links stay <a> elements styled as buttons; Base UI's Button forces button semantics. */}
-          <TooltipTrigger
-            render={
-              <a
-                className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
-                href="https://github.com/nicolastoulemont/openfacts"
-                aria-label={t(($) => $.github)}
-              />
-            }
-          >
-            <GitHub />
-          </TooltipTrigger>
-          <TooltipContent side="right">{t(($) => $.github)}</TooltipContent>
-        </Tooltip>
-        <Tooltip>
           <TooltipTrigger
             render={
               <Link
@@ -117,8 +134,25 @@ export const History = () => {
           </TooltipTrigger>
           <TooltipContent side="right">{t(($) => $.settings)}</TooltipContent>
         </Tooltip>
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <a
+                className={buttonVariants({
+                  variant: "ghost",
+                  size: "icon-sm",
+                  className: "ml-auto",
+                })}
+                href="https://github.com/nicolastoulemont/openfacts"
+                aria-label={t(($) => $.github)}
+              />
+            }
+          >
+            <GitHub />
+          </TooltipTrigger>
+          <TooltipContent side="right">{t(($) => $.github)}</TooltipContent>
+        </Tooltip>
       </SidebarFooter>
-      <SidebarRail />
     </Sidebar>
   )
 }

@@ -2,6 +2,7 @@ import { ChevronDown } from "lucide-react"
 import {
   type ReactNode,
   type RefObject,
+  type UIEvent,
   useCallback,
   useLayoutEffect,
   useRef,
@@ -14,7 +15,7 @@ import { Hold } from "@/hold"
 
 import { inView, type Preview, type Seen } from "./rail.ts"
 import { Rail } from "./Rail.tsx"
-import { type Follow, followScroll } from "./scroll.ts"
+import { atEnd, type Follow, followScroll } from "./scroll.ts"
 
 const same = (left: Seen, right: Seen) => left.first === right.first && left.last === right.last
 
@@ -48,11 +49,17 @@ const useSeen = (
 }
 
 interface EndProps {
+  mode: Follow
+  away: boolean
   onClick: () => void
 }
 
-const End = ({ onClick }: EndProps) => {
+// The button back to the end, while the view no longer follows it and sits
+// above it. Held still at the end, there is nowhere to go.
+const End = ({ mode, away, onClick }: EndProps) => {
   const { t } = useTranslation("conversation")
+
+  if (mode === "following" || !away) return null
 
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-full mb-1.5 flex justify-center">
@@ -76,7 +83,15 @@ interface ScrollProps {
   asked: number | undefined
 }
 
-const reduced = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches
+// How a scroll the app starts moves: at once when motion is reduced.
+const motion = (): ScrollBehavior =>
+  window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth"
+
+const positionOf = (node: HTMLElement) => ({
+  top: node.scrollTop,
+  height: node.clientHeight,
+  content: node.scrollHeight,
+})
 
 // Makes the content tall enough to scroll its last question 24px from the
 // top, however short its answer. The answer grows into the space, and only an
@@ -100,7 +115,7 @@ const refit = (viewport: HTMLElement, content: HTMLElement) => {
 // The composer is docked at the end of the content and sticks to the bottom
 // of the viewport, so rows scroll under it and the last one still ends above
 // it, however tall the composer grows. The dock has no background: rows show
-// through the frosted composer and in the gap beneath it. The scroll button
+// in the gap beneath the composer, never through it. The scroll button
 // rides on top of it.
 // The rail beside it jumps between the rows marked as questions. `asked`
 // changes each time a question is asked here, and is undefined otherwise.
@@ -117,6 +132,9 @@ export const Scroll = ({ children, composer, previews, asked }: ScrollProps) => 
   // left to finish.
   const bottom = useRef(0)
   const [mode, setMode] = useState<Follow>("following")
+  // Whether the view sits above the end. Holding still at the end, as when
+  // the reader opens a fold, leaves nothing to scroll to.
+  const [away, setAway] = useState(false)
   const { seen, locate } = useSeen(viewport, dock)
 
   const change = useCallback((next: Follow) => {
@@ -140,7 +158,7 @@ export const Scroll = ({ children, composer, previews, asked }: ScrollProps) => 
         question.getBoundingClientRect().top -
         node.getBoundingClientRect().top -
         24,
-      behavior: reduced() ? "instant" : "smooth",
+      behavior: motion(),
     })
   }
 
@@ -169,6 +187,8 @@ export const Scroll = ({ children, composer, previews, asked }: ScrollProps) => 
 
       // With nothing to scroll, there is no end to return to.
       if (!following && node.scrollHeight <= node.clientHeight) change("following")
+
+      setAway(!atEnd(positionOf(node)))
     }
 
     const observer = new ResizeObserver(followEnd)
@@ -188,8 +208,25 @@ export const Scroll = ({ children, composer, previews, asked }: ScrollProps) => 
     // The button to scroll to the end goes once the view moves there.
     follow.current = "following"
     reserve(node, rows)
-    end(reduced() ? "instant" : "smooth")
+    end(motion())
   }, [asked, end])
+
+  const track = (event: UIEvent<HTMLElement>) => {
+    const node = event.currentTarget
+    const position = { ...positionOf(node), previous: previous.current }
+
+    change(followScroll(follow.current, position))
+    setAway(!atEnd(position))
+    previous.current = node.scrollTop
+    locate()
+  }
+
+  // Back to the end, following it again.
+  const resume = () => {
+    change("following")
+    end(motion())
+    viewport.current?.focus({ preventScroll: true })
+  }
 
   return (
     <div className="@container relative flex min-h-0 flex-1 flex-col">
@@ -200,20 +237,7 @@ export const Scroll = ({ children, composer, previews, asked }: ScrollProps) => 
         // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- keyboard readers must be able to focus and scroll the viewport
         tabIndex={0}
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain [overflow-anchor:none]"
-        onScroll={(event) => {
-          const node = event.currentTarget
-
-          const position = {
-            top: node.scrollTop,
-            height: node.clientHeight,
-            content: node.scrollHeight,
-            previous: previous.current,
-          }
-
-          change(followScroll(follow.current, position))
-          previous.current = node.scrollTop
-          locate()
-        }}
+        onScroll={track}
         onWheel={(event) => {
           if (event.deltaY < 0 && event.currentTarget.scrollTop > 0) change("stopped")
         }}
@@ -224,15 +248,7 @@ export const Scroll = ({ children, composer, previews, asked }: ScrollProps) => 
             <Hold value={hold}>{children}</Hold>
           </div>
           <div ref={dock} className="sticky bottom-0 z-10 mt-auto">
-            {mode === "stopped" ? (
-              <End
-                onClick={() => {
-                  change("following")
-                  end(reduced() ? "instant" : "smooth")
-                  viewport.current?.focus({ preventScroll: true })
-                }}
-              />
-            ) : null}
+            <End mode={mode} away={away} onClick={resume} />
             {composer}
           </div>
         </div>

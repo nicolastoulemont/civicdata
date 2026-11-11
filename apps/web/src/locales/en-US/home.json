@@ -1,14 +1,13 @@
 {
-  "intro": "Ask about the state of a country and get a sourced chart, or open an example.",
+  "intro": "The facts without the opinions: official figures with their sources, and where the research stands.",
   "question": "Ask about a country",
   "placeholder": "How has life expectancy changed in Brazil?",
-  "population": "Population of the four largest EU economies since 2000",
-  "gdp": "GDP per person in the G7, 2023",
-  "life": "Life expectancy in the Nordic countries since 1990",
   "privacy": "Questions and answers are kept for a year to improve the assistant, with email addresses and phone numbers removed. Don't include anything personal.",
   "newConversation": "New conversation",
   "conversations": "Conversations",
-  "empty": "The conversations you start are listed here, in this browser only.",
+  "search": "Search conversations",
+  "searchPlaceholder": "Search",
+  "noMatch": "No conversation matches the search.",
   "github": "View the source on GitHub",
   "settings": "Settings",
   "answered": "Answered",
@@ -24,5 +23,5 @@
   "day": "{{count}}d",
   "brokenTitle": "This link does not describe a chart",
   "brokenDescription": "A country code, indicator or year in the address is invalid, or the years run backwards.",
-  "backExamples": "Back to the examples"
+  "back": "Back to the home page"
 }

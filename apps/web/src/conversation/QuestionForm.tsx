@@ -242,7 +242,7 @@ export const QuestionForm = ({
         editor.commands.clearContent(true)
       }}
     >
-      <InputGroup className="rounded-2xl bg-card/80 shadow-sm backdrop-blur-md dark:bg-card/80 dark:shadow-none">
+      <InputGroup className="rounded-2xl bg-card shadow-sm dark:bg-card dark:shadow-none">
         <EditorContent editor={editor} className="w-full" />
         {/* Holds the box's place until the editor starts in the browser. */}
         {editor === null ? (
