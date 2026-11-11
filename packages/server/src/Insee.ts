@@ -25,7 +25,7 @@ import { HttpClient, HttpClientResponse } from "effect/http"
 import { type Adapter, Policy } from "./Adapter.ts"
 import { Cache } from "./Cache.ts"
 import { Outline } from "./Outlines.ts"
-import { Answer, Described, type Query } from "./Series.ts"
+import { Answer, Described, type Query, widen } from "./Series.ts"
 
 const base = "https://api.insee.fr/melodi"
 const dataset = "DD_CNA_AGREGATS"
@@ -359,7 +359,7 @@ export class Insee extends Context.Service<Insee, Adapter>()("@civicdata/server/
             fresh,
             fetch: live.describe(id),
           }),
-        fetch: (query) =>
+        fetch: widen((query) =>
           remember(
             `insee/v1/series/${JSON.stringify({ ...query, dimensions: Object.entries(query.dimensions).toSorted(([left], [right]) => left.localeCompare(right)) })}`,
             {
@@ -368,6 +368,7 @@ export class Insee extends Context.Service<Insee, Adapter>()("@civicdata/server/
               fetch: live.fetch(query),
             },
           ),
+        ),
       })
     }),
   )

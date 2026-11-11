@@ -9,6 +9,7 @@ import {
 } from "@civicdata/domain"
 import { describe, expect, it } from "@effect/vitest"
 import { Effect, Layer, Schema, Stream } from "effect"
+import { TestClock } from "effect/testing"
 
 import { Catalog } from "../src/Catalog.ts"
 import { Directions } from "../src/Directions.ts"
@@ -174,6 +175,35 @@ describe("INSEE", () => {
       ),
     ),
   )
+
+  it.effect("reuses coverage reads for a chart's narrower years", () => {
+    let reads = 0
+
+    return Effect.gen(function* () {
+      yield* TestClock.setTime(new Date("2026-11-11T00:00:00Z").getTime())
+      const source = yield* Insee
+      const coverage = yield* source.fetch({ ...query, from: Year.make(1996), to: Year.make(2026) })
+      const chart = yield* source.fetch({ ...query, from: Year.make(2025) })
+
+      expect(coverage.observations).toHaveLength(2)
+      expect(chart.observations.map(({ year }) => year)).toEqual([2025])
+      expect(chart.retrievedAt).toEqual(coverage.retrievedAt)
+      expect(reads).toBe(2)
+    }).pipe(
+      Effect.provide(
+        Insee.cached.pipe(
+          Layer.provide(memory().layer),
+          Layer.provide(
+            http((url) => {
+              if (url.includes("/data/")) reads += 1
+
+              return respond(url)
+            }),
+          ),
+        ),
+      ),
+    )
+  })
 })
 
 it.effect("excludes monthly and regional rows and does not mix reference-price years", () => {

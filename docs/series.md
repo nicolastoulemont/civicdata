@@ -171,7 +171,9 @@ INSEE uses `Api`, without a bulk capability or gather enrollment. Melodi's catal
 publishes `modified` dates and ZIP CSV products, but this slice downloads neither
 a full mirror nor a production fill. The existing API cache keeps descriptions
 and complete query answers for one day, retaining retrieval times and serving an
-old successful answer if a refresh fails. Metadata/range memoization lasts one day.
+old successful answer if a refresh fails. Coverage reads and charts share the
+recent-year cache range, so a chart reuses the values fetched by `find_years`.
+Metadata/range memoization lasts one day.
 Pace budgets `api.insee.fr` at 25 requests/minute, below the documented anonymous
 30/minute limit, with a minute cooldown after 429.
 
