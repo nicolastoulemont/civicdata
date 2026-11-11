@@ -1,4 +1,4 @@
-import { Match, Schema } from "effect"
+import { Match, Schema, Struct } from "effect"
 
 import { Cited, RecordId } from "./Cited.ts"
 import { Country } from "./Country.ts"
@@ -414,6 +414,13 @@ export const Turn = Schema.Struct({
 })
 
 export interface Turn extends Schema.Schema.Type<typeof Turn> {}
+
+// Keeps the charts a person changed, omitting the overrides once every
+// chart is back to the agent's original.
+export const withShown = (turn: Turn, shown: ReadonlyArray<View | null>): Turn =>
+  shown.every((view) => view === null)
+    ? Struct.omit(turn, ["shown"])
+    : Struct.assign(turn, { shown })
 
 // A turn's place in its conversation, the first one 0. Turns are only ever
 // added, so a place keeps naming the same turn.

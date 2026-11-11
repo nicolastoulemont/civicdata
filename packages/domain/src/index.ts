@@ -57,6 +57,7 @@ export {
   Unresolved,
   Up,
   Vote,
+  withShown,
   type Work,
 } from "./Conversation.ts"
 
