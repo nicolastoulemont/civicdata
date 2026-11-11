@@ -1,4 +1,4 @@
-import { Effect, Layer, Option } from "effect"
+import { Deferred, Effect, Exit, Layer, Option } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
 
 import { Cache } from "../src/Cache.ts"
@@ -35,17 +35,25 @@ export const memory = () => {
   return { store, layer }
 }
 
-// Durable Object storage in memory, recording each alarm set.
+// Durable Object storage in memory, recording each alarm set. `deleted`
+// completes once everything has been deleted.
 export const memoryStorage = (values = new Map<string, string>()) => {
   const alarms: Array<number> = []
+  const deleted = Deferred.makeUnsafe<void>()
 
   const fake: Storage = {
     get: (key) => Promise.resolve(values.get(key)),
     put: (key, value) => Promise.resolve(void values.set(key, value)),
     setAlarm: (time) => Promise.resolve(void alarms.push(time)),
+    deleteAll: () => {
+      values.clear()
+      Deferred.doneUnsafe(deleted, Exit.void)
+
+      return Promise.resolve()
+    },
   }
 
-  return { fake, alarms }
+  return { fake, alarms, deleted }
 }
 
 // Runs each step at once, as Workflows does when a step succeeds, after

@@ -66,6 +66,7 @@ import { reset } from "cloudflare:test"
 import {
   Array as Arr,
   Clock,
+  Context,
   DateTime,
   Deferred,
   Duration,
@@ -78,7 +79,7 @@ import {
   Struct,
 } from "effect"
 import { AiError, LanguageModel, type Response } from "effect/ai"
-import { HttpRouter, HttpServer } from "effect/http"
+import { HttpServer } from "effect/http"
 import { HttpApiTest } from "effect/http-api"
 import { TestClock } from "effect/testing"
 import { strToU8, zipSync } from "fflate"
@@ -86,7 +87,7 @@ import { strToU8, zipSync } from "fflate"
 import { Agent } from "../src/Agent.ts"
 import { AskLimit } from "../src/AskLimit.ts"
 import { Catalog } from "../src/Catalog.ts"
-import { serve } from "../src/ConversationObject.ts"
+import { open } from "../src/ConversationObject.ts"
 import { Conversations } from "../src/Conversations.ts"
 import { Directions } from "../src/Directions.ts"
 import { Findings } from "../src/Findings.ts"
@@ -343,8 +344,17 @@ interface ServeOptions {
   readonly storage?: Storage
 }
 
-// The API as the Worker serves it, with each conversation answered in this
-// process the way its Durable Object would, on the test's clock.
+// The conversation's Durable Object alarm, which Cloudflare fires `keep` after
+// the conversation was last saved.
+class Alarm extends Context.Service<Alarm, { readonly fire: Effect.Effect<void> }>()(
+  "test/Alarm",
+) {}
+
+const alarm = Alarm.use(({ fire }) => fire)
+
+// The API as the Worker serves it, with the conversation answered in this
+// process the way its Durable Object would, on the test's clock. Tests ask
+// about one conversation, so one object answers every id.
 const serveApi = (
   model: Layer.Layer<LanguageModel.LanguageModel>,
   {
@@ -372,23 +382,17 @@ const serveApi = (
   const transcript = storage === undefined ? Transcript.memory : Transcript.durable(storage)
 
   return Layer.unwrap(
-    Effect.clockWith((clock) =>
-      Effect.succeed(
+    Effect.clockWith((clock) => {
+      const conversation = open(
+        Layer.mergeAll(transcript, agent, limit).pipe(
+          Layer.provideMerge(Layer.succeed(Clock.Clock, clock)),
+        ),
+      )
+
+      return Effect.succeed(
         Layer.mergeAll(
           Handlers.pipe(
-            Layer.provide(
-              Conversations.local(
-                () =>
-                  HttpRouter.toWebHandler(
-                    serve.pipe(
-                      Layer.provide(transcript),
-                      Layer.provide(agent),
-                      Layer.provide(limit),
-                      Layer.provideMerge(Layer.succeed(Clock.Clock, clock)),
-                    ),
-                  ).handler,
-              ),
-            ),
+            Layer.provide(Conversations.local(() => conversation.fetch)),
             Layer.provide(agent),
             Layer.provide(limit),
             Layer.provide(notes),
@@ -399,9 +403,10 @@ const serveApi = (
             Layer.provide(Directions.listed),
           ),
           HttpServer.layerServices,
+          Layer.succeed(Alarm, Alarm.of({ fire: Effect.promise(() => conversation.alarm()) })),
         ),
-      ),
-    ),
+      )
+    }),
   )
 }
 
@@ -1772,6 +1777,84 @@ const charts = (count: number) =>
       Effect.succeed(words(takeaway)),
     ]).flat(),
   )
+
+describe("expiring a conversation", () => {
+  const upstream = new AiError.AiError({
+    module: "OpenAI",
+    method: "generateText",
+    reason: new AiError.UnknownError({ description: "upstream 500" }),
+  })
+
+  it.effect("deletes the conversation when its alarm fires and no answer is running", () => {
+    const values = new Map<string, string>()
+    const { fake } = memoryStorage(values)
+
+    return Effect.gen(function* () {
+      yield* answer("Life expectancy in Brazil")
+      yield* alarm
+
+      expect(values.size).toBe(0)
+      expect(yield* turns).toEqual({ answered: [] })
+    }).pipe(Effect.provide(serveApi(scripted([]).layer, { storage: fake })))
+  })
+
+  it.effect("keeps every turn and the chat when the alarm fires during an answer", () =>
+    Effect.gen(function* () {
+      const reply = yield* Deferred.make<ReadonlyArray<Response.PartEncoded>>()
+      const { fake } = memoryStorage()
+      const model = scripted([Effect.succeed(words(takeaway)), Deferred.await(reply)])
+
+      return yield* Effect.gen(function* () {
+        yield* answer("Life expectancy in Brazil")
+
+        const steps = yield* ask("Life expectancy in Mexico")
+
+        yield* alarm
+        yield* Deferred.succeed(reply, words("Life expectancy rose in Mexico."))
+        yield* Stream.runDrain(steps)
+
+        expect((yield* turns).answered.map(({ question }) => question)).toEqual([
+          "Life expectancy in Brazil",
+          "Life expectancy in Mexico",
+        ])
+
+        // The next question builds on both.
+        yield* answer("And in Chile?")
+
+        expect(model.prompts.at(-1)).toContain("Life expectancy in Brazil")
+        expect(model.prompts.at(-1)).toContain("Life expectancy in Mexico")
+      }).pipe(Effect.provide(serveApi(model.layer, { storage: fake })))
+    }),
+  )
+
+  it.effect("deletes the conversation once an answer fails after its alarm fired", () =>
+    Effect.gen(function* () {
+      const reply = yield* Deferred.make<ReadonlyArray<Response.PartEncoded>, AiError.AiError>()
+      const values = new Map<string, string>()
+      const { fake, deleted } = memoryStorage(values)
+      const model = scripted([Effect.succeed(words(takeaway)), Deferred.await(reply)])
+
+      return yield* Effect.gen(function* () {
+        yield* answer("Life expectancy in Brazil")
+
+        const steps = yield* ask("Life expectancy in Mexico")
+
+        yield* alarm
+
+        expect((yield* turns).answered).toHaveLength(1)
+
+        yield* Deferred.fail(reply, upstream)
+
+        expect(yield* Stream.runCollect(steps).pipe(Effect.flip)).toBeInstanceOf(AgentUnavailable)
+
+        yield* Deferred.await(deleted)
+
+        expect(values.size).toBe(0)
+        expect(yield* turns).toEqual({ answered: [] })
+      }).pipe(Effect.provide(serveApi(model.layer, { storage: fake })))
+    }),
+  )
+})
 
 describe("changing a chart", () => {
   const perPerson = Trend.make({ ...brazilTrend, transform: "PerPerson" })
