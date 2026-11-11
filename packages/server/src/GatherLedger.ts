@@ -1,8 +1,8 @@
-import { IndicatorId, Source } from "@civicdata/domain"
+import { Source } from "@civicdata/domain"
 import { DateTime, Effect, Option, Schema } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
-import { Versions } from "./Adapter.ts"
+import { AssetId, Versions } from "./Adapter.ts"
 import { layout } from "./Store.ts"
 
 // Kept as a tagged union so later policies can add an Unstorable decision.
@@ -49,6 +49,18 @@ export const ledger = Effect.gen(function* () {
     })
   }
 
+  yield* sql`CREATE TABLE IF NOT EXISTS asset_gathered (
+    scope TEXT NOT NULL,
+    asset TEXT NOT NULL,
+    state TEXT NOT NULL CHECK (json_valid(state)),
+    PRIMARY KEY (scope, asset)
+  )`
+  // Only World Bank's deployed per-indicator units have the same identity.
+  // Copy every layout verbatim, including failures; never infer success from R2.
+  yield* sql`INSERT OR IGNORE INTO asset_gathered (scope, asset, state)
+    SELECT scope, indicator, state FROM series_gathered
+    WHERE scope IN ('series/v1/World Bank', 'series/v2/World Bank')`
+
   const work = SqlSchema.findAll({
     Request: Schema.Struct({
       source: Source,
@@ -57,33 +69,26 @@ export const ledger = Effect.gen(function* () {
       now: Schema.String,
     }),
     Result: Schema.Struct({
-      indicator: IndicatorId,
-      name: Schema.NonEmptyString,
-      definition: Schema.String,
-      version: Schema.String,
+      asset: AssetId,
+      version: Schema.NonEmptyString,
       state: Schema.OptionFromNullOr(GatheredJson),
     }),
-    execute: ({ source, versions, after, now }) => {
-      return sql`
-        SELECT catalog.indicator, catalog.name, catalog.definition,
-          json_extract(wanted.value, '$.version') AS version, gathered.state
-        FROM catalog
-        JOIN catalog_current AS current
-          ON current.source = catalog.source AND current.generation = catalog.generation
-        JOIN json_each(${JSON.stringify(versions)}) AS wanted
-          ON json_extract(wanted.value, '$.indicator') = catalog.indicator
-        LEFT JOIN series_gathered AS gathered
-          ON gathered.scope = ${`${layout}/${source}`} AND gathered.indicator = catalog.indicator
-        WHERE catalog.source = ${source} AND catalog.indicator > ${after}
-          AND (CASE json_extract(gathered.state, '$._tag')
-            WHEN 'Stored' THEN json_extract(gathered.state, '$.version')
-            ELSE json_extract(gathered.state, '$.stored') END
-            IS NOT json_extract(wanted.value, '$.version'))
-          AND (COALESCE(json_extract(gathered.state, '$.failures'), 0) < 3
-            OR json_extract(gathered.state, '$.wanted') IS NOT json_extract(wanted.value, '$.version')
-            OR julianday(${now}) - julianday(json_extract(gathered.state, '$.at')) >= 7)
-        ORDER BY catalog.indicator LIMIT 50`
-    },
+    execute: ({ source, versions, after, now }) => sql`
+      SELECT json_extract(wanted.value, '$.asset') AS asset,
+        json_extract(wanted.value, '$.version') AS version, gathered.state
+      FROM json_each(${JSON.stringify(versions)}) AS wanted
+      LEFT JOIN asset_gathered AS gathered
+        ON gathered.scope = ${`${layout}/${source}`}
+        AND gathered.asset = json_extract(wanted.value, '$.asset')
+      WHERE json_extract(wanted.value, '$.asset') > ${after}
+        AND (CASE json_extract(gathered.state, '$._tag')
+          WHEN 'Stored' THEN json_extract(gathered.state, '$.version')
+          ELSE json_extract(gathered.state, '$.stored') END
+          IS NOT json_extract(wanted.value, '$.version'))
+        AND (COALESCE(json_extract(gathered.state, '$.failures'), 0) < 3
+          OR json_extract(gathered.state, '$.wanted') IS NOT json_extract(wanted.value, '$.version')
+          OR julianday(${now}) - julianday(json_extract(gathered.state, '$.at')) >= 7)
+      ORDER BY asset LIMIT 50`,
   })
 
   const summary = SqlSchema.findOne({
@@ -98,8 +103,8 @@ export const ledger = Effect.gen(function* () {
           json_extract(state, '$.failures') AS failures,
           json_extract(state, '$.at') AS at
         FROM json_each(${JSON.stringify(versions)}) AS wanted
-        LEFT JOIN series_gathered ON scope = ${`${layout}/${source}`}
-          AND indicator = json_extract(wanted.value, '$.indicator')
+        LEFT JOIN asset_gathered ON scope = ${`${layout}/${source}`}
+          AND asset = json_extract(wanted.value, '$.asset')
       )
       SELECT count(CASE WHEN tag = 'Stored' AND stored = version THEN 1 END) AS unchanged,
         count(CASE WHEN tag = 'Failed' AND failures >= 3 AND wanted = version
@@ -108,27 +113,27 @@ export const ledger = Effect.gen(function* () {
   })
 
   const record = Effect.fn("Gather.record")(function* (
-    indicator: IndicatorId,
+    asset: AssetId,
     { source, state }: { source: Source; state: typeof Gathered.Type },
   ) {
     const encoded = yield* Schema.encodeEffect(GatheredJson)(state)
-    yield* sql`INSERT INTO series_gathered (scope, indicator, state)
-      VALUES (${`${layout}/${source}`}, ${indicator}, ${encoded})
-      ON CONFLICT (scope, indicator) DO UPDATE SET state = excluded.state`
+    yield* sql`INSERT INTO asset_gathered (scope, asset, state)
+      VALUES (${`${layout}/${source}`}, ${asset}, ${encoded})
+      ON CONFLICT (scope, asset) DO UPDATE SET state = excluded.state`
   })
 
   const stored = Effect.fn("Gather.stored")(function* (
-    indicator: IndicatorId,
+    asset: AssetId,
     { source, version }: { source: Source; version: string },
   ) {
-    yield* record(indicator, {
+    yield* record(asset, {
       source,
       state: Gathered.cases.Stored.make({ version, at: yield* DateTime.now }),
     })
   })
 
   const failed = Effect.fn("Gather.failed")(function* (
-    indicator: IndicatorId,
+    asset: AssetId,
     {
       source,
       version,
@@ -152,7 +157,7 @@ export const ledger = Effect.gen(function* () {
 
     const failures = last.failures + 1
 
-    yield* record(indicator, {
+    yield* record(asset, {
       source,
       state: Gathered.cases.Failed.make({
         wanted: version,
@@ -162,7 +167,7 @@ export const ledger = Effect.gen(function* () {
         at: yield* DateTime.now,
       }),
     })
-    yield* Effect.logWarning("Could not gather", { indicator, reason, failures })
+    yield* Effect.logWarning("Could not gather", { asset, reason, failures })
   })
 
   return { work, stored, failed, summary }

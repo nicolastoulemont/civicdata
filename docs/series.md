@@ -1,49 +1,45 @@
 # Stored series
 
-World Bank charts read from our own copy of the World Development Indicators instead of asking the World Bank for each chart. A Workflow, `GatherWorkflow` (`packages/server/src/Gather.ts`), fills each stage's copy every day at 05:00 UTC. A pull request's preview has no copy or Workflow of its own: it reads production's `Series` bucket and the bookkeeping tables through `CATALOG_DB` ([docs/deploys.md](deploys.md#what-a-preview-shares-with-production)). Add the `own-catalog` label to a pull request that changes what the store holds or the gather code; its preview then gets its own empty bucket and Workflow. Deploys start no run: such a preview, or any new stage, stores nothing until its first 05:00 or a run started by hand (below), and its charts ask the World Bank until then. Eurostat and OECD charts still ask their source; they will move to the same store.
+World Bank charts read from our own copy of the World Development Indicators instead of asking the World Bank for each chart. A Workflow, `GatherWorkflow` (`packages/server/src/Gather.ts`), fills each stage's copy every day at 05:00 UTC. A pull request's preview has no copy or Workflow of its own: it reads production's `Series` bucket and the bookkeeping tables through `CATALOG_DB` ([docs/deploys.md](deploys.md#what-a-preview-shares-with-production)). Add the `own-catalog` label to a pull request that changes what the store holds or the gather code; its preview then gets its own empty bucket and Workflow. Deploys start no run: such a preview, or any new stage, stores nothing until its first 05:00 or a run started by hand (below), and its charts ask the World Bank until then. Eurostat and OECD charts still ask their source; they remain API-backed in this change.
 
 ## Sources
 
-Each source implements one contract, `Adapter` in `packages/server/src/Adapter.ts`, and nothing outside its implementation picks between sources. The `Sources` service (`Sources.ts`) holds every source's adapter by name, and a caller picks one with `sourceOf(indicator)`: the resolver and the agent's `describe_indicator` to chart and describe, the catalog build to list, the gather to store.
+Each registered publisher implements `Adapter` in `packages/server/src/Adapter.ts`. Listing and discovery describe the searchable catalog, independently of what is mirrored. `describe` supplies metadata; `fetch` supplies API observations. A file adapter's raw `fetch` should fail with `SourceUnavailable({ source, reason: "NotStored" })`; the shared read path never calls it.
 
-| Member      | Answers                                                                                                            |
-| ----------- | ------------------------------------------------------------------------------------------------------------------ |
-| `discovery` | optional dataset dimensions, code labels, annual eligibility, countries and year bounds; unknown facts remain null |
-| `policy`    | what we keep of the source's data: `Full` or `None`                                                                |
-| `list`      | its catalog entries: World Bank indicators, Eurostat datasets or OECD dataflows                                    |
-| `describe`  | an entry's name and definition, and the dataset a chart credits                                                    |
-| `fetch`     | one series' values for some countries and years, from the source's API                                             |
+The read policy has three explicit variants:
 
-A `Full` policy carries the gather's part of the contract:
+| Policy                | Read behavior                                                                                                                                                               |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Api`                 | Ask the API through its existing cache. Eurostat and OECD today.                                                                                                            |
+| `StoredApi({ url })`  | Read the store first; on a miss or bucket failure ask the API through its existing cache. World Bank today.                                                                 |
+| `StoredOnly({ url })` | Read the store. A miss fails with typed `SourceUnavailable` reason `NotStored`; bucket failure uses `StoreUnavailable`. Never call the observations API or download a file. |
 
-| Member    | Answers                                                                                         |
-| --------- | ----------------------------------------------------------------------------------------------- |
-| `changed` | the current version of every requested catalog entry in one request                             |
-| `gather`  | the series of one catalog entry, in bulk, as a stream of candidates for the store sorted by key |
-| `url`     | the API request that answers a query with the values a stored series holds, which a chart links |
+`url(query, version)` receives the stored series’ actual version and links the original publisher's API request or file asset. File adapters use that version to link a pinned asset, rather than claiming the latest release is stored. Stored values retain their dataset, release and retrieval time, including when a candidate is held back or unchanged. `describe` may read metadata through the adapter when the dimensionless series is absent; file adapters must supply this from their metadata, without downloading observations. Chart reads do not start gathers or enroll work. Existing best-effort API cache writes stay unchanged.
 
-`None` means nothing is stored and every chart asks the source. The World Bank is `Full`. Eurostat and the OECD are `None`: they implement `list`, `describe` and `fetch` from their SDMX APIs (`Sdmx.ts`), and their `changed` and `gather` come when they are mirrored. The World Bank dates one release for every indicator, so its `changed(entries)` answers an array of `{ indicator, version }` with that date for each entry. Other sources can answer a different version per entry.
+An optional, separate `bulk` capability selects the download units:
 
-`gather` answers a stream, sorted by the series' codes (`codesOf` their dimensions, compared as plain strings) with each series once, so the store packs series as they arrive and never holds an entry: the OECD's largest answer is 10 GB of CSV, and a Worker has 128 MB. The source does the sorting; SDMX-CSV answers are not grouped by series, so a source that streams one sorts it first, on disk if it must. A store that receives a series out of order fails the write. The World Bank's stream is its indicator's one series.
+- `changed(entries)` returns unique `{ asset, version }` pairs. `AssetId` is an opaque, nonempty, stable identifier within the source, independent of catalog entry IDs. The list may select only some units, without hiding any catalog entries or fetching all observations. No capability means no gather.
+- `gather(asset, { version, entries })` fetches that unit once and emits an ordered stream of entries. Each item has `indicator` and a `series` stream. The published catalog metadata is available as `entries`, so World Bank does not need an extra metadata request per download.
 
-A series is named by its key, `SeriesKey` in `packages/domain/src/SeriesKey.ts`: an indicator and the value of each of its dimensions, none for a World Bank indicator. The store, the SDMX cache and the counterpart series that check a chart all use it.
+World Bank uses its existing indicator string as the asset ID. A future V-Dem release can be one asset for many indicators, and a FAOSTAT domain ZIP one asset for many entries. A selected INSEE or ILO mirror uses the same contract. No such downloader is added here.
 
-Adding a source is one adapter and its entry in `Sources`; the type of `Sources` fails the build until every source in `Source` has one.
+### Streaming contract
+
+Entries strictly increase by indicator ID using plain string comparison. Each entry belongs to the current source and published catalog, and has at least one series. Each inner stream is consumed completely before the next entry is pulled. Its series strictly increase by `codesOf(dimensions)` with no duplicate key, match the entry and wanted version, and decode as `Stored`. Empty assets, empty entry streams, malformed candidates, wrong versions, foreign entries and out-of-order output fail the asset. The store retains its hashing and hold-back rules.
+
+Each candidate is a complete replacement for its series' country-year observations, not a patch of selected countries or years. WID's country files therefore cannot feed the store directly as independent replacements for one cross-country series: the hold-back rule would treat the other countries as lost. Before that integration, partitioned ingestion must assemble complete series while retaining each input's version and retrieval provenance. Asset download checkpoints and coherent publication of assembled series remain separate requirements; this PR does not implement that assembly.
+
+Producers must use backpressure and bounded chunks. They may share one file cursor between the outer and inner streams, since the consumer does not pull them concurrently. A source whose file interleaves entries must sort on disk in a local runner before streaming, rather than collect the archive or an entry in Worker memory. The store holds one existing pack and one pack under construction, plus pack manifests; one complete series' observations and manifest size remain memory limits. This contract does not make arbitrary archives safe to parse inside Workers.
 
 ## What a run does
 
-A run gathers each source whose policy is `Full`, one after the other; today that is the World Bank alone.
+A run visits registered sources with `bulk` capabilities. It checks versions once, compares the selected assets with `asset_gathered`, and takes up to 50 wanted assets per step in ID order. A successful unchanged run makes no bulk request. Each asset's entries are persisted sequentially; only after the entire outer stream and every store write finish does the ledger record its version. Held candidates count as consumed, not as an activated release: the actual stored series keeps its prior provenance.
 
-1. It asks the source's `changed(entries)` for each published catalog entry's current version. The World Bank answers when the World Development Indicators last changed (`/v2/sources/2`), in one request.
-2. SQL compares those versions with `series_gathered`, the per-entry ledger in `CATALOG_DB`. Only entries whose stored version differs enter the worklist. An unchanged run makes the versions request and no bulk requests.
-3. It takes up to 50 entries a step in code order and downloads each one's bulk file (`/v2/en/indicator/<indicator>?downloadformat=csv`) through `Pace`. Requests run one at a time so the source stops exactly at its failure limit. The CSV holds the same values as the API. The run keeps the 217 economies the app charts, leaving out regions and income groups.
-4. It streams each answer into the store, then records that entry's version immediately, including when values were unchanged or held back. An entry that fails keeps its previous stored version, wanted version, reason, failure count and attempt time. Other entries continue and their records stay saved.
+A failed stream or store write leaves that asset failed with its previous completed version, wanted version, reason, failure count and attempt time. Other successful units stay complete. Five consecutive asset failures stop the source and fail the run; success resets the streak. A cursor prevents another attempt in the same run. After three separate-run failures an asset waits seven days from the last attempt, unless its wanted version changes. A version check failure still fails the source's Workflow step.
 
-Five consecutive entry failures stop the source and fail the run. A success resets this streak, which steps pass along with their cursor. An isolated entry failure succeeds at the run level. If the versions request fails, the source's check fails through the Workflow step.
+There is no transaction between R2 and the progress database. A crash after an entry commit, or after the last store commit but before the ledger commit, can repeat that asset's fetch and writes. Hashing reuses unchanged stored values on retry. Earlier entries of a failed asset may already be visible. **Atomic release activation across entries is deferred and required before V-Dem integration.** A missing entry is never taken as evidence of success merely because old values exist.
 
-After three failed attempts in separate runs, an entry backs off until seven days after its last attempt. A changed wanted version bypasses that wait. Success clears the entry's failure history. A step's cursor prevents an entry that failed from being picked again in the same pass. A stopped run, including one that lost a step's result after writing, never asks again for entries the ledger already records at the wanted version. A crash between an R2 write and its ledger write can repeat that entry's fetch; the ledger cannot record a success before the store commits it.
-
-The log counts stored, unchanged, held-back and failed entries, and reports unchanged versions and entries in backoff at the check. Each failure logs its indicator, reason and failure count. A catalog that has not published the source fails the first step and retries for about half an hour.
+`Gather.run()` contains the domain loop for both scheduled Workflows and local first fills. Workflows provide `Step.workflow`. A local runner provides `Step.immediate`, `Gather.layer`, a local SQL client over the same progress schema, `Store.r2(bucket)` and registered source layers. The fixture tests run that path in-process. A future operational local runner must supply the bucket/database transports and file sorting; there is no second script ledger or production fill in this change.
 
 ## The store
 
@@ -78,37 +74,23 @@ The hold-back rule applies per series, inside the pack. When a candidate's hash 
 
 A held-back series' row goes once a later answer replaces the stored series or matches it again. The World Bank answering that it no longer knows an indicator counts as an empty answer.
 
-D1's `series_gathered` has primary key `(scope, indicator)`, where scope is the store layout and source, for example `series/v2/World Bank`. Its `state` is Schema-decoded JSON, a tagged union:
+D1's `asset_gathered` has primary key `(scope, asset)`. Scope remains the store layout and publisher, for example `series/v2/World Bank`. State is Schema-decoded JSON:
 
-- `Stored`: `version` and `at` (UTC time).
-- `Failed`: `wanted`, `stored` (a version or null), `failures`, `reason` and `at` (the last attempt's UTC time).
+- `Stored`: `version` and UTC `at`, meaning the asset output was consumed successfully.
+- `Failed`: `wanted`, previous completed `stored` version or null, `failures`, `reason` and last attempt's UTC `at`.
 
-A new store layout has no ledger rows, so it gathers every entry again. Only Gather creates or changes this table. On its first build after the upgrade, it seeds every published entry covered by a legacy `series_version` row as `Stored` at that row's release, then drops `series_version`. The seed is idempotent and never overwrites a ledger decision. Legacy rows for an older layout do not seed the current layout. Entries with no legacy success row must be gathered once to establish their ledger records.
+Initialization bridges deployed World Bank `series_gathered(scope, indicator, state)` rows using `INSERT OR IGNORE`, copying the indicator as asset and JSON state verbatim. Stored versions, failure reasons, counts and weekly backoff survive. Both `series/v1/World Bank` and `series/v2/World Bank` keep their scopes: a v1 success never completes v2. Existing asset rows win if initialization repeats or stops after copying. The old table is retained read-only for the bridge. The earlier `series_version` migration still seeds only published entries under the current layout, then drops that older table. No migration reads R2 to infer success.
 
-List failures with one query against the stage's catalog database:
-
-```sql
-SELECT scope, indicator,
-  json_extract(state, '$.wanted') AS wanted,
-  json_extract(state, '$.stored') AS stored,
-  json_extract(state, '$.failures') AS failures,
-  json_extract(state, '$.reason') AS reason,
-  json_extract(state, '$.at') AS attempted_at
-FROM series_gathered
-WHERE json_extract(state, '$._tag') = 'Failed'
-ORDER BY scope, indicator;
-```
+To inspect failures, query `asset_gathered` by scope and asset, extracting `$.wanted`, `$.stored`, `$.failures`, `$.reason` and `$.at` from state where `$._tag = 'Failed'`.
 
 ## Reading
 
-One read path serves every source, `Sources.stored`. For a source whose policy is `Full` it answers a chart from the stored series, filtered to its countries and years: the explorer, `show_chart`, `find_years`, share cards and an indicator's description all go through it. The chart cites the stored series' retrieval time and links the source's request for its own countries and years (the policy's `url`), which returns the same values. A series not stored, or a bucket that fails, falls back to the source's `fetch`, through its cache: one day for the World Bank. A description reads the series without dimensions, so a source whose series have dimensions is asked for it. A source whose policy is `None` never reads the store.
-
-`Gather` is the only writer to the store; `Store.write` applies the hold-back rule.
+`Sources.stored` serves the explorer, chart tools, year searches, shares and descriptions. It filters observations to the requested countries and years, preserves attribution and retrieval time, and applies the read policy above. The agent distinguishes not-yet-stored series from an upstream outage. No share IDs, catalog/vector fingerprints, store object paths or API cache keys change.
 
 ## Start a run by hand
 
-Run the `Gather series` GitHub workflow with the stage, `prod` or `pr-<number>`, from the Actions tab or with `gh workflow run gather.yml -f stage=pr-123`. It refuses a pull request without the `own-catalog` label, whose preview reads production's store. It starts one instance of `civicdata-<stage>-gather`, the same as the schedule does. The Cloudflare dashboard (Workers & Pages, Workflows) starts one too. To gather again although the date has not moved, delete the relevant entries from `series_gathered` under scope `series/v2/World Bank` first.
+Run the `Gather series` GitHub workflow with the stage, `prod` or `pr-<number>`, from the Actions tab or with `gh workflow run gather.yml -f stage=pr-123`. It refuses a pull request without the `own-catalog` label, whose preview reads production's store. It starts one instance of `civicdata-<stage>-gather`, the same as the schedule does. The Cloudflare dashboard (Workers & Pages, Workflows) starts one too. To gather again although the date has not moved, remove the relevant `asset_gathered` rows and any corresponding retained legacy `series_gathered` rows under that scope first; otherwise the bridge will seed them again. This is an administrative operation, not a chart-read behavior.
 
 ## Identity compatibility
 
-Adding explicit publisher ids does not change `series/v2`, the three deployed publishers' names, `pathOf`, pack prefixes or gather ledger scopes. Existing World Bank packs and `series/v2/World Bank` ledger decisions are reused, without a full refetch. New publishers' indicator keys include their name (`Publisher:native-code`), so identical native codes cannot collide across publishers. Gather discovers only registered adapters whose policy is `Full`; accepting an id never creates coverage or starts a gather for an unregistered publisher. An unregistered indicator answers `IndicatorNotFound` at chart resolution. Publisher discovery is an optional adapter capability (see [catalog.md](catalog.md#publisher-discovery)); new storage policies remain later slices.
+Adding explicit publisher ids does not change `series/v2`, the three deployed publishers' names, `pathOf`, pack prefixes or gather ledger scopes. Existing World Bank packs and `series/v2/World Bank` ledger decisions are reused, without a full refetch. New publishers' indicator keys include their name (`Publisher:native-code`), so identical native codes cannot collide across publishers. Gather discovers only registered adapters with a `bulk` capability; accepting an id never creates coverage or starts a gather for an unregistered publisher. An unregistered indicator answers `IndicatorNotFound` at chart resolution. Publisher discovery is an optional adapter capability (see [catalog.md](catalog.md#publisher-discovery)); real source adapters, release activation, forecast/uncertainty/quality schemas and production fills remain separate work.

@@ -14,7 +14,11 @@ export class IndicatorNotFound extends Schema.TaggedError<
 export class SourceUnavailable extends Schema.TaggedError<
   SourceUnavailable,
   { readonly brand: unique symbol }
->()("SourceUnavailable", { source: Source }, { httpApiStatus: 502 }) {}
+>()(
+  "SourceUnavailable",
+  { source: Source, reason: Schema.optional(Schema.Literals(["NotStored", "StoreUnavailable"])) },
+  { httpApiStatus: 502 },
+) {}
 
 // The catalog cannot be searched in this runtime, e.g. plain `pnpm dev` outside Workers.
 export class CatalogUnavailable extends Schema.TaggedError<

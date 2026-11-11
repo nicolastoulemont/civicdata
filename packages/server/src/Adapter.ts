@@ -11,38 +11,46 @@ import type { Codelist, Outline } from "./Outlines.ts"
 import type { Answer, Described, Query } from "./Series.ts"
 import type { Stored } from "./Store.ts"
 
+// An opaque identifier within one publisher, stable across releases.
+export const AssetId = Schema.NonEmptyString.pipe(Schema.brand("AssetId"))
+
+export type AssetId = typeof AssetId.Type
+
 export const Versions = Schema.Array(
-  Schema.Struct({ indicator: IndicatorId, version: Schema.String }),
+  Schema.Struct({ asset: AssetId, version: Schema.NonEmptyString }),
 )
 
 export type Versions = typeof Versions.Type
 
-// What we keep of a source's data.
+// Read capability is independent of the assets selected for ingestion.
 export type Policy = Data.TaggedEnum<{
-  // The gather stores the series of every catalog entry the source lists,
-  // and charts read them; a series not stored yet is asked of the source.
-  Full: {
-    // The current version of each requested catalog entry, in one source request.
-    readonly changed: (
-      entries: ReadonlyArray<CatalogEntry>,
-    ) => Effect.Effect<Versions, SourceUnavailable>
-    // The series of one catalog entry, in bulk, as candidates for the store,
-    // dated with `release`: sorted by their dimensions' codes (`codesOf`),
-    // each once, so the store packs them as they arrive and never holds the
-    // entry. A series left out keeps its stored values.
-    readonly gather: (
-      entry: CatalogEntry,
-      release: string,
-    ) => Stream.Stream<Stored, SourceUnavailable>
-    // The API request that answers the query with the values a stored series
-    // holds, which a chart read from the store links.
-    readonly url: (query: Query) => string
-  }
-  // Nothing is stored: every chart asks the source.
-  None: {}
+  Api: {}
+  StoredApi: { readonly url: (query: Query, version: string) => string }
+  StoredOnly: { readonly url: (query: Query, version: string) => string }
 }>
 
 export const Policy = Data.taggedEnum<Policy>()
+
+export interface AssetEntry {
+  readonly indicator: IndicatorId
+  // Each candidate replaces a complete series, not a country/year partition.
+  // Partitioned inputs must be assembled before reaching this stream.
+  readonly series: Stream.Stream<Stored, SourceUnavailable>
+}
+
+export interface Bulk {
+  // May select any subset of units without narrowing the searchable catalog.
+  readonly changed: (
+    entries: ReadonlyArray<CatalogEntry>,
+  ) => Effect.Effect<Versions, SourceUnavailable>
+  // Entries strictly increase by indicator; each inner stream is consumed
+  // before pulling the next entry. Series strictly increase by codesOf.
+  // Producers must stream, or sort on disk outside Workers, never buffer an asset.
+  readonly gather: (
+    asset: AssetId,
+    options: { readonly version: string; readonly entries: ReadonlyArray<CatalogEntry> },
+  ) => Stream.Stream<AssetEntry, SourceUnavailable>
+}
 
 // No capability means metadata is unavailable. Null fields in an outline mean
 // unknown, false annual or an empty countries array mean confirmed exclusion.
@@ -62,6 +70,7 @@ export interface Adapter {
   readonly discovery?: Discovery
 
   readonly policy: Policy
+  readonly bulk?: Bulk
   // Every catalog entry the source publishes: a World Bank indicator, a
   // Eurostat dataset or an OECD dataflow.
   readonly list: Effect.Effect<ReadonlyArray<CatalogEntry>, SourceUnavailable>

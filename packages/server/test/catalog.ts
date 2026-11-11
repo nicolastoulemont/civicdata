@@ -94,7 +94,7 @@ const list = (lists: Listings, source: Source) =>
 
 // A source answering only its catalog entries.
 const listing = (lists: Listings, source: Source): Adapter => ({
-  policy: Policy.None(),
+  policy: Policy.Api(),
   list: list(lists, source),
   describe: () => Effect.die("not used by the catalog"),
   fetch: () => Effect.die("not used by the catalog"),

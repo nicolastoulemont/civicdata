@@ -10,7 +10,7 @@ import { Context, DateTime, Duration, Effect, Layer, Schedule, Schema, Stream } 
 import { HttpClient, HttpClientResponse } from "effect/http"
 import { unzipSync } from "fflate"
 
-import { type Adapter, Policy } from "./Adapter.ts"
+import { type Adapter, AssetId, Policy } from "./Adapter.ts"
 import { Cache } from "./Cache.ts"
 import { records } from "./Csv.ts"
 import { Described, type Query, Series, widen } from "./Series.ts"
@@ -211,7 +211,10 @@ const make = Effect.gen(function* () {
   const changed = Effect.fn("WorldBank.changed")(function* (entries: ReadonlyArray<CatalogEntry>) {
     const [, [source]] = yield* get(`${base}/sources/2?format=json`, VersionBody)
 
-    return entries.map(({ indicator }) => ({ indicator, version: source.lastupdated }))
+    return entries.map(({ indicator }) => ({
+      asset: AssetId.make(indicator),
+      version: source.lastupdated,
+    }))
   })
 
   // An indicator is one series. One the World Bank no longer knows is an
@@ -242,7 +245,18 @@ const make = Effect.gen(function* () {
     describe,
     observations,
     list,
-    policy: Policy.Full({ changed, gather, url: urlOf }),
+    policy: Policy.StoredApi({ url: urlOf }),
+    bulk: {
+      changed,
+      gather: (asset, { version: release, entries }) =>
+        Stream.suspend(() => {
+          const entry = entries.find(({ indicator }) => String(indicator) === asset)
+
+          if (entry === undefined) return Stream.fail(unavailable())
+
+          return Stream.succeed({ indicator: entry.indicator, series: gather(entry, release) })
+        }),
+    },
   }
 
   return parts

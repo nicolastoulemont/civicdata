@@ -273,7 +273,7 @@ describe("registered publisher discovery", () => {
   })
 
   const adapter = (outlines: Discovery): Adapter => ({
-    policy: Policy.None(),
+    policy: Policy.Api(),
     discovery: outlines,
     list: Effect.succeed([
       entry(indicator, "Household income"),

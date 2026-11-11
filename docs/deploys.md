@@ -59,3 +59,5 @@ To deploy your own stage from your machine, connect Cloudflare once with `pnpm -
 ## Upgrading Alchemy
 
 Alchemy is a beta that breaks things between releases. Upgrade it on a branch and let that branch's preview stage deploy before you merge. Every machine and CI job must run the same Alchemy version against the state store.
+
+Gather changes use `own-catalog` too: the asset progress schema initializes on the preview’s own database when a gather starts. Deploying does not migrate or fill production. Workflow and local ingestion share `Gather.layer` and its progress logic; local transports and atomic release activation remain separate work ([series.md](series.md#what-a-run-does)).

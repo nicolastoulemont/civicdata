@@ -187,14 +187,14 @@ export const held = () =>
 export const gathered = Effect.promise(() =>
   db
     .prepare(
-      "SELECT json_extract(state, '$.version') FROM series_gathered WHERE json_extract(state, '$._tag') = 'Stored' LIMIT 1",
+      "SELECT json_extract(state, '$.version') FROM asset_gathered WHERE json_extract(state, '$._tag') = 'Stored' LIMIT 1",
     )
     .first("json_extract(state, '$.version')"),
 )
 
 export const ledgerRows = () =>
   db
-    .prepare("SELECT scope, indicator, state FROM series_gathered ORDER BY indicator")
+    .prepare("SELECT scope, asset AS indicator, state FROM asset_gathered ORDER BY asset")
     .all<{ scope: string; indicator: string; state: string }>()
 
 export const seriesDb = db
