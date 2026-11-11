@@ -2238,6 +2238,50 @@ describe("Conversation", () => {
     ).toBeDefined()
   })
 
+  it("shows an answer once when a refetch while it ran already brought its turn", async () => {
+    const reply = answer("follow")
+    const question = "Life expectancy in Brazil"
+
+    // The page opens on the answer in progress. A refetch while it runs finds
+    // its turn saved; reading the turns once it ends fails.
+    const replies = [
+      () => HttpResponse.json(encodeTurns({ answered: [], answering: { question, started } })),
+      () =>
+        HttpResponse.json(
+          encodeTurns({ answered: [{ question, answer: charted(plot(brazil)), steps: [] }] }),
+        ),
+    ]
+
+    network.use(
+      http.get(`/api/conversations/${id}`, () => replies.shift()?.() ?? HttpResponse.error()),
+      reply.handler,
+      resolve,
+    )
+    show()
+
+    expect(await findQuestion(question)).toBeDefined()
+
+    act(() => {
+      window.dispatchEvent(new Event("visibilitychange"))
+    })
+    await vi.waitFor(() => expect(replies).toHaveLength(0))
+
+    reply.send(message(charted(plot(brazil))))
+    reply.end()
+
+    expect(
+      await screen.findByRole("heading", { name: "Life expectancy at birth (years)" }),
+    ).toBeDefined()
+    await vi.waitFor(() =>
+      expect(
+        screen
+          .queryByRole("textbox", { name: "Ask a follow-up" })
+          ?.getAttribute("aria-placeholder"),
+      ).not.toBe("Write your next question while civicdata answers"),
+    )
+    expect(rows()).toHaveLength(1)
+  })
+
   it("picks the answer up again when the connection drops mid-answer", async () => {
     const asked = answer()
     const resumed = answer("follow")

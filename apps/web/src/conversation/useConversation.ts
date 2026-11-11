@@ -214,21 +214,27 @@ interface Answered {
 
 // Keeps the answer with the turns: the saved turn carries how long the server
 // took to answer, and if it cannot be read, the turn shows without that time.
+// Turns that already hold the answer, such as a refetch while it ran brought,
+// are kept as they are: the answer is the turn after the `before` first.
 const keep = (client: QueryClient, { id, pending, steps, answer }: Answered) =>
   Effect.promise(() =>
     call(page, (api) => api.conversation.turns({ params: { id } })).catch(() => undefined),
   ).pipe(
     Effect.map((saved) => {
-      client.setQueryData(turnsQuery(id).queryKey, (previous?: Turns) =>
-        saved !== undefined && saved.answered.length > pending.before
-          ? saved
+      client.setQueryData(turnsQuery(id).queryKey, (previous?: Turns) => {
+        if (saved !== undefined && saved.answered.length > pending.before) return saved
+
+        const answered = previous?.answered ?? []
+
+        return answered.length > pending.before
+          ? { answered }
           : {
               answered: [
-                ...(previous?.answered ?? []),
+                ...answered,
                 { question: pending.question, answer, steps: steps.filter(isEnded) },
               ],
-            },
-      )
+            }
+      })
 
       return Event.End({ reported: Option.none() })
     }),
