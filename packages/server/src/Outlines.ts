@@ -99,6 +99,25 @@ const finish = (draft: Draft | undefined): ReadonlyArray<Outline> => {
   ]
 }
 
+// Add a metabase code to its country's, period's or series' dimension.
+const addCode = (draft: Draft, { id, code }: { id: string; code: string }) => {
+  if (id === "geo") {
+    const country = eurostatCountry.get(code)
+
+    if (country !== undefined) draft.countries.add(country)
+  } else if (id === "time") {
+    if (/^\d{4}$/.test(code)) {
+      draft.annual = true
+      draft.years.push(Number(code))
+    }
+  } else if (id !== "freq") {
+    const codes = draft.dimensions.get(id)
+
+    if (codes === undefined) draft.dimensions.set(id, [code])
+    else codes.push(code)
+  }
+}
+
 // One line of the metabase, "dataset<TAB>dimension<TAB>code", read into the
 // dataset it belongs to. The file lists each dataset's lines together, so a
 // new dataset finishes the one before. It names no frequency: a period of
@@ -117,21 +136,7 @@ const readLine = (
       ? draft
       : { dataset, dimensions: new Map(), countries: new Set(), years: [], annual: false }
 
-  if (id === "geo") {
-    const country = eurostatCountry.get(code)
-
-    if (country !== undefined) current.countries.add(country)
-  } else if (id === "time") {
-    if (/^\d{4}$/.test(code)) {
-      current.annual = true
-      current.years.push(Number(code))
-    }
-  } else if (id !== "freq") {
-    const codes = current.dimensions.get(id)
-
-    if (codes === undefined) current.dimensions.set(id, [code])
-    else codes.push(code)
-  }
+  addCode(current, { id, code })
 
   return [current, current === draft ? [] : finish(draft)]
 }
@@ -216,6 +221,45 @@ const year = (period: string | undefined) => {
 
 const oecdCountries = areas.OECD.country
 
+// Combine the codes and time bounds from a constraint's cube regions.
+const regionValues = (
+  regions: ReadonlyArray<{ readonly keyValues?: ReadonlyArray<typeof KeyValue.Type> }>,
+) => {
+  const values = new Map<string, Array<string>>()
+  const found: Array<number> = []
+
+  for (const { id, values: codes = [], timeRange } of regions.flatMap(
+    (region) => region.keyValues ?? [],
+  )) {
+    if (id === "TIME_PERIOD") {
+      found.push(...year(timeRange?.startPeriod?.period), ...year(timeRange?.endPeriod?.period))
+    } else values.set(id, [...(values.get(id) ?? []), ...codes])
+  }
+
+  return { values, found }
+}
+
+const oecdIndicator = (flow: ReturnType<typeof urn>) => {
+  if (flow === undefined) return Option.none()
+
+  return toIndicator(`${flow.agency},${flow.id},${flow.version}`).pipe(
+    Option.filter((indicator) => sourceOf(indicator) === "OECD"),
+  )
+}
+
+const coveredCountries = (codes: ReadonlyArray<string> = []) =>
+  [...new Set(codes.flatMap((code) => oecdCountries.get(code) ?? []))].toSorted()
+
+const seriesDimensions = (
+  values: ReadonlyMap<string, ReadonlyArray<string>>,
+  listed: ReadonlyMap<string, Codelist>,
+) =>
+  [...values].flatMap(([id, codes]) =>
+    id === "REF_AREA" || id === "FREQ"
+      ? []
+      : Option.toArray(dimension(id, listed.get(id) ?? null, codes)),
+  )
+
 // The outline of each OECD dataflow with a constraint on the codes its data
 // takes, from the constraints and the structures, both decoded from JSON.
 // A dataflow's structure is the one its id names before "@", of its own
@@ -258,38 +302,21 @@ export const constraints = ({
 
     if (constraint.type !== "Actual" || flow === undefined || regions.length === 0) return []
 
-    const indicator = toIndicator(`${flow.agency},${flow.id},${flow.version}`)
+    const indicator = oecdIndicator(flow)
 
-    if (Option.isNone(indicator) || sourceOf(indicator.value) !== "OECD") return []
+    if (Option.isNone(indicator)) return []
 
     const listed = codelists(flow.agency, flow.id)
-    const values = new Map<string, Array<string>>()
-    const found: Array<number> = []
-
-    for (const { id, values: codes = [], timeRange } of regions.flatMap(
-      (region) => region.keyValues ?? [],
-    )) {
-      if (id === "TIME_PERIOD") {
-        found.push(...year(timeRange?.startPeriod?.period), ...year(timeRange?.endPeriod?.period))
-      } else values.set(id, [...(values.get(id) ?? []), ...codes])
-    }
+    const { values, found } = regionValues(regions)
 
     const frequencies = values.get("FREQ")
 
     return [
       {
         indicator: indicator.value,
-        dimensions: [...values].flatMap(([id, codes]) =>
-          id === "REF_AREA" || id === "FREQ"
-            ? []
-            : Option.toArray(dimension(id, listed.get(id) ?? null, codes)),
-        ),
+        dimensions: seriesDimensions(values, listed),
         annual: frequencies === undefined || frequencies.includes("A"),
-        countries: [
-          ...new Set(
-            (values.get("REF_AREA") ?? []).flatMap((code) => oecdCountries.get(code) ?? []),
-          ),
-        ].toSorted(),
+        countries: coveredCountries(values.get("REF_AREA")),
         years: years(found),
       },
     ]

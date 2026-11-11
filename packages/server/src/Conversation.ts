@@ -132,13 +132,11 @@ const showing = (
 
   if (agent === undefined) return undefined
 
-  const shown = charts.map((_, place) =>
-    place === chart
-      ? Equal.equals(view, agent.view)
-        ? null
-        : view
-      : (turn.shown?.[place] ?? null),
-  )
+  const shown = charts.map((_, place) => {
+    if (place !== chart) return turn.shown?.[place] ?? null
+
+    return Equal.equals(view, agent.view) ? null : view
+  })
 
   return shown.every((each) => each === null)
     ? Struct.omit(turn, ["shown"])
