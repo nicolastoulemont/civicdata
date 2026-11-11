@@ -8,6 +8,30 @@
 
 Deploys run only after the `check` job passes. Fork pull requests run `check` without secrets and never deploy. Each stage gets its own Worker, D1 database, `Cache` bucket, conversation Durable Objects and pacing. The `prod` D1 database survives `alchemy destroy`.
 
+## Domains
+
+Production serves `https://openfacts.app`. Each `pr-<n>` stage serves
+`https://preview.<n>.openfacts.app`; for example, PR 123 serves
+`https://preview.123.openfacts.app`. Other stages keep their `workers.dev` URL.
+The preview comment reads the URL from Alchemy's stack output.
+
+Alchemy attaches each hostname as a Worker custom domain in the existing
+`openfacts.app` zone, which must be active in the same Cloudflare account as the
+Workers. Cloudflare creates its DNS record and HTTPS certificate, including for
+the nested preview hostname, without a separate Advanced Certificate Manager
+subscription. Do not add a CNAME for these hostnames: an existing CNAME prevents
+Cloudflare from attaching a custom domain.
+
+The tokens in both GitHub environments need Zone Read access for `openfacts.app`
+and Account Workers Scripts Edit access for the custom-domain API, in addition to
+the deployment permissions below. Closing a pull request destroys its stage and
+removes its custom-domain attachment. Cloudflare keeps the issued certificate
+after the attachment is removed; unused certificates can be deleted from
+SSL/TLS > Edge Certificates.
+
+References: [Alchemy custom domains](https://alchemy.run/cloudflare/networking/custom-domains/)
+and [Cloudflare custom domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/).
+
 ## What a preview shares with production
 
 A pull request's preview reads production's catalog and stored series: the catalog's D1 tables (the catalog, the political records, the directions and the series' bookkeeping), the `Vectors` index and the `Series` bucket. Its search answers on its first request and its World Bank charts read the store, with no build of its own. It deploys no Catalog or Gather Workflow, and CI starts no catalog build for it.

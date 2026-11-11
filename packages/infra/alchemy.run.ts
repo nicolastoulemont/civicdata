@@ -5,11 +5,21 @@ import * as Effect from "effect/Effect"
 import * as Option from "effect/Option"
 import * as Redacted from "effect/Redacted"
 
+function hostname(stage: string) {
+  if (stage === "prod") return "openfacts.app"
+
+  if (/^pr-[1-9]\d*$/.test(stage)) return `preview.${stage.slice(3)}.openfacts.app`
+
+  return undefined
+}
+
 export default Alchemy.Stack(
   "civicdata",
   { providers: Cloudflare.providers(), state: Cloudflare.state() },
   Effect.gen(function* () {
     const { stage } = yield* Alchemy.Stack
+
+    const domain = hostname(stage)
 
     // A pull request's preview reads production's catalog (its D1 tables and
     // vector index) and stored series, so it answers searches and draws
@@ -138,6 +148,10 @@ export default Alchemy.Stack(
 
     const web = yield* Cloudflare.Website.Vite("Web", {
       rootDir: "../../apps/web",
+      ...Option.match(Option.fromUndefinedOr(domain), {
+        onNone: () => ({}),
+        onSome: (name) => ({ domain: { name, zoneName: "openfacts.app" } }),
+      }),
       // Pinned so an Alchemy upgrade can't change the runtime. Keep in sync
       // with packages/server/vitest.config.ts.
       compatibility: { date: "2026-08-31" },
