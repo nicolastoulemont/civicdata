@@ -30,6 +30,7 @@ import { Directions } from "../src/Directions.ts"
 import { Faostat } from "../src/Faostat.ts"
 import { Handlers } from "../src/Handlers.ts"
 import { Ilostat } from "../src/Ilostat.ts"
+import { Imf } from "../src/Imf.ts"
 import { Insee } from "../src/Insee.ts"
 import { Notes } from "../src/Notes.ts"
 import { Politics } from "../src/Politics.ts"
@@ -247,6 +248,7 @@ const serve = (
       Layer.provide(Ilostat.layer.pipe(Layer.provide(offline))),
       Layer.provide(Vdem.layer),
       Layer.provide(Wid.layer),
+      Layer.provide(Imf.layer),
       Layer.provide(Who.layer.pipe(Layer.provide(offline))),
       Layer.provide(Faostat.layer.pipe(Layer.provide(offline))),
       Layer.provide(source),

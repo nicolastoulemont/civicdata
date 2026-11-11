@@ -2445,3 +2445,69 @@ it("changes chart framing and number formats without refetching or translating s
   expect(screen.getByText(/Fonte: World Bank, World Development Indicators/)).toBeDefined()
   expect(requests).toBe(1)
 })
+
+it.each(["en-US", "fr-FR", "de-DE", "es-ES", "it-IT", "pt-PT", "pt-BR", "zh-CN"])(
+  "retains IMF vintage and actual/estimate status on restored charts in %s",
+  async (locale) => {
+    const instance = createI18n()
+    await instance.changeLanguage(locale)
+
+    const saved = Trend.make({
+      indicator: IndicatorId.make("IMF:NGDP_RPCH"),
+      countries: ["FRA"],
+      from: Year.make(2025),
+      to: Year.make(2026),
+    })
+
+    network.use(
+      http.get("/api/indicators/:indicator/notes", () => new HttpResponse(null, { status: 404 })),
+      http.post("/api/views/resolve", async ({ request }) => {
+        const view = Schema.decodeUnknownSync(Trend)(await request.json())
+
+        return HttpResponse.json(
+          Schema.encodeSync(ResolvedViewSchema)({
+            ...resolvedFor(view),
+            sources: [
+              {
+                ...source(view.indicator),
+                source: "IMF",
+                dataset: "World Economic Outlook, Source: IMF",
+                url: "https://data.imf.org/en/datasets/IMF.RES:WEO",
+              },
+            ],
+            observations: [
+              { country: "FRA", year: Year.make(2025), value: 0.889548 },
+              { country: "FRA", year: Year.make(2026), value: 0.411371 },
+            ],
+            qualifications: [2025, 2026].map((year) => ({
+              source: "IMF",
+              series: { indicator: view.indicator, dimensions: {} },
+              country: "FRA",
+              year: Year.make(year),
+              missing: false,
+              vintage: "2026-10-13T02:00:00Z",
+              latestActual: 2025,
+              status:
+                year === 2025
+                  ? { code: "Actual", label: "Publisher-designated actual (revisable)" }
+                  : { code: "EstimateProjection", label: "IMF staff estimate/projection" },
+              notes: [],
+            })),
+          }),
+        )
+      }),
+    )
+    show(saved, instance)
+
+    const list = within(
+      await screen.findByRole("list", {
+        name: instance.getFixedT(null, "explore")(($) => $["Flagged values"]),
+      }),
+    )
+
+    expect(list.getAllByText(/2026-10-13T02:00:00Z/)).toHaveLength(2)
+    expect(list.getByText(/IMF staff estimate\/projection/)).toBeDefined()
+    expect(list.getByText(/Publisher-designated actual/)).toBeDefined()
+    expect(screen.getAllByText(/World Economic Outlook, Source: IMF/).length).toBeGreaterThan(0)
+  },
+)

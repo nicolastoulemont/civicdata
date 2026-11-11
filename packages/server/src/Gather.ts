@@ -28,6 +28,7 @@ import { database, Step } from "./CatalogBuild.ts"
 import { Faostat } from "./Faostat.ts"
 import { ledger } from "./GatherLedger.ts"
 import { Ilostat } from "./Ilostat.ts"
+import { Imf } from "./Imf.ts"
 import { Insee } from "./Insee.ts"
 import { Pace } from "./Pace.ts"
 import { Releases, releaseTables } from "./Releases.ts"
@@ -547,6 +548,7 @@ export class Gather extends Context.Service<Gather, Interface>()("@openfacts/ser
     Layer.provide(Ilostat.layer.pipe(Layer.provide(Pace.gathering))),
     Layer.provide(Vdem.layer),
     Layer.provide(Wid.layer),
+    Layer.provide(Imf.layer),
     Layer.provide(Who.layer.pipe(Layer.provide(Pace.gathering))),
     Layer.provide(Faostat.layer.pipe(Layer.provide(Pace.gathering))),
     Layer.provide(Layer.merge(WorldBank.layer, Sdmx.layer).pipe(Layer.provide(Pace.gathering))),

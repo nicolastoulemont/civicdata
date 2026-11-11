@@ -1,0 +1,57 @@
+<ReviewedExcerpts xmlns:ns0="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/structure" xmlns:ns1="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/common" source="IMF.RES/DSD_WEO/9.0.0">
+  <ns0:Code id="PT" urn="urn:sdmx:org.sdmx.infomodel.codelist.Code=IMF:CL_UNIT(2.11.2).PT">
+    <ns1:Name xml:lang="en">Percent</ns1:Name>
+    <ns1:Description xml:lang="en">A ratio expressed as a fraction of 100.</ns1:Description>
+  </ns0:Code>
+  <ns0:Code id="A" urn="urn:sdmx:org.sdmx.infomodel.codelist.Code=IMF:CL_FREQ(1.2.0).A">
+    <ns1:Name xml:lang="ar">سنوية</ns1:Name>
+    <ns1:Name xml:lang="ru">Годовые</ns1:Name>
+    <ns1:Name xml:lang="pt">Anual</ns1:Name>
+    <ns1:Name xml:lang="ja">年次</ns1:Name>
+    <ns1:Name xml:lang="en">Annual</ns1:Name>
+    <ns1:Name xml:lang="fr">Annuel</ns1:Name>
+    <ns1:Name xml:lang="es">Anual</ns1:Name>
+    <ns1:Name xml:lang="zh">每年</ns1:Name>
+    <ns1:Description xml:lang="ar">تُستخدم لتوصيف البيانات التي يتم جمعها أو نشرها على أساس سنوي.</ns1:Description>
+    <ns1:Description xml:lang="ru">Используется для данных, собираемых или распространяемых каждый год.</ns1:Description>
+    <ns1:Description xml:lang="pt">Utilizado para dados compilados ou divulgados anualmente.</ns1:Description>
+    <ns1:Description xml:lang="ja">毎年収集または公表されるデータに使用。</ns1:Description>
+    <ns1:Description xml:lang="en">To be used for data collected or disseminated every year.</ns1:Description>
+    <ns1:Description xml:lang="fr">À utiliser pour les données recueillies ou diffusées chaque année.</ns1:Description>
+    <ns1:Description xml:lang="es">Se usa para datos recopilados o divulgados cada año.</ns1:Description>
+    <ns1:Description xml:lang="zh">用于每年收集或发布的数据。</ns1:Description>
+  </ns0:Code>
+  <ns0:Code id="Q" urn="urn:sdmx:org.sdmx.infomodel.codelist.Code=IMF:CL_PRICES(2.3.0).Q">
+    <ns1:Name xml:lang="en">Constant prices</ns1:Name>
+    <ns1:Description xml:lang="en">Values that have had the effect of price changes removed, expressed as time series in constant prices (fixed base) or chain-linked volume terms, or as non-time series in previous year's prices</ns1:Description>
+  </ns0:Code>
+  <ns0:Code id="FRA" urn="urn:sdmx:org.sdmx.infomodel.codelist.Code=IMF:CL_COUNTRY(1.6.0).FRA">
+    <ns1:Name xml:lang="ar">فرنسا</ns1:Name>
+    <ns1:Name xml:lang="ru">Франция</ns1:Name>
+    <ns1:Name xml:lang="ja">フランス</ns1:Name>
+    <ns1:Name xml:lang="en">France</ns1:Name>
+    <ns1:Name xml:lang="fr">France</ns1:Name>
+    <ns1:Name xml:lang="es">Francia</ns1:Name>
+    <ns1:Name xml:lang="zh">法国</ns1:Name>
+  </ns0:Code>
+  <ns0:Code id="SWE" urn="urn:sdmx:org.sdmx.infomodel.codelist.Code=IMF:CL_COUNTRY(1.6.0).SWE">
+    <ns1:Name xml:lang="ar">السويد</ns1:Name>
+    <ns1:Name xml:lang="ru">Швеция</ns1:Name>
+    <ns1:Name xml:lang="ja">スウェーデン</ns1:Name>
+    <ns1:Name xml:lang="en">Sweden</ns1:Name>
+    <ns1:Name xml:lang="fr">Suède</ns1:Name>
+    <ns1:Name xml:lang="es">Suecia</ns1:Name>
+    <ns1:Name xml:lang="zh">瑞典</ns1:Name>
+  </ns0:Code>
+  <ns0:Code id="NGDP_RPCH" urn="urn:sdmx:org.sdmx.infomodel.codelist.Code=IMF.RES:CL_WEO_INDICATOR(2.0.3).NGDP_RPCH">
+    <ns1:Name xml:lang="en">Gross domestic product (GDP), Constant prices, Percent change</ns1:Name>
+    <ns1:Description xml:lang="en">Gross domestic product reflects the total income earned through the production of goods and services in an economic territory during an accounting period. It can be measured in three different ways: using either the expenditure approach, the income approach, or the production approach.  Values that have had the effect of price changes removed, expressed as time series in constant prices (fixed base) or chain-linked volume terms, or as non-time series in previous year's prices This measures the relative change in a value over time, expressed as a percentage. It is calculated as the difference between the new value and the old value, divided by the old value, and multiplied by 100. 1 A ratio expressed as a fraction of 100.</ns1:Description>
+  </ns0:Code>
+  <ns0:Concept id="LATEST_ACTUAL_ANNUAL_DATA" urn="urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=IMF.RES:CS_WEO(3.1.0).LATEST_ACTUAL_ANNUAL_DATA">
+    <ns1:Name xml:lang="en">Latest Actual Annual Data </ns1:Name>
+    <ns1:Description xml:lang="en">This indicates that latest annual period for which official statistics are available from the authorities.  Data following this period are normal staff estimates.</ns1:Description>
+    <ns0:CoreRepresentation>
+      <ns0:TextFormat textType="String" />
+    </ns0:CoreRepresentation>
+  </ns0:Concept>
+</ReviewedExcerpts>

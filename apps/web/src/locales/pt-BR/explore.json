@@ -187,5 +187,8 @@
   "Excluded reference period": "Período de referência excluído",
   "Excluded geography": "Cobertura geográfica excluída",
   "Estimate {{estimate}}; 68% HPD interval {{lower}}–{{upper}} ({{version}})": "Estimativa {{estimate}}; intervalo HPD de 68% {{lower}}–{{upper}} ({{version}})",
-  "WHO estimate {{estimate}}; 95% uncertainty bounds {{lower}}–{{upper}} ({{version}}).": "Estimativa OMS {{estimate}}; limites de incerteza de 95% {{lower}}–{{upper}} ({{version}})."
+  "WHO estimate {{estimate}}; 95% uncertainty bounds {{lower}}–{{upper}} ({{version}}).": "Estimativa OMS {{estimate}}; limites de incerteza de 95% {{lower}}–{{upper}} ({{version}}).",
+  "WEO {{vintage}}; {{status}}; latest actual {{year}}.": "WEO {{vintage}}; {{status}}; último dado efetivo {{year}}.",
+  "Publisher actual (revisable)": "Dado efetivo do editor (revisável)",
+  "IMF estimate/projection": "Estimativa/projeção do FMI"
 }

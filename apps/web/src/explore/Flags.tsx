@@ -9,6 +9,9 @@ const estimated = (item: Qualification): item is Extract<Qualification, { source
 const who = (item: Qualification): item is Extract<Qualification, { source: "WHO" }> =>
   item.source === "WHO"
 
+const imf = (item: Qualification): item is Extract<Qualification, { source: "IMF" }> =>
+  item.source === "IMF"
+
 const unreliable = (item: Qualification) => item.source === "ILOSTAT" && item.status?.code === "U"
 
 const publisher = (item: Qualification) =>
@@ -56,6 +59,39 @@ const WhoBounds = ({ item }: WhoBoundsProps) => {
       )}
     </span>
   )
+}
+
+interface ImfStatusProps {
+  item: Extract<Qualification, { source: "IMF" }>
+}
+
+const ImfStatus = ({ item }: ImfStatusProps) => {
+  const { t } = useTranslation("explore")
+
+  return (
+    <span>
+      {t(($) => $["WEO {{vintage}}; {{status}}; latest actual {{year}}."], {
+        vintage: item.vintage,
+        status:
+          item.status.code === "Actual"
+            ? t(($) => $["Publisher actual (revisable)"])
+            : t(($) => $["IMF estimate/projection"]),
+        year: item.latestActual,
+      })}
+    </span>
+  )
+}
+
+interface PublisherEvidenceProps {
+  item: Qualification
+}
+
+const PublisherEvidence = ({ item }: PublisherEvidenceProps) => {
+  if (imf(item)) return <ImfStatus item={item} />
+
+  if (who(item)) return <WhoBounds item={item} />
+
+  return null
 }
 
 interface FlagsProps {
@@ -112,7 +148,7 @@ export const Flags = ({ resolved }: FlagsProps) => {
               )}
             </span>
           )}
-          {who(item) && <WhoBounds item={item} />}
+          <PublisherEvidence item={item} />
           {item.missing && <span>{t(($) => $["Missing value"])}</span>}
           {item.exclusion !== undefined && <span>{exclusionLabels[item.exclusion]}</span>}
           {item.notes.map((note) => ` · ${note.category} ${note.code}: ${note.label}`).join("")}

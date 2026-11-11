@@ -7,6 +7,7 @@ import { strToU8, zipSync } from "fflate"
 import { Faostat } from "../src/Faostat.ts"
 import { Gather } from "../src/Gather.ts"
 import { Ilostat } from "../src/Ilostat.ts"
+import { Imf } from "../src/Imf.ts"
 import { Insee } from "../src/Insee.ts"
 import { Sdmx } from "../src/Sdmx.ts"
 import { Sources } from "../src/Sources.ts"
@@ -172,6 +173,7 @@ export const gatherOver = (client: ReturnType<typeof serving>["layer"], store: S
     Layer.provide(Ilostat.layer.pipe(Layer.provide(offline))),
     Layer.provide(Vdem.layer),
     Layer.provide(Wid.layer),
+    Layer.provide(Imf.layer),
     Layer.provide(Who.layer.pipe(Layer.provide(offline))),
     Layer.provide(Faostat.layer.pipe(Layer.provide(offline))),
     Layer.provide(Layer.merge(WorldBank.layer, Sdmx.layer).pipe(Layer.provide(client))),
@@ -187,6 +189,7 @@ export const charts = (client: ReturnType<typeof serving>["layer"], store: Serie
     Layer.provide(Ilostat.layer.pipe(Layer.provide(offline))),
     Layer.provide(Vdem.layer),
     Layer.provide(Wid.layer),
+    Layer.provide(Imf.layer),
     Layer.provide(Who.layer.pipe(Layer.provide(offline))),
     Layer.provide(Faostat.layer.pipe(Layer.provide(offline))),
     Layer.provide(Store.r2(store)),

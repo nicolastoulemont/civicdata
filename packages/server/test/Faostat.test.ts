@@ -13,6 +13,7 @@ import { Directions } from "../src/Directions.ts"
 import { asti, Faostat, FaostatArchive } from "../src/Faostat.ts"
 import { Gather } from "../src/Gather.ts"
 import { Ilostat } from "../src/Ilostat.ts"
+import { Imf } from "../src/Imf.ts"
 import { Insee } from "../src/Insee.ts"
 import { Resolver } from "../src/Resolver.ts"
 import { Sdmx } from "../src/Sdmx.ts"
@@ -39,6 +40,7 @@ it.effect("registers FAOSTAT in the real all-publisher registry", () =>
             Layer.mergeAll(
               Vdem.layer,
               Wid.layer,
+              Imf.layer,
               Who.layer,
               WorldBank.layer,
               Sdmx.layer,

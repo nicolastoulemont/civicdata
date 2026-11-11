@@ -12,6 +12,7 @@ import { Directions } from "../src/Directions.ts"
 import { Faostat } from "../src/Faostat.ts"
 import { Gather } from "../src/Gather.ts"
 import { Ilostat } from "../src/Ilostat.ts"
+import { Imf } from "../src/Imf.ts"
 import { Insee } from "../src/Insee.ts"
 import { Releases } from "../src/Releases.ts"
 import { Resolver } from "../src/Resolver.ts"
@@ -256,6 +257,7 @@ it.effect("routes V-Dem through the real registry alongside all existing publish
         "V-Dem",
         "WHO",
         "WID",
+        "IMF",
       ].toSorted(),
     )
     const source = yield* Sources.get(sources, indicator)
@@ -267,6 +269,7 @@ it.effect("routes V-Dem through the real registry alongside all existing publish
           Layer.mergeAll(
             Vdem.layer,
             Wid.layer,
+            Imf.layer,
             Who.layer,
             Faostat.layer,
             Ilostat.layer,

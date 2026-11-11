@@ -6,6 +6,7 @@ import { Step } from "../src/CatalogBuild.ts"
 import { Faostat } from "../src/Faostat.ts"
 import { Gather } from "../src/Gather.ts"
 import { Ilostat } from "../src/Ilostat.ts"
+import { Imf } from "../src/Imf.ts"
 import { Insee } from "../src/Insee.ts"
 import { Pace } from "../src/Pace.ts"
 import { Sdmx } from "../src/Sdmx.ts"
@@ -19,16 +20,20 @@ import { d1 } from "./d1.ts"
 import { faoArchive } from "./faostat-archive.ts"
 import { archiveLayer as iloArchive } from "./ilostat-archive.ts"
 import { storage } from "./ilostat-storage.ts"
+import { imfArchive } from "./imf-archive.ts"
 import { vdemArchive } from "./vdem-archive.ts"
 import { widArchive } from "./wid-archive.ts"
 
-const archives = (source: "FAOSTAT" | "ILOSTAT" | "V-Dem" | "WID") =>
+const archives = (source: "FAOSTAT" | "ILOSTAT" | "V-Dem" | "WID" | "IMF") =>
   Layer.merge(
-    source === "V-Dem" ? Vdem.layer.pipe(Layer.provide(vdemArchive)) : Vdem.layer,
+    Layer.merge(
+      source === "V-Dem" ? Vdem.layer.pipe(Layer.provide(vdemArchive)) : Vdem.layer,
+      source === "IMF" ? Imf.layer.pipe(Layer.provide(imfArchive)) : Imf.layer,
+    ),
     source === "WID" ? Wid.layer.pipe(Layer.provide(widArchive)) : Wid.layer,
   )
 
-export const fill = (source: "FAOSTAT" | "ILOSTAT" | "V-Dem" | "WID") =>
+export const fill = (source: "FAOSTAT" | "ILOSTAT" | "V-Dem" | "WID" | "IMF") =>
   Effect.gen(function* () {
     const account = yield* Config.String("CLOUDFLARE_ACCOUNT_ID")
     const token = yield* Config.Redacted("CLOUDFLARE_API_TOKEN")

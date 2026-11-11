@@ -204,7 +204,33 @@ const WidQualification = Schema.Struct({
   ),
 }).check(Schema.makeFilter((item) => item.series.indicator === "WID:sptinc992j"))
 
+const ImfQualification = Schema.Struct({
+  source: Schema.Literal("IMF"),
+  series: SeriesKey,
+  ...place,
+  vintage: Schema.NonEmptyString,
+  latestActual: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+  status: Schema.Struct({
+    code: Schema.Literals(["Actual", "EstimateProjection"]),
+    label: Schema.NonEmptyString,
+  }),
+  notes: Schema.Array(
+    Schema.Struct({
+      category: Schema.Literal("Publisher"),
+      code: Schema.NonEmptyString,
+      label: Schema.NonEmptyString,
+    }),
+  ),
+}).check(
+  Schema.makeFilter(
+    (item) =>
+      item.series.indicator === "IMF:NGDP_RPCH" &&
+      item.status.code === (item.year <= item.latestActual ? "Actual" : "EstimateProjection"),
+  ),
+)
+
 export const Qualification = Schema.Union([
+  ImfQualification,
   WidQualification,
   IloQualification,
   FaoQualification,
@@ -225,8 +251,8 @@ export const Input = Schema.Struct({
   url: Schema.NonEmptyString,
   retrievedAt: Schema.DateTimeUtc,
   version: Schema.NonEmptyString,
-  etag: Schema.NonEmptyString,
-  lastModified: Schema.NonEmptyString,
+  etag: Schema.optionalKey(Schema.NonEmptyString),
+  lastModified: Schema.optionalKey(Schema.NonEmptyString),
   sha256: Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/)),
 })
 
