@@ -7,6 +7,7 @@ import { CatalogBuild, Step } from "./CatalogBuild.ts"
 import { Classifier } from "./Classifier.ts"
 import { modelClassifier } from "./ModelClassifier.ts"
 import { PoliticsBuild } from "./PoliticsBuild.ts"
+import * as Traces from "./Traces.ts"
 
 // OpenAI's Decisions API classifies directions where infra turns it on
 // (production) and the deployment has a key. Elsewhere the build classifies
@@ -39,11 +40,16 @@ export class CatalogWorkflow extends WorkflowEntrypoint {
         Effect.flatMap(([catalog, politics]) =>
           Effect.all([Effect.fromResult(catalog), Effect.fromResult(politics)]),
         ),
+        Effect.withSpan("CatalogWorkflow.run", {
+          attributes: { "workflow.instance": event.instanceId },
+        }),
         Effect.provide(
           Layer.mergeAll(
             Step.workflow(step),
             CatalogBuild.live.pipe(Layer.provide(classifier())),
             PoliticsBuild.live,
+            // Its scope closes when the run ends, which exports what is left.
+            Traces.layer,
           ),
         ),
       ),

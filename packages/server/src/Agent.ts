@@ -92,7 +92,7 @@ import {
   Stream,
   Struct,
 } from "effect"
-import { Chat, LanguageModel, Prompt, Tool, Toolkit } from "effect/ai"
+import { Chat, LanguageModel, Prompt, Telemetry, Tool, Toolkit } from "effect/ai"
 
 import { Catalog } from "./Catalog.ts"
 import { cite } from "./Citations.ts"
@@ -1217,6 +1217,79 @@ const ToolsLayer = Tools.toLayer(
   }),
 )
 
+// The longest text a span attribute keeps: enough for a round's words or a
+// tool's result, short of what a chart's data could take.
+const longest = 8192
+
+const clip = (text: string) => (text.length > longest ? `${text.slice(0, longest)}...` : text)
+
+const isRefused = Schema.is(Refused)
+
+// Each tool call as an execute_tool span, as OpenTelemetry's GenAI
+// conventions name it, with its arguments and result, and the problem when
+// the tool sent the model's call back to fix. The span runs from the call
+// to its last result.
+const traced = <T extends Record<string, Tool.Any>>(
+  toolkit: Toolkit.WithHandler<T>,
+): Toolkit.WithHandler<T> => ({
+  tools: toolkit.tools,
+  handle: (name, params, id, options) =>
+    Effect.succeed(
+      Stream.unwrap(toolkit.handle(name, params, id, options)).pipe(
+        Stream.tap(({ result, encodedResult, preliminary }) =>
+          Effect.gen(function* () {
+            if (preliminary) return
+
+            yield* Effect.annotateCurrentSpan(
+              "gen_ai.tool.call.result",
+              clip(JSON.stringify(encodedResult)),
+            )
+
+            if (isRefused(result)) {
+              yield* Effect.annotateCurrentSpan("civicdata.tool.rejection", result.problem)
+            }
+          }),
+        ),
+        Stream.withSpan(`execute_tool ${String(name)}`, {
+          attributes: {
+            "gen_ai.operation.name": "execute_tool",
+            "gen_ai.tool.name": String(name),
+            "gen_ai.tool.type": "function",
+            "gen_ai.tool.call.id": id,
+            "gen_ai.tool.call.arguments": clip(JSON.stringify(params)),
+          },
+        }),
+      ),
+    ),
+})
+
+// Writes on each model request's span what the model answered: its words
+// and the tools it called, in OpenTelemetry's GenAI message form.
+const output: Telemetry.SpanTransformer = ({ response, span }) => {
+  const parts = response.flatMap((part): ReadonlyArray<object> => {
+    if (part.type === "text") return [{ type: "text", content: part.text }]
+
+    if (part.type === "tool-call") {
+      return [{ type: "tool_call", id: part.id, name: part.name, arguments: part.params }]
+    }
+
+    return []
+  })
+
+  span.attribute("gen_ai.output.messages", clip(JSON.stringify([{ role: "assistant", parts }])))
+}
+
+// How an answer ended, as its span records it.
+const endedAs = Match.type<Ending>().pipe(
+  Match.tagsExhaustive({
+    Answered: () => "answered",
+    Asked: () => "asked",
+    Unanswered: () => "unanswered",
+    Exhausted: () => "exhausted",
+    Stopped: () => "stopped",
+  }),
+)
+
 // A chat leaves tool arguments undecoded ("opaque"); results are decoded.
 type Round = LanguageModel.GenerateTextResponse<Toolkit.Tools<typeof Tools>, "opaque">
 
@@ -1341,7 +1414,7 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
     Agent,
     Effect.gen(function* () {
       const model = yield* LanguageModel.LanguageModel
-      const toolkit = yield* Tools
+      const toolkit = traced(yield* Tools)
       const resolver = yield* Resolver
 
       const start = Effect.gen(function* () {
@@ -1362,6 +1435,17 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
         { asked, queue }: { asked: Asking; queue: Queue.Queue<Step, Failure | Cause.Done> },
       ) {
         const send = (step: Step) => Effect.sync(() => Queue.offerUnsafe(queue, step))
+
+        // The answer's span, as OpenTelemetry's GenAI conventions name an
+        // agent's run, with the question it answers.
+        yield* Effect.annotateCurrentSpan({
+          "gen_ai.operation.name": "invoke_agent",
+          "gen_ai.agent.name": "civicdata",
+          "gen_ai.input.messages": clip(
+            JSON.stringify([{ role: "user", parts: [{ type: "text", content: asked.question }] }]),
+          ),
+          "civicdata.charts.changed": asked.changed.length,
+        })
 
         const thinking = yield* Ref.make(Option.none<StepId>())
         const known = yield* Ref.make<ReadonlyMap<string, Cited>>(new Map())
@@ -1408,6 +1492,8 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
             yield* Ref.set(thinking, Option.some(id))
             yield* send(Thinking.make({ id, state: Running.make({}) }))
 
+            yield* Effect.annotateCurrentSpan("civicdata.answer.rounds", round + 1)
+
             const response = yield* chat.generateText({
               prompt: round === 0 ? prompted(asked) : [],
               toolkit,
@@ -1430,7 +1516,11 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
         })
 
         yield* decided.pipe(
+          Effect.tap((ending) =>
+            Effect.annotateCurrentSpan("civicdata.answer.ending", endedAs(ending)),
+          ),
           Effect.flatMap(send),
+          Effect.provideService(Telemetry.CurrentSpanTransformer, output),
           Effect.provideService(Report, report),
           Effect.provideService(Known, known),
           Effect.provideService(LanguageModel.LanguageModel, model),
@@ -1478,6 +1568,7 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
             Effect.andThen(Effect.fail(new AgentUnavailable())),
           ),
         ),
+        Effect.provideService(Telemetry.CurrentSpanTransformer, output),
       )
 
       return Agent.of({ start, ask, explain })

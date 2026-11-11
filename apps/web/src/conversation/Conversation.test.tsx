@@ -80,7 +80,7 @@ import { describe, expect, it, onTestFinished, vi } from "vitest"
 import { SidebarProvider } from "@/components/ui/sidebar"
 
 import { line, typed } from "../../test/composer.ts"
-import { network } from "../../test/network.ts"
+import { exportedSpans, network } from "../../test/network.ts"
 import { Conversation } from "./Conversation.tsx"
 
 const id = ConversationId.make("0b5d7c1e-8f4a-4c2b-9d3e-1a2b3c4d5e6f")
@@ -602,6 +602,42 @@ describe("Conversation", () => {
     ).toBeDefined()
     expect(screen.getByText("Life expectancy in Brazil rose.")).toBeDefined()
     expect(screen.queryByText("Searched for “life expectancy”: 1 found")).toBeNull()
+  })
+
+  it("traces a question from the page into the server's answer, and exports it as the page goes away", async () => {
+    const reply = answer()
+    const question = "How has life expectancy changed in Brazil?"
+    const sent: Array<string | null> = []
+
+    // The question's request, as the server receives it, before the answer.
+    const asked = http.post(`/api/conversations/${id}/questions`, ({ request }) => {
+      sent.push(request.headers.get("traceparent"))
+    })
+
+    network.use(turns([]), asked, reply.handler, resolve)
+    show(question)
+
+    reply.send(message(charted(plot(brazil), said("Life expectancy in Brazil rose."))))
+    reply.end()
+
+    expect(
+      await screen.findByRole("heading", { name: "Life expectancy at birth (years)" }),
+    ).toBeDefined()
+
+    // The server continues the page's trace: W3C's traceparent names it.
+    expect(sent).toEqual([expect.stringMatching(/^00-[0-9a-f]{32}-[0-9a-f]{16}-01$/)])
+
+    const trace = sent[0]?.split("-")[1]
+
+    window.dispatchEvent(new Event("pagehide"))
+
+    // Leaving the page exports the question's span, with the trace's id.
+    await vi.waitFor(() =>
+      expect(
+        exportedSpans().find((span) => span.traceId === trace && span.name === "question.ask")
+          ?.attributes,
+      ).toMatchObject({ "civicdata.question": question, "gen_ai.conversation.id": id }),
+    )
   })
 
   it("opens a search to its best matches and their source", async () => {

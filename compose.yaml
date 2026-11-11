@@ -1,0 +1,12 @@
+# What `pnpm dev` runs beside the app (docs/traces.md). One project name for
+# every checkout, so worktrees share one Grafana instead of fighting over ports.
+name: civicdata
+
+services:
+  # Grafana with Tempo, receiving the app's spans over OTLP/HTTP on 4318.
+  # Grafana at http://localhost:3000 signs you in on its own.
+  grafana:
+    image: grafana/otel-lgtm:0.40.0
+    ports:
+      - "3000:3000"
+      - "4318:4318"

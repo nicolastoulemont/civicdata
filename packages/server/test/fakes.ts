@@ -1,5 +1,6 @@
-import { Deferred, Effect, Exit, Layer, Option } from "effect"
+import { Deferred, Effect, Exit, Layer, Option, Tracer } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
+import { OtlpExporter } from "effect/observability"
 
 import { Cache } from "../src/Cache.ts"
 import { Step, StepFailed } from "../src/CatalogBuild.ts"
@@ -13,6 +14,27 @@ export const http = (respond: (url: string) => Response) =>
       Effect.succeed(HttpClientResponse.fromWeb(request, respond(request.url))),
     ),
   )
+
+// A tracer that keeps every span it starts, for a test to read what a trace
+// records. Nothing is exported.
+export const recording = () => {
+  const spans: Array<Tracer.Span> = []
+
+  const tracer = Tracer.make({
+    span: (options) => {
+      const span = Tracer.nativeTracer.span(options)
+
+      spans.push(span)
+
+      return span
+    },
+  })
+
+  return {
+    spans,
+    layer: Layer.merge(OtlpExporter.layerFlusher, Layer.succeed(Tracer.Tracer, tracer)),
+  }
+}
 
 // For tests that need no source: everything is missing.
 export const offline = http(() => new Response("not recorded", { status: 404 }))

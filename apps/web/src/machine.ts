@@ -2,6 +2,8 @@ import { Machine } from "@civicdata/machine"
 import { Effect, Equal, Fiber, Stream } from "effect"
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react"
 
+import { traced } from "@/traces"
+
 interface Options<Input, O> {
   readonly input: Input
   // Called with each output, the latest callback each time.
@@ -18,7 +20,8 @@ type Send<E> = (event: E) => void
 // Runs a machine for as long as the component shows it, and for one input:
 // an input that is not Equal to the last one starts the machine again from
 // its initial state, and stops the work of the previous one. The page renders
-// the initial state on the server, where no work runs.
+// the initial state on the server, where no work runs. Work runs with the
+// page's tracer (traces.ts).
 export function useMachine<S extends Machine.Tagged, E extends Machine.Tagged, O>(
   machine: Machine.Machine<void, S, E, O, never>,
   options?: Partial<Options<void, O>>,
@@ -77,12 +80,12 @@ export function useMachine<Input, S extends Machine.Tagged, E extends Machine.Ta
       ),
       Effect.flatMap((running) => running.changes.pipe(Stream.runForEach(show))),
       Effect.scoped,
-      Effect.runFork,
+      (work) => traced().runFork(work),
     )
 
     return () => {
       actor.current = undefined
-      Effect.runFork(Fiber.interrupt(fiber))
+      traced().runFork(Fiber.interrupt(fiber))
     }
   }, [machine, started])
 
@@ -90,7 +93,7 @@ export function useMachine<Input, S extends Machine.Tagged, E extends Machine.Ta
   const send = useCallback((event: E) => {
     const running = actor.current
 
-    if (running !== undefined) Effect.runFork(running.send(event))
+    if (running !== undefined) traced().runFork(running.send(event))
   }, [])
 
   return [current.state, send]

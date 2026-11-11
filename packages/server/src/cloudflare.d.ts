@@ -4,6 +4,8 @@ type DurableObjectId = import("@cloudflare/workers-types").DurableObjectId
 
 declare module "cloudflare:workers" {
   export const WorkflowEntrypoint: typeof import("@cloudflare/workers-types").CloudflareWorkersModule.WorkflowEntrypoint
+  // Keeps the request alive until the promise settles, after its response.
+  export const waitUntil: (promise: Promise<unknown>) => void
   export const env: {
     readonly CACHE?: import("./Cache.ts").Bucket
     // Every stored series, filled by GatherWorkflow (Store.ts).
@@ -14,6 +16,17 @@ declare module "cloudflare:workers" {
     readonly ASK_LIMIT?: {
       readonly limit: (options: { readonly key: string }) => Promise<{ readonly success: boolean }>
     }
+    // Caps the span batches one visitor's browser sends (Traces.ts).
+    readonly TRACE_LIMIT?: {
+      readonly limit: (options: { readonly key: string }) => Promise<{ readonly success: boolean }>
+    }
+    // Where spans go (Traces.ts, docs/traces.md). Without an endpoint the
+    // stage records none.
+    readonly OTEL_EXPORTER_OTLP_ENDPOINT?: string
+    readonly OTEL_EXPORTER_OTLP_HEADERS?: string
+    // The Alchemy stage and the commit deployed, on every span.
+    readonly STAGE?: string
+    readonly VERSION?: string
     readonly CONVERSATION?: {
       readonly idFromName: (name: string) => DurableObjectId
       readonly get: (id: DurableObjectId) => {
