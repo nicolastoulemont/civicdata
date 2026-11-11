@@ -466,6 +466,47 @@ describe("Elections and governments on a trend", () => {
     expect(await screen.findByText("No election or government records for Brazil")).toBeDefined()
   })
 
+  it("names no country as unrecorded while the records of a country just added load", async () => {
+    const gate = Promise.withResolvers<void>()
+
+    network.use(
+      resolve,
+      http.get("/api/politics", async ({ request }) => {
+        if (new URL(request.url).searchParams.get("countries") === "ESP,PRT") await gate.promise
+      }),
+      politics,
+    )
+    const user = userEvent.setup()
+
+    show(["ESP"], { overlays: ["governments"] })
+
+    await within(await screen.findByRole("figure")).findByText("Pedro Sánchez")
+    await user.click(screen.getByRole("button", { name: "Change" }))
+    await user.type(screen.getByRole("combobox", { name: "Countries" }), "Portu")
+    await user.click(await screen.findByRole("option", { name: "Portugal" }))
+
+    expect(await screen.findByText("Spain and Portugal · 2010–2020")).toBeDefined()
+    expect(screen.queryByText(/^No government records for/)).toBeNull()
+    // Spain's governments stay drawn meanwhile.
+    await hover2011(user, screen.getByRole("figure"))
+    expect(
+      await within(screen.getByRole("figure")).findByText(
+        "Spain: Mariano Rajoy · PP · 2011 to 2018",
+      ),
+    ).toBeDefined()
+
+    gate.resolve()
+
+    const figure = await screen.findByRole("figure")
+
+    await hover2011(user, figure)
+
+    expect(
+      await within(figure).findByText("Portugal: Pedro Passos Coelho · PSD, CDS-PP · 2011 to 2015"),
+    ).toBeDefined()
+    expect(screen.queryByText(/^No government records for/)).toBeNull()
+  })
+
   it("says the records are unavailable when they cannot be read", async () => {
     network.use(
       resolve,

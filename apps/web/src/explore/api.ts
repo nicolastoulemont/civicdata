@@ -78,7 +78,9 @@ export const notesQuery = ({ indicator, countries, dimensions }: View) =>
 // The elections and governments of a trend's countries during its years;
 // nothing is asked without a trend. Rejects with PoliticsUnavailable before the records are
 // first stored, or outside Workers, or a transport error. The records change
-// weekly at most.
+// weekly at most. The previous trend's records stay while these load, so the
+// chart keeps its bands; they are not this trend's, so nothing reads them as
+// its records.
 export const politicsQuery = (trend: Trend | undefined) =>
   queryOptions({
     queryKey: ["politics", trend?.countries.join(","), trend?.from, trend?.to],

@@ -260,6 +260,29 @@ const notes = http.get("/api/indicators/:indicator/notes", ({ params }) => {
   )
 })
 
+// Answers like the API, holding back the Views `held` matches until the test
+// releases them, so it can look at the card while they load.
+const holding = (held: (view: View) => boolean) => {
+  const gate = Promise.withResolvers<void>()
+
+  const handler = http.post("/api/views/resolve", async ({ request }) => {
+    const view = Schema.decodeUnknownSync(View)(await request.json())
+
+    if (held(view)) await gate.promise
+
+    return HttpResponse.json(Schema.encodeSync(ResolvedViewSchema)(resolvedFor(view)))
+  })
+
+  return { handler, release: () => gate.resolve() }
+}
+
+// A trend's whole history, which the window under the chart picks its years on.
+const isHistory = (view: View) =>
+  Match.value(view).pipe(
+    Match.tag("Trend", ({ from }) => from === 1960),
+    Match.orElse(() => false),
+  )
+
 interface PageProps {
   initial: View
 }
@@ -807,6 +830,66 @@ describe("Explore", () => {
     ).toBeDefined()
     expect(screen.getByRole("combobox", { name: "Sex" }).textContent).toContain("Total")
     expect(screen.queryByText("Choose which series to show")).toBeNull()
+  })
+
+  it("takes away a Eurostat dataset's series while the next indicator loads", async () => {
+    const eurostatUnemployment = IndicatorId.make("ESTAT,UNE_RT_A,1.0")
+    const life = IndicatorId.make("SP.DYN.LE00.IN")
+    const gate = Promise.withResolvers<void>()
+
+    const sex = Schema.decodeSync(Dimension)({
+      id: "sex",
+      label: "Sex",
+      options: [
+        { code: "F", label: "Females" },
+        { code: "T", label: "Total" },
+      ],
+    })
+
+    network.use(
+      search,
+      http.post("/api/views/resolve", async ({ request }) => {
+        const view = Schema.decodeUnknownSync(View)(await request.json())
+
+        if (view.indicator === life) await gate.promise
+
+        const resolved = resolvedFor(view)
+
+        return HttpResponse.json(
+          Schema.encodeSync(ResolvedViewSchema)(
+            view.indicator === eurostatUnemployment ? { ...resolved, dimensions: [sex] } : resolved,
+          ),
+        )
+      }),
+    )
+    const user = userEvent.setup()
+
+    show(
+      Trend.make({
+        ...trend,
+        indicator: eurostatUnemployment,
+        dimensions: Schema.decodeSync(Dimensions)({ sex: "T" }),
+      }),
+    )
+
+    expect(await screen.findByRole("combobox", { name: "Sex" })).toBeDefined()
+
+    await user.tripleClick(screen.getByRole("combobox", { name: "Indicator" }))
+    await user.keyboard("life")
+    await user.click(
+      await screen.findByRole("option", { name: "Life expectancy at birth, total (years)" }),
+    )
+
+    // Until its own data names it, the card calls the indicator by its code.
+    expect(await screen.findByRole("heading", { name: life })).toBeDefined()
+    expect(screen.queryByRole("combobox", { name: "Sex" })).toBeNull()
+
+    gate.resolve()
+
+    expect(
+      await screen.findByRole("heading", { name: "Life expectancy at birth, total (years)" }),
+    ).toBeDefined()
+    expect(screen.queryByRole("combobox", { name: "Sex" })).toBeNull()
   })
 
   it("shows each unit's full label when units share a long prefix", async () => {
@@ -1557,6 +1640,37 @@ describe("Explore", () => {
     expect(screen.queryByText("Bar chart ranking countries by Total population")).toBeNull()
   })
 
+  it("takes the slider away while a ranking over time's new span loads, then moves through it", async () => {
+    const shortened = holding((view) =>
+      Match.value(view).pipe(
+        Match.tag("Ranking", ({ span }) => span?.to === 2019),
+        Match.orElse(() => false),
+      ),
+    )
+
+    network.use(shortened.handler)
+    const user = userEvent.setup()
+
+    show(overTime)
+
+    await screen.findByRole("slider", { name: "Year" })
+    await user.click(screen.getByRole("combobox", { name: "To" }))
+    await user.click(await screen.findByRole("option", { name: "2019" }))
+
+    // The chart of 2017 to 2020 stays on screen, with nothing to move it.
+    expect(await screen.findByText("France, Germany, and Italy · 2017–2019")).toBeDefined()
+    expect(screen.getByText("Bar chart ranking countries by Total population")).toBeDefined()
+    expect(screen.queryByRole("slider", { name: "Year" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Play" })).toBeNull()
+
+    shortened.release()
+
+    const year = await screen.findByRole("slider", { name: "Year" })
+
+    expect(year.getAttribute("max")).toBe("2019")
+    expect(screen.getByRole("status").textContent).toBe("2019")
+  })
+
   it("shades a map over time by value on a key that stays the same in every year", async () => {
     network.use(worldBank)
     const user = userEvent.setup()
@@ -1709,6 +1823,56 @@ describe("Explore", () => {
 
     expect(await screen.findByText("France and Germany · 2018–2020")).toBeDefined()
     expect(screen.getByRole("combobox", { name: "From" }).textContent).toContain("2018")
+  })
+
+  it("shows no year window while the new indicator's history loads", async () => {
+    const life = IndicatorId.make("SP.DYN.LE00.IN")
+    const history = holding((view) => view.indicator === life && isHistory(view))
+
+    network.use(history.handler, search)
+    const user = userEvent.setup()
+
+    show(trend)
+
+    await screen.findByRole("slider", { name: "First year" })
+
+    const indicator = screen.getByRole("combobox", { name: "Indicator" })
+
+    await user.tripleClick(indicator)
+    await user.keyboard("life")
+    await user.click(
+      await screen.findByRole("option", { name: "Life expectancy at birth, total (years)" }),
+    )
+
+    expect(
+      await screen.findByRole("heading", { name: "Life expectancy at birth, total (years)" }),
+    ).toBeDefined()
+    expect(screen.queryByRole("slider", { name: "First year" })).toBeNull()
+
+    history.release()
+
+    expect(await screen.findByRole("slider", { name: "First year" })).toBeDefined()
+  })
+
+  it("says when a trend's history cannot be loaded, and keeps its chart", async () => {
+    network.use(
+      http.post("/api/views/resolve", async ({ request }) => {
+        const view = Schema.decodeUnknownSync(View)(await request.json())
+
+        return isHistory(view)
+          ? HttpResponse.json(
+              Schema.encodeSync(SourceUnavailable)(new SourceUnavailable({ source: "World Bank" })),
+              { status: 503 },
+            )
+          : HttpResponse.json(Schema.encodeSync(ResolvedViewSchema)(resolvedFor(view)))
+      }),
+    )
+
+    show(trend)
+
+    expect(await screen.findByText("The chart's history could not be loaded")).toBeDefined()
+    expect(screen.getByRole("heading", { name: "Total population" })).toBeDefined()
+    expect(screen.queryByRole("slider", { name: "First year" })).toBeNull()
   })
 
   it("shows a total per person", async () => {
