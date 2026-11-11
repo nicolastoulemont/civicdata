@@ -23,7 +23,7 @@ const newest = Order.flip(Order.mapInput(DateTime.Order, (entry: Entry) => entry
 const decode = Schema.decodeUnknownOption(Entries)
 const encode = Schema.encodeSync(Entries)
 
-const key = "civicdata:conversations"
+const key = "openfacts:conversations"
 
 const none: ReadonlyArray<Entry> = []
 

@@ -6,7 +6,7 @@ export const Mode = Schema.Literals(["system", "light", "dark"])
 
 export type Mode = typeof Mode.Type
 
-const key = "civicdata:appearance"
+const key = "openfacts:appearance"
 
 // Stored as JSON in localStorage. Its format outlives deploys: changing it
 // resets every visitor to System.

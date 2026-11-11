@@ -16,7 +16,7 @@ import { Route as ChatRoute } from "@/routes/_chat"
 
 // Where the choice is kept. Its format outlives deploys: changing it resets
 // every visitor to System.
-const key = "civicdata:appearance"
+const key = "openfacts:appearance"
 
 const theme = () => document.documentElement.getAttribute("data-theme")
 

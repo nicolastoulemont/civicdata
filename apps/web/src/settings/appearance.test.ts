@@ -4,7 +4,7 @@ import { pin, script } from "./appearance.ts"
 
 // Where the choice is kept. Its format outlives deploys: changing it resets
 // every visitor to System.
-const key = "civicdata:appearance"
+const key = "openfacts:appearance"
 
 const boot = () => {
   // oxlint-disable-next-line typescript/no-implied-eval -- runs the text the root route inlines in <head>, as the browser does

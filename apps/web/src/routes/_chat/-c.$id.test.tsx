@@ -43,7 +43,7 @@ const decodeView = Schema.decodeUnknownSync(View)
 
 it("starts loading a conversation's charts when its sidebar row is hovered", async () => {
   localStorage.setItem(
-    "civicdata:conversations",
+    "openfacts:conversations",
     JSON.stringify([
       {
         id,
