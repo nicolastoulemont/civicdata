@@ -132,7 +132,7 @@ const worldBankNoting = (asked: Array<string> = []) =>
             dimensions: [],
           }),
         ),
-      policy: Policy.None(),
+      policy: Policy.Api(),
       list: Effect.succeed([]),
     }),
   )
@@ -144,7 +144,7 @@ const down = Layer.succeed(
   WorldBank.of({
     describe: () => Effect.fail(new SourceUnavailable({ source: "World Bank" })),
     fetch: () => Effect.fail(new SourceUnavailable({ source: "World Bank" })),
-    policy: Policy.None(),
+    policy: Policy.Api(),
     list: Effect.fail(new SourceUnavailable({ source: "World Bank" })),
   }),
 )

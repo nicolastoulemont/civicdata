@@ -168,7 +168,7 @@ const recordedWorldBank = Layer.succeed(
         retrievedAt: DateTime.makeUnsafe("2026-11-01T00:00:00Z"),
         dimensions: [],
       }),
-    policy: Policy.None(),
+    policy: Policy.Api(),
     list: Effect.succeed([]),
   }),
 )
@@ -1588,7 +1588,7 @@ describe("conversations", () => {
     WorldBank.of({
       describe: () => Effect.fail(new SourceUnavailable({ source: "World Bank" })),
       fetch: () => Effect.fail(new SourceUnavailable({ source: "World Bank" })),
-      policy: Policy.None(),
+      policy: Policy.Api(),
       list: Effect.fail(new SourceUnavailable({ source: "World Bank" })),
     }),
   )
@@ -1954,7 +1954,7 @@ describe("conversations", () => {
         WorldBank.of({
           describe: () => Effect.never,
           fetch: () => Effect.die("no observations in this test"),
-          policy: Policy.None(),
+          policy: Policy.Api(),
           list: Effect.succeed([]),
         }),
       )

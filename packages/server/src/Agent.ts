@@ -791,10 +791,24 @@ const noValues = (source: Source) =>
 // A source that did not answer, or that we stopped asking for now because its
 // request budget is spent (Pace.ts), fails the step but not the answer: the
 // model turns to the other sources, as the person would.
-const unanswered = ({ source }: SourceUnavailable) =>
+const unanswered = ({ source, reason }: SourceUnavailable) =>
   Effect.succeed(
     rejected(
-      `${source} is not answering now. Use an indicator of another source for the same measure, or answer without this one.`,
+      Match.value(reason).pipe(
+        Match.when(
+          "NotStored",
+          () =>
+            `${source} has not stored this series yet. Answer without it; do not infer values or start a download.`,
+        ),
+        Match.when(
+          "StoreUnavailable",
+          () => `${source} stored series cannot be read now. Answer without this series.`,
+        ),
+        Match.orElse(
+          () =>
+            `${source} is not answering now. Use an indicator of another source for the same measure, or answer without this one.`,
+        ),
+      ),
     ),
   )
 

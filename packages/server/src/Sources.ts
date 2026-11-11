@@ -4,6 +4,7 @@ import {
   type SeriesKey,
   type Source,
   sourceOf,
+  SourceUnavailable,
 } from "@civicdata/domain"
 import { Context, Effect, Layer, Option, Record } from "effect"
 
@@ -58,56 +59,71 @@ export class Sources extends Context.Service<Sources, Interface>()("@civicdata/s
       const sources = yield* Sources
       const store = yield* Store
 
-      const read = (key: SeriesKey) =>
-        store
-          .read(key)
-          .pipe(
-            Effect.catchTag("StoreUnavailable", (error) =>
-              Effect.logWarning(
-                "Store unavailable, asking the source",
-                sourceOf(key.indicator),
-                key.indicator,
-                error,
-              ).pipe(Effect.as(Option.none())),
-            ),
-          )
+      const read = (key: SeriesKey, policy: Policy) =>
+        store.read(key).pipe(
+          Effect.catchTag("StoreUnavailable", (error) =>
+            Policy.$is("StoredOnly")(policy)
+              ? Effect.fail(
+                  new SourceUnavailable({
+                    source: sourceOf(key.indicator),
+                    reason: "StoreUnavailable",
+                  }),
+                )
+              : Effect.logWarning(
+                  "Store unavailable, asking the source",
+                  sourceOf(key.indicator),
+                  key.indicator,
+                  error,
+                ).pipe(Effect.as(Option.none())),
+          ),
+        )
 
-      const stored = (adapter: Adapter): Adapter =>
-        Policy.$match(adapter.policy, {
-          None: () => adapter,
-          Full: ({ url }) => ({
-            ...adapter,
-            // An entry's description is read from its series without
-            // dimensions: the World Bank's only series. A source whose series
-            // have dimensions stores none, so it is asked.
-            describe: Effect.fn("Sources.describe")(function* (indicator: IndicatorId) {
-              const found = yield* read({ indicator, dimensions: {} })
+      const stored = (adapter: Adapter): Adapter => {
+        const { policy } = adapter
 
-              if (Option.isNone(found)) return yield* adapter.describe(indicator)
+        if (Policy.$is("Api")(policy)) return adapter
+        const { url } = policy
 
-              const { dataset, retrievedAt } = found.value
+        return {
+          ...adapter,
+          // A dimensionless series supplies stored metadata. Otherwise the
+          // adapter supplies metadata, never an observations archive.
+          describe: Effect.fn("Sources.describe")(function* (indicator: IndicatorId) {
+            const found = yield* read({ indicator, dimensions: {} }, policy)
 
-              return { indicator: found.value.indicator, dataset, retrievedAt }
-            }),
-            fetch: Effect.fn("Sources.fetch")(function* (query) {
-              const found = yield* read(query)
+            if (Option.isNone(found)) return yield* adapter.describe(indicator)
 
-              if (Option.isNone(found)) return yield* adapter.fetch(query)
+            const { dataset, retrievedAt } = found.value
 
-              const countries = new Set(query.countries)
-
-              return {
-                observations: found.value.observations.filter(
-                  ({ country, year }) =>
-                    countries.has(country) && year >= query.from && year <= query.to,
-                ),
-                url: url(query),
-                retrievedAt: found.value.retrievedAt,
-                dimensions: [],
-              }
-            }),
+            return { indicator: found.value.indicator, dataset, retrievedAt }
           }),
-        })
+          fetch: Effect.fn("Sources.fetch")(function* (query) {
+            const found = yield* read(query, policy)
+
+            if (Option.isNone(found)) {
+              if (Policy.$is("StoredOnly")(policy))
+                return yield* new SourceUnavailable({
+                  source: sourceOf(query.indicator),
+                  reason: "NotStored",
+                })
+
+              return yield* adapter.fetch(query)
+            }
+
+            const countries = new Set(query.countries)
+
+            return {
+              observations: found.value.observations.filter(
+                ({ country, year }) =>
+                  countries.has(country) && year >= query.from && year <= query.to,
+              ),
+              url: url(query, found.value.version),
+              retrievedAt: found.value.retrievedAt,
+              dimensions: [],
+            }
+          }),
+        }
+      }
 
       return Sources.of({ ...sources, ...Record.map(sources, stored) })
     }),

@@ -322,7 +322,7 @@ describe("Gather", () => {
         const failed = yield* Effect.promise(() =>
           seriesDb
             .prepare(
-              "SELECT json_extract(state, '$.failures') AS failures, json_extract(state, '$.reason') AS reason FROM series_gathered WHERE indicator = ?",
+              "SELECT json_extract(state, '$.failures') AS failures, json_extract(state, '$.reason') AS reason FROM asset_gathered WHERE asset = ?",
             )
             .bind(codes.unemployment)
             .first<{ failures: number; reason: string }>(),
@@ -360,7 +360,7 @@ describe("Gather", () => {
       const state = () =>
         seriesDb
           .prepare(
-            "SELECT json_extract(state, '$.stored') AS stored, json_extract(state, '$.wanted') AS wanted, json_extract(state, '$.failures') AS failures FROM series_gathered WHERE indicator = ?",
+            "SELECT json_extract(state, '$.stored') AS stored, json_extract(state, '$.wanted') AS wanted, json_extract(state, '$.failures') AS failures FROM asset_gathered WHERE asset = ?",
           )
           .bind(codes.unemployment)
           .first()
@@ -464,12 +464,48 @@ describe("Gather", () => {
       yield* catalogue(catalogOf(codes))
       yield* run.pipe(Effect.provide(gather))
       yield* Effect.promise(() =>
-        seriesDb.prepare("UPDATE series_gathered SET scope = 'series/v1/World Bank'").run(),
+        seriesDb.prepare("UPDATE asset_gathered SET scope = 'series/v1/World Bank'").run(),
       )
       const asked = source.requests()
       yield* run.pipe(Effect.provide(gather))
       expect(source.requests() - asked).toBe(3)
       expect((yield* Effect.promise(ledgerRows)).results).toHaveLength(4)
     })
+  })
+})
+
+it.effect("bridges deployed World Bank successes and backoff without a bulk refetch", () => {
+  const codes = indicators("BRIDGE")
+  const source = serving(publishing(codes))
+  const store = bucket()
+  const gather = gatherOver(source.layer, store.bucket)
+
+  return Effect.gen(function* () {
+    yield* catalogue(catalogOf(codes))
+    yield* run.pipe(Effect.provide(gather))
+    const at = DateTime.formatIso(yield* DateTime.now)
+    yield* Effect.promise(() =>
+      seriesDb
+        .prepare(
+          "UPDATE asset_gathered SET state = json_object('_tag', 'Failed', 'wanted', '2026-10-08', 'stored', 'old', 'failures', 3, 'reason', 'recorded outage', 'at', ?) WHERE asset = ?",
+        )
+        .bind(at, codes.unemployment)
+        .run(),
+    )
+    const before = (yield* Effect.promise(ledgerRows)).results
+    // Recreate the deployed per-indicator schema, including its failed row.
+    yield* Effect.promise(() =>
+      seriesDb.exec(
+        "INSERT INTO series_gathered (scope, indicator, state) SELECT scope, asset, state FROM asset_gathered; DROP TABLE asset_gathered",
+      ),
+    )
+    const asked = source.requests()
+    yield* run.pipe(Effect.provide(gather))
+    yield* run.pipe(Effect.provide(gather))
+    expect(source.requests() - asked).toBe(2) // version requests only
+    expect((yield* Effect.promise(ledgerRows)).results).toEqual(before)
+    expect(
+      (yield* spain(codes).pipe(Effect.provide(charts(source.layer, store.bucket)))).observations,
+    ).toHaveLength(6)
   })
 })

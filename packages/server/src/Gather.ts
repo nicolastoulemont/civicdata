@@ -1,15 +1,15 @@
 import {
   CatalogUnavailable,
   type CatalogEntry,
+  sourceOf,
+  SourceUnavailable,
   IndicatorId,
   pathOf,
   Source,
-  type SourceUnavailable,
 } from "@civicdata/domain"
 import {
   Array as Arr,
   Context,
-  Data,
   DateTime,
   Effect,
   Layer,
@@ -20,17 +20,17 @@ import {
 } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
-import { Policy, Versions } from "./Adapter.ts"
+import { AssetId, type Bulk, Versions } from "./Adapter.ts"
 import { tables } from "./Catalog.ts"
 import { database, Step } from "./CatalogBuild.ts"
 import { ledger } from "./GatherLedger.ts"
 import { Pace } from "./Pace.ts"
 import { Sdmx } from "./Sdmx.ts"
 import { Sources } from "./Sources.ts"
-import { keyOf, Outcome, type Place, type Stored, Store } from "./Store.ts"
+import { keyOf, Outcome, type Place, Stored, Store } from "./Store.ts"
 import { WorldBank } from "./WorldBank.ts"
 
-// Catalog entries per step. The World Bank's bulk download of one is a ZIP
+// Assets per step. The World Bank's bulk download of one is a ZIP
 // of about 50 KB, served in a tenth of a second. Pace keeps requests within
 // the source's budget.
 const perStep = 50
@@ -48,10 +48,10 @@ type Batch = {
   readonly failed: number
 }
 
-// A source whose policy stores every catalog entry it lists.
+// A source with selected download units.
 interface Mirror {
   readonly source: Source
-  readonly policy: Data.TaggedEnum.Value<Policy, "Full">
+  readonly bulk: Bulk
 }
 
 interface Interface {
@@ -66,7 +66,7 @@ interface Interface {
   ) => Effect.Effect<Batch>
 }
 
-// Five consecutive entry failures stop a source while keeping its ledger.
+// Five consecutive asset failures stop a source while keeping its ledger.
 export class GatherFailed extends Schema.TaggedError<
   GatherFailed,
   { readonly brand: unique symbol }
@@ -78,11 +78,9 @@ const PlacesJson = Schema.fromJsonString(
 
 const KeysJson = Schema.fromJsonString(Schema.Array(Schema.String))
 
-// Gathers into the store the series of every source whose policy is Full: on
-// a schedule, it asks the source what changed, gathers every series of each
-// catalog entry it lists, and stores each, unless the stored one already
-// holds the same values or the candidate would lose some of them (the
-// hold-back rule in Store.ts). It is the only writer to the store.
+// Consumes each selected asset once and records progress only after all its
+// entries have been persisted. Workflows and local runners supply the same
+// services, with different Step layers. Store owns hashing and hold-back.
 export class Gather extends Context.Service<Gather, Interface>()("@civicdata/server/Gather") {
   static readonly layer = Layer.effect(
     Gather,
@@ -161,51 +159,112 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
       // them, records each one held back, and clears the ones stored or
       // matched again. Answers how many had each outcome.
       const one = Effect.fn("Gather.one")(function* (
-        { policy }: Mirror,
-        { entry, version }: { entry: CatalogEntry; version: string },
+        { source, bulk }: Mirror,
+        {
+          asset,
+          version,
+          entries,
+        }: { asset: AssetId; version: string; entries: ReadonlyArray<CatalogEntry> },
       ) {
-        const held = new Set((yield* heldIn(entry.indicator)).map(({ series }) => series))
-        const settled: Array<string> = []
-        const counts = { stored: 0, unchanged: 0, held: 0 }
+        let previous = ""
+        let emitted = false
+        const totals = { stored: 0, unchanged: 0, held: 0 }
+        const allowed = new Set(entries.map(({ indicator }) => indicator))
+        yield* bulk.gather(asset, { version, entries }).pipe(
+          Stream.runForEach(({ indicator, series: candidatesStream }) =>
+            Effect.gen(function* () {
+              if (
+                sourceOf(indicator) !== source ||
+                !allowed.has(indicator) ||
+                indicator <= previous
+              ) {
+                return yield* new SourceUnavailable({ source })
+              }
 
-        // Counts a series stored or matched again, which is no longer held
-        // back.
-        const settle = (candidate: Stored, outcome: "stored" | "unchanged") =>
-          Effect.sync(() => {
-            const series = pathOf(keyOf(candidate))
+              previous = indicator
+              emitted = true
+              const entry = { indicator }
+              const held = new Set((yield* heldIn(entry.indicator)).map(({ series }) => series))
+              const settled: Array<string> = []
+              const counts = { stored: 0, unchanged: 0, held: 0 }
+              let candidates = 0
 
-            counts[outcome] += 1
+              // Counts a series stored or matched again, which is no longer held
+              // back.
+              const settle = (candidate: Stored, outcome: "stored" | "unchanged") =>
+                Effect.sync(() => {
+                  const series = pathOf(keyOf(candidate))
 
-            if (held.has(series)) settled.push(series)
-          })
+                  counts[outcome] += 1
 
-        yield* store.write(entry.indicator, policy.gather(entry, version)).pipe(
-          Stream.runForEach(({ candidate, outcome }) =>
-            Outcome.$match(outcome, {
-              Stored: () => settle(candidate, "stored"),
-              Unchanged: () => settle(candidate, "unchanged"),
-              Held: (verdict) =>
-                Effect.sync(() => (counts.held += 1)).pipe(
-                  Effect.andThen(hold(candidate, verdict)),
-                ),
+                  if (held.has(series)) settled.push(series)
+                })
+
+              yield* store
+                .write(
+                  entry.indicator,
+                  candidatesStream.pipe(
+                    Stream.mapEffect((candidate) => {
+                      candidates += 1
+
+                      return Schema.decodeEffect(Stored)(candidate).pipe(
+                        Effect.mapError(() => new SourceUnavailable({ source })),
+                        Effect.filterOrFail(
+                          (decoded) =>
+                            decoded.indicator.id === indicator && decoded.version === version,
+                          () => new SourceUnavailable({ source }),
+                        ),
+                      )
+                    }),
+                  ),
+                )
+                .pipe(
+                  Stream.runForEach(({ candidate, outcome }) =>
+                    Outcome.$match(outcome, {
+                      Stored: () => settle(candidate, "stored"),
+                      Unchanged: () => settle(candidate, "unchanged"),
+                      Held: (verdict) =>
+                        Effect.sync(() => (counts.held += 1)).pipe(
+                          Effect.andThen(hold(candidate, verdict)),
+                        ),
+                    }),
+                  ),
+                )
+
+              if (candidates === 0) return yield* new SourceUnavailable({ source })
+
+              if (Arr.isArrayNonEmpty(settled)) {
+                const keys = yield* Schema.encodeEffect(KeysJson)(settled)
+
+                yield* sql`DELETE FROM series_held WHERE series IN (SELECT value FROM json_each(${keys}))`
+              }
+
+              totals.stored += counts.stored
+              totals.unchanged += counts.unchanged
+              totals.held += counts.held
+
+              return undefined
             }),
           ),
         )
 
-        if (Arr.isArrayNonEmpty(settled)) {
-          const keys = yield* Schema.encodeEffect(KeysJson)(settled)
+        if (!emitted) return yield* new SourceUnavailable({ source })
 
-          yield* sql`DELETE FROM series_held WHERE series IN (SELECT value FROM json_each(${keys}))`
-        }
-
-        return counts
+        return totals
       })
 
       const check = Effect.fn("Gather.check")(
-        function* ({ source, policy }: Mirror) {
+        function* ({ source, bulk }: Mirror) {
           if (Option.isNone(yield* published(source))) return yield* new CatalogUnavailable()
 
-          const versions = yield* policy.changed(yield* listed(source))
+          const versions = yield* bulk.changed(yield* listed(source)).pipe(
+            Effect.flatMap(Schema.decodeEffect(Versions)),
+            Effect.mapError(() => new SourceUnavailable({ source })),
+          )
+
+          if (new Set(versions.map(({ asset }) => asset)).size !== versions.length) {
+            return yield* new SourceUnavailable({ source })
+          }
 
           const counts = yield* records.summary({
             source,
@@ -242,18 +301,22 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
 
           // Sequential requests stop exactly at the fifth failure. A cursor
           // prevents an isolated failure from reappearing in this run.
-          for (const { version, state, ...entry } of entries) {
-            const result = yield* one(mirror, { entry, version }).pipe(Effect.result)
+          const catalog = yield* listed(mirror.source)
+
+          for (const { version, state, asset } of entries) {
+            const result = yield* one(mirror, { asset, version, entries: catalog }).pipe(
+              Effect.result,
+            )
 
             if (Result.isSuccess(result)) {
-              yield* records.stored(entry.indicator, { source: mirror.source, version })
+              yield* records.stored(asset, { source: mirror.source, version })
 
               if (result.success.held > 0) totals.held += 1
               else if (result.success.stored > 0) totals.stored += 1
               else totals.unchanged += 1
               consecutive = 0
             } else {
-              yield* records.failed(entry.indicator, {
+              yield* records.failed(asset, {
                 source: mirror.source,
                 version,
                 previous: state,
@@ -263,7 +326,7 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
               consecutive += 1
             }
 
-            cursor = entry.indicator
+            cursor = asset
 
             if (consecutive === 5) break
           }
@@ -277,13 +340,11 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
         Effect.catchTags({ SqlError: Effect.die, SchemaError: Effect.die }),
       )
 
-      const mirrors = Object.entries(sources).flatMap(
-        ([name, { policy }]): ReadonlyArray<Mirror> => {
-          const source = Source.make(name)
+      const mirrors = Object.entries(sources).flatMap(([name, { bulk }]): ReadonlyArray<Mirror> => {
+        const source = Source.make(name)
 
-          return Policy.$is("Full")(policy) ? [{ source, policy }] : []
-        },
-      )
+        return bulk === undefined ? [] : [{ source, bulk }]
+      })
 
       return Gather.of({ mirrors, check, gather })
     }).pipe(Effect.orDie),

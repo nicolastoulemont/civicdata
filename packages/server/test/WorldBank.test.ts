@@ -3,7 +3,7 @@ import { describe, expect, it } from "@effect/vitest"
 import { DateTime, Effect, Fiber, Layer, Stream } from "effect"
 import { TestClock } from "effect/testing"
 
-import { Policy } from "../src/Adapter.ts"
+import { AssetId } from "../src/Adapter.ts"
 import { Sources } from "../src/Sources.ts"
 import { type SeriesBucket, Store } from "../src/Store.ts"
 import { WorldBank } from "../src/WorldBank.ts"
@@ -21,8 +21,16 @@ import { bucket, bulk, charts, recorded as bulks, serving } from "./series.ts"
 const base = "https://api.worldbank.org/v2"
 
 // The World Bank's gather, as its policy stores every indicator.
-const mirror = Effect.flatMap(WorldBank, ({ policy }) =>
-  Policy.$is("Full")(policy) ? Effect.succeed(policy) : Effect.die("The World Bank stores nothing"),
+const mirror = Effect.flatMap(WorldBank, ({ bulk: units }) =>
+  units === undefined
+    ? Effect.die("The World Bank stores nothing")
+    : Effect.succeed({
+        changed: units.changed,
+        gather: (item: ReturnType<typeof entry>, version: string) =>
+          units
+            .gather(AssetId.make(item.indicator), { version, entries: [item] })
+            .pipe(Stream.flatMap(({ series }) => series)),
+      }),
 )
 
 const total = entry("SP.POP.TOTL", "Population, total")
@@ -128,9 +136,7 @@ describe("WorldBank", () => {
     Effect.gen(function* () {
       const { changed } = yield* mirror
 
-      expect(yield* changed([total])).toEqual([
-        { indicator: total.indicator, version: "2026-10-08" },
-      ])
+      expect(yield* changed([total])).toEqual([{ asset: total.indicator, version: "2026-10-08" }])
     }).pipe(Effect.provide(recording)),
   )
 

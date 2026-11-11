@@ -12,6 +12,7 @@ import {
   Observation,
   type SeriesKey,
   sourceOf,
+  SourceUnavailable,
   type Year,
 } from "@civicdata/domain"
 import { Array as Arr, Context, Data, Effect, Layer, Option, Order, Schema, Stream } from "effect"
@@ -224,7 +225,7 @@ interface Interface {
   readonly write: <E>(
     indicator: IndicatorId,
     candidates: Stream.Stream<Stored, E>,
-  ) => Stream.Stream<Offer, E | StoreUnavailable>
+  ) => Stream.Stream<Offer, E | StoreUnavailable | SourceUnavailable>
 }
 
 const attempt = <A>(evaluate: () => Promise<A>) =>
@@ -483,11 +484,11 @@ export class Store extends Context.Service<Store, Interface>()("@civicdata/serve
         const codes = codesOf(offered.dimensions)
 
         if (offered.indicator.id !== indicator) {
-          return yield* Effect.die(`A candidate of ${offered.indicator.id} in ${indicator}`)
+          return yield* new SourceUnavailable({ source: sourceOf(indicator) })
         }
 
         if (Option.exists(last, (previous) => previous >= codes)) {
-          return yield* Effect.die(`Candidates of ${indicator} out of order at "${codes}"`)
+          return yield* new SourceUnavailable({ source: sourceOf(indicator) })
         }
 
         last = Option.some(codes)

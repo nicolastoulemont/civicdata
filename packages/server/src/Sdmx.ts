@@ -517,7 +517,7 @@ const make = (remember: Remember) =>
     })
 
     const adapter = (source: SdmxSource): Adapter => ({
-      policy: Policy.None(),
+      policy: Policy.Api(),
       discovery: discovery(structures, source),
       // The catalog keeps its own copy in D1.
       list: list(source),
