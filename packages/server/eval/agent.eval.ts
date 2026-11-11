@@ -1,7 +1,7 @@
 import { ChartIndex, TurnIndex } from "@civicdata/domain"
 import { assert, layer } from "@effect/vitest"
 import { env } from "cloudflare:workers"
-import { Array as Arr, Clock, Effect, Layer, Predicate, Schedule, Stream } from "effect"
+import { Array as Arr, Clock, Effect, Layer, Option, Predicate, Schedule, Stream } from "effect"
 import { FetchHttpClient } from "effect/http"
 
 import { Agent } from "../src/Agent.ts"
@@ -64,11 +64,11 @@ const Live = Layer.mergeAll(Agent.live.pipe(Layer.provide(Resolver.layer)), Buil
   Layer.provideMerge(Tally.layer),
 )
 
-// Asks the questions in one conversation, as a person would, and returns the
-// last turn. A case's `shown` chart replaces the first chart of the answer
-// before the last question, as when a person changes it.
+// Asks the questions in one conversation, as a person in the case's country
+// would, and returns the last turn. A case's `shown` chart replaces the first
+// chart of the answer before the last question, as when a person changes it.
 const answer = Effect.fn("eval.answer")(
-  function* ({ questions, shown }: Case) {
+  function* ({ questions, shown, country }: Case) {
     const conversation = yield* Conversation
 
     for (const [turn, question] of questions.entries()) {
@@ -79,7 +79,7 @@ const answer = Effect.fn("eval.answer")(
         })
       }
 
-      yield* Stream.runDrain(yield* conversation.ask(question))
+      yield* Stream.runDrain(yield* conversation.ask(question, Option.fromUndefinedOr(country)))
     }
 
     return yield* Effect.fromOption(Arr.last((yield* conversation.turns).answered))

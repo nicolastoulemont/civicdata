@@ -37,6 +37,7 @@ The agent's spans record:
 | ---------------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | `Agent.answer`               | `gen_ai.operation.name`                                                           | `invoke_agent`                                                                   |
 |                              | `civicdata.question`                                                              | the question                                                                     |
+|                              | `civicdata.country`                                                               | the country Cloudflare placed the person in, as an alpha-3 code, or `unknown`    |
 |                              | `civicdata.answer.rounds`                                                         | model requests it took                                                           |
 |                              | `civicdata.answer.ending`                                                         | `answered`, `asked`, `unanswered` or `exhausted` (18 rounds still calling tools) |
 |                              | `civicdata.charts.changed`                                                        | charts the person changed before asking                                          |
@@ -52,7 +53,7 @@ Grafana Cloud drops the GenAI conventions' content attributes on ingest: `gen_ai
 
 A span that ends refusing a View ends as a success, with `civicdata.refusal` naming the refusal: `IndicatorNotFound`, `DimensionsMissing` or `TransformNotApplicable` (`settled` in `packages/server/src/Traces.ts`). The agent sends such a call back to the model and the page asks the person to pick, so nothing failed, and `status = error` finds only what did. An HTTP client span keeps OpenTelemetry's rule: a 4xx answer marks it failed, though the OECD answers 404 for a key without data.
 
-Spans record the questions people ask and what the model writes, never an IP address or a request's headers. Grafana Cloud keeps them 14 days.
+Spans record the questions people ask, the country each was asked from and what the model writes, never an IP address or a request's headers. Grafana Cloud keeps them 14 days.
 
 ## Settings
 

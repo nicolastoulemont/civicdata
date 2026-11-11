@@ -360,6 +360,9 @@ interface ServeOptions {
   readonly traces?: Layer.Layer<never>
   // Where answers are logged. Without it, nowhere.
   readonly answers?: Layer.Layer<Answers>
+  // The alpha-2 code Cloudflare gives the country it places the person in,
+  // as the cf-ipcountry header. Without it, Cloudflare sends none.
+  readonly country?: string
 }
 
 // The conversation's Durable Object alarm, which Cloudflare fires `keep` after
@@ -388,6 +391,7 @@ const serveApi = (
     notes = recordedNotes,
     traces = Layer.empty,
     answers = Answers.none,
+    country,
   }: ServeOptions = {},
 ) => {
   const agent = Agent.layer.pipe(
@@ -416,7 +420,9 @@ const serveApi = (
       return Effect.succeed(
         Layer.mergeAll(
           Handlers.pipe(
-            Layer.provide(Conversations.local(() => conversation.fetch)),
+            Layer.provide(
+              Conversations.local(() => (request) => conversation.fetch(placed(request, country))),
+            ),
             Layer.provide(agent),
             Layer.provide(limit),
             Layer.provide(notes),
@@ -435,6 +441,18 @@ const serveApi = (
       )
     }),
   )
+}
+
+// The request as Cloudflare passes it on, with the country it placed the
+// person in.
+const placed = (request: Request, country: string | undefined) => {
+  if (country === undefined) return request
+
+  const headers = new Headers(request.headers)
+
+  headers.set("cf-ipcountry", country)
+
+  return new Request(request, { headers })
 }
 
 const alarmOf = (storage: Storage | undefined, ring: () => Promise<void>) => {
@@ -659,6 +677,33 @@ describe("conversations", () => {
       ])
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
+
+  it.effect("tells the model which country the person is asking from", () => {
+    const model = scripted([])
+
+    return Effect.gen(function* () {
+      yield* answer("Why is everything so expensive now?")
+
+      expect(model.prompts[0]).toContain(
+        "The person is asking from Brazil (BRA), going by their connection.",
+      )
+    }).pipe(Effect.provide(serveApi(model.layer, { country: "BR" })))
+  })
+
+  for (const [name, options] of [
+    ["sends no country", {}],
+    ["places the person in no country", { country: "XX" }],
+  ] as const) {
+    it.effect(`names no country to the model when Cloudflare ${name}`, () => {
+      const model = scripted([])
+
+      return Effect.gen(function* () {
+        yield* answer("Why is everything so expensive now?")
+
+        expect(model.prompts[0]).not.toContain("The person is asking from")
+      }).pipe(Effect.provide(serveApi(model.layer, options)))
+    })
+  }
 
   it.effect("sends the model only the last few questions, and keeps every turn", () => {
     const questions = [
@@ -3304,6 +3349,7 @@ describe("traces", () => {
           "gen_ai.agent.name": "civicdata",
           "gen_ai.conversation.id": id,
           "civicdata.question": "How has life expectancy changed in Brazil?",
+          "civicdata.country": "MEX",
           "civicdata.answer.rounds": 4,
           "civicdata.answer.ending": "answered",
         })
@@ -3358,7 +3404,7 @@ describe("traces", () => {
           text: expect.stringContaining("life expectancy"),
         })
         expect(tools[2]?.attributes.get("civicdata.tool.result")).toContain("SP.DYN.LE00.IN")
-      }).pipe(Effect.provide(serveApi(model.layer, { traces: traces.layer })))
+      }).pipe(Effect.provide(serveApi(model.layer, { traces: traces.layer, country: "MX" })))
     },
   )
 })

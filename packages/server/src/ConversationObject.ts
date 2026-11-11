@@ -1,6 +1,6 @@
-import { ConversationApi } from "@civicdata/domain"
+import { ConversationApi, fromAlpha2 } from "@civicdata/domain"
 import type { DurableObjectState } from "@cloudflare/workers-types"
-import { Effect, Layer, ManagedRuntime } from "effect"
+import { Effect, Layer, ManagedRuntime, Option } from "effect"
 import { HttpRouter, HttpServer } from "effect/http"
 import { HttpApiBuilder } from "effect/http-api"
 
@@ -26,11 +26,12 @@ const Handlers = HttpApiBuilder.group(
     const limit = yield* AskLimit
 
     // The object is the conversation, so the id in the path is not needed
-    // here. Cloudflare sets cf-connecting-ip to the visitor's address, and the
-    // Worker passes the request on unchanged. A question opens the
-    // conversation before it is counted, so a first question over the limit
-    // still keeps it. Every span the question makes, the answer's included,
-    // names the conversation, so a trace can be found by it.
+    // here. Cloudflare sets cf-connecting-ip to the visitor's address and
+    // cf-ipcountry to the country it places them in, and the Worker passes
+    // the request on unchanged. A question opens the conversation before it
+    // is counted, so a first question over the limit still keeps it. Every
+    // span the question makes, the answer's included, names the conversation,
+    // so a trace can be found by it.
     return handlers
       .handle("turns", () => conversation.turns)
       .handle("answer", () => conversation.follow)
@@ -43,7 +44,12 @@ const Handlers = HttpApiBuilder.group(
       .handle("ask", ({ params, payload, request }) =>
         conversation.open.pipe(
           Effect.andThen(limit.count(request.headers["cf-connecting-ip"] ?? "unknown")),
-          Effect.andThen(conversation.ask(payload.question)),
+          Effect.andThen(
+            conversation.ask(
+              payload.question,
+              Option.flatMap(Option.fromUndefinedOr(request.headers["cf-ipcountry"]), fromAlpha2),
+            ),
+          ),
           Effect.annotateSpans("gen_ai.conversation.id", params.id),
         ),
       )
