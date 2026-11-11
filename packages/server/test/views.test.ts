@@ -28,6 +28,7 @@ import { Catalog } from "../src/Catalog.ts"
 import { Conversations } from "../src/Conversations.ts"
 import { Directions } from "../src/Directions.ts"
 import { Handlers } from "../src/Handlers.ts"
+import { Ilostat } from "../src/Ilostat.ts"
 import { Insee } from "../src/Insee.ts"
 import { Notes } from "../src/Notes.ts"
 import { Politics } from "../src/Politics.ts"
@@ -239,6 +240,7 @@ const serve = (
       Layer.provide(Politics.unavailable),
       Layer.provide(Sources.layer),
       Layer.provide(Insee.layer.pipe(Layer.provide(offline))),
+      Layer.provide(Ilostat.layer.pipe(Layer.provide(offline))),
       Layer.provide(source),
       Layer.provide(sdmx),
       Layer.provide(directions),

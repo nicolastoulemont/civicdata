@@ -141,3 +141,7 @@ object members. Brand and source names, punctuation, fetched content and technic
 attributes are allowed. Tests and stories are outside the rule. `pnpm test:lint`
 tests the rule against the installed Oxlint binary and runs in `pnpm check`.
 Catalog tests check message coverage and interpolation placeholders for every locale.
+
+ILOSTAT: the reviewed annual senior and middle management table uses explicit
+survey/source choices and stored-only reads. Publisher warnings also survive
+missing numbers. See [the scope and manual first-fill runbook](docs/research/ilostat/README.md#implemented-first-slice).

@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next"
 
 import { useFormat } from "./useFormat.ts"
 
-const order: ReadonlyArray<Flag> = ["Provisional", "Estimated", "Break"]
+const order: ReadonlyArray<Flag> = ["Provisional", "Estimated", "Break", "Unreliable"]
 
 // Consecutive years as ranges: [2019, 2020, 2021, 2024] → "2019–2021, 2024".
 const spans = (years: ReadonlyArray<number>) =>
@@ -40,11 +40,28 @@ export const Flags = ({ resolved }: FlagsProps) => {
     return years.size === 0 ? [] : [{ flag, years: [...years] }]
   })
 
-  return groups.length === 0 ? null : (
+  const exclusionLabels = {
+    ReferencePeriod: t(($) => $["Excluded reference period"]),
+    Geography: t(($) => $["Excluded geography"]),
+  }
+
+  const qualifications = resolved.qualifications ?? []
+
+  return groups.length === 0 && qualifications.length === 0 ? null : (
     <ul
       aria-label={t(($) => $["Flagged values"])}
       className="space-y-1 text-sm text-muted-foreground"
     >
+      {qualifications.map((item) => (
+        <li key={`${JSON.stringify(item.series)}:${item.country}:${item.year}`}>
+          {countryName(item.country)} {item.year} ({item.source}, {item.survey.code}:{" "}
+          {item.survey.label}):{" "}
+          {item.status?.code === "U" ? flagLabels.Unreliable : item.status?.label}
+          {item.missing && <span>{t(($) => $["Missing value"])}</span>}
+          {item.exclusion !== undefined && <span>{exclusionLabels[item.exclusion]}</span>}
+          {item.notes.map((note) => ` · ${note.category} ${note.code}: ${note.label}`).join("")}
+        </li>
+      ))}
       {groups.map(({ flag, years }) => (
         <li key={flag}>
           <span className="font-medium text-foreground">{flagLabels[flag]}:</span>{" "}

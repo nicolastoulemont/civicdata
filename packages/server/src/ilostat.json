@@ -1,0 +1,482 @@
+{
+  "BA:15715": {
+    "label": "LFS - Labour Force Survey",
+    "country": "AFG"
+  },
+  "BA:13951": {
+    "label": "LFS - Employment Survey",
+    "country": "AGO"
+  },
+  "BA:716": {
+    "label": "LFS - Labour Force Survey",
+    "country": "ARE"
+  },
+  "BA:518": {
+    "label": "LFS - Labour Force Survey",
+    "country": "AUS"
+  },
+  "BB:15747": {
+    "label": "HIES - Household, Income and Labour Dynamics Survey",
+    "country": "AUS"
+  },
+  "BA:103": {
+    "label": "LFS - Labour Force Survey",
+    "country": "AUT"
+  },
+  "BA:2257": {
+    "label": "LFS - EU Labour Force Survey",
+    "country": "BEL"
+  },
+  "BA:673": {
+    "label": "LFS - Labour Force Survey",
+    "country": "BGD"
+  },
+  "BA:2258": {
+    "label": "LFS - EU Labour Force Survey",
+    "country": "BGR"
+  },
+  "BA:17": {
+    "label": "LFS - Labour Force & Household Survey",
+    "country": "BHS"
+  },
+  "BA:493": {
+    "label": "LFS - Labour Force Survey",
+    "country": "BIH"
+  },
+  "BB:73": {
+    "label": "HIES - Household Survey",
+    "country": "BOL"
+  },
+  "BX:6355": {
+    "label": "HS - Continuous National Household Sample Survey",
+    "country": "BRA"
+  },
+  "BA:338": {
+    "label": "LFS - Labour Force Survey",
+    "country": "BRB"
+  },
+  "BB:15690": {
+    "label": "HIES - Survey on Living Conditions",
+    "country": "BRB"
+  },
+  "BA:8230": {
+    "label": "LFS - Labour Force Survey",
+    "country": "BRN"
+  },
+  "BX:15710": {
+    "label": "HS - Multi-Topic Household Survey",
+    "country": "BWA"
+  },
+  "BA:253": {
+    "label": "LFS - Labour Force Survey",
+    "country": "CHE"
+  },
+  "BA:7345": {
+    "label": "LFS - National Survey on the Employment Situation",
+    "country": "CIV"
+  },
+  "BA:15665": {
+    "label": "LFS - Labour Force Survey",
+    "country": "COK"
+  },
+  "BA:12883": {
+    "label": "LFS - Continuous Employment Survey",
+    "country": "CRI"
+  },
+  "BA:36": {
+    "label": "LFS - Labour Force Survey",
+    "country": "CYP"
+  },
+  "BA:149": {
+    "label": "LFS - Labour Force Sample Survey",
+    "country": "CZE"
+  },
+  "BA:2242": {
+    "label": "LFS - EU Labour Force Survey",
+    "country": "DEU"
+  },
+  "BA:2487": {
+    "label": "LFS - EU Labour Force Survey",
+    "country": "DNK"
+  },
+  "BA:19": {
+    "label": "LFS - National Survey on Employment, Unemployment and Underemployment",
+    "country": "ECU"
+  },
+  "BA:582": {
+    "label": "LFS - Labour Force Sample Survey",
+    "country": "EGY"
+  },
+  "BA:2244": {
+    "label": "LFS - EU Labour Force Survey",
+    "country": "ESP"
+  },
+  "BA:42": {
+    "label": "LFS - Labour Force Survey",
+    "country": "EST"
+  },
+  "BA:2486": {
+    "label": "LFS - EU Labour Force Survey",
+    "country": "FIN"
+  },
+  "BA:1135": {
+    "label": "LFS - Employment, Unemployment Survey",
+    "country": "FJI"
+  },
+  "BA:148": {
+    "label": "LFS - Employment Survey",
+    "country": "FRA"
+  },
+  "BA:666": {
+    "label": "LFS - Labour Force Survey",
+    "country": "GBR"
+  },
+  "BA:13950": {
+    "label": "LFS - Labour Force Survey",
+    "country": "GEO"
+  },
+  "BB:3078": {
+    "label": "HIES - Living Standards Survey",
+    "country": "GHA"
+  },
+  "BA:7014": {
+    "label": "LFS - Labour Force Survey",
+    "country": "GMB"
+  },
+  "BB:16937": {
+    "label": "HIES - National Household Survey",
+    "country": "GNQ"
+  },
+  "BA:317": {
+    "label": "LFS - Labour Force Survey",
+    "country": "GRC"
+  },
+  "BA:660": {
+    "label": "LFS - Employment and Income Survey",
+    "country": "GTM"
+  },
+  "BB:16732": {
+    "label": "HIES - Household Income and Expenditure Survey",
+    "country": "GTM"
+  },
+  "BA:1214": {
+    "label": "LFS - Labour Force Survey",
+    "country": "GUY"
+  },
+  "BX:504": {
+    "label": "HS - Continuous Multi-Purpose Household Survey",
+    "country": "HND"
+  },
+  "BA:2251": {
+    "label": "LFS - EU Labour Force Survey",
+    "country": "HRV"
+  },
+  "BA:656": {
+    "label": "LFS - Labour Force Survey",
+    "country": "HUN"
+  },
+  "BA:772": {
+    "label": "LFS - EU Labour Force Survey",
+    "country": "IRL"
+  },
+  "BA:2255": {
+    "label": "LFS - EU Labour Force Survey",
+    "country": "ISL"
+  },
+  "BA:706": {
+    "label": "LFS - Labour Force Survey",
+    "country": "ISR"
+  },
+  "BA:2238": {
+    "label": "LFS - EU Labour Force Survey",
+    "country": "ITA"
+  },
+  "BA:65": {
+    "label": "LFS - Labour Force Survey",
+    "country": "JAM"
+  },
+  "BA:682": {
+    "label": "LFS - Employment and Unemployment Survey",
+    "country": "JOR"
+  },
+  "BA:259": {
+    "label": "LFS - Labour Force Survey",
+    "country": "JPN"
+  },
+  "BX:3465": {
+    "label": "HS - Continuous household survey",
+    "country": "KEN"
+  },
+  "BA:1321": {
+    "label": "LFS - Labour Force Survey",
+    "country": "KHM"
+  },
+  "BB:3064": {
+    "label": "HIES - Household Socio-Economic Survey",
+    "country": "KHM"
+  },
+  "BB:15723": {
+    "label": "HIES - Household Income and Expenditure Survey",
+    "country": "KIR"
+  },
+  "AA:1326": {
+    "label": "PC - Population Census",
+    "country": "KIR"
+  },
+  "BA:700": {
+    "label": "LFS - Labour Force Survey",
+    "country": "KOS"
+  },
+  "BA:6651": {
+    "label": "LFS - Labour Force Survey",
+    "country": "LAO"
+  },
+  "BA:14074": {
+    "label": "LFS - Labour Force Survey",
+    "country": "LBN"
+  },
+  "BA:16": {
+    "label": "LFS - Labour Force Survey",
+    "country": "LBR"
+  },
+  "BA:13": {
+    "label": "LFS - Integrated Labour Force Survey",
+    "country": "LSO"
+  },
+  "BA:2245": {
+    "label": "LFS - EU Labour Force Survey",
+    "country": "LTU"
+  },
+  "BA:2261": {
+    "label": "LFS - EU Labour Force Survey",
+    "country": "LUX"
+  },
+  "BA:2246": {
+    "label": "LFS - EU Labour Force Survey",
+    "country": "LVA"
+  },
+  "BX:220": {
+    "label": "HS - Periodic Household Survey",
+    "country": "MDG"
+  },
+  "BB:704": {
+    "label": "HIES - Household Income and Expenditure Survey",
+    "country": "MDV"
+  },
+  "BB:14101": {
+    "label": "HIES - Household Income and Expenditure Survey",
+    "country": "MHL"
+  },
+  "AA:1406": {
+    "label": "PC - Population Census",
+    "country": "MHL"
+  },
+  "BA:7009": {
+    "label": "LFS - Labour Force Survey",
+    "country": "MMR"
+  },
+  "BA:702": {
+    "label": "LFS - Labour Force Survey",
+    "country": "MNG"
+  },
+  "BA:1448": {
+    "label": "LFS - Labour Force Survey",
+    "country": "MWI"
+  },
+  "BA:8313": {
+    "label": "LFS - Unemployment, Under-employment Watch",
+    "country": "NGA"
+  },
+  "AA:1497": {
+    "label": "PC - Population Census",
+    "country": "NIU"
+  },
+  "BA:2236": {
+    "label": "LFS - EU Labour Force Survey",
+    "country": "NLD"
+  },
+  "BA:2250": {
+    "label": "LFS - EU Labour Force Survey",
+    "country": "NOR"
+  },
+  "BA:1510": {
+    "label": "LFS - Labour Force Survey",
+    "country": "NPL"
+  },
+  "BB:14049": {
+    "label": "HIES - Household Income and Expenditure Survey",
+    "country": "NRU"
+  },
+  "AA:1513": {
+    "label": "PC - Population Census",
+    "country": "NRU"
+  },
+  "BA:538": {
+    "label": "LFS - Labour Force Survey",
+    "country": "PAK"
+  },
+  "BA:511": {
+    "label": "LFS - Labour Market Survey",
+    "country": "PAN"
+  },
+  "AA:1541": {
+    "label": "PC - Population Census",
+    "country": "PLW"
+  },
+  "BA:432": {
+    "label": "LFS - Labour Force Survey",
+    "country": "POL"
+  },
+  "BA:2252": {
+    "label": "LFS - EU Labour Force Survey",
+    "country": "PRT"
+  },
+  "BA:199": {
+    "label": "LFS - Employment Survey",
+    "country": "PRT"
+  },
+  "BA:436": {
+    "label": "LFS - Household Labour Force Survey",
+    "country": "ROU"
+  },
+  "BA:120": {
+    "label": "LFS - Labour Force Survey",
+    "country": "RUS"
+  },
+  "BA:1590": {
+    "label": "LFS - Labour Force Survey",
+    "country": "RWA"
+  },
+  "BA:5873": {
+    "label": "LFS - Labour Force Survey",
+    "country": "SGP"
+  },
+  "BX:15953": {
+    "label": "HS - Integrated Household Survey",
+    "country": "SLE"
+  },
+  "BX:461": {
+    "label": "HS - Multi-purpose Household Survey",
+    "country": "SLV"
+  },
+  "BA:15656": {
+    "label": "LFS - Labour Force Survey",
+    "country": "SOM"
+  },
+  "BA:467": {
+    "label": "LFS - Labour Force Survey",
+    "country": "SRB"
+  },
+  "BA:398": {
+    "label": "LFS - Labour Force Survey",
+    "country": "SVK"
+  },
+  "BA:446": {
+    "label": "LFS - Labour Force Survey",
+    "country": "SVN"
+  },
+  "BA:2519": {
+    "label": "LFS - EU Labour Force Survey",
+    "country": "SWE"
+  },
+  "BA:1672": {
+    "label": "LFS - Labour Force Survey",
+    "country": "SWZ"
+  },
+  "BA:2524": {
+    "label": "LFS - Labour Force Survey",
+    "country": "SYC"
+  },
+  "BB:16122": {
+    "label": "HIES - Household Income and Expenditure Survey",
+    "country": "TKL"
+  },
+  "BA:3050": {
+    "label": "LFS - Labour Force Survey",
+    "country": "TLS"
+  },
+  "AA:7002": {
+    "label": "PC - Population Census",
+    "country": "TLS"
+  },
+  "BA:1712": {
+    "label": "LFS - Labour Force Survey",
+    "country": "TON"
+  },
+  "BB:16119": {
+    "label": "HIES - Household Income and Expenditure Survey",
+    "country": "TON"
+  },
+  "BA:549": {
+    "label": "LFS - Continuous Sample Survey of the Population",
+    "country": "TTO"
+  },
+  "BA:743": {
+    "label": "LFS - National Population and Employment Survey",
+    "country": "TUN"
+  },
+  "AA:1732": {
+    "label": "PC - Population Census",
+    "country": "TUV"
+  },
+  "BA:1743": {
+    "label": "LFS - Labour Force Survey",
+    "country": "TZA"
+  },
+  "BB:2542": {
+    "label": "HIES - National Panel Survey",
+    "country": "TZA"
+  },
+  "BA:13047": {
+    "label": "LFS - National Labour Force Survey",
+    "country": "UGA"
+  },
+  "BB:268": {
+    "label": "HIES - National Household Survey",
+    "country": "UGA"
+  },
+  "BA:348": {
+    "label": "LFS - Continuous Household Survey",
+    "country": "URY"
+  },
+  "BA:453": {
+    "label": "LFS - Current Population Survey",
+    "country": "USA"
+  },
+  "BA:1788": {
+    "label": "LFS - Labour Force Survey",
+    "country": "VNM"
+  },
+  "BA:16938": {
+    "label": "LFS - Labour Force Survey",
+    "country": "VUT"
+  },
+  "BB:15632": {
+    "label": "HIES - Household Income and Expenditure Survey",
+    "country": "VUT"
+  },
+  "AA:52": {
+    "label": "PC - Population and Housing Census",
+    "country": "VUT"
+  },
+  "BB:16123": {
+    "label": "HIES - Household Income and Expenditure Survey",
+    "country": "WLF"
+  },
+  "BA:1794": {
+    "label": "LFS - Labour Force Survey",
+    "country": "WSM"
+  },
+  "BA:595": {
+    "label": "LFS - Quarterly Labour Force Survey",
+    "country": "ZAF"
+  },
+  "BA:2212": {
+    "label": "LFS - Labour Force Survey",
+    "country": "ZMB"
+  },
+  "BA:1823": {
+    "label": "LFS - Labour Force Survey",
+    "country": "ZWE"
+  }
+}

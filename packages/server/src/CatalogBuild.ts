@@ -19,6 +19,7 @@ import { Cache } from "./Cache.ts"
 import { tables } from "./Catalog.ts"
 import { Classifier, Classifying } from "./Classifier.ts"
 import { fingerprint } from "./fingerprint.ts"
+import { Ilostat } from "./Ilostat.ts"
 import { Insee } from "./Insee.ts"
 import { searchable, Outline, Outlines } from "./Outlines.ts"
 import { Pace } from "./Pace.ts"
@@ -643,6 +644,7 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
     Layer.provide(Vectors.live),
     Layer.provide(Sources.layer),
     Layer.provide(Insee.cached),
+    Layer.provide(Ilostat.layer),
     Layer.provide(WorldBank.cached),
     Layer.provide(Sdmx.cached),
     Layer.provide(Pace.gathering),

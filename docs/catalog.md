@@ -155,3 +155,9 @@ observation contract cannot preserve, including unreliable and missing values.
 It records the concrete blocker and a one-archive proposal. It adds no catalog
 entries, gather enrollment, stored observations or chart-read capability.
 Production operations still require owner approval.
+
+ILOSTAT discovery currently lists only `ILOSTAT:SDG_B552_NOC_RT_A`, the reviewed
+19th ICLS senior and middle management measure. Its source/survey dimension uses
+reversible publisher-local codes and reviewed labels. Discovery coverage is separate
+from stored availability; all other ILOSTAT tables remain unlisted. See
+[the reviewed scope and manual fill](research/ilostat/README.md#implemented-first-slice).

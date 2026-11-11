@@ -78,6 +78,7 @@ const formatter = (t: TFunction<"explore">, locale: string) => {
   const flagLabels: Record<Flag, string> = {
     Provisional: t(($) => $["Provisional"]),
     Estimated: t(($) => $["Estimated"]),
+    Unreliable: t(($) => $["Unreliable"]),
     Break: t(($) => $["Break in series"]),
   }
 

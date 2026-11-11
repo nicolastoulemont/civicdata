@@ -1,0 +1,25 @@
+{
+  "note_source": {
+    "R1:3513": "Repository: ILO-STATISTICS - Micro data processing",
+    "R1:2803": "Repository: Annual estimates for 2025 are 11-month averages that exclude October. Data for October 2025 were not collected due to the federal government shutdown",
+    "T2:79": "Age coverage - minimum age: Less than or equal to 9 years old",
+    "T2:85": "Age coverage - minimum age: 16 years old",
+    "T3:94": "Age coverage - maximum age: 64 years old",
+    "T3:104": "Age coverage - maximum age: 74 years old",
+    "T3:240": "Age coverage - maximum age: 75 years old",
+    "S3:6": "Data reference period: First semester",
+    "S3:8": "Data reference period: First quarter",
+    "S3:9": "Data reference period: Second quarter",
+    "S3:19": "Data reference period: August",
+    "S3:21": "Data reference period: October",
+    "S3:26": "Data reference period: Noncalendar year",
+    "S4:33": "Geographical coverage: Main cities or metropolitan areas",
+    "S4:6333": "Geographical coverage: Excluding Gaza Strip"
+  },
+  "note_indicator": {
+    "I20:4077": "Employment definition: Excluding own-use production workers",
+    "T5:1429": "Unemployment definition: Two criteria (not in employment and seeking)",
+    "I11:264": "Break in series: Methodology revised",
+    "I13:3888": "Remarks: Warning on the use of statistical series: Statistical series published after January 2007 and before December 2015 should be used with caution. The INDEC, based on what is stated in decrees 181/15 and 55/16, is undertaking the investigations required to ensure the regularity of data collection, processing and dissemination procedures."
+  }
+}

@@ -3,14 +3,16 @@ import { Array as Arr, Predicate, Schema, Struct } from "effect"
 import { Country } from "./Country.ts"
 import { Dimension } from "./Dimension.ts"
 import { Direction } from "./Direction.ts"
+import ilostat from "./ilostat.json" with { type: "json" }
 import { Indicator, IndicatorId } from "./Indicator.ts"
+import { SeriesKey } from "./SeriesKey.ts"
 import { Source } from "./Source.ts"
 import { Change, Ranking, Relation, Trend, Year } from "./View.ts"
 
 // How a source qualifies a value: provisional until its final release,
 // estimated rather than measured, or the first after a break in series, when
-// the source changed how it measures.
-const Flag = Schema.Literals(["Provisional", "Estimated", "Break"])
+// the source changed how it measures. Unreliable remains distinct from an estimate.
+const Flag = Schema.Literals(["Provisional", "Estimated", "Break", "Unreliable"])
 
 export type Flag = typeof Flag.Type
 
@@ -23,6 +25,55 @@ export const Observation = Schema.Struct({
 })
 
 export interface Observation extends Schema.Schema.Type<typeof Observation> {}
+
+// Publisher evidence belongs to a series and country-year, even without a number.
+export const Qualification = Schema.Struct({
+  source: Schema.Literal("ILOSTAT"),
+  survey: Schema.Struct({ code: Schema.NonEmptyString, label: Schema.NonEmptyString }),
+  series: SeriesKey,
+  country: Country,
+  year: Year,
+  status: Schema.optionalKey(
+    Schema.Struct({
+      code: Schema.Literals(["B", "U"]),
+      label: Schema.Literals(["Break in series", "Unreliable"]),
+    }).check(
+      Schema.makeFilter(
+        ({ code, label }) =>
+          (code === "B" && label === "Break in series") || (code === "U" && label === "Unreliable"),
+      ),
+    ),
+  ),
+  notes: Schema.Array(
+    Schema.Struct({
+      category: Schema.Literals(["Indicator", "Source", "Classification"]),
+      code: Schema.NonEmptyString,
+      label: Schema.NonEmptyString,
+    }),
+  ),
+  missing: Schema.Boolean,
+  exclusion: Schema.optionalKey(Schema.Literals(["ReferencePeriod", "Geography"])),
+}).check(
+  Schema.makeFilter(
+    (item) =>
+      item.series.indicator === "ILOSTAT:SDG_B552_NOC_RT_A" &&
+      item.notes.every((note) => {
+        const dictionaries = {
+          Source: ilostat.note_source,
+          Indicator: ilostat.note_indicator,
+          Classification: {},
+        }
+
+        const dictionary = dictionaries[note.category]
+
+        return Object.entries(dictionary).some(
+          ([code, label]) => code === note.code && label === note.label,
+        )
+      }),
+  ),
+)
+
+export interface Qualification extends Schema.Schema.Type<typeof Qualification> {}
 
 // A country's first value after a break in series.
 const Break = Schema.Struct({ country: Country, year: Year })
@@ -61,6 +112,7 @@ const fields = {
   title: Schema.NonEmptyString,
   indicator: Indicator,
   observations: Schema.Array(Observation),
+  qualifications: Schema.optionalKey(Schema.Array(Qualification)),
   missing: Schema.Array(Country),
   dimensions: Schema.Array(Dimension),
   disagreements: Schema.Array(Disagreement),
@@ -107,6 +159,7 @@ export function inYear(resolved: Ranked | Related, year: Year): Ranked | Related
       ...resolved,
       view: Ranking.make({ ...Struct.omit(resolved.view, ["span"]), year }),
       observations,
+      qualifications: (resolved.qualifications ?? []).filter((item) => item.year === year),
       missing: resolved.view.countries.filter((country) => !held(observations, country)),
       disagreements,
     }
@@ -118,6 +171,7 @@ export function inYear(resolved: Ranked | Related, year: Year): Ranked | Related
     ...resolved,
     view: Relation.make({ ...Struct.omit(resolved.view, ["span"]), year }),
     observations,
+    qualifications: (resolved.qualifications ?? []).filter((item) => item.year === year),
     against: { ...resolved.against, observations: against },
     missing: resolved.view.countries.filter(
       (country) => !held(observations, country) || !held(against, country),

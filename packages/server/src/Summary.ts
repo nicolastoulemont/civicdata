@@ -1,6 +1,7 @@
 import {
   type Break,
   Country,
+  Qualification,
   type Covered,
   type Flag,
   inYear,
@@ -43,6 +44,7 @@ const Lines = Schema.TaggedStruct("Lines", {
   lines: Schema.Array(Line),
   missing: Schema.Array(Country),
   flagged: Flagged,
+  qualifications: Schema.optionalKey(Schema.Array(Qualification)),
 })
 
 const Ranked = Schema.Array(Schema.Struct({ country: Country, value: Schema.Finite }))
@@ -64,6 +66,7 @@ const Bars = Schema.TaggedStruct("Bars", {
   ),
   missing: Schema.Array(Country),
   flagged: Flagged,
+  qualifications: Schema.optionalKey(Schema.Array(Qualification)),
 })
 
 const Paired = Schema.Array(
@@ -88,6 +91,7 @@ const Dots = Schema.TaggedStruct("Dots", {
   ),
   missing: Schema.Array(Country),
   flagged: Flagged,
+  qualifications: Schema.optionalKey(Schema.Array(Qualification)),
 })
 
 // What show_chart tells the model about the values it charted, so it can
@@ -129,7 +133,7 @@ const lineOf = (observations: Arr.NonEmptyReadonlyArray<Observation>) => ({
 })
 
 const lines = (
-  { indicator, observations, missing }: ResolvedView,
+  { indicator, observations, missing, qualifications }: ResolvedView,
   {
     from,
     to,
@@ -144,6 +148,7 @@ const lines = (
       lineOf,
     ),
     missing,
+    qualifications: qualifications ?? [],
     flagged: flaggedOf(observations, breaks),
   })
 
@@ -160,6 +165,7 @@ const bars = (resolved: Ranked) => {
     year: view.year,
     bars: ranked(observations),
     missing,
+    qualifications: resolved.qualifications ?? [],
     flagged: flaggedOf(resolved.observations),
   }
 
@@ -187,6 +193,7 @@ const dots = (resolved: Related) => {
     year: view.year,
     dots: paired(shown),
     missing: shown.missing,
+    qualifications: resolved.qualifications ?? [],
     flagged: flaggedOf(resolved.observations),
   }
 

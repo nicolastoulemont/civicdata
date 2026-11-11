@@ -962,6 +962,48 @@ describe("Explore", () => {
     ).toBeDefined()
   })
 
+  it("shows missing ILOSTAT warnings and reference-period notes after resolving a saved chart", async () => {
+    network.use(
+      http.post("/api/views/resolve", async ({ request }) => {
+        const view = Schema.decodeUnknownSync(Trend)(await request.json())
+
+        return HttpResponse.json(
+          Schema.encodeSync(ResolvedViewSchema)({
+            ...resolvedFor(view),
+            qualifications: [
+              {
+                source: "ILOSTAT",
+                survey: { code: "BA:15715", label: "Labour Force Survey" },
+                series: {
+                  indicator: IndicatorId.make("ILOSTAT:SDG_B552_NOC_RT_A"),
+                  dimensions: {},
+                },
+                country: "FRA",
+                year: Year.make(2020),
+                missing: true,
+                exclusion: "ReferencePeriod",
+                status: { code: "U", label: "Unreliable" },
+                notes: [
+                  {
+                    category: "Source",
+                    code: "S3:8",
+                    label: "Data reference period: First quarter",
+                  },
+                ],
+              },
+            ],
+          }),
+        )
+      }),
+    )
+    show(trend)
+    const warnings = within(await screen.findByRole("list", { name: "Flagged values" }))
+    expect(warnings.getByText(/Unreliable/)).toBeDefined()
+    expect(warnings.getByText("Missing value")).toBeDefined()
+    expect(warnings.getByText("Excluded reference period")).toBeDefined()
+    expect(warnings.getByText(/Data reference period: First quarter/)).toBeDefined()
+  })
+
   it("lists the values a source flags under the chart and in the data table", async () => {
     network.use(
       http.post("/api/views/resolve", async ({ request }) => {

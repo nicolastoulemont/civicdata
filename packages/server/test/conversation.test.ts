@@ -109,6 +109,7 @@ import { Conversations } from "../src/Conversations.ts"
 import { Directions } from "../src/Directions.ts"
 import { Findings } from "../src/Findings.ts"
 import { Handlers } from "../src/Handlers.ts"
+import { Ilostat } from "../src/Ilostat.ts"
 import { Insee } from "../src/Insee.ts"
 import { Notes } from "../src/Notes.ts"
 import { Politics } from "../src/Politics.ts"
@@ -492,6 +493,7 @@ const serveApi = (
     Layer.provide(politics),
     Layer.provide(Sources.layer),
     Layer.provide(insee),
+    Layer.provide(Ilostat.layer.pipe(Layer.provide(offline))),
     Layer.provide(worldBank),
     Layer.provide(sdmx),
   )
@@ -521,6 +523,7 @@ const serveApi = (
             Layer.provide(politics),
             Layer.provide(Sources.layer),
             Layer.provide(Insee.layer.pipe(Layer.provide(offline))),
+            Layer.provide(Ilostat.layer.pipe(Layer.provide(offline))),
             Layer.provide(worldBank),
             Layer.provide(sdmx),
             Layer.provide(Directions.listed),

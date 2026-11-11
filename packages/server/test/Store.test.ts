@@ -3,6 +3,7 @@ import { countries, Dimensions, IndicatorId, Year } from "@openfacts/domain"
 import { reset } from "cloudflare:test"
 import { DateTime, Effect, Exit, Option, Schema, Stream } from "effect"
 
+import { record, indicator as iloIndicator } from "../src/Ilostat.ts"
 import { type Offer, Outcome, type Stored, Store } from "../src/Store.ts"
 import { bucket } from "./series.ts"
 
@@ -238,3 +239,56 @@ describe("Store", () => {
     }).pipe(Effect.provide(Store.r2(store.bucket)))
   })
 })
+
+it.effect("keeps missing publisher evidence and replaces a note-only revision", () =>
+  Effect.gen(function* () {
+    const parsed = yield* record({
+      ref_area: "AFG",
+      source: "BA:15715",
+      indicator: "SDG_B552_NOC_RT",
+      time: "2021",
+      obs_value: "",
+      obs_status: "U",
+      note_indicator: "",
+      note_source: "R1:3513_S3:8",
+    })
+
+    const candidate: Stored = {
+      ...parsed,
+      indicator: {
+        id: iloIndicator,
+        name: "Women in senior and middle management",
+        definition: "19th ICLS",
+      },
+      dataset: "ILOSTAT",
+      version: "one",
+      retrievedAt: fetched,
+    }
+
+    const store = yield* Store
+    const first = yield* Stream.runCollect(store.write(iloIndicator, Stream.make(candidate)))
+    expect(first[0]?.outcome).toEqual(Outcome.Stored())
+
+    const updated = {
+      indicator: candidate.indicator,
+      dataset: candidate.dataset,
+      version: candidate.version,
+      retrievedAt: candidate.retrievedAt,
+      dimensions: candidate.dimensions,
+      observations: candidate.observations,
+      qualifications: parsed.qualifications.map((item) =>
+        Object.assign({}, item, { notes: item.notes.filter((note) => note.code !== "R1:3513") }),
+      ),
+    }
+
+    const second = yield* Stream.runCollect(store.write(iloIndicator, Stream.make(updated)))
+    expect(second[0]?.outcome).toEqual(Outcome.Stored())
+    const found = yield* store.read({ indicator: iloIndicator, dimensions: candidate.dimensions })
+    expect(Option.isSome(found)).toBe(true)
+
+    if (Option.isSome(found)) {
+      expect(found.value.observations).toEqual([])
+      expect(found.value.qualifications).toEqual(updated.qualifications)
+    }
+  }).pipe(Effect.provide(Store.r2(bucket().bucket))),
+)

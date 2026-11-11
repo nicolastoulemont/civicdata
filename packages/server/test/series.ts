@@ -5,6 +5,7 @@ import { Effect, Layer } from "effect"
 import { strToU8, zipSync } from "fflate"
 
 import { Gather } from "../src/Gather.ts"
+import { Ilostat } from "../src/Ilostat.ts"
 import { Insee } from "../src/Insee.ts"
 import { Sdmx } from "../src/Sdmx.ts"
 import { Sources } from "../src/Sources.ts"
@@ -164,6 +165,7 @@ export const gatherOver = (client: ReturnType<typeof serving>["layer"], store: S
     Layer.provide(Store.r2(store)),
     Layer.provide(Sources.layer),
     Layer.provide(Insee.layer.pipe(Layer.provide(offline))),
+    Layer.provide(Ilostat.layer.pipe(Layer.provide(offline))),
     Layer.provide(Layer.merge(WorldBank.layer, Sdmx.layer).pipe(Layer.provide(client))),
     Layer.provide(D1Client.layer({ db }).pipe(Layer.orDie)),
   )
@@ -174,6 +176,7 @@ export const charts = (client: ReturnType<typeof serving>["layer"], store: Serie
   Sources.stored.pipe(
     Layer.provide(Sources.layer),
     Layer.provide(Insee.layer.pipe(Layer.provide(offline))),
+    Layer.provide(Ilostat.layer.pipe(Layer.provide(offline))),
     Layer.provide(Store.r2(store)),
     Layer.provide(Layer.merge(WorldBank.cached, Sdmx.cached)),
     Layer.provide(client),

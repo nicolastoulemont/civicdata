@@ -10,6 +10,7 @@ import { Context, Effect, Layer, Option, Record } from "effect"
 
 import { type Adapter, Policy } from "./Adapter.ts"
 import { Cache } from "./Cache.ts"
+import { Ilostat } from "./Ilostat.ts"
 import { Insee } from "./Insee.ts"
 import { Pace } from "./Pace.ts"
 import { Releases } from "./Releases.ts"
@@ -85,8 +86,9 @@ export class Sources extends Context.Service<Sources, Interface>()("@openfacts/s
       const worldBank = yield* WorldBank
       const sdmx = yield* Sdmx
       const insee = yield* Insee
+      const ilostat = yield* Ilostat
 
-      return Sources.of({ "World Bank": worldBank, ...sdmx, INSEE: insee })
+      return Sources.of({ "World Bank": worldBank, ...sdmx, INSEE: insee, ILOSTAT: ilostat })
     }),
   )
 
@@ -138,7 +140,12 @@ export class Sources extends Context.Service<Sources, Interface>()("@openfacts/s
             const countries = new Set(query.countries)
 
             return {
+              version: found.value.version,
               observations: found.value.observations.filter(
+                ({ country, year }) =>
+                  countries.has(country) && year >= query.from && year <= query.to,
+              ),
+              qualifications: (found.value.qualifications ?? []).filter(
                 ({ country, year }) =>
                   countries.has(country) && year >= query.from && year <= query.to,
               ),
@@ -188,6 +195,7 @@ export class Sources extends Context.Service<Sources, Interface>()("@openfacts/s
   static readonly live = Sources.stored.pipe(
     Layer.provide(Sources.layer),
     Layer.provide(Insee.cached),
+    Layer.provide(Ilostat.layer),
     Layer.provide(Store.layer),
     Layer.provide(Releases.live),
     Layer.provide(WorldBank.cached),

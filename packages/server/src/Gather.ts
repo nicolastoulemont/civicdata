@@ -26,6 +26,7 @@ import { AssetId, type Bulk, Release, Versions } from "./Adapter.ts"
 import { tables } from "./Catalog.ts"
 import { database, Step } from "./CatalogBuild.ts"
 import { ledger } from "./GatherLedger.ts"
+import { Ilostat } from "./Ilostat.ts"
 import { Insee } from "./Insee.ts"
 import { Pace } from "./Pace.ts"
 import { Releases, releaseTables } from "./Releases.ts"
@@ -535,14 +536,17 @@ export class Gather extends Context.Service<Gather, Interface>()("@openfacts/ser
     Layer.provide(Store.layer),
     Layer.provide(Sources.layer),
     Layer.provide(Insee.layer.pipe(Layer.provide(Pace.gathering))),
+    Layer.provide(Ilostat.layer.pipe(Layer.provide(Pace.gathering))),
     Layer.provide(Layer.merge(WorldBank.layer, Sdmx.layer).pipe(Layer.provide(Pace.gathering))),
   )
 
   // Workflow steps save cursors and failure streaks; the ledger survives runs.
-  static readonly run = Effect.fn("Gather.run")(function* () {
+  static readonly run = Effect.fn("Gather.run")(function* (source?: Source) {
     const gather = yield* Gather
 
-    for (const mirror of gather.mirrors) {
+    for (const mirror of gather.mirrors.filter(
+      (item) => source === undefined || item.source === source,
+    )) {
       if (mirror.bulk.release === undefined) yield* mirrorOne(mirror)
       else yield* gather.publish(mirror)
     }

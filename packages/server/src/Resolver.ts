@@ -46,6 +46,22 @@ const missing = (countries: View["countries"], series: ReadonlyArray<ReadonlyArr
     (country) => !series.every((values) => values.some((value) => value.country === country)),
   )
 
+const credit = (dataset: string, fetched: import("./Series.ts").Answer) => {
+  if ((fetched.qualifications?.length ?? 0) === 0) return dataset
+  const versions = fetched.version === undefined ? [] : [`version ${fetched.version}`]
+
+  const surveys = new Set(
+    (fetched.qualifications ?? []).map(({ survey }) => `${survey.code}: ${survey.label}`),
+  )
+
+  return [dataset, ...versions, ...surveys].join("; ")
+}
+
+const qualified = (
+  main: { readonly qualifications?: ReadonlyArray<unknown> },
+  by: { readonly qualifications?: ReadonlyArray<unknown> } | undefined,
+) => (main.qualifications?.length ?? 0) + (by?.qualifications?.length ?? 0) > 0
+
 export class Resolver extends Context.Service<Resolver, Interface>()("@openfacts/server/Resolver") {
   static readonly layer = Layer.effect(
     Resolver,
@@ -67,13 +83,14 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@openfacts
 
         return {
           described,
-          dimensions: fetched.dimensions,
+          dimensions: described.dimensions ?? fetched.dimensions,
           observations: fetched.observations,
+          qualifications: fetched.qualifications ?? [],
           source: {
             indicator: query.indicator,
             name: described.indicator.name,
             source,
-            dataset: described.dataset,
+            dataset: credit(described.dataset, fetched),
             url: fetched.url,
             retrievedAt: fetched.retrievedAt,
           },
@@ -135,6 +152,9 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@openfacts
             ? undefined
             : yield* series({ ...query, indicator: divisor, dimensions: {} })
 
+        if (transform !== undefined && qualified(main, by))
+          return yield* new TransformNotApplicable({ indicator: query.indicator, transform })
+
         const transformed = Match.value(transform).pipe(
           Match.when("Growth", () => growth(main.observations)),
           Match.when("Index", () => indexed(main.observations, from)),
@@ -158,6 +178,7 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@openfacts
           title: titleOf(main.described.indicator),
           indicator: main.described.indicator,
           observations,
+          qualifications: main.qualifications ?? [],
           dimensions: main.dimensions,
           disagreements,
           sources,
@@ -253,6 +274,7 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@openfacts
                 missing: missing(countries, [main.observations, against.observations]),
                 dimensions: main.dimensions,
                 disagreements: main.disagreements,
+                qualifications: [...(main.qualifications ?? []), ...(against.qualifications ?? [])],
                 sources: Arr.appendAll(main.sources, against.sources),
                 direction: main.direction,
               })),

@@ -119,6 +119,7 @@ export {
   type Flag,
   inYear,
   isRanked,
+  Qualification,
   Observation,
   type Ranked,
   type Related,
@@ -142,3 +143,5 @@ export {
   VerificationToken,
   VerificationUnavailable,
 } from "./Verification.ts"
+
+export { default as ilostatNotes } from "./ilostat.json" with { type: "json" }

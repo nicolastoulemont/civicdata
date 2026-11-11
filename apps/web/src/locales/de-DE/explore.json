@@ -181,5 +181,9 @@
   "catalogUnavailable": "Die Indikatorsuche ist nicht verfügbar. Versuche es gleich noch einmal.",
   "electionRecords": "Wahldaten",
   "governmentRecords": "Regierungsdaten",
-  "eventRecords": "Ereignisdaten"
+  "eventRecords": "Ereignisdaten",
+  "Unreliable": "Unzuverlässig",
+  "Missing value": "Fehlender Wert",
+  "Excluded reference period": "Ausgeschlossener Bezugszeitraum",
+  "Excluded geography": "Ausgeschlossene geografische Abdeckung"
 }

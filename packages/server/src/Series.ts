@@ -2,6 +2,7 @@ import {
   type Country,
   Dimension,
   Indicator,
+  Qualification,
   Observation,
   type SeriesKey,
   Year,
@@ -19,6 +20,7 @@ export interface Query extends SeriesKey {
 // Every result records when its source was asked, so a cached result still
 // reports its original retrieval time as provenance.
 export const Described = Schema.Struct({
+  dimensions: Schema.optionalKey(Schema.Array(Dimension)),
   indicator: Indicator,
   dataset: Schema.String,
   retrievedAt: Schema.DateTimeUtc,
@@ -27,7 +29,9 @@ export const Described = Schema.Struct({
 export type Described = typeof Described.Type
 
 export const Series = Schema.Struct({
+  version: Schema.optionalKey(Schema.NonEmptyString),
   observations: Schema.Array(Observation),
+  qualifications: Schema.optionalKey(Schema.Array(Qualification)),
   url: Schema.String,
   retrievedAt: Schema.DateTimeUtc,
 })
@@ -59,7 +63,15 @@ export const recent = Effect.map(DateTime.now, (now) => {
 // years only. find_years and the chart drawn after it then share one stored
 // answer over 50 years too. A query past this year is asked as is.
 export const widen =
-  <Q extends Query, A extends { readonly observations: ReadonlyArray<Observation> }, E, R>(
+  <
+    Q extends Query,
+    A extends {
+      readonly observations: ReadonlyArray<Observation>
+      readonly qualifications?: ReadonlyArray<Qualification>
+    },
+    E,
+    R,
+  >(
     ask: (query: Q) => Effect.Effect<A, E, R>,
   ) =>
   (query: Q) =>
@@ -76,6 +88,9 @@ export const widen =
 
       return {
         ...answer,
+        qualifications: (answer.qualifications ?? []).filter(
+          ({ year }) => year >= query.from && year <= query.to,
+        ),
         observations: answer.observations.filter(
           ({ year }) => year >= query.from && year <= query.to,
         ),
