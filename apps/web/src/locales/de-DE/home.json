@@ -1,14 +1,13 @@
 {
-  "intro": "Stelle eine Frage zur Lage eines Landes und erhalte ein Diagramm mit Quellenangaben, oder öffne ein Beispiel.",
+  "intro": "Fakten ohne Meinungen: amtliche Zahlen mit ihren Quellen und der Stand der Forschung.",
   "question": "Eine Frage zu einem Land stellen",
   "placeholder": "Wie hat sich die Lebenserwartung in Brasilien verändert?",
-  "population": "Bevölkerung der vier größten EU-Volkswirtschaften seit 2000",
-  "gdp": "BIP pro Kopf in den G7, 2023",
-  "life": "Lebenserwartung in den nordischen Ländern seit 1990",
   "privacy": "Fragen und Antworten werden ein Jahr lang gespeichert, um den Assistenten zu verbessern. E-Mail-Adressen und Telefonnummern werden vorher entfernt. Gib keine persönlichen Informationen an.",
   "newConversation": "Neue Unterhaltung",
   "conversations": "Unterhaltungen",
-  "empty": "Deine Unterhaltungen werden hier aufgelistet, nur in diesem Browser.",
+  "search": "Unterhaltungen durchsuchen",
+  "searchPlaceholder": "Suchen",
+  "noMatch": "Keine Unterhaltung passt zur Suche.",
   "github": "Quellcode auf GitHub ansehen",
   "settings": "Einstellungen",
   "answered": "Beantwortet",
@@ -24,5 +23,5 @@
   "day": "{{count}} T.",
   "brokenTitle": "Dieser Link beschreibt kein Diagramm",
   "brokenDescription": "Ein Ländercode, Indikator oder Jahr in der Adresse ist ungültig, oder die Jahre sind in umgekehrter Reihenfolge angegeben.",
-  "backExamples": "Zurück zu den Beispielen"
+  "back": "Zur Startseite"
 }

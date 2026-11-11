@@ -1058,7 +1058,9 @@ describe("Conversation", () => {
     expect(screen.getAllByRole("button", { name: /^Worked/ })).toHaveLength(1)
   })
 
-  it("holds the view where the reader opens the steps, instead of following the end", async () => {
+  it("holds the view where the reader opens the steps, and offers the end once it grows away", async () => {
+    const layout = browser()
+
     network.use(
       turns([
         {
@@ -1069,22 +1071,24 @@ describe("Conversation", () => {
         },
       ]),
     )
+    layout.heights[0] = 1600
     show()
 
     const fold = await screen.findByRole("button", { name: "Worked for 3s · 1 search" })
-    const viewport = screen.getByRole("region", { name: "Conversation" })
-    // happy-dom has no layout: the conversation is taller than its viewport.
-    Object.defineProperties(viewport, {
-      clientHeight: { configurable: true, value: 600 },
-      scrollHeight: { configurable: true, value: 1600 },
-    })
-    fireEvent.scroll(viewport, { target: { scrollTop: 1000 } })
-    expect(screen.queryByRole("button", { name: "Scroll to end" })).toBeNull()
+    const viewport = layout.measure()
+    layout.resize()
+    const end = viewport.scrollTop
 
     await userEvent.setup().click(fold)
 
+    // Still at the end: there is nowhere to scroll to.
+    expect(screen.queryByRole("button", { name: "Scroll to end" })).toBeNull()
+
+    layout.heights[0] = 2000
+    layout.resize()
+
+    expect(viewport.scrollTop).toBe(end)
     expect(await screen.findByRole("button", { name: "Scroll to end" })).toBeDefined()
-    expect(viewport.scrollTop).toBe(1000)
   })
 
   it("times an answer followed after a reload from when the server started it", async () => {
@@ -1284,6 +1288,39 @@ describe("Conversation", () => {
 
     expect(await screen.findByRole("button", { name: "Copied" })).toBeDefined()
     expect(await navigator.clipboard.readText()).toBe("What about happiness?")
+  })
+
+  it("copies an answer's words with each cited record by name, and shows when it ended", async () => {
+    const user = userEvent.setup()
+    const spain = Trend.make({ ...brazil, countries: ["ESP"] })
+    const text = "Life expectancy in Spain rose.\n\nIt rose under [José María Aznar](cite:0)."
+
+    network.use(
+      turns([
+        {
+          question: "Life expectancy in Spain under each prime minister",
+          answer: charted(
+            plot(spain),
+            Text.make({ text, cites: [Cited.cases.Government.make({ government: aznar })] }),
+          ),
+          started: DateTime.makeUnsafe("2026-01-02T10:00:00Z"),
+          took: Duration.seconds(8),
+        },
+      ]),
+      resolve,
+    )
+    show()
+
+    const ended = new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" })
+
+    expect(await screen.findByText(ended.format(new Date("2026-01-02T10:00:08Z")))).toBeDefined()
+
+    await user.click(await screen.findByRole("button", { name: "Copy answer" }))
+
+    expect(await screen.findByRole("button", { name: "Copied" })).toBeDefined()
+    expect(await navigator.clipboard.readText()).toBe(
+      "Life expectancy in Spain rose.\n\nIt rose under José María Aznar.",
+    )
   })
 
   it("changes an answer's chart where it is, and copies a link to the changed chart", async () => {
@@ -1894,7 +1931,9 @@ describe("Conversation", () => {
     expect(asked).toEqual([2000, 1960])
   })
 
-  it("holds the view where the reader changes a chart, instead of following the end", async () => {
+  it("holds the view where the reader changes a chart, and offers the end once it grows away", async () => {
+    const layout = browser()
+
     network.use(
       turns([
         {
@@ -1904,23 +1943,24 @@ describe("Conversation", () => {
       ]),
       resolve,
     )
+    layout.heights[0] = 1600
     show()
 
     const change = await screen.findByRole("button", { name: "Change" })
-    const viewport = screen.getByRole("region", { name: "Conversation" })
-    // happy-dom has no layout: the conversation is taller than its viewport.
-    Object.defineProperties(viewport, {
-      clientHeight: { configurable: true, value: 600 },
-      scrollHeight: { configurable: true, value: 1600 },
-    })
-    fireEvent.scroll(viewport, { target: { scrollTop: 1000 } })
-    expect(screen.queryByRole("button", { name: "Scroll to end" })).toBeNull()
+    const viewport = layout.measure()
+    layout.resize()
+    const end = viewport.scrollTop
 
     await userEvent.setup().click(change)
 
     expect(await screen.findByRole("combobox", { name: "Countries" })).toBeDefined()
-    expect(screen.getByRole("button", { name: "Scroll to end" })).toBeDefined()
-    expect(viewport.scrollTop).toBe(1000)
+    expect(screen.queryByRole("button", { name: "Scroll to end" })).toBeNull()
+
+    layout.heights[0] = 2000
+    layout.resize()
+
+    expect(viewport.scrollTop).toBe(end)
+    expect(await screen.findByRole("button", { name: "Scroll to end" })).toBeDefined()
   })
 
   it("asks a follow-up below the earlier turns", async () => {

@@ -1,12 +1,20 @@
 import { Chart, Ending, Rendered, type Step, type View } from "@openfacts/domain"
 import { useQuery } from "@tanstack/react-query"
 import { cn } from "cn"
-import { Duration, Schema } from "effect"
-import { Brain, ChevronRight, CircleAlert } from "lucide-react"
+import { Duration, Match, Schema } from "effect"
+import { Brain, CircleAlert, CircleCheck } from "lucide-react"
 import { type ReactNode, use, useEffect, useState } from "react"
 import { Trans, useTranslation } from "react-i18next"
 
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import {
+  Trace,
+  TraceCollapsible,
+  TraceCollapsibleContent,
+  TraceCollapsibleTrigger,
+  TraceIcon,
+  TraceLine,
+  TraceTitle,
+} from "@/components/ui/trace"
 import { resolveQuery } from "@/explore/api"
 import { indicatorNames, subject } from "@/explore/format"
 import { Hold } from "@/hold"
@@ -19,67 +27,72 @@ const isEnding = Schema.is(Ending)
 const isRendered = Schema.is(Rendered)
 const isChart = Schema.is(Chart)
 
-const trigger =
-  "flex w-fit items-center gap-1 rounded-md text-left transition-colors outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 motion-reduce:transition-none"
-
-const chevron =
-  "size-3.5 shrink-0 transition-transform group-data-panel-open/fold:rotate-90 motion-reduce:transition-none"
-
-interface IconProps {
-  line: Line
-}
-
-// The step's icon, or an error icon when it failed.
-const Icon = ({ line }: IconProps) =>
-  line.status === "Failed" ? (
-    <CircleAlert aria-hidden className="mt-0.5 size-4 shrink-0 text-destructive" />
-  ) : (
-    <line.icon aria-hidden className="mt-0.5 size-4 shrink-0" />
+// How a step's line reads in the trace: a running step shimmers and a failed
+// one is red; a done or stopped one is plain.
+const statusOf = (line: Line) =>
+  Match.value(line.status).pipe(
+    Match.when("Running", () => "running" as const),
+    Match.when("Failed", () => "error" as const),
+    Match.orElse(() => undefined),
   )
 
-interface TextProps {
+interface MarkProps {
   line: Line
+  ran: boolean
 }
 
-// What the step says. Only a running step shimmers.
-const Text = ({ line }: TextProps) => (
-  <span className={cn("min-w-0", line.status === "Running" && "shimmer")}>{line.text}</span>
-)
+// The step's own icon while it runs, then a check once it is done, or an
+// alert if it failed. A step seen running turns to its end with a short zoom;
+// one already over when it appeared shows its end still.
+const Mark = ({ line, ran }: MarkProps) => {
+  const end = cn(ran && "animate-in duration-300 fade-in zoom-in-50 motion-reduce:animate-none")
+
+  return (
+    <TraceIcon className="mt-0.5">
+      {Match.value(line.status).pipe(
+        Match.when("Done", () => <CircleCheck className={end} />),
+        Match.when("Failed", () => <CircleAlert className={end} />),
+        Match.orElse(() => <line.icon />),
+      )}
+    </TraceIcon>
+  )
+}
 
 interface RowProps {
   line: Line
 }
 
 // One step. A step with more to show opens to it, e.g. a search to its best
-// matches; one with nothing more is plain text.
+// matches; one with nothing more is plain text. Long text wraps rather than
+// cut a failure's reason short.
 const Row = ({ line }: RowProps) => {
   const hold = use(Hold)
+  // Kept here, since the row's inside changes once a done step has more.
+  const [ran] = useState(line.status === "Running")
 
-  if (line.more.length === 0) {
-    return (
-      <li className="flex items-start gap-2">
-        <Icon line={line} />
-        <Text line={line} />
-      </li>
-    )
-  }
+  const body = (
+    <TraceLine status={statusOf(line)} className="items-start">
+      <Mark line={line} ran={ran} />
+      <TraceTitle className="whitespace-normal">{line.text}</TraceTitle>
+    </TraceLine>
+  )
+
+  if (line.more.length === 0) return <li>{body}</li>
 
   return (
     <li>
-      <Collapsible onOpenChange={hold}>
-        <CollapsibleTrigger className={cn("group/fold items-start gap-2", trigger)}>
-          <Icon line={line} />
-          <Text line={line} />
-          <ChevronRight aria-hidden className={cn("mt-0.5", chevron)} />
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <ul className="mt-1 ml-6 flex flex-col gap-0.5">
+      <TraceCollapsible onOpenChange={hold}>
+        <TraceCollapsibleTrigger className="items-start [&>[data-slot=trace-icon]]:mt-0.5">
+          {body}
+        </TraceCollapsibleTrigger>
+        <TraceCollapsibleContent>
+          <ul className="flex flex-col gap-0.5 text-sm">
             {line.more.map((detail) => (
               <li key={detail}>{detail}</li>
             ))}
           </ul>
-        </CollapsibleContent>
-      </Collapsible>
+        </TraceCollapsibleContent>
+      </TraceCollapsible>
     </li>
   )
 }
@@ -95,10 +108,7 @@ export const Steps = ({ steps, children }: StepsProps) => {
   const { lineOf } = useLines()
 
   return (
-    <ol
-      aria-label={t(($) => $["Steps"])}
-      className="flex flex-col gap-1 text-sm text-muted-foreground"
-    >
+    <Trace render={<ol />} aria-label={t(($) => $["Steps"])}>
       {steps.map((step, index) => {
         const line = lineOf(step)
 
@@ -108,7 +118,7 @@ export const Steps = ({ steps, children }: StepsProps) => {
         )
       })}
       {children}
-    </ol>
+    </Trace>
   )
 }
 
@@ -257,16 +267,13 @@ export const Worked = ({ steps, took }: WorkedProps) => {
   }
 
   return (
-    <Collapsible className="flex flex-col gap-2" onOpenChange={hold}>
-      <CollapsibleTrigger
-        className={cn("group/fold text-sm text-muted-foreground tabular-nums", trigger)}
-      >
+    <TraceCollapsible onOpenChange={hold}>
+      <TraceCollapsibleTrigger className="text-sm tabular-nums">
         {[time, tally(steps)].filter((part) => part !== "").join(" · ")}
-        <ChevronRight aria-hidden className={chevron} />
-      </CollapsibleTrigger>
-      <CollapsibleContent>
+      </TraceCollapsibleTrigger>
+      <TraceCollapsibleContent>
         <Steps steps={steps} />
-      </CollapsibleContent>
-    </Collapsible>
+      </TraceCollapsibleContent>
+    </TraceCollapsible>
   )
 }

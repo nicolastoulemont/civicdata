@@ -11,15 +11,20 @@ import {
 import { Schema } from "effect"
 import type { TFunction } from "i18next"
 import { ThumbsDown, ThumbsUp } from "lucide-react"
+import type { ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 
+import { Actions } from "./Row.tsx"
 import { useVote } from "./useConversation.ts"
 
 const isReason = Schema.is(Reason)
 
 const isDown = Schema.is(Down)
+
+// A thumb as small as the answer's other actions.
+const thumb = "h-6 min-w-6 px-0"
 
 // What went wrong, in the words the person picks from.
 
@@ -36,13 +41,16 @@ interface VoteProps {
   turn: TurnIndex
   // The vote the conversation kept, if any.
   vote: Choice | undefined
+  // The answer's other actions, before the thumbs.
+  children: ReactNode
 }
 
 // Asks whether an answer was useful and, when it was not, what went wrong.
 // A vote shows at once; one the server refuses returns to the vote kept
 // before, with why. Pressing the pressed thumb keeps the vote: the last one
-// counts, and there is no taking it back.
-export const Vote = ({ id, turn, vote }: VoteProps) => {
+// counts, and there is no taking it back. The thumbs end the answer's row of
+// actions; what went wrong opens under it.
+export const Vote = ({ id, turn, vote, children }: VoteProps) => {
   const { t } = useTranslation("conversation")
 
   const reasons = [
@@ -58,30 +66,33 @@ export const Vote = ({ id, turn, vote }: VoteProps) => {
   const current = voting.isPending ? voting.variables : vote
 
   return (
-    <div className="flex flex-col gap-2">
-      <ToggleGroup
-        aria-label={t(($) => $["Was this answer useful?"])}
-        size="sm"
-        value={current === undefined ? [] : [isDown(current) ? "Down" : "Up"]}
-        onValueChange={([pressed]) => {
-          if (pressed === "Up") voting.mutate(Up.make({}))
+    <div className="flex flex-col items-end gap-2">
+      <Actions>
+        {children}
+        <ToggleGroup
+          aria-label={t(($) => $["Was this answer useful?"])}
+          size="sm"
+          value={current === undefined ? [] : [isDown(current) ? "Down" : "Up"]}
+          onValueChange={([pressed]) => {
+            if (pressed === "Up") voting.mutate(Up.make({}))
 
-          if (pressed === "Down") voting.mutate(Down.make({}))
-        }}
-      >
-        <ToggleGroupItem value="Up" aria-label={t(($) => $["Useful"])}>
-          <ThumbsUp />
-        </ToggleGroupItem>
-        <ToggleGroupItem value="Down" aria-label={t(($) => $["Not useful"])}>
-          <ThumbsDown />
-        </ToggleGroupItem>
-      </ToggleGroup>
+            if (pressed === "Down") voting.mutate(Down.make({}))
+          }}
+        >
+          <ToggleGroupItem value="Up" aria-label={t(($) => $["Useful"])} className={thumb}>
+            <ThumbsUp />
+          </ToggleGroupItem>
+          <ToggleGroupItem value="Down" aria-label={t(($) => $["Not useful"])} className={thumb}>
+            <ThumbsDown />
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </Actions>
       {current !== undefined && isDown(current) ? (
         <ToggleGroup
           aria-label={t(($) => $["What went wrong?"])}
           size="sm"
           variant="outline"
-          className="flex-wrap"
+          className="flex-wrap justify-end"
           value={current.reason === undefined ? [] : [current.reason]}
           onValueChange={([pressed]) =>
             voting.mutate(isReason(pressed) ? Down.make({ reason: pressed }) : Down.make({}))

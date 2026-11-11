@@ -1,35 +1,6 @@
-import { Check, Copy } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
-import { useCopy } from "@/clipboard"
-import { Button } from "@/components/ui/button"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
-
-import { Actions, Author } from "./Row.tsx"
-
-interface CopyQuestionProps {
-  text: string
-}
-
-const CopyQuestion = ({ text }: CopyQuestionProps) => {
-  const { t } = useTranslation("conversation")
-  const labels = { copied: t(($) => $["Copied"]), failed: t(($) => $["Could not copy"]) }
-  const { outcome, copy } = useCopy(text)
-  const label = outcome === undefined ? t(($) => $["Copy question"]) : labels[outcome]
-
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button variant="ghost" size="icon-xs" aria-label={label} onClick={() => copy(text)} />
-        }
-      >
-        {outcome === "copied" ? <Check aria-hidden /> : <Copy aria-hidden />}
-      </TooltipTrigger>
-      <TooltipContent>{label}</TooltipContent>
-    </Tooltip>
-  )
-}
+import { Actions, Author, Copy } from "./Row.tsx"
 
 interface QuestionProps {
   text: string
@@ -46,7 +17,7 @@ export const Question = ({ text }: QuestionProps) => {
         {text}
       </p>
       <Actions>
-        <CopyQuestion text={text} />
+        <Copy text={text} label={t(($) => $["Copy question"])} />
       </Actions>
     </div>
   )

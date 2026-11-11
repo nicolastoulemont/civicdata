@@ -358,8 +358,8 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
           const logged = yield* Ref.make(Option.none<{ turn: Turn; earlier: Array<string> }>())
           const { chat, changed, asked } = yield* begin({ question, started })
 
-          // A turn keeps the steps the agent ended and how long it took,
-          // stopped or not. The turns are read again under the lock, as a
+          // A turn keeps the steps the agent ended, when it started and how
+          // long it took, stopped or not. The turns are read again under the lock, as a
           // chart may have been changed meanwhile. A change stays for the
           // next question unless the model heard of it with this one: a
           // stopped answer leaves the chat as it was, and a change made while
@@ -377,7 +377,7 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
                   : unheardOf(latest, changed)
 
             const earlier = latest?.turns ?? []
-            const turn = { question, answer: ending, steps: kept, took }
+            const turn = { question, answer: ending, steps: kept, started, took }
             const next: Saved = { chat: json, turns: [...earlier, turn] }
 
             yield* transcript.save(unheard === undefined ? next : { ...next, edits: unheard })

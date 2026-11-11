@@ -18,7 +18,7 @@ export const explain = (error: Error | Failure["error"], t: TFunction<"conversat
   if (error instanceof AgentUnavailable) {
     return {
       title: t(($) => $["The assistant is not available"]),
-      description: t(($) => $["Try again in a moment, or open one of the examples."]),
+      description: t(($) => $["Try again in a moment."]),
     }
   }
 

@@ -1,14 +1,13 @@
 {
-  "intro": "Pergunte sobre a situação de um país e obtenha um gráfico com as fontes, ou abra um exemplo.",
+  "intro": "Os fatos, sem opiniões: números oficiais com suas fontes e o estado da pesquisa.",
   "question": "Perguntar sobre um país",
   "placeholder": "Como a expectativa de vida mudou no Brasil?",
-  "population": "População das quatro maiores economias da UE desde 2000",
-  "gdp": "PIB por pessoa no G7, 2023",
-  "life": "Expectativa de vida nos países nórdicos desde 1990",
   "privacy": "As perguntas e respostas são mantidas por um ano para melhorar o assistente, após a remoção de endereços de e-mail e números de telefone. Não inclua informações pessoais.",
   "newConversation": "Nova conversa",
   "conversations": "Conversas",
-  "empty": "As conversas que você inicia aparecem aqui, apenas neste navegador.",
+  "search": "Pesquisar conversas",
+  "searchPlaceholder": "Pesquisar",
+  "noMatch": "Nenhuma conversa corresponde à pesquisa.",
   "github": "Ver o código-fonte no GitHub",
   "settings": "Configurações",
   "answered": "Respondido",
@@ -24,5 +23,5 @@
   "day": "{{count}} d",
   "brokenTitle": "Este link não descreve um gráfico",
   "brokenDescription": "Um código de país, indicador ou ano no endereço é inválido, ou os anos estão em ordem inversa.",
-  "backExamples": "Voltar aos exemplos"
+  "back": "Voltar à página inicial"
 }

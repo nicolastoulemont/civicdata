@@ -1,12 +1,10 @@
 import {
-  Asked,
   type Block,
   blocksOf,
   Chart,
   ChartIndex,
   type ConversationId,
   Rendered,
-  Stopped,
   type Turn,
   type TurnIndex,
 } from "@openfacts/domain"
@@ -15,19 +13,17 @@ import { useTranslation } from "react-i18next"
 
 import { Answer } from "./Answer.tsx"
 import { Blocks } from "./Blocks.tsx"
+import { Footer } from "./Footer.tsx"
 import { FailedQuestion, Unstopped } from "./Problem.tsx"
 import { Question } from "./Question.tsx"
 import { Reply } from "./Reply.tsx"
 import { Agent } from "./Row.tsx"
 import type { Entry } from "./timeline.ts"
 import { Stop, type useConversation } from "./useConversation.ts"
-import { Vote } from "./Vote.tsx"
 import { useRuns, Steps, Worked, Working } from "./Work.tsx"
 
 const isRendered = Schema.is(Rendered)
 const isChart = Schema.is(Chart)
-const isAsked = Schema.is(Asked)
-const isStopped = Schema.is(Stopped)
 
 interface ChartsInput {
   id: ConversationId
@@ -93,9 +89,7 @@ const Item = ({ id, entry, retry, answering }: ItemProps) => {
               changed={turn.shown?.some((view) => view !== null) ?? false}
             />
             <Reply answer={turn.answer} />
-            {isAsked(turn.answer) || isStopped(turn.answer) ? null : (
-              <Vote id={id} turn={index} vote={turn.vote} />
-            )}
+            <Footer id={id} index={index} turn={turn} />
           </Agent>
         </li>
       )
