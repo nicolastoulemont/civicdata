@@ -13,6 +13,23 @@ function hostname(stage: string) {
   return undefined
 }
 
+// Whether the stage reads production's catalog (its D1 tables and vector
+// index) and stored series instead of its own. A pull request's preview and
+// `alchemy dev` do, so they answer searches and draw stored charts on their
+// first request with no build of their own; local Workflows run no
+// schedules, so a local catalog would stay empty. A pull request that
+// changes what they hold or how they are built carries the own-catalog
+// label, and CI sets OWN_CATALOG from it; OWN_CATALOG=true does the same for
+// `alchemy dev`. Production, and a stage someone deploys by hand, keep their
+// own. The Worker never reads the stage: it gets bindings, and Workflows
+// only when it owns them.
+const sharesCatalog = Effect.fn(function* (stage: string) {
+  const own = yield* Config.Boolean("OWN_CATALOG").pipe(Config.withDefault(false))
+  const context = yield* Effect.serviceOption(Alchemy.AlchemyContext)
+
+  return !own && (stage.startsWith("pr-") || Option.exists(context, ({ dev }) => dev))
+})
+
 export default Alchemy.Stack(
   "civicdata",
   { providers: Cloudflare.providers(), state: Cloudflare.state() },
@@ -32,15 +49,7 @@ export default Alchemy.Stack(
         }),
     })
 
-    // A pull request's preview reads production's catalog (its D1 tables and
-    // vector index) and stored series, so it answers searches and draws
-    // stored charts on its first request with no build of its own. A pull
-    // request that changes what they hold or how they are built carries the
-    // own-catalog label, and CI sets OWN_CATALOG from it. Production, and a
-    // stage someone deploys by hand, keep their own. The Worker never reads
-    // the stage: it gets bindings, and Workflows only when it owns them.
-    const ownCatalog = yield* Config.Boolean("OWN_CATALOG").pipe(Config.withDefault(false))
-    const shared = stage.startsWith("pr-") && !ownCatalog
+    const shared = yield* sharesCatalog(stage)
 
     // The stage's own database, for what requests write. Never production's
     // in a preview. Threads and saved Views are the only data that cannot be
