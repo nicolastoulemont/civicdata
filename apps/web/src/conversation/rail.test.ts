@@ -55,16 +55,16 @@ describe("rail preview", () => {
   })
 })
 
-describe("question in view", () => {
-  it("is the first question that starts above the composer", () => {
-    expect(inView([-900, 120, 400], 600)).toBe(1)
+describe("questions in view", () => {
+  it("are the questions that start above the composer", () => {
+    expect(inView([-900, 120, 400, 700], 600)).toEqual({ first: 1, last: 2 })
   })
 
-  it("is the question whose answer fills the view when none starts in it", () => {
-    expect(inView([-1800, -900, 700], 600)).toBe(1)
+  it("are the question whose answer fills the view when none starts in it", () => {
+    expect(inView([-1800, -900, 700], 600)).toEqual({ first: 1, last: 1 })
   })
 
-  it("is the first question before the layout places any", () => {
-    expect(inView([700, 1500], 600)).toBe(0)
+  it("are the first question before the layout places any", () => {
+    expect(inView([700, 1500], 600)).toEqual({ first: 0, last: 0 })
   })
 })

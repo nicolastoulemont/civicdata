@@ -34,16 +34,26 @@ export const preview = (entry: Entry): Preview =>
     Pending: ({ pending }) => ({ question: pending.question, answer: "Answering…" }),
   })
 
-// The question in view, from the tops of the questions measured from the top
-// of the viewport, and where the composer starts: the first question that
-// starts in view, or else the one whose answer fills it.
-export const inView = (tops: ReadonlyArray<number>, bottom: number) => {
-  const shown = tops.findIndex((top) => top >= 0 && top < bottom)
+// The questions in view: the first and last of them, by place.
+export interface Seen {
+  readonly first: number
+  readonly last: number
+}
 
-  if (shown !== -1) return shown
+// The questions in view, from the tops of the questions measured from the top
+// of the viewport, and where the composer starts: those that start in view,
+// or else the one whose answer fills it.
+export const inView = (tops: ReadonlyArray<number>, bottom: number): Seen => {
+  const first = tops.findIndex((top) => top >= 0 && top < bottom)
 
-  return Math.max(
-    0,
-    tops.findLastIndex((top) => top < 0),
-  )
+  if (first === -1) {
+    const filling = Math.max(
+      0,
+      tops.findLastIndex((top) => top < 0),
+    )
+
+    return { first: filling, last: filling }
+  }
+
+  return { first, last: tops.findLastIndex((top) => top < bottom) }
 }

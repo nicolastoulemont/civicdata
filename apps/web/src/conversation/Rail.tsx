@@ -33,7 +33,7 @@ import { type ReactNode, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
-import type { Preview } from "./rail.ts"
+import type { Preview, Seen } from "./rail.ts"
 
 // How wide a tick grows by its distance from the pointed one: in full under
 // the pointer, less for its neighbours, a third for the rest.
@@ -71,18 +71,20 @@ const Step = ({ label, to, jump, children }: StepProps) => (
 
 interface RailProps {
   previews: ReadonlyArray<Preview>
-  current: number
+  seen: Seen
   jump: (index: number) => void
 }
 
 // One tick per question beside the conversation, after T3 Code's timeline
-// minimap. The question in view has the stronger tick. Pointing at a tick, or
-// moving to it with the arrow keys, widens it and its neighbours and shows
-// the question with the start of its answer; activating it jumps there. The
-// rail takes one Tab stop. It shows from two questions, where the lane leaves
-// room beside it.
-export const Rail = ({ previews, current, jump }: RailProps) => {
+// minimap. Each question in view has the stronger tick, and the first of them
+// is the current one, which the previous and next buttons step from. Pointing
+// at a tick, or moving to it with the arrow keys, widens it and its neighbours
+// and shows the question with the start of its answer; activating it jumps
+// there. The rail takes one Tab stop. It shows from two questions, where the
+// lane leaves room beside it.
+export const Rail = ({ previews, seen, jump }: RailProps) => {
   const [pointed, setPointed] = useState<number>()
+  const current = seen.first
 
   if (previews.length < 2) return null
 
@@ -125,7 +127,9 @@ export const Rail = ({ previews, current, jump }: RailProps) => {
                   aria-hidden
                   className={cn(
                     "h-0.5 w-6 origin-left rounded-full transition-transform duration-150 motion-reduce:transition-none",
-                    index === current ? "bg-foreground/60" : "bg-muted-foreground/30",
+                    index >= seen.first && index <= seen.last
+                      ? "bg-foreground/60"
+                      : "bg-muted-foreground/30",
                     pointed === undefined
                       ? "scale-x-[0.333]"
                       : (reach[Math.abs(index - pointed)] ?? "scale-x-[0.333]"),
