@@ -206,3 +206,15 @@ cache/widen path; it has no bulk capability or manual fill. Raw publisher notes,
 missing records, per-row versions and 95% uncertainty bounds survive resolver
 and chart output. [Evidence, terms and limits](research/who/README.md) document
 the bounded scope. NTO-219 and wider WHO coverage remain unfinished.
+
+## WID reviewed slice
+
+Local discovery registers only `WID:sptinc992j`: bottom-50% and top-10% pre-tax
+national-income shares, explicit equal-split adults over age 20, native fractions.
+The operational scope is France and Sweden, 1991–2024. It is not full WID coverage.
+Catalog country/year coverage stays unknown until stored series establish it.
+StoredOnly reads never download country archives. The Node `wid` command assembles
+complete cross-country series before immutable release staging. Publisher quality
+and per-input evidence survive chart output. [Evidence and operator limits](research/wid/README.md)
+record the noncommercial scope. This PR needs `own-catalog`; fills need separate
+owner approval. NTO-219 remains In Progress for IMF, coverage and approved fills.

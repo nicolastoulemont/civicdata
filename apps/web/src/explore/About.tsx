@@ -279,6 +279,14 @@ export const About = ({ resolved, heading: Heading, onSwitch }: AboutProps) => {
               <a className="underline underline-offset-4" href={page(source)}>
                 {source.indicator}
               </a>
+              {source.inputs?.map((input) => (
+                <p key={input.url}>
+                  <a className="underline underline-offset-4" href={input.url}>
+                    {input.url}
+                  </a>
+                  {input.etag} {input.sha256}
+                </p>
+              ))}
             </dd>
           </Fragment>
         ))}

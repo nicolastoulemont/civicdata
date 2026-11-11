@@ -13,6 +13,7 @@ import { Sources } from "../src/Sources.ts"
 import { type SeriesBucket, Store } from "../src/Store.ts"
 import { Vdem } from "../src/Vdem.ts"
 import { Who } from "../src/Who.ts"
+import { Wid } from "../src/Wid.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 import { build, catalogOver, entry, listings } from "./catalog.ts"
 import { http, memory, offline } from "./fakes.ts"
@@ -170,6 +171,7 @@ export const gatherOver = (client: ReturnType<typeof serving>["layer"], store: S
     Layer.provide(Insee.layer.pipe(Layer.provide(offline))),
     Layer.provide(Ilostat.layer.pipe(Layer.provide(offline))),
     Layer.provide(Vdem.layer),
+    Layer.provide(Wid.layer),
     Layer.provide(Who.layer.pipe(Layer.provide(offline))),
     Layer.provide(Faostat.layer.pipe(Layer.provide(offline))),
     Layer.provide(Layer.merge(WorldBank.layer, Sdmx.layer).pipe(Layer.provide(client))),
@@ -184,6 +186,7 @@ export const charts = (client: ReturnType<typeof serving>["layer"], store: Serie
     Layer.provide(Insee.layer.pipe(Layer.provide(offline))),
     Layer.provide(Ilostat.layer.pipe(Layer.provide(offline))),
     Layer.provide(Vdem.layer),
+    Layer.provide(Wid.layer),
     Layer.provide(Who.layer.pipe(Layer.provide(offline))),
     Layer.provide(Faostat.layer.pipe(Layer.provide(offline))),
     Layer.provide(Store.r2(store)),

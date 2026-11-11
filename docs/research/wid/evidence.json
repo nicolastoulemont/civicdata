@@ -1,0 +1,34 @@
+[
+  {
+    "url": "https://wid.world/bulk_download/WID_data_FR.csv",
+    "verifiedAt": "2026-11-11T22:09:30.338918+00:00",
+    "etag": "\"41ca2ec-65f9e98487f2e\"",
+    "lastModified": "Fri, 06 Nov 2026 17:03:44 GMT",
+    "sha256": "21c76df8a3fa253f024fea9274fcac7fa650509a50569d55ec0c1085e35b6c38",
+    "bytes": 68985580
+  },
+  {
+    "url": "https://wid.world/bulk_download/WID_metadata_FR.csv",
+    "verifiedAt": "2026-11-11T22:09:30.417845+00:00",
+    "etag": "\"3c683b-65f9e984ee7ce\"",
+    "lastModified": "Fri, 06 Nov 2026 17:03:45 GMT",
+    "sha256": "a75b863d33d5e5dfd7362187b2b4163fb27966eedab6ed70396713657896bcdf",
+    "bytes": 3958843
+  },
+  {
+    "url": "https://wid.world/bulk_download/WID_data_SE.csv",
+    "verifiedAt": "2026-11-11T22:09:30.471378+00:00",
+    "etag": "\"23705ad-65f9ea7f63b4f\"",
+    "lastModified": "Fri, 06 Nov 2026 17:08:07 GMT",
+    "sha256": "8c86e98b2978679b3668ee6dc8730ff84f950d7f42269a785b82f16faa2c3399",
+    "bytes": 37160365
+  },
+  {
+    "url": "https://wid.world/bulk_download/WID_metadata_SE.csv",
+    "verifiedAt": "2026-11-11T22:09:30.535684+00:00",
+    "etag": "\"38d6ba-65f9ea7f8cb8f\"",
+    "lastModified": "Fri, 06 Nov 2026 17:08:07 GMT",
+    "sha256": "80ff989c10c28e93f7dd99386311e34538fa88948312f8993811deafa23a8505",
+    "bytes": 3724986
+  }
+]

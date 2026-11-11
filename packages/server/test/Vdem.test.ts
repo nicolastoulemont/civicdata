@@ -21,6 +21,7 @@ import { Outcome, Store, Stored } from "../src/Store.ts"
 import { summarize } from "../src/Summary.ts"
 import { polyarchy, Vdem, VdemArchive } from "../src/Vdem.ts"
 import { Who } from "../src/Who.ts"
+import { Wid } from "../src/Wid.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 import { offline } from "./fakes.ts"
 import { bucket, seriesDb } from "./series.ts"
@@ -245,7 +246,17 @@ it.effect("routes V-Dem through the real registry alongside all existing publish
   Effect.gen(function* () {
     const sources = yield* Sources
     expect(Object.keys(sources).toSorted()).toEqual(
-      ["World Bank", "Eurostat", "OECD", "INSEE", "ILOSTAT", "FAOSTAT", "V-Dem", "WHO"].toSorted(),
+      [
+        "World Bank",
+        "Eurostat",
+        "OECD",
+        "INSEE",
+        "ILOSTAT",
+        "FAOSTAT",
+        "V-Dem",
+        "WHO",
+        "WID",
+      ].toSorted(),
     )
     const source = yield* Sources.get(sources, indicator)
     expect((yield* source.describe(indicator)).indicator.id).toBe(indicator)
@@ -255,6 +266,7 @@ it.effect("routes V-Dem through the real registry alongside all existing publish
         Layer.provide(
           Layer.mergeAll(
             Vdem.layer,
+            Wid.layer,
             Who.layer,
             Faostat.layer,
             Ilostat.layer,

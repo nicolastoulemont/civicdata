@@ -21,6 +21,7 @@ import { Sdmx } from "../src/Sdmx.ts"
 import { Sources } from "../src/Sources.ts"
 import { Vdem } from "../src/Vdem.ts"
 import { Who } from "../src/Who.ts"
+import { Wid } from "../src/Wid.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 import { build, catalogOver, listings } from "./catalog.ts"
 import { http, memory } from "./fakes.ts"
@@ -176,6 +177,7 @@ describe("INSEE", () => {
           Layer.provide(
             Layer.mergeAll(
               Vdem.layer,
+              Wid.layer,
               Who.layer,
               Faostat.layer,
               Ilostat.layer,

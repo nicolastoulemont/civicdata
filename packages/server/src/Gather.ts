@@ -36,12 +36,15 @@ import { Sources } from "./Sources.ts"
 import { judge, keyOf, Outcome, type Place, Stored, Store } from "./Store.ts"
 import { Vdem } from "./Vdem.ts"
 import { Who } from "./Who.ts"
+import { Wid } from "./Wid.ts"
 import { WorldBank } from "./WorldBank.ts"
 
 // Assets per step. The World Bank's bulk download of one is a ZIP
 // of about 50 KB, served in a tenth of a second. Pace keeps requests within
 // the source's budget.
 const perStep = 50
+
+const verify = (bulk: Bulk, version: string) => bulk.verify?.(version) ?? Effect.void
 
 // What a step saves: the last entry it gathered, null once the catalog is
 // done, and how many entries were stored, unchanged (the stored series
@@ -425,6 +428,8 @@ export class Gather extends Context.Service<Gather, Interface>()("@openfacts/ser
           .pipe(Effect.mapError(() => new SourceUnavailable({ source })))
 
         if (done.unchanged !== versions.length) return yield* new SourceUnavailable({ source })
+
+        yield* verify(bulk, release.version)
         yield* step
           .run(`activate ${source} ${manifest.namespace}`, releases.activate(source, manifest))
           .pipe(Effect.mapError(() => new SourceUnavailable({ source })))
@@ -541,6 +546,7 @@ export class Gather extends Context.Service<Gather, Interface>()("@openfacts/ser
     Layer.provide(Insee.layer.pipe(Layer.provide(Pace.gathering))),
     Layer.provide(Ilostat.layer.pipe(Layer.provide(Pace.gathering))),
     Layer.provide(Vdem.layer),
+    Layer.provide(Wid.layer),
     Layer.provide(Who.layer.pipe(Layer.provide(Pace.gathering))),
     Layer.provide(Faostat.layer.pipe(Layer.provide(Pace.gathering))),
     Layer.provide(Layer.merge(WorldBank.layer, Sdmx.layer).pipe(Layer.provide(Pace.gathering))),

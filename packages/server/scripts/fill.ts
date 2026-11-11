@@ -13,14 +13,22 @@ import { Sources } from "../src/Sources.ts"
 import { Store } from "../src/Store.ts"
 import { Vdem } from "../src/Vdem.ts"
 import { Who } from "../src/Who.ts"
+import { Wid } from "../src/Wid.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 import { d1 } from "./d1.ts"
 import { faoArchive } from "./faostat-archive.ts"
 import { archiveLayer as iloArchive } from "./ilostat-archive.ts"
 import { storage } from "./ilostat-storage.ts"
 import { vdemArchive } from "./vdem-archive.ts"
+import { widArchive } from "./wid-archive.ts"
 
-export const fill = (source: "FAOSTAT" | "ILOSTAT" | "V-Dem") =>
+const archives = (source: "FAOSTAT" | "ILOSTAT" | "V-Dem" | "WID") =>
+  Layer.merge(
+    source === "V-Dem" ? Vdem.layer.pipe(Layer.provide(vdemArchive)) : Vdem.layer,
+    source === "WID" ? Wid.layer.pipe(Layer.provide(widArchive)) : Wid.layer,
+  )
+
+export const fill = (source: "FAOSTAT" | "ILOSTAT" | "V-Dem" | "WID") =>
   Effect.gen(function* () {
     const account = yield* Config.String("CLOUDFLARE_ACCOUNT_ID")
     const token = yield* Config.Redacted("CLOUDFLARE_API_TOKEN")
@@ -34,7 +42,7 @@ export const fill = (source: "FAOSTAT" | "ILOSTAT" | "V-Dem") =>
       Layer.provide(Sources.layer),
       Layer.provide(Insee.layer),
       Layer.provide(Who.layer),
-      Layer.provide(source === "V-Dem" ? Vdem.layer.pipe(Layer.provide(vdemArchive)) : Vdem.layer),
+      Layer.provide(archives(source)),
       Layer.provide(Faostat.layer.pipe(Layer.provide(faoArchive))),
       Layer.provide(Ilostat.layer.pipe(Layer.provide(iloArchive))),
       Layer.provide(WorldBank.layer),

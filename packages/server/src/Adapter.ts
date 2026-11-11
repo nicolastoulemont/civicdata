@@ -57,6 +57,8 @@ export interface Release extends Schema.Schema.Type<typeof Release> {}
 // Download units share one stream contract; selection is either incremental
 // versions or a complete release, so coherent adapters need no unused method.
 export type Bulk = {
+  // Mutable inputs are rechecked immediately before conditional activation.
+  readonly verify?: (version: string) => Effect.Effect<void, SourceUnavailable>
   // Entries strictly increase by indicator; each inner stream is consumed
   // before pulling the next entry. Series strictly increase by codesOf.
   // Producers must stream, or sort on disk outside Workers, never buffer an asset.

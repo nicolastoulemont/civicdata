@@ -119,6 +119,7 @@ export {
   type Flag,
   inYear,
   isRanked,
+  Input,
   Qualification,
   Observation,
   type Ranked,

@@ -89,6 +89,7 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@openfacts
           observations: fetched.observations,
           qualifications: fetched.qualifications ?? [],
           source: {
+            inputs: fetched.inputs,
             indicator: query.indicator,
             name: described.indicator.name,
             source,

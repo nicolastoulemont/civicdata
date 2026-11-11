@@ -1,6 +1,7 @@
 import {
   type Break,
   Country,
+  Input,
   Qualification,
   type Covered,
   type Flag,
@@ -37,14 +38,19 @@ const Line = Schema.Struct({
   highest: Point,
 })
 
+const evidence = {
+  missing: Schema.Array(Country),
+  flagged: Flagged,
+  qualifications: Schema.optionalKey(Schema.Array(Qualification)),
+  inputs: Schema.optionalKey(Schema.UndefinedOr(Schema.NonEmptyArray(Input))),
+}
+
 const Lines = Schema.TaggedStruct("Lines", {
   name: Schema.String,
   from: Year,
   to: Year,
   lines: Schema.Array(Line),
-  missing: Schema.Array(Country),
-  flagged: Flagged,
-  qualifications: Schema.optionalKey(Schema.Array(Qualification)),
+  ...evidence,
 })
 
 const Ranked = Schema.Array(Schema.Struct({ country: Country, value: Schema.Finite }))
@@ -64,9 +70,7 @@ const Bars = Schema.TaggedStruct("Bars", {
       to: Schema.Struct({ year: Year, bars: Ranked }),
     }),
   ),
-  missing: Schema.Array(Country),
-  flagged: Flagged,
-  qualifications: Schema.optionalKey(Schema.Array(Qualification)),
+  ...evidence,
 })
 
 const Paired = Schema.Array(
@@ -89,9 +93,7 @@ const Dots = Schema.TaggedStruct("Dots", {
       to: Schema.Struct({ year: Year, dots: Paired }),
     }),
   ),
-  missing: Schema.Array(Country),
-  flagged: Flagged,
-  qualifications: Schema.optionalKey(Schema.Array(Qualification)),
+  ...evidence,
 })
 
 // What show_chart tells the model about the values it charted, so it can
@@ -132,8 +134,14 @@ const lineOf = (observations: Arr.NonEmptyReadonlyArray<Observation>) => ({
   highest: pointOf(Arr.max(observations, byValue)),
 })
 
+const inputsOf = (sources: ResolvedView["sources"]) => {
+  const inputs = sources.flatMap((source) => source.inputs ?? [])
+
+  return Arr.isArrayNonEmpty(inputs) ? inputs : undefined
+}
+
 const lines = (
-  { indicator, observations, missing, qualifications }: ResolvedView,
+  { indicator, observations, missing, qualifications, sources }: ResolvedView,
   {
     from,
     to,
@@ -149,6 +157,7 @@ const lines = (
     ),
     missing,
     qualifications: qualifications ?? [],
+    inputs: inputsOf(sources),
     flagged: flaggedOf(observations, breaks),
   })
 
@@ -166,6 +175,7 @@ const bars = (resolved: Ranked) => {
     bars: ranked(observations),
     missing,
     qualifications: resolved.qualifications ?? [],
+    inputs: inputsOf(resolved.sources),
     flagged: flaggedOf(resolved.observations),
   }
 
@@ -194,6 +204,7 @@ const dots = (resolved: Related) => {
     dots: paired(shown),
     missing: shown.missing,
     qualifications: resolved.qualifications ?? [],
+    inputs: inputsOf(resolved.sources),
     flagged: flaggedOf(resolved.observations),
   }
 

@@ -48,6 +48,7 @@ type Fault =
   | "stream"
   | "store"
   | "activation"
+  | "verification"
   | "omit"
   | "held"
   | "foreign"
@@ -94,6 +95,10 @@ const fixture = () => {
       }),
     fetch: () => Effect.die("No API download on a chart request"),
     bulk: {
+      verify: () =>
+        fault === "verification"
+          ? Effect.fail(new SourceUnavailable({ source: "Fixture" }))
+          : Effect.void,
       release: () =>
         Effect.sync((): Release => ({
           order,
@@ -221,6 +226,7 @@ for (const fault of [
   "stream",
   "store",
   "activation",
+  "verification",
   "omit",
   "held",
   "foreign",
@@ -253,7 +259,11 @@ for (const fault of [
         source.during(Effect.void)
         yield* source.run
         expect(source.downloads.length - before).toBe(
-          fault === "activation" ? 0 : fault === "held" || fault === "foreign" ? 2 : 1,
+          fault === "activation" || fault === "verification"
+            ? 0
+            : fault === "held" || fault === "foreign"
+              ? 2
+              : 1,
         )
 
         yield* expectRelease(resolver, 2)

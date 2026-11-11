@@ -20,6 +20,7 @@ import { choose, type Query } from "./Series.ts"
 import { Store } from "./Store.ts"
 import { Vdem } from "./Vdem.ts"
 import { Who } from "./Who.ts"
+import { Wid } from "./Wid.ts"
 import { WorldBank } from "./WorldBank.ts"
 
 // Every source's adapter, by name. A caller picks one with `sourceOf`.
@@ -92,6 +93,7 @@ export class Sources extends Context.Service<Sources, Interface>()("@openfacts/s
       const ilostat = yield* Ilostat
       const faostat = yield* Faostat
       const vdem = yield* Vdem
+      const wid = yield* Wid
       const who = yield* Who
 
       return Sources.of({
@@ -101,6 +103,7 @@ export class Sources extends Context.Service<Sources, Interface>()("@openfacts/s
         ILOSTAT: ilostat,
         FAOSTAT: faostat,
         "V-Dem": vdem,
+        WID: wid,
         WHO: who,
       })
     }),
@@ -160,6 +163,7 @@ export class Sources extends Context.Service<Sources, Interface>()("@openfacts/s
             const countries = new Set(query.countries)
 
             return {
+              inputs: found.value.inputs,
               version: found.value.version,
               observations: found.value.observations.filter(
                 ({ country, year }) =>
@@ -215,6 +219,7 @@ export class Sources extends Context.Service<Sources, Interface>()("@openfacts/s
   static readonly live = Sources.stored.pipe(
     Layer.provide(Sources.layer),
     Layer.provide(Insee.cached),
+    Layer.provide(Wid.layer),
     Layer.provide(Who.cached),
     Layer.provide(Ilostat.layer),
     Layer.provide(Vdem.layer),

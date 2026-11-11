@@ -122,7 +122,14 @@ export const credits = (resolved: ResolvedView) => {
 
   const labels = [...datasets].map(([source, each]) => `${source}, ${[...each].join(", ")}`)
 
-  return labels.join("; ")
+  const inputs = resolved.sources
+    .flatMap((source) => source.inputs ?? [])
+    .map(
+      (input) =>
+        `${input.url} (${DateTime.formatIso(input.retrievedAt)}; ETag ${input.etag}; Last-Modified ${input.lastModified}; SHA-256 ${input.sha256})`,
+    )
+
+  return [...labels, ...inputs].join("; ")
 }
 
 export const attribution = (resolved: ResolvedView) =>

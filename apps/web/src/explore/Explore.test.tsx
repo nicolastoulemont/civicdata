@@ -9,6 +9,7 @@ import {
   type Direction,
   directionAfter,
   IndicatorId,
+  Input,
   IndicatorNotes,
   type Overlay,
   type ResolvedView,
@@ -1205,6 +1206,89 @@ describe("Explore", () => {
     expect(
       evidence.getByText("WHO estimate 81.9; 95% uncertainty bounds 81.7–82.1 (WHO-row.1)."),
     ).toBeDefined()
+  })
+
+  it("retains each WID input and quality note on a restored chart", async () => {
+    network.use(
+      http.get("/api/indicators/:indicator/notes", () => new HttpResponse(null, { status: 404 })),
+    )
+
+    const saved = Trend.make({
+      indicator: IndicatorId.make("WID:sptinc992j"),
+      countries: ["FRA", "SWE"],
+      from: Year.make(1991),
+      to: Year.make(1991),
+    })
+
+    const inputs = Schema.decodeUnknownSync(Schema.NonEmptyArray(Input))(
+      ["FR", "SE"].flatMap((country) =>
+        ["data", "metadata"].map((kind) => ({
+          url: `https://wid.world/bulk_download/WID_${kind}_${country}.csv`,
+          retrievedAt: DateTime.makeUnsafe("2026-11-11T00:00:00Z"),
+          version: `recorded-${country}-${kind}`,
+          etag: `"recorded-${country}-${kind}"`,
+          lastModified: "Fri, 06 Nov 2026 17:03:44 GMT",
+          sha256: "a".repeat(64),
+        })),
+      ),
+    )
+
+    network.use(
+      http.post("/api/views/resolve", async ({ request }) => {
+        const view = Schema.decodeUnknownSync(Trend)(await request.json())
+
+        return HttpResponse.json(
+          Schema.encodeSync(ResolvedViewSchema)({
+            ...resolvedFor(view),
+            observations: [
+              { country: "FRA", year: Year.make(1991), value: 0.2194 },
+              { country: "SWE", year: Year.make(1991), value: 0.2628 },
+            ],
+            sources: [
+              {
+                ...source(view.indicator),
+                source: "WID",
+                dataset: "World Inequality Database, sptinc992j",
+                url: "https://wid.world/data/",
+                inputs,
+              },
+            ],
+            qualifications: [
+              {
+                source: "WID",
+                series: { indicator: view.indicator, dimensions: {} },
+                country: "FRA",
+                year: Year.make(1991),
+                missing: false,
+                status: { code: "5", label: "Tax and survey microdata" },
+                notes: [
+                  {
+                    category: "Quality",
+                    code: "data_quality",
+                    label: "https://wid.world/data-quality/",
+                  },
+                ],
+              },
+            ],
+          }),
+        )
+      }),
+    )
+    show(saved)
+    const evidence = within(await screen.findByRole("list", { name: "Flagged values" }))
+    expect(evidence.getByText(/Tax and survey microdata/)).toBeDefined()
+
+    for (const input of inputs)
+      expect(
+        screen.getAllByText(
+          (_, element) =>
+            element?.tagName === "P" && (element.textContent?.includes(input.url) ?? false),
+        ).length,
+      ).toBeGreaterThan(0)
+    await userEvent.setup().click(screen.getByRole("tab", { name: "About" }))
+
+    for (const input of inputs)
+      expect(screen.getByRole("link", { name: input.url }).getAttribute("href")).toBe(input.url)
   })
 
   it("lists the values a source flags under the chart and in the data table", async () => {
