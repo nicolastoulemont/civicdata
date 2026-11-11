@@ -25,6 +25,7 @@
           "effect/http",
           "effect/http-api",
           "effect/sql",
+          "effect/reactivity",
           "@effect/sql-d1",
           "@effect/vitest",
           "effect/ai",

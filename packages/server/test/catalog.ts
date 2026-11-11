@@ -2,14 +2,24 @@ import { type CatalogEntry, IndicatorId, type Source, SourceUnavailable } from "
 import { D1Client } from "@effect/sql-d1"
 import { env } from "cloudflare:workers"
 import { Effect, Layer } from "effect"
+import { gzipSync, strToU8 } from "fflate"
 
 import { type Adapter, Policy } from "../src/Adapter.ts"
 import { Catalog } from "../src/Catalog.ts"
 import { CatalogBuild, Step } from "../src/CatalogBuild.ts"
 import { Classifier } from "../src/Classifier.ts"
 import { Directions } from "../src/Directions.ts"
+import { Outlines } from "../src/Outlines.ts"
+import { eurostat, oecd } from "../src/Sdmx.ts"
 import { Sources } from "../src/Sources.ts"
+import { Structures } from "../src/Structures.ts"
 import { type Ai, type Index, Vectors } from "../src/Vectors.ts"
+import { http } from "./fakes.ts"
+import eurostatCodelists from "./fixtures/structures/eurostat-codelists.json?raw"
+import metabase from "./fixtures/structures/metabase.txt?raw"
+import oecdCodelists from "./fixtures/structures/oecd-codelists.json?raw"
+import oecdConstraints from "./fixtures/structures/oecd-constraints.json?raw"
+import oecdStructures from "./fixtures/structures/oecd-structures.json?raw"
 
 export const entry = (indicator: string, name: string, definition = ""): CatalogEntry => ({
   indicator: IndicatorId.make(indicator),
@@ -98,9 +108,9 @@ const sources = (lists: Listings) =>
   )
 
 // Workers AI as a dictionary: a text's vector marks the topics it mentions,
-// so "how rich" lands next to "GDP per capita" and unrelated text next to
-// nothing.
-const topics = [/\brich\b|per capita|income/i, /\bkids\b|under-five/i]
+// so "how rich" lands next to "GDP per capita", "women" next to a dataset
+// with a "Females" code, and unrelated text next to nothing.
+const topics = [/\brich\b|per capita|income/i, /\bkids\b|under-five/i, /\bwomen\b|\bfemales?\b/i]
 
 export const workersAi = (answers: { up: boolean }): Ai => ({
   run: (_model, { text }) =>
@@ -153,6 +163,68 @@ export const vectorize = () => {
   return { index, upserts: () => upserts, deletes: () => deletes }
 }
 
+// What Eurostat and the OECD published about their datasets' structure on
+// 2026-11-11, trimmed to a few datasets: Eurostat's unemployment and
+// population, a monthly-only yield curve (TEIMF060) and a survey of the EU
+// as a whole (LFST_DPW_05); the OECD's monthly unemployment rates, a
+// monthly-only count of political violence (DF_PV_REGION) and plastics
+// emissions with no country (DF_GHG_PLC). Each codelist lists only the codes
+// these use. `asked` records every URL.
+export const recordings = () => {
+  const asked: Array<string> = []
+
+  const eurostatItems: ReadonlyArray<{ readonly extension: { readonly id: string } }> =
+    JSON.parse(eurostatCodelists).link.item
+
+  const oecdLists: ReadonlyArray<{ readonly agencyID: string; readonly id: string }> =
+    JSON.parse(oecdCodelists).data.codelists
+
+  const answers = new Map<string, () => Response>([
+    [`${eurostat}/catalogue/metabase.txt.gz`, () => new Response(gzipSync(strToU8(metabase)))],
+    [
+      `${eurostat}/sdmx/2.1/codelist/ESTAT/all/latest?format=JSON&lang=en`,
+      () => new Response(eurostatCodelists),
+    ],
+    ...eurostatItems.map(
+      (item) =>
+        [
+          `${eurostat}/sdmx/2.1/codelist/ESTAT/${item.extension.id}/latest?format=JSON&lang=en`,
+          () => Response.json(item),
+        ] as const,
+    ),
+    [`${oecd}/contentconstraint/all/all/latest`, () => new Response(oecdConstraints)],
+    [
+      `${oecd}/datastructure/all/all/latest?detail=full&references=none`,
+      () => new Response(oecdStructures),
+    ],
+    [`${oecd}/codelist/all/all/latest`, () => new Response(oecdCodelists)],
+    ...oecdLists.map(
+      (codelist) =>
+        [
+          `${oecd}/codelist/${codelist.agencyID}/${codelist.id}/latest`,
+          () => Response.json({ data: { codelists: [codelist] } }),
+        ] as const,
+    ),
+  ])
+
+  const layer = Structures.layer.pipe(
+    Layer.provide(
+      http((url) => {
+        asked.push(url)
+
+        return answers.get(url)?.() ?? new Response("no recording", { status: 404 })
+      }),
+    ),
+  )
+
+  return { layer, asked: () => asked }
+}
+
+// Sources that publish nothing about their datasets' structure.
+export const unstructured = Structures.layer.pipe(
+  Layer.provide(http(() => new Response("down", { status: 503 }))),
+)
+
 const db = env.CATALOG_DB
 
 if (db === undefined) throw new Error("vitest.config.ts must bind a D1 database as CATALOG_DB")
@@ -186,14 +258,18 @@ export const catalogOver = (
     index = vectorize().index,
     model,
     classifier = Classifier.off,
+    structures = recordings().layer,
   }: {
     ai?: Ai
     index?: Index
     model?: string
     classifier?: Layer.Layer<Classifier>
+    structures?: Layer.Layer<Structures>
   } = {},
 ) =>
   Layer.mergeAll(Catalog.layer, CatalogBuild.layer).pipe(
+    Layer.provideMerge(Outlines.layer),
+    Layer.provideMerge(structures),
     Layer.provide(sources(lists)),
     Layer.provide(Vectors.cloudflare({ ai, index, model })),
     Layer.provide(classifier),

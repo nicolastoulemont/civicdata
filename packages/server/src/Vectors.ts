@@ -12,6 +12,12 @@ const Matches = Schema.Struct({
   matches: Schema.Array(Schema.Struct({ id: IndicatorId, score: Schema.Finite })),
 })
 
+// What search embeds of an entry: its name, its definition and, for a
+// Eurostat or OECD dataset, the labels of its dimensions' codes.
+interface Passage extends CatalogEntry {
+  readonly labels: string
+}
+
 // What the index needs from the Workers AI binding. Its answers are decoded
 // before use: the types say what Workers AI documents, not what it sent.
 export interface Ai {
@@ -49,8 +55,9 @@ interface Interface {
   // The model that embeds entries. Vectors it stored under another model do
   // not fit, so a catalog build compares it (CatalogBuild.ts).
   readonly model: string
-  // Stores the meaning of each entry, replacing what an earlier put stored.
-  readonly put: (entries: ReadonlyArray<CatalogEntry>) => Effect.Effect<void, VectorsUnavailable>
+  // Stores the meaning of each entry, with the labels of its dataset's
+  // dimensions, replacing what an earlier put stored.
+  readonly put: (entries: ReadonlyArray<Passage>) => Effect.Effect<void, VectorsUnavailable>
   // Deletes what put stored under each indicator.
   readonly remove: (
     indicators: ReadonlyArray<IndicatorId>,
@@ -121,13 +128,15 @@ export class Vectors extends Context.Service<Vectors, Interface>()("@civicdata/s
       return data
     })
 
-    const put = Effect.fn("Vectors.put")(function* (entries: ReadonlyArray<CatalogEntry>) {
+    const put = Effect.fn("Vectors.put")(function* (entries: ReadonlyArray<Passage>) {
       const indexed = entries.filter(({ indicator }) => fitsAnId(indicator))
 
       if (!Arr.isReadonlyArrayNonEmpty(indexed)) return
 
       const vectors = yield* embed(
-        Arr.map(indexed, ({ name, definition }) => `${name}\n${definition}`),
+        Arr.map(indexed, ({ name, definition, labels }) =>
+          labels === "" ? `${name}\n${definition}` : `${name}\n${definition}\n${labels}`,
+        ),
       )
 
       yield* call(() =>

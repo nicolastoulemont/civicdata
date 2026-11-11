@@ -17,7 +17,11 @@ import { SqlClient, SqlSchema } from "effect/sql"
 import { tables } from "./Catalog.ts"
 import { Classifier, Classifying } from "./Classifier.ts"
 import { fingerprint } from "./fingerprint.ts"
+import { searchable, Outline, Outlines } from "./Outlines.ts"
+import { Pace } from "./Pace.ts"
+import type { SdmxSource } from "./Sdmx.ts"
 import { Sources } from "./Sources.ts"
+import { Structures } from "./Structures.ts"
 import { Vectors, type VectorsUnavailable } from "./Vectors.ts"
 
 // The catalog's D1 inside Workers, where the Workflows that build the
@@ -52,6 +56,16 @@ const perStep = 100
 // most questions it takes in one request.
 const perRequest = 400
 
+// Codelists a step asks the source for when their codes lack labels.
+// Eurostat answers 60 requests a minute; the OECD 50 an hour, shared with
+// every chart, so a build asks it for at most one step's worth. The first
+// fill reads every label from the bulk files (scripts/outlines.ts), so a
+// build only meets the few codelists new datasets bring.
+const codelists: Record<SdmxSource, { readonly perStep: number; readonly steps: number }> = {
+  Eurostat: { perStep: 25, steps: Number.POSITIVE_INFINITY },
+  OECD: { perStep: 10, steps: 1 },
+}
+
 // How long a build holds the lease unless it releases it first. A step that
 // keeps failing gives up after about an hour of retries, which fails its
 // source, and a first build of every source makes about 110 embedding and
@@ -63,9 +77,26 @@ const leaseFor = Duration.hours(12)
 // How long a build waits before it asks for the lease again.
 const poll = Duration.minutes(10)
 
+// An entry as a generation lists it: with the labels of its dataset's
+// dimensions that search embeds with its name, empty for an entry without a
+// outline.
+const Listed = Schema.Struct({ ...CatalogEntry.fields, labels: Schema.String })
+
 const EntriesJson = Schema.fromJsonString(Schema.Array(CatalogEntry))
 
-const Pending = Schema.Struct({ rowid: Schema.Int, ...CatalogEntry.fields })
+const ListedJson = Schema.fromJsonString(Schema.Array(Listed))
+
+const Pending = Schema.Struct({ rowid: Schema.Int, ...Listed.fields })
+
+const Unclassified = Schema.Struct({ rowid: Schema.Int, ...CatalogEntry.fields })
+
+// Whether search shows a outlined entry, and the labels it embeds.
+const Shown = Schema.Struct({
+  indicator: Outline.fields.indicator,
+  annual: Schema.Int,
+  countries: Schema.fromJsonString(Outline.fields.countries),
+  text: Schema.String,
+})
 
 const IdsJson = Schema.fromJsonString(Schema.Array(IndicatorId))
 
@@ -92,10 +123,23 @@ interface Interface {
   readonly take: (holder: string) => Effect.Effect<boolean>
   // Releases the lease, if `holder` still holds it.
   readonly release: (holder: string) => Effect.Effect<void>
+  // Stores the outline of each of the source's datasets that changed, from the
+  // files a Worker can read, and answers how many it wrote.
+  readonly outline: (source: SdmxSource) => Effect.Effect<number, SourceUnavailable>
+  // Asks the source for its next codelists after `after` whose codes in use
+  // lack labels, and stores the labels. Answers the last codelist asked, or
+  // null once none lacks labels. A codelist the source fails to give is
+  // skipped until the next build.
+  readonly label: (source: SdmxSource, after: string) => Effect.Effect<string | null>
+  // Writes the labels each of the source's datasets embeds, where they
+  // changed, and answers how many.
+  readonly describe: (source: SdmxSource) => Effect.Effect<number>
   // Lists the source's indicators into the generation, replacing what an
-  // earlier attempt wrote there, and answers how many it wrote. It writes
-  // nothing and answers null when the published generation holds the same
-  // entries, embedded by the same model, or is newer. An empty list is the
+  // earlier attempt wrote there, and answers how many it wrote. It leaves
+  // out the datasets search does not show, those with no annual values or
+  // none of our countries (Outlines.ts). It writes nothing and answers null
+  // when the published generation holds the same entries, with the same
+  // labels, embedded by the same model, or is newer. An empty list is the
   // source failing, so it never replaces a published one.
   readonly write: (
     source: Source,
@@ -206,6 +250,8 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
       const sources = yield* Sources
       const vectors = yield* Vectors
       const classifier = yield* Classifier
+      const outlines = yield* Outlines
+      const structures = yield* Structures
 
       yield* tables
 
@@ -221,9 +267,18 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
           source TEXT NOT NULL,
           model TEXT NOT NULL,
           name TEXT NOT NULL,
-          definition TEXT NOT NULL
+          definition TEXT NOT NULL,
+          labels TEXT NOT NULL DEFAULT ''
         )
       `
+
+      // Vectors an earlier version stored embed no labels: they get the empty
+      // ones, so the next build embeds each entry with labels once more.
+      const embedded = yield* sql<{ readonly name: string }>`PRAGMA table_info(catalog_vector)`
+
+      if (!embedded.some(({ name }) => name === "labels")) {
+        yield* sql`ALTER TABLE catalog_vector ADD COLUMN labels TEXT NOT NULL DEFAULT ''`
+      }
 
       // The one build allowed to change the catalog, until it releases the
       // lease or the lease expires (milliseconds since the epoch). Builds
@@ -260,15 +315,19 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
         }),
         Result: Pending,
         execute: ({ source, generation, after }) => sql`
-          SELECT rowid, indicator, name, definition FROM catalog
-          WHERE rowid > ${after} AND source = ${source} AND generation = ${generation}
+          SELECT catalog.rowid, catalog.indicator, catalog.name, catalog.definition,
+            coalesce(outline.text, '') AS labels
+          FROM catalog LEFT JOIN catalog_outline AS outline ON outline.indicator = catalog.indicator
+          WHERE catalog.rowid > ${after} AND catalog.source = ${source}
+            AND catalog.generation = ${generation}
             AND NOT EXISTS (
               SELECT 1 FROM catalog_vector AS stored
               WHERE stored.indicator = catalog.indicator AND stored.source = catalog.source
                 AND stored.model = ${vectors.model} AND stored.name = catalog.name
                 AND stored.definition = catalog.definition
+                AND stored.labels = coalesce(outline.text, '')
             )
-          ORDER BY rowid
+          ORDER BY catalog.rowid
           LIMIT ${perStep}
         `,
       })
@@ -294,7 +353,7 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
       // direction for their current name and definition, by `model`.
       const unclassified = SqlSchema.findAll({
         Request: Schema.Struct({ source: Source, after: Schema.Int, model: Schema.String }),
-        Result: Pending,
+        Result: Unclassified,
         execute: ({ source, after, model }) => sql`
           SELECT catalog.rowid, catalog.indicator, catalog.name, catalog.definition FROM catalog
           JOIN catalog_current AS current
@@ -320,6 +379,15 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
           JOIN catalog_current USING (source, generation)
           WHERE source = ${source}
         `,
+      })
+
+      // The source's outlines, by indicator: whether search shows each and the
+      // labels it embeds.
+      const shown = SqlSchema.findAll({
+        Request: Source,
+        Result: Shown,
+        execute: (source) =>
+          sql`SELECT indicator, annual, countries, text FROM catalog_outline WHERE source = ${source}`,
       })
 
       const list = (source: Source) => sources[source].list
@@ -355,10 +423,26 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
             return yield* new SourceUnavailable({ source })
           }
 
-          // Sorted, since a source may list the same entries in another order.
-          const listed = yield* Schema.encodeEffect(EntriesJson)(
-            Arr.sortWith(entries, (entry) => entry.indicator, Order.String),
+          const outlined = new Map(
+            (yield* shown(source)).map((outline) => [outline.indicator, outline]),
           )
+
+          // Sorted, since a source may list the same entries in another order.
+          const kept = Arr.sortWith(
+            entries.flatMap(({ indicator, name, definition }) => {
+              const outline = outlined.get(indicator)
+
+              if (outline === undefined) return [{ indicator, name, definition, labels: "" }]
+
+              return searchable({ annual: outline.annual === 1, countries: outline.countries })
+                ? [{ indicator, name, definition, labels: outline.text }]
+                : []
+            }),
+            (entry) => entry.indicator,
+            Order.String,
+          )
+
+          const listed = yield* Schema.encodeEffect(ListedJson)(kept)
 
           const print = yield* fingerprint(`${vectors.model}\n${listed}`)
 
@@ -376,7 +460,7 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
 
           yield* sql`DELETE FROM catalog WHERE source = ${source} AND generation = ${generation}`
 
-          for (const chunk of Arr.chunksOf(entries, rowsPerInsert)) {
+          for (const chunk of Arr.chunksOf(kept, rowsPerInsert)) {
             const rows = yield* Schema.encodeEffect(EntriesJson)(chunk)
 
             yield* sql`
@@ -394,7 +478,7 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
             ON CONFLICT (source, generation) DO UPDATE SET fingerprint = excluded.fingerprint
           `
 
-          return entries.length
+          return kept.length
         },
         Effect.catchTags({ SqlError: Effect.die, SchemaError: Effect.die }),
       )
@@ -407,16 +491,18 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
 
           yield* vectors.put(batch)
 
-          const rows = yield* Schema.encodeEffect(EntriesJson)(batch)
+          const rows = yield* Schema.encodeEffect(ListedJson)(batch)
 
           // WHERE true keeps SQLite from reading ON CONFLICT as a join's ON.
           yield* sql`
-            INSERT INTO catalog_vector (indicator, source, model, name, definition)
+            INSERT INTO catalog_vector (indicator, source, model, name, definition, labels)
             SELECT json_extract(value, '$.indicator'), ${source}, ${vectors.model},
-              json_extract(value, '$.name'), json_extract(value, '$.definition')
+              json_extract(value, '$.name'), json_extract(value, '$.definition'),
+              json_extract(value, '$.labels')
             FROM json_each(${rows}) WHERE true
             ON CONFLICT (indicator) DO UPDATE SET source = excluded.source,
-              model = excluded.model, name = excluded.name, definition = excluded.definition
+              model = excluded.model, name = excluded.name, definition = excluded.definition,
+              labels = excluded.labels
           `
 
           return Arr.lastNonEmpty(batch).rowid
@@ -502,13 +588,49 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
         Effect.catchTags({ SqlError: Effect.die, SchemaError: Effect.die }),
       )
 
-      return CatalogBuild.of({ take, release, write, embed, publish, remove, classify })
+      const outline = Effect.fn("CatalogBuild.outline")(function* (source: SdmxSource) {
+        return yield* outlines.write(source, structures.outlines(source))
+      })
+
+      const label = Effect.fn("CatalogBuild.label")(function* (source: SdmxSource, after: string) {
+        const listed = yield* outlines.unlabelled(source, {
+          after,
+          limit: codelists[source].perStep,
+        })
+
+        if (!Arr.isReadonlyArrayNonEmpty(listed)) return null
+
+        for (const codelist of listed) {
+          yield* structures.codelist(source, codelist).pipe(
+            Effect.flatMap((labels) => outlines.label(source, { codelist, labels })),
+            Effect.catchTag("SourceUnavailable", () => Effect.void),
+          )
+        }
+
+        return Arr.lastNonEmpty(listed)
+      })
+
+      return CatalogBuild.of({
+        take,
+        release,
+        outline,
+        label,
+        describe: outlines.describe,
+        write,
+        embed,
+        publish,
+        remove,
+        classify,
+      })
     }).pipe(Effect.orDie),
   )
 
   // Inside Workers, where the Workflow runs, with D1 and paced sources. The
   // Workflow provides the Classifier (CatalogWorkflow.ts).
   static readonly live = CatalogBuild.layer.pipe(
+    Layer.provide(Outlines.layer),
+    Layer.provide(Structures.layer),
+    Layer.provide(Pace.gathering),
     Layer.provide(database),
     Layer.provide(Vectors.live),
     Layer.provide(Sources.live),
@@ -572,7 +694,28 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
       }
     })
 
+    // Stores the outlines of a source's datasets, the labels their codes lack
+    // and the labels search embeds, before its entries are written. Outlines
+    // the source fails to give leave the stored ones in place.
+    const refine = Effect.fn("CatalogBuild.refine")(function* (source: SdmxSource) {
+      yield* step.run(`outline ${source}`, build.outline(source))
+
+      let after: string | null = ""
+
+      for (let steps = 0; after !== null && steps < codelists[source].steps; steps += 1) {
+        after = yield* step.run(`label ${source} after ${after}`, build.label(source, after))
+      }
+
+      yield* step.run(`describe ${source}`, build.describe(source))
+    })
+
     const one = Effect.fn("CatalogBuild.source")(function* (source: Source) {
+      if (source !== "World Bank") {
+        yield* refine(source).pipe(
+          Effect.catch((error) => Effect.logWarning("Refreshing outlines failed", source, error)),
+        )
+      }
+
       const written = yield* step.run(`write ${source}`, build.write(source, generation))
 
       if (written !== null) yield* refresh(source)

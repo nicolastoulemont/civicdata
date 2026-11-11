@@ -62,7 +62,7 @@ export {
 
 export { Country, countries, fromAlpha2, locate } from "./Country.ts"
 
-export { type Code, Dimension, DimensionId, DimensionList, Dimensions } from "./Dimension.ts"
+export { Code, Dimension, DimensionId, DimensionList, Dimensions } from "./Dimension.ts"
 
 export { Direction, directionAfter } from "./Direction.ts"
 
