@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process"
-import { randomUUID } from "node:crypto"
+import { createHash, randomUUID } from "node:crypto"
 import { existsSync } from "node:fs"
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
@@ -10,6 +10,7 @@ import { gunzip, gzip } from "node:zlib"
 import { cloudflareTest } from "@cloudflare/vitest-plugin"
 import { defineConfig } from "vitest/config"
 
+import { context } from "./scripts/evals/context.ts"
 import { runtime } from "./vitest.config.ts"
 
 // Every question spends OpenAI tokens and a run takes from 25 minutes to
@@ -56,6 +57,8 @@ if (key === undefined || key === "") {
   )
 }
 
+const captured = context(fileURLToPath(new URL("../../", import.meta.url)))
+
 const recordings = fileURLToPath(new URL("eval/recordings", import.meta.url))
 
 // The sources' recorded answers (eval/Recordings.ts), one gzipped file per
@@ -65,7 +68,11 @@ const RECORDINGS = async (request: Request) => {
 
   if (request.method !== "PUT")
     return readFile(file).then(
-      async (zipped) => new Response(await promisify(gunzip)(zipped)),
+      async (zipped) => {
+        await remember(zipped)
+
+        return new Response(await promisify(gunzip)(zipped))
+      },
       () => new Response(null, { status: 404 }),
     )
 
@@ -74,8 +81,11 @@ const RECORDINGS = async (request: Request) => {
   const written = `${file}.${randomUUID()}`
 
   await mkdir(dirname(file), { recursive: true })
-  await writeFile(written, await promisify(gzip)(await request.text()))
+  const zipped = await promisify(gzip)(await request.text())
+
+  await writeFile(written, zipped)
   await rename(written, file)
+  await remember(zipped)
 
   return new Response(null, { status: 204 })
 }
@@ -86,9 +96,26 @@ const run = fileURLToPath(
   new URL(`eval/runs/${new Date().toISOString().replaceAll(":", "-")}/`, import.meta.url),
 )
 
-// Writes one probe's answers into this run's folder.
+// Initialize on the first input or answer, including failed and partial runs.
+let initialized: Promise<void> | undefined
+
+const initialize = () => {
+  initialized ??= mkdir(join(run, "inputs/recordings"), { recursive: true }).then(() =>
+    writeFile(join(run, "context.json"), JSON.stringify(captured, null, 2), { flag: "wx" }),
+  )
+
+  return initialized
+}
+
+// Keep the exact response bytes used by this run, even if fixtures are refreshed later.
+const remember = async (zipped: Uint8Array) => {
+  await initialize()
+  const hash = createHash("sha256").update(zipped).digest("hex")
+  await writeFile(join(run, "inputs/recordings", `${hash}.json.gz`), zipped)
+}
+
 const RUNS = async (request: Request) => {
-  await mkdir(run, { recursive: true })
+  await initialize()
   await writeFile(join(run, new URL(request.url).pathname), await request.text())
 
   return new Response(null, { status: 204 })

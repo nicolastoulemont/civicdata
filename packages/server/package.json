@@ -11,7 +11,7 @@
   },
   "scripts": {
     "typecheck": "effect-tsgo tsc --noEmit && effect-tsgo tsc --noEmit -p scripts",
-    "test": "vitest run",
+    "test": "vitest run && vitest run --config vitest.scripts.config.ts",
     "titles": "node scripts/titles.ts",
     "triage": "node scripts/triage.ts",
     "outlines": "node scripts/outlines.ts",
@@ -30,6 +30,7 @@
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.6.0",
     "@cloudflare/workers-types": "^5.20261107.1",
+    "@effect/platform-node": "4.1.2",
     "@effect/vitest": "catalog:",
     "@types/node": "^24.19.2",
     "vitest": "catalog:"

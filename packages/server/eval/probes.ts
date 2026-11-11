@@ -43,7 +43,9 @@ export const Probed = Schema.Struct({
   failure: Schema.NullOr(Schema.String),
 })
 
-export interface Probed extends Schema.Schema.Type<typeof Probed> {}
+export const ProbedJson = Schema.fromJsonString(Schema.toCodecJson(Probed))
+
+export const isProbeFile = (name: string) => /^(?:informed|everyday)-\d{3}\.json$/.test(name)
 
 type Entry = readonly [ask: string | Arr.NonEmptyReadonlyArray<string>, note?: string]
 

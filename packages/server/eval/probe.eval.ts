@@ -6,8 +6,10 @@ import { FetchHttpClient } from "effect/http"
 
 import { defaultModel } from "../src/model.ts"
 import { answer, Live } from "./Live.ts"
-import { Probed, probes } from "./probes.ts"
+import { Probed, ProbedJson, probes } from "./probes.ts"
 import { Tally } from "./Tally.ts"
+
+type Probed = typeof Probed.Type
 
 const model = env.OPENAI_MODEL ?? defaultModel
 
@@ -24,7 +26,7 @@ const runs = Effect.sync(() => {
 // Writes a probe's file into this run's folder.
 const write = Effect.fnUntraced(function* (probed: Probed) {
   const binding = yield* runs
-  const json = JSON.stringify(yield* Schema.encodeEffect(Probed)(probed), null, 2)
+  const json = yield* Schema.encodeEffect(ProbedJson)(probed)
 
   // A file not written fails the probe, as a defect.
   yield* Effect.promise(async () => {

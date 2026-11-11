@@ -4,16 +4,7 @@ The eval in `cases.ts` checks charts against answers we already know. Probes fin
 
 A probe run asks every probe and writes down how the agent answered. Nothing scores the answers. A reviewer reads them, votes on each one, and `triage` turns the answers voted down into the start of eval cases.
 
-## Running
-
-```sh
-RUN_AGENT_EVAL=1 pnpm --filter @civicdata/server probe
-RUN_AGENT_EVAL=1 pnpm --filter @civicdata/server probe -t everyday   # one voice, or any part of a probe's id or question
-```
-
-It runs like the eval (README, "Agent eval"): in workerd, against OpenAI and the sources' recorded answers, behind `RUN_AGENT_EVAL=1`, and only when the owner asks for a run. The 200 probes take over an hour. A question no recording answers asks its source live and saves the answer to `eval/recordings`; commit the new files. A first run can ask the OECD for more than its 60 requests an hour allow, so some probes may fail with `SourceUnavailable`. Run those again with `-t <id>` an hour later.
-
-Each run writes to `eval/runs/<when it started>/`, one `<probe id>.json` per probe, such as `everyday-042.json`. Git ignores the folder. A file holds the probe, then one row per turn as the answer log keeps it (`docs/answers.md`): the questions, the `ending` with its charts and text, the agent's `steps`, `took` and `model`, and a `vote` of null. A probe whose answer failed has no rows and a `failure`.
+Run, retry, archive and restore through [docs/evals.md](../../../docs/evals.md). The rules below govern answer review; execution passing is not a quality score. Probe notes are hypotheses to check against fetched evidence.
 
 ## Reviewing
 

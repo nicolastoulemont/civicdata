@@ -71,7 +71,7 @@ CLOUDFLARE_ACCOUNT_ID=... CLOUDFLARE_API_TOKEN=... DATABASE_ID=... DAYS=30 \
   pnpm --filter @civicdata/server run triage
 ```
 
-With `RUN=eval/runs/<run>` instead, a path from `packages/server`, it reads a probe run's answers and their votes ([packages/server/eval/probes.md](../packages/server/eval/probes.md)). The token needs D1 read access. `DATABASE_ID` is the stage's database, under Storage and databases, then D1, in the Cloudflare dashboard. `DAYS` is optional.
+With `RUN=eval/runs/<run>` instead, a path from `packages/server`, it reads a probe run's answers and their votes ([eval workflow](evals.md), [review rubric](../packages/server/eval/probes.md)). The token needs D1 read access. `DATABASE_ID` is the stage's database, under Storage and databases, then D1, in the Cloudflare dashboard. `DAYS` is optional.
 
 An answer is a candidate when the person voted it down (weighs 8), it was cut short or unanswered (4), the server sent charts back (1 each), or the person changed its charts (1 each change). One voted up is never a candidate. `eval/candidates.ts` holds the rules.
 

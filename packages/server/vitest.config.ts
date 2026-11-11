@@ -14,4 +14,7 @@ export const runtime = {
   d1Databases: ["DB", "CATALOG_DB"],
 }
 
-export default defineConfig({ plugins: [cloudflareTest({ miniflare: runtime })] })
+export default defineConfig({
+  plugins: [cloudflareTest({ miniflare: runtime })],
+  test: { include: ["test/**/*.test.ts"] },
+})

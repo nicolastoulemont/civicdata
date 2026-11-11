@@ -21,7 +21,7 @@ import { Config, DateTime, Duration, Effect, Option, Schema } from "effect"
 import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
 
 import { candidates, Logged, print } from "../eval/candidates.ts"
-import { Probed } from "../eval/probes.ts"
+import { isProbeFile, ProbedJson } from "../eval/probes.ts"
 
 const Query = Schema.Struct({ sql: Schema.String, params: Schema.Array(Schema.String) })
 
@@ -29,8 +29,6 @@ const Query = Schema.Struct({ sql: Schema.String, params: Schema.Array(Schema.St
 const Answer = Schema.Struct({
   result: Schema.Tuple([Schema.Struct({ results: Schema.Array(Logged) })]),
 })
-
-const ProbedJson = Schema.fromJsonString(Probed)
 
 // The answers a stage logged in the last DAYS days.
 const logged = Effect.gen(function* () {
@@ -65,12 +63,10 @@ const probed = Effect.fnUntraced(function* (run: string) {
   const folder = resolve(run)
   const names = yield* Effect.promise(() => readdir(folder))
 
-  const files = yield* Effect.forEach(
-    names.filter((name) => name.endsWith(".json")),
-    (name) =>
-      Effect.promise(() => readFile(join(folder, name), "utf8")).pipe(
-        Effect.flatMap(Schema.decodeUnknownEffect(ProbedJson)),
-      ),
+  const files = yield* Effect.forEach(names.filter(isProbeFile), (name) =>
+    Effect.promise(() => readFile(join(folder, name), "utf8")).pipe(
+      Effect.flatMap(Schema.decodeUnknownEffect(ProbedJson)),
+    ),
   )
 
   return { rows: files.flatMap(({ rows }) => rows), from: `answers in ${run}` }

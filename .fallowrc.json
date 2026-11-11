@@ -16,6 +16,8 @@
   // is dead even when it sits in a package entry point.
   "includeEntryExports": true,
   "ignoreExports": [
+    // Alchemy loads the archive stack through its deploy command argument.
+    { "file": "packages/infra/evals.run.ts", "exports": ["default"] },
     // TanStack Router generates this file and decides what it exports.
     { "file": "apps/web/src/routeTree.gen.ts", "exports": ["*"] },
     // shadcn components export every sub-part; pages use a few. An unused

@@ -3,5 +3,5 @@
   "compilerOptions": {
     "lib": ["es2024", "dom"]
   },
-  "include": ["alchemy.run.ts"]
+  "include": ["alchemy.run.ts", "evals.run.ts"]
 }

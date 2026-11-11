@@ -24,6 +24,10 @@ With the label, the preview gets its own catalog database binding, `Vectors` ind
 
 R2 refuses to delete a bucket that holds objects. Every stage but `prod` sets `forceDestroy` on its two buckets, so `alchemy destroy` empties them first; on `prod` the destroy fails instead. A destroy reads `forceDestroy` from the stage's last deploy, not from the code it runs.
 
+## Eval archive
+
+The private `civicdata-evals` bucket belongs to `packages/infra/evals.run.ts`, a separate stack deployed by `deploy:evals` with the fixed `archive` stage. Its removal policy retains the bucket, and force deletion is disabled. Preview deploys and cleanup do not own it. [Eval archive operations](evals.md#pack-upload-and-restore) cover transfers and verification.
+
 ## Removing a preview the cleanup left behind
 
 If the `cleanup` job fails, the closed pull request's comment says "Failed" and its stage keeps whatever the destroy could not delete. Run the Remove previews workflow from `main` with the pull request numbers:

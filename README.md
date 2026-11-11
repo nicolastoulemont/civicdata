@@ -82,13 +82,9 @@ A question on the home page opens a conversation at `/c/<id>`, where follow-ups 
 
 ### Agent eval
 
-`RUN_AGENT_EVAL=1 pnpm --filter @civicdata/server eval` asks the agent every question in `packages/server/eval/cases.ts` and checks each final chart against the charts the case accepts: chart type, indicator, countries, transform, and the years the question names. A failed case lists what differed, e.g. `indicator GC.DOD.TOTL.CN, want GC.DOD.TOTL.GD.ZS`. It runs in workerd against OpenAI and the sources' recorded answers, builds the catalog first, reads `OPENAI_API_KEY` and `OPENAI_MODEL` like `alchemy dev` does, and takes about 25 minutes. Each question costs a few model requests, so CI never runs it, and without `RUN_AGENT_EVAL=1` its config refuses to start.
+The scored eval checks accepted charts; probes save answers for quality review. Both call OpenAI and run only on the owner's request, never as engineering checks. Source recordings stay in Git for replay; paid results and reviews are archived in a private R2 bucket.
 
-Run it only on request. A change to the prompt, the tools or the model doesn't need a run of its own: the owner asks for one when a run is worth its tokens, then compares the passed count with the last run. A change that adds or edits cases needs no run either, since `pnpm check` typechecks them. A case that fails with `SourceUnavailable` asked a source live and was refused; rerun it alone with `-t "<question>"`.
-
-`RUN_AGENT_EVAL=1 pnpm --filter @civicdata/server probe` asks the 200 questions in `packages/server/eval/probes.ts`, which have no accepted chart, and writes each answer in the answer log's form under `packages/server/eval/runs/`, for a reviewer to vote on. [packages/server/eval/probes.md](packages/server/eval/probes.md) says how to review a run and turn its answers into cases.
-
-`packages/server/eval/recordings` holds one gzipped JSON file per request the eval made to a source: its URL, `Accept` header, retrieval time, status and body. The eval answers a request from its file and never asks the source, so a run spends almost none of the OECD's 60 requests an hour. A request without a file goes to the source through the pacer, and its answer is saved for the next run; commit the new files. At the end, a run prints the requests it sent to each source, the answers it replayed, and the OpenAI tokens it used, in total and for the five cases that used the most. To refresh a source's answers, delete its folder (`oecd`, `eurostat` or `world-bank`) and run the eval. A refresh asks the OECD about 50 times, so refresh it at most once an hour. A replayed series reports the run's time as its retrieval time, since the adapters stamp an answer when it arrives; the file keeps when the source sent it.
+Read [docs/evals.md](docs/evals.md) to run, retry, review, archive or restore results. `pnpm evals --help` lists the offline pack and remote transfer commands.
 
 ### Editor
 
