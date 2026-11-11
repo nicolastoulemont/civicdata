@@ -199,3 +199,12 @@ OpenAPI; they require source and known last-update credit.
 The preview requires `own-catalog`. Its normal catalog build discovers this entry
 in isolated resources. No manual production catalog build, gather or fill is
 part of this integration; each needs the owner's explanation and approval first.
+
+## ILOSTAT status
+
+ILOSTAT remains unregistered. The [bounded official-data audit](research/ilostat/README.md)
+found source-specific quality and reference-period notes that the current
+observation contract cannot preserve, including unreliable and missing values.
+It records the concrete blocker and a one-archive proposal. It adds no catalog
+entries, gather enrollment, stored observations or chart-read capability.
+Production operations still require owner approval.

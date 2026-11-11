@@ -1,0 +1,60 @@
+{
+  "retrievedAt": "2026-11-11T20:04:30.272093+00:00",
+  "toc": {
+    "entries": 1964,
+    "annual": 1204,
+    "advertisedRows": 401256337,
+    "annualAdvertisedRows": 197196957
+  },
+  "archives": [
+    {
+      "id": "SDG_0552_NOC_RT_A",
+      "url": "https://rplumber.ilo.org/data/indicator?format=.csv.gz&id=SDG_0552_NOC_RT_A",
+      "compressedBytes": 13838,
+      "decodedBytes": 111762,
+      "decodedSha256": "797f79825ac89541b87baee0d5f0e5c2b031f435a684b571ea7780c534f44689",
+      "rows": 1838,
+      "recordedRows": 1838,
+      "statusCounts": {
+        "U": 68,
+        "": 1631,
+        "B": 139
+      },
+      "missingValues": 9,
+      "selection": "complete archive"
+    },
+    {
+      "id": "SDG_B552_NOC_RT_A",
+      "url": "https://rplumber.ilo.org/data/indicator?format=.csv.gz&id=SDG_B552_NOC_RT_A",
+      "compressedBytes": 5147,
+      "decodedBytes": 38151,
+      "decodedSha256": "243c22364180a744b1b15e49489eb66fc1e2e1d26fe0a9e1e99d7faa488f0ef9",
+      "rows": 628,
+      "recordedRows": 628,
+      "statusCounts": {
+        "U": 12,
+        "": 571,
+        "B": 45
+      },
+      "missingValues": 2,
+      "selection": "complete archive"
+    },
+    {
+      "id": "SDG_0111_SEX_AGE_RT_A",
+      "url": "https://rplumber.ilo.org/data/indicator?format=.csv.gz&id=SDG_0111_SEX_AGE_RT_A",
+      "compressedBytes": 250398,
+      "decodedBytes": 3512409,
+      "decodedSha256": "996d05f9f04299146915e54a2a2501b18d7cf9159b3bb81476e392c08c197fd6",
+      "rows": 42030,
+      "recordedRows": 654,
+      "statusCounts": {
+        "A": 22853,
+        "R": 1584,
+        "I": 1025,
+        "": 16568
+      },
+      "missingValues": 0,
+      "selection": "all MEX, TUR and X01 rows; no time or dimension filtering; X01 retained as aggregate exclusion evidence"
+    }
+  ]
+}
