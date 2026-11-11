@@ -1373,88 +1373,75 @@ describe("conversations", () => {
   ] as const
 
   for (const { source, indicator, options } of unavailable) {
-    it.effect(`fails the step, then the answer, when ${source} is unreachable`, () => {
+    it.effect(`fails the step when ${source} is unreachable, and answers without it`, () => {
       const model = scripted([
         Effect.succeed(call("describe_indicator", { indicator, countries: [], dimensions: null })),
+        silent,
       ])
 
       return Effect.gen(function* () {
-        const seen: Array<Step> = []
+        const steps = yield* answer("Unemployment in France")
 
-        const error = yield* ask("Unemployment in France").pipe(
-          Effect.flatMap(Stream.runForEach((step) => Effect.sync(() => seen.push(step)))),
-          Effect.flip,
-        )
-
-        expect(error).toEqual(new SourceUnavailable({ source }))
-        expect(seen.at(-1)).toMatchObject({
+        expect(log(steps)[0]).toMatchObject({
           indicator,
           state: Failed.make({ reason: new SourceUnavailable({ source }) }),
         })
-        expect(yield* turns).toEqual({ answered: [] })
+        expect(model.prompts[1]).toContain(
+          `${source} is not answering now. Use an indicator of another source for the same measure`,
+        )
+        expect((yield* turns).answered).toHaveLength(1)
       }).pipe(Effect.provide(serveApi(model.layer, options)))
     })
   }
 
-  // A tool that dies, and one that fails, each beside a definition that never
-  // arrives: the World Bank's values die or fail, and its definitions hang.
-  const cutOff = [
-    {
-      name: "dies",
-      observations: () => Effect.die("boom"),
-      fetch: Failed.make({ reason: new AgentUnavailable() }),
-    },
-    {
-      name: "fails",
-      observations: () => Effect.fail(new SourceUnavailable({ source: "World Bank" })),
-      fetch: Failed.make({ reason: new SourceUnavailable({ source: "World Bank" }) }),
-    },
-  ] as const
+  // A tool that dies beside a definition that never arrives: the World Bank's
+  // values die, and its definitions hang.
+  it.effect("ends every step still running when a tool dies", () => {
+    const worldBank = Layer.effect(
+      WorldBank,
+      Effect.map(Effect.service(WorldBank).pipe(Effect.provide(recordedWorldBank)), (bank) =>
+        WorldBank.of({
+          ...bank,
+          describe: () => Effect.never,
+          observations: () => Effect.die("boom"),
+        }),
+      ),
+    )
 
-  for (const { name, observations, fetch } of cutOff) {
-    it.effect(`ends every step still running when a tool ${name}`, () => {
-      const worldBank = Layer.effect(
-        WorldBank,
-        Effect.map(Effect.service(WorldBank).pipe(Effect.provide(recordedWorldBank)), (bank) =>
-          WorldBank.of({ ...bank, describe: () => Effect.never, observations }),
-        ),
+    const both: ReadonlyArray<Response.PartEncoded> = [
+      {
+        type: "tool-call",
+        id: "call-describe_indicator",
+        name: "describe_indicator",
+        params: { indicator: lifeExpectancy, countries: [], dimensions: null },
+      },
+      { type: "tool-call", id: "call-show_chart", name: "show_chart", params: brazil },
+      finish,
+    ]
+
+    const model = scripted([Effect.succeed(both)])
+
+    return Effect.gen(function* () {
+      const seen: Array<Step> = []
+
+      const exit = yield* ask("Life expectancy in Brazil").pipe(
+        Effect.flatMap(Stream.runForEach((step) => Effect.sync(() => seen.push(step)))),
+        Effect.exit,
       )
 
-      const both: ReadonlyArray<Response.PartEncoded> = [
-        {
-          type: "tool-call",
-          id: "call-describe_indicator",
-          name: "describe_indicator",
-          params: { indicator: lifeExpectancy, countries: [], dimensions: null },
-        },
-        { type: "tool-call", id: "call-show_chart", name: "show_chart", params: brazil },
-        finish,
-      ]
-
-      const model = scripted([Effect.succeed(both)])
-
-      return Effect.gen(function* () {
-        const seen: Array<Step> = []
-
-        const exit = yield* ask("Life expectancy in Brazil").pipe(
-          Effect.flatMap(Stream.runForEach((step) => Effect.sync(() => seen.push(step)))),
-          Effect.exit,
-        )
-
-        expect(Exit.isFailure(exit)).toBe(true)
-        // The definition was cut off; the chart's fetch failed.
-        expect(log(seen)).toEqual([
-          Definition.make({
-            id: StepId.make("call-describe_indicator"),
-            indicator: lifeExpectancy,
-            state: Halted.make({}),
-          }),
-          fetched(fetch),
-        ])
-        expect(yield* turns).toEqual({ answered: [] })
-      }).pipe(Effect.provide(serveApi(model.layer, { worldBank })))
-    })
-  }
+      expect(Exit.isFailure(exit)).toBe(true)
+      // The definition was cut off; the chart's fetch failed.
+      expect(log(seen)).toEqual([
+        Definition.make({
+          id: StepId.make("call-describe_indicator"),
+          indicator: lifeExpectancy,
+          state: Halted.make({}),
+        }),
+        fetched(Failed.make({ reason: new AgentUnavailable() })),
+      ])
+      expect(yield* turns).toEqual({ answered: [] })
+    }).pipe(Effect.provide(serveApi(model.layer, { worldBank })))
+  })
 
   it.effect("looks up place names for the model", () => {
     const model = scripted([

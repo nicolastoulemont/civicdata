@@ -162,30 +162,44 @@ export const observations = (text: string, area: Area) => {
 }
 
 // Every dimension in a labelled answer with the values it took, in the order
-// the answer lists them, including dimensions that took a single value.
-export const dimensions = (text: string, area: Area) => {
+// the answer lists them, including dimensions that took a single value, and
+// the codes of each series, one per dimension in that order. Values a
+// dimension takes need not go together: a measure may exist only with
+// "not applicable" in another dimension.
+export const options = (text: string, area: Area) => {
   const { header, lines } = rows(text)
   const columns = layout(header, area)
 
   if (columns === undefined) return undefined
 
-  return columns.dimensions.flatMap(({ id, label, index }) => {
-    const options = new Map<string, string>()
+  const kept = columns.dimensions.flatMap(({ id, label, index }) => {
+    const values = new Map<string, string>()
 
     for (const row of lines) {
       const cell = labelled(row[index] ?? "")
 
-      if (!options.has(cell.code)) options.set(cell.code, cell.label)
+      if (!values.has(cell.code)) values.set(cell.code, cell.label)
     }
 
     const dimension = decodeDimension({
       id,
       label,
-      options: [...options].map(([code, name]) => ({ code, label: name })),
+      options: [...values].map(([code, name]) => ({ code, label: name })),
     })
 
-    return Option.isSome(dimension) ? [dimension.value] : []
+    return Option.isSome(dimension) ? [{ dimension: dimension.value, index }] : []
   })
+
+  // One row per series and country: a series is listed once.
+  const series = new Map<string, ReadonlyArray<string>>()
+
+  for (const row of lines) {
+    const codes = kept.map(({ index }) => labelled(row[index] ?? "").code)
+
+    series.set(codes.join(","), codes)
+  }
+
+  return { dimensions: kept.map(({ dimension }) => dimension), series: [...series.values()] }
 }
 
 // Every record of a CSV text, each a map from its header's names to its

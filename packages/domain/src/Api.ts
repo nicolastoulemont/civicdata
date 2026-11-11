@@ -105,7 +105,7 @@ class Politics extends HttpApiGroup.make("politics")
 // arrives in it rather than as an HTTP status.
 const Steps = HttpApiSchema.StreamSse({
   data: Step,
-  error: Schema.Union([AgentUnavailable, SourceUnavailable, CatalogUnavailable]),
+  error: Schema.Union([AgentUnavailable, CatalogUnavailable]),
 })
 
 // One conversation with the agent. It exists from its first question, even

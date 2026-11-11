@@ -53,11 +53,15 @@ const Flow = Schema.Struct({
   retrievedAt: Schema.DateTimeUtc,
 })
 
-// Every dimension of a dataflow for some countries, with the values it takes.
+// Every dimension of a dataflow for some countries, with the values it takes,
+// and the codes of each series, one per dimension in the same order.
 const Options = Schema.Struct({
   dimensions: Schema.Array(Dimension),
+  series: Schema.Array(Schema.Array(Schema.String)),
   retrievedAt: Schema.DateTimeUtc,
 })
+
+type Options = typeof Options.Type
 
 // The sources that publish through SDMX.
 type SdmxSource = Exclude<Source, "World Bank">
@@ -200,19 +204,41 @@ const period = (
     Match.orElse(() => `startPeriod=${query.from}&endPeriod=${query.to}`),
   )
 
-// The dimensions the View can pick a value of, the values it picked that the
-// dataflow takes, and the dimensions it leaves open. A dimension with a
-// single value needs no pick; a value the dimension does not take is open.
-const choose = (all: ReadonlyArray<Dimension>, picked: Dimensions) => {
-  const listed = all.filter((dimension) => dimension.options.length > 1)
+// The dimensions the View can pick a value of, the values it picked that
+// some series takes together, and the dimensions it leaves open. A dimension
+// with a single value needs no pick. Picks are kept in the order the dataflow
+// lists its dimensions; a value no series takes with the picks kept before it
+// is open, like one the dimension does not take. An open dimension lists only
+// the values the series take with the picks kept, so that the next pick has a
+// series: the OECD's government debt takes EXPENDITURE _Z only, never _T.
+const choose = ({ dimensions, series }: Options, picked: Dimensions) => {
+  const filters: Record<string, string> = {}
+  let matching = series
 
-  const filters = Object.fromEntries(
-    all.flatMap((dimension) => {
-      const option = dimension.options.find((each) => each.code === picked[dimension.id])
+  for (const [index, dimension] of dimensions.entries()) {
+    const code = picked[dimension.id]
 
-      return option === undefined ? [] : [[dimension.id, option.code] as const]
-    }),
-  )
+    if (code === undefined) continue
+
+    const taking = matching.filter((codes) => codes[index] === code)
+
+    if (Arr.isArrayNonEmpty(taking)) {
+      filters[dimension.id] = code
+      matching = taking
+    }
+  }
+
+  const listed = dimensions.flatMap((dimension, index) => {
+    if (dimension.options.length < 2) return []
+
+    if (filters[dimension.id] !== undefined) return [dimension]
+
+    const taken = dimension.options.filter(({ code }) =>
+      matching.some((codes) => codes[index] === code),
+    )
+
+    return [Arr.isArrayNonEmpty(taken) ? { ...dimension, options: taken } : dimension]
+  })
 
   return {
     listed,
@@ -458,15 +484,16 @@ const make = (remember: Remember) =>
         accept: `${sdmxCsv};labels=both`,
       })
 
-      const dimensions = csv === undefined ? [] : Csv.dimensions(csv, area(query.indicator))
+      const listing =
+        csv === undefined ? { dimensions: [], series: [] } : Csv.options(csv, area(query.indicator))
 
-      if (dimensions === undefined)
+      if (listing === undefined)
         return yield* refuse(sourceOf(query.indicator), {
           url,
           answer: { status: 200, body: csv ?? "" },
         })
 
-      return { dimensions, retrievedAt: yield* DateTime.now }
+      return { ...listing, retrievedAt: yield* DateTime.now }
     })
 
     const cachedOptions = (query: Query) =>
@@ -479,10 +506,7 @@ const make = (remember: Remember) =>
     // Lists the dataflow's dimensions first, so a View that leaves one open
     // fails before its data is asked for, with the values it could pick.
     const observations = Effect.fn("Sdmx.observations")(function* (query: SdmxQuery) {
-      const { listed, filters, open } = choose(
-        (yield* cachedOptions(query)).dimensions,
-        query.dimensions,
-      )
+      const { listed, filters, open } = choose(yield* cachedOptions(query), query.dimensions)
 
       if (Arr.isArrayNonEmpty(open))
         return yield* new DimensionsMissing({
@@ -567,7 +591,7 @@ const countriesKey = (countries: ReadonlyArray<Country>) => countries.toSorted()
 // Bump a key's version when what it caches changes, so old entries are
 // ignored.
 const keys = {
-  options: (query: Query) => `sdmx/v1/options/${query.indicator}/${countriesKey(query.countries)}`,
+  options: (query: Query) => `sdmx/v2/options/${query.indicator}/${countriesKey(query.countries)}`,
   series: (query: SdmxQuery) =>
     `sdmx/v1/series/${query.indicator}/${countriesKey(query.countries)}/${query.from}-${query.to}/${Object.entries(
       query.dimensions,
