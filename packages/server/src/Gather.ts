@@ -25,7 +25,7 @@ import { database, Step } from "./CatalogBuild.ts"
 import { Pace } from "./Pace.ts"
 import { Sdmx } from "./Sdmx.ts"
 import { Sources } from "./Sources.ts"
-import { keyOf, Outcome, type Place, type Stored, Store } from "./Store.ts"
+import { keyOf, layout, Outcome, type Place, type Stored, Store } from "./Store.ts"
 import { WorldBank } from "./WorldBank.ts"
 
 // Catalog entries per step. The World Bank's bulk download of one is a ZIP
@@ -81,6 +81,10 @@ export class GatherFailed extends Schema.TaggedError<
   { readonly brand: unique symbol }
 >()("GatherFailed", { source: Schema.String, failed: Schema.Int }) {}
 
+// A source's scope in series_version, under the store's layout, such as
+// "series/v2/World Bank": a store in a new layout gathers every release again.
+const scopeOf = (source: Source) => `${layout}/${source}`
+
 const PlacesJson = Schema.fromJsonString(
   Schema.Array(Schema.Struct({ country: Schema.String, year: Schema.Int })),
 )
@@ -104,8 +108,9 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
       // made them.
       yield* tables
 
-      // The release each scope was last gathered from in full: a source with
-      // one release for all its data (the World Bank), or one dataset.
+      // The release each scope was last gathered from in full into the
+      // store's layout: a source with one release for all its data (the
+      // World Bank), or one dataset.
       yield* sql`
         CREATE TABLE IF NOT EXISTS series_version (
           scope TEXT PRIMARY KEY,
@@ -195,17 +200,22 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
         const settled: Array<string> = []
         const counts = { stored: 0, unchanged: 0, held: 0 }
 
-        const settle = (candidate: Stored) => {
-          const series = pathOf(keyOf(candidate))
+        // Counts a series stored or matched again, which is no longer held
+        // back.
+        const settle = (candidate: Stored, outcome: "stored" | "unchanged") =>
+          Effect.sync(() => {
+            const series = pathOf(keyOf(candidate))
 
-          if (held.has(series)) settled.push(series)
-        }
+            counts[outcome] += 1
+
+            if (held.has(series)) settled.push(series)
+          })
 
         yield* store.write(entry.indicator, policy.gather(entry, version)).pipe(
           Stream.runForEach(({ candidate, outcome }) =>
             Outcome.$match(outcome, {
-              Stored: () => Effect.sync(() => ((counts.stored += 1), settle(candidate))),
-              Unchanged: () => Effect.sync(() => ((counts.unchanged += 1), settle(candidate))),
+              Stored: () => settle(candidate, "stored"),
+              Unchanged: () => settle(candidate, "unchanged"),
               Held: (verdict) =>
                 Effect.sync(() => (counts.held += 1)).pipe(
                   Effect.andThen(hold(candidate, verdict)),
@@ -214,7 +224,6 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
           ),
         )
 
-        // A series stored or matched again is no longer held back.
         if (Arr.isArrayNonEmpty(settled)) {
           const keys = yield* Schema.encodeEffect(KeysJson)(settled)
 
@@ -226,7 +235,7 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
 
       const check = Effect.fn("Gather.check")(
         function* ({ source, policy }: Mirror) {
-          const last = yield* gathered(source)
+          const last = yield* gathered(scopeOf(source))
           const version = yield* policy.changed(Option.map(last, (found) => found.version))
 
           if (Option.isNone(version)) return null
@@ -275,7 +284,7 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
       const finish = Effect.fn("Gather.finish")(
         function* ({ source }: Mirror, version: string) {
           yield* sql`
-            INSERT INTO series_version (scope, version) VALUES (${source}, ${version})
+            INSERT INTO series_version (scope, version) VALUES (${scopeOf(source)}, ${version})
             ON CONFLICT (scope) DO UPDATE SET version = excluded.version
           `
         },

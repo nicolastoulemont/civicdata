@@ -72,7 +72,7 @@ The hold-back rule applies per series, inside the pack. When a candidate's hash 
 
 A held-back series' row goes once a later answer replaces the stored series or matches it again. The World Bank answering that it no longer knows an indicator counts as an empty answer.
 
-D1's `series_version` holds the release each scope was last gathered from in full: `World Bank` for now, one row per Eurostat dataset later.
+D1's `series_version` holds the release each scope was last gathered from in full, under the store's layout: `series/v2/World Bank` for now, one row per Eurostat dataset later. A bump of the layout's version therefore gathers every series again on the next run, whether or not the source published a new release.
 
 ## Reading
 
@@ -82,4 +82,4 @@ One read path serves every source, `Sources.stored`. For a source whose policy i
 
 ## Start a run by hand
 
-Run the `Gather series` GitHub workflow with the stage, `prod` or `pr-<number>`, from the Actions tab or with `gh workflow run gather.yml -f stage=pr-123`. It refuses a pull request without the `own-catalog` label, whose preview reads production's store. It starts one instance of `civicdata-<stage>-gather`, the same as the schedule does. The Cloudflare dashboard (Workers & Pages, Workflows) starts one too. To gather again although the date has not moved, delete the `World Bank` row of `series_version` first.
+Run the `Gather series` GitHub workflow with the stage, `prod` or `pr-<number>`, from the Actions tab or with `gh workflow run gather.yml -f stage=pr-123`. It refuses a pull request without the `own-catalog` label, whose preview reads production's store. It starts one instance of `civicdata-<stage>-gather`, the same as the schedule does. The Cloudflare dashboard (Workers & Pages, Workflows) starts one too. To gather again although the date has not moved, delete the `series/v2/World Bank` row of `series_version` first.

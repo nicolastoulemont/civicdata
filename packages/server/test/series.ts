@@ -185,5 +185,7 @@ export const held = () =>
 
 // The release the last complete run gathered.
 export const gathered = Effect.promise(() =>
-  db.prepare("SELECT version FROM series_version WHERE scope = 'World Bank'").first("version"),
+  db
+    .prepare("SELECT version FROM series_version WHERE scope = 'series/v2/World Bank'")
+    .first("version"),
 )

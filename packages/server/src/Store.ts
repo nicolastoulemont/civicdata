@@ -99,14 +99,18 @@ const hashOf = (observations: ReadonlyArray<Observation>) =>
     ),
   )
 
-// The object an entry lives in, in the bucket:
-// `series/v2/<source>/<indicator>`. The source's folder is its name in lower
-// case, words joined by "-", such as "world-bank". The object holds the
-// entry's one pack, or the index of its packs, each of which lives at
-// `<object>/<hash>`. Bump the version when what an object holds changes, so a
-// reader never decodes an object of another format.
+// The folder of every object the store writes, which names the format they
+// hold. Bump its version when what an object holds changes, so a reader
+// never decodes an object of another format, and the gather, which records
+// each release under it, stores every series again.
+export const layout = "series/v2"
+
+// The object an entry lives in, in the bucket: `<layout>/<source>/<indicator>`.
+// The source's folder is its name in lower case, words joined by "-", such
+// as "world-bank". The object holds the entry's one pack, or the index of its
+// packs, each of which lives at `<object>/<hash>`.
 const objectOf = (indicator: IndicatorId) =>
-  `series/v2/${sourceOf(indicator).toLowerCase().replaceAll(" ", "-")}/${indicator}`
+  `${layout}/${sourceOf(indicator).toLowerCase().replaceAll(" ", "-")}/${indicator}`
 
 const packOf = (indicator: IndicatorId, hash: string) => `${objectOf(indicator)}/${hash}`
 
