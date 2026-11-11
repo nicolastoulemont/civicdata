@@ -1814,13 +1814,18 @@ describe("conversations", () => {
 })
 
 // The charts the model was told are on screen in a prompt, each with its
-// place in the answer and as show_chart's arguments, each time it was told.
+// place in the answer, the question that answer answered and as show_chart's
+// arguments, each time it was told.
 const onScreen = (prompt: string) =>
   [
     ...prompt
       .replaceAll(String.raw`\"`, '"')
-      .matchAll(/Chart (\d+) is now show_chart (\{.*?\})\./g),
-  ].map(([, place, json]) => ({ chart: Number(place), draft: JSON.parse(json ?? "null") }))
+      .matchAll(/Chart (\d+) of your answer to "(.*?)" is now show_chart (\{.*?\})\./g),
+  ].map(([, place, question, json]) => ({
+    chart: Number(place),
+    question,
+    draft: JSON.parse(json ?? "null"),
+  }))
 
 // A model that answers `count` questions, each with a chart and its takeaway.
 const charts = (count: number) =>
@@ -2001,7 +2006,11 @@ describe("changing a chart", () => {
 
       // The note leads the question's own message.
       expect(onScreen(model.prompts[2] ?? "")).toEqual([
-        { chart: 1, draft: { ...brazil, transform: "PerPerson" } },
+        {
+          chart: 1,
+          question: "Life expectancy in Brazil",
+          draft: { ...brazil, transform: "PerPerson" },
+        },
       ])
       expect(model.prompts[2]).toContain(String.raw`\n\nAdd Mexico`)
 
@@ -2025,6 +2034,91 @@ describe("changing a chart", () => {
 
       expect(model.prompts.flatMap(onScreen)).toEqual([])
     }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("tells the model which answer a changed chart belongs to", () => {
+    const model = charts(3)
+
+    return Effect.gen(function* () {
+      yield* answer("Life expectancy in Brazil")
+      yield* answer("Add Mexico")
+      yield* show(0, perPerson)
+      yield* answer("Now as a ranking")
+
+      expect(onScreen(model.prompts[4] ?? "")).toEqual([
+        {
+          chart: 1,
+          question: "Life expectancy in Brazil",
+          draft: { ...brazil, transform: "PerPerson" },
+        },
+      ])
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("tells the model about a chart changed to the latest answer's chart there", () => {
+    const withMexico = { ...brazil, countries: ["BRA", "MEX"] }
+
+    const model = scripted([
+      Effect.succeed(call("show_chart", brazil)),
+      Effect.succeed(words(takeaway)),
+      Effect.succeed(call("show_chart", withMexico)),
+      Effect.succeed(words(takeaway)),
+    ])
+
+    return Effect.gen(function* () {
+      yield* answer("Life expectancy in Brazil")
+      yield* answer("Add Mexico")
+      // The first answer's chart becomes the one the latest answer drew.
+      yield* show(0, Trend.make({ ...brazilTrend, countries: ["BRA", "MEX"] }))
+      yield* answer("Now as a ranking")
+
+      expect(onScreen(model.prompts.at(-1) ?? "")).toEqual([
+        { chart: 1, question: "Life expectancy in Brazil", draft: withMexico },
+      ])
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("tells the model about charts changed in several answers", () => {
+    const model = charts(3)
+
+    return Effect.gen(function* () {
+      yield* answer("Life expectancy in Brazil")
+      yield* answer("Add Mexico")
+      yield* show(0, perPerson)
+      yield* show(1, perPerson)
+      yield* answer("Now as a ranking")
+
+      expect(onScreen(model.prompts[4] ?? "").map(({ question }) => question)).toEqual([
+        "Life expectancy in Brazil",
+        "Add Mexico",
+      ])
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("reads a chart changed before edits were kept as one to tell the model", () => {
+    const model = charts(2)
+    const values = new Map<string, string>()
+    const { fake } = memoryStorage(values)
+
+    return Effect.gen(function* () {
+      yield* answer("Life expectancy in Brazil")
+      yield* show(0, perPerson)
+
+      // Saved as before edits: the turn changed last, and nothing else.
+      const { edits: _, ...saved } = JSON.parse(values.get("conversation") ?? "{}")
+
+      values.set("conversation", JSON.stringify({ ...saved, changed: 0 }))
+
+      yield* answer("Add Mexico")
+
+      expect(onScreen(model.prompts.at(-1) ?? "")).toEqual([
+        {
+          chart: 1,
+          question: "Life expectancy in Brazil",
+          draft: { ...brazil, transform: "PerPerson" },
+        },
+      ])
+    }).pipe(Effect.provide(serveApi(model.layer, { storage: fake })))
   })
 
   it.effect("tells the model about a chart changed while it asked back", () =>
@@ -2054,13 +2148,17 @@ describe("changing a chart", () => {
         yield* answer("Mexico")
 
         expect(onScreen(model.prompts.at(-2) ?? "")).toEqual([
-          { chart: 1, draft: { ...brazil, transform: "PerPerson" } },
+          {
+            chart: 1,
+            question: "Life expectancy in Brazil",
+            draft: { ...brazil, transform: "PerPerson" },
+          },
         ])
       }).pipe(Effect.provide(serveApi(model.layer)))
     }),
   )
 
-  it.effect("keeps a chart changed while an answer runs, without disturbing it", () =>
+  it.effect("keeps a chart changed while an answer runs, and tells the model next time", () =>
     Effect.gen(function* () {
       const reply = yield* Deferred.make<ReadonlyArray<Response.PartEncoded>>()
       const deciding = yield* Deferred.make<void>()
@@ -2089,6 +2187,17 @@ describe("changing a chart", () => {
 
         expect(first?.shown).toEqual([perPerson])
         expect(last?.answer).toEqual(charted(chart(mexico), said()))
+
+        // The answer to "Add Mexico" never heard of the change.
+        yield* answer("Now as a ranking")
+
+        expect(onScreen(model.prompts.at(-1) ?? "")).toEqual([
+          {
+            chart: 1,
+            question: "Life expectancy in Brazil",
+            draft: { ...brazil, transform: "PerPerson" },
+          },
+        ])
       }).pipe(Effect.provide(serveApi(model.layer)))
     }),
   )
@@ -2178,7 +2287,11 @@ describe("several charts", () => {
       yield* answer("Add Mexico")
 
       expect(onScreen(model.prompts[3] ?? "")).toEqual([
-        { chart: 2, draft: { ...change, transform: "PerPerson" } },
+        {
+          chart: 2,
+          question: "Life expectancy in Brazil, and its change",
+          draft: { ...change, transform: "PerPerson" },
+        },
       ])
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
