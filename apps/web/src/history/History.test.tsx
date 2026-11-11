@@ -36,7 +36,7 @@ import { Layout } from "./Layout.tsx"
 
 // Where the list is kept. Its format outlives deploys: changing it empties
 // every visitor's list.
-const key = "civicdata:conversations"
+const key = "openfacts:conversations"
 
 const brazil = ConversationId.make("0b5d7c1e-8f4a-4c2b-9d3e-1a2b3c4d5e6f")
 const happiness = ConversationId.make("6a1e2f3d-4c5b-4a69-8f7e-0d1c2b3a4f5e")
@@ -62,7 +62,7 @@ const store = (...entries: ReadonlyArray<Stored>) =>
   localStorage.setItem(key, JSON.stringify(entries))
 
 // The follow-up typed in a conversation and not sent yet.
-const draft = (id: ConversationId) => `civicdata:draft:${id}`
+const draft = (id: ConversationId) => `openfacts:draft:${id}`
 
 const encodeTurns = Schema.encodeSync(Schema.toCodecJson(Turns))
 

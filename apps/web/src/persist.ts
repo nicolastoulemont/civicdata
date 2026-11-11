@@ -75,7 +75,7 @@ const guard = (store: Store): Store => ({
 // Opens IndexedDB, which some browsers refuse outright.
 const open = () => {
   try {
-    return createStore("civicdata", "queries")
+    return createStore("openfacts", "queries")
   } catch {
     return undefined
   }
@@ -118,7 +118,7 @@ const keep = <A, I>(
   queryClient: QueryClient,
   { store, name, schema, keeps = () => true, gone = () => false, refresh = false }: Kind<A, I>,
 ) => {
-  const prefix = `civicdata-${name}`
+  const prefix = `openfacts-${name}`
   const codec = Entry(schema)
   const encode = Schema.encodeUnknownSync(codec)
   // The persister drops an entry that fails to deserialize, so throwing here

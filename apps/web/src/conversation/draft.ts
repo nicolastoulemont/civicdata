@@ -3,7 +3,7 @@ import type { ConversationId } from "@openfacts/domain"
 // Which composer a draft is typed in: the home page's, or a conversation's.
 export type Draft = "home" | ConversationId
 
-const key = (draft: Draft) => `civicdata:draft:${draft}`
+const key = (draft: Draft) => `openfacts:draft:${draft}`
 
 // The question typed in a composer and not yet sent, kept in this browser so a
 // reload or a visit to another conversation does not lose it. Storage is
