@@ -157,9 +157,9 @@ export const vectorize = () => {
   return { index, upserts: () => upserts, deletes: () => deletes }
 }
 
-const db = env.DB
+const db = env.CATALOG_DB
 
-if (db === undefined) throw new Error("vitest.config.ts must bind a D1 database as DB")
+if (db === undefined) throw new Error("vitest.config.ts must bind a D1 database as CATALOG_DB")
 
 // Drops tables, leaving the catalog as an earlier version made it.
 export const drop = (...tables: ReadonlyArray<string>) =>
@@ -182,7 +182,7 @@ export const published = () =>
 // The real catalog and its build over the test Worker's local D1 database,
 // with the sources faked as services, Workers AI and Vectorize faked at
 // their bindings, and classification off unless a test passes a classifier (test/decisions.ts).
-// Each layer built is a Worker starting: it creates the tables it lacks.
+// Only a build creates tables, as it does in a deployed Workflow.
 export const catalogOver = (
   lists: Listings,
   {

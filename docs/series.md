@@ -1,6 +1,6 @@
 # Stored series
 
-World Bank charts read from our own copy of the World Development Indicators instead of asking the World Bank for each chart. A Workflow, `GatherWorkflow` (`packages/server/src/Gather.ts`), fills each stage's copy every day at 05:00 UTC. Deploys start no run: a new stage, such as a pull request's preview, stores nothing until its first 05:00 or a run started by hand (below), and its charts ask the World Bank until then. Eurostat and OECD charts still ask their source; they will move to the same store.
+World Bank charts read from our own copy of the World Development Indicators instead of asking the World Bank for each chart. A Workflow, `GatherWorkflow` (`packages/server/src/Gather.ts`), fills each stage's copy every day at 05:00 UTC. A pull request's preview has no copy or Workflow of its own: it reads production's `Series` bucket and the bookkeeping tables through `CATALOG_DB` ([docs/deploys.md](deploys.md#what-a-preview-shares-with-production)). Add the `own-catalog` label to a pull request that changes what the store holds or the gather code; its preview then gets its own empty bucket and Workflow. Deploys start no run: such a preview, or any new stage, stores nothing until its first 05:00 or a run started by hand (below), and its charts ask the World Bank until then. Eurostat and OECD charts still ask their source; they will move to the same store.
 
 ## What a run does
 
@@ -35,4 +35,4 @@ D1's `series_version` holds the release each scope was last gathered from in ful
 
 ## Start a run by hand
 
-Run the `Gather series` GitHub workflow with the stage, `prod` or `pr-<number>`, from the Actions tab or with `gh workflow run gather.yml -f stage=pr-123`. It starts one instance of `civicdata-<stage>-gather`, the same as the schedule does. The Cloudflare dashboard (Workers & Pages, Workflows) starts one too. To gather again although the date has not moved, delete the `World Bank` row of `series_version` first.
+Run the `Gather series` GitHub workflow with the stage, `prod` or `pr-<number>`, from the Actions tab or with `gh workflow run gather.yml -f stage=pr-123`. It refuses a pull request without the `own-catalog` label, whose preview reads production's store. It starts one instance of `civicdata-<stage>-gather`, the same as the schedule does. The Cloudflare dashboard (Workers & Pages, Workflows) starts one too. To gather again although the date has not moved, delete the `World Bank` row of `series_version` first.

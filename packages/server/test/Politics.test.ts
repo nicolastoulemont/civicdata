@@ -31,6 +31,7 @@ import {
   recorded,
   zipped,
 } from "./politics.ts"
+import { snapshot } from "./tables.ts"
 
 // Every test starts from empty bindings: the test Worker's D1 database and
 // buckets are shared by the file's tests.
@@ -346,6 +347,22 @@ describe("politics", () => {
       const error = yield* records(["ESP"], 2015, 2016).pipe(Effect.flip)
 
       expect(error).toEqual(new PoliticsUnavailable())
+    }).pipe(Effect.provide(serve(recorded()))),
+  )
+
+  // A preview may read production's records, so answering writes nothing.
+  it.effect("writes nothing to the records' database while answering", () =>
+    Effect.gen(function* () {
+      yield* build(1)
+
+      const before = yield* snapshot
+
+      yield* records(["ESP", "FRA"], 2000, 2020)
+
+      expect(before.map(({ name }) => name)).toEqual(
+        expect.arrayContaining(["governments", "elections", "politics_current"]),
+      )
+      expect(yield* snapshot).toEqual(before)
     }).pipe(Effect.provide(serve(recorded()))),
   )
 

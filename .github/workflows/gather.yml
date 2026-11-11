@@ -1,10 +1,11 @@
 name: Gather series
 
 # Starts one run of a stage's gathering Workflow, besides its daily 05:00 UTC
-# schedule. Deploys start none, so this is how a new pull request preview, or
-# prod after a change to what a run stores, gets its series before the next
-# 05:00. Run it from the Actions tab or with
-# `gh workflow run gather.yml -f stage=pr-123`.
+# schedule. Deploys start none, so this is how a pull request preview with the
+# own-catalog label, or prod after a change to what a run stores, gets its
+# series before the next 05:00. A preview without the label reads
+# production's store and has no gathering Workflow, so it is refused. Run it
+# from the Actions tab or with `gh workflow run gather.yml -f stage=pr-123`.
 on:
   workflow_dispatch:
     inputs:
@@ -21,10 +22,13 @@ jobs:
     timeout-minutes: 5
     permissions:
       contents: read
+      pull-requests: read
     # The production environment only accepts runs from main.
     environment: ${{ inputs.stage == 'prod' && 'production' || 'preview' }}
     env:
       STAGE: ${{ inputs.stage }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
       CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
     steps:
@@ -32,9 +36,17 @@ jobs:
       # civicdata-<stage>-gather.
       - name: Start a gathering run
         run: |
-          if [[ ! "$STAGE" =~ ^(prod|pr-[0-9]+)$ ]]; then
+          if [[ ! "$STAGE" =~ ^(prod|pr-([0-9]+))$ ]]; then
             echo "::error::Stage must be prod or pr-<number>"
             exit 1
+          fi
+          pr=${BASH_REMATCH[2]}
+          if [[ -n "$pr" ]]; then
+            labels=$(gh pr view "$pr" --json labels --jq '.labels[].name')
+            if ! grep -qx own-catalog <<< "$labels"; then
+              echo "::error::#$pr has no own-catalog label: its preview reads production's store and has no gathering Workflow"
+              exit 1
+            fi
           fi
           curl --fail-with-body --silent --show-error -X POST \
             -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \

@@ -21,6 +21,7 @@ import { Context, Effect, Layer, Schema } from "effect"
 import { HttpApiBuilder } from "effect/http-api"
 import { SqlClient, SqlSchema } from "effect/sql"
 
+import { orUnbuilt } from "./built.ts"
 import events from "./official/events.json"
 import reforms from "./official/reforms.json"
 import colors from "./parties/colors.json"
@@ -57,7 +58,8 @@ export const datasets: ReadonlyArray<Dataset> = Records.literals.flatMap((record
 // `politics_fingerprint` holds a fingerprint of what each generation stores,
 // which tells a build whether the records changed since the published
 // generation. A build writes a new generation and publishes it once complete
-// (see PoliticsBuild.ts).
+// (see PoliticsBuild.ts). Only builds run this: readers never create tables
+// (built.ts).
 export const politicsTables = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient
 
@@ -293,8 +295,6 @@ export class Politics extends Context.Service<Politics, Interface>()("@civicdata
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient
 
-      yield* politicsTables
-
       const history = yield* Schema.decodeUnknownEffect(PoliticalRecords.fields.events)(events)
       const reformed = yield* Schema.decodeUnknownEffect(PoliticalRecords.fields.reforms)(reforms)
 
@@ -344,8 +344,11 @@ export class Politics extends Context.Service<Politics, Interface>()("@civicdata
         function* ({ countries, from, to }: Query) {
           // Every answer reads each publisher's records of both kinds, so
           // until a build has published them all, a country's records are
-          // unknown rather than none.
-          const stored = yield* published()
+          // unknown rather than none. A database no build has written to
+          // has published nothing.
+          const stored = yield* published().pipe(
+            orUnbuilt({ sql, tables: ["governments", "elections", "politics_current"], value: [] }),
+          )
 
           if (
             !datasets.every((dataset) =>
@@ -409,14 +412,16 @@ export class Politics extends Context.Service<Politics, Interface>()("@civicdata
     Politics.of({ records: () => Effect.fail(new PoliticsUnavailable()) }),
   )
 
-  // D1 inside Workers (deployed, or under `alchemy dev`). Plain `pnpm dev:web`
-  // runs in Node, where `cloudflare:workers` does not exist.
+  // The catalog's D1 inside Workers (deployed, or under `alchemy dev`). Plain
+  // `pnpm dev:web` runs in Node, where `cloudflare:workers` does not exist.
   static readonly live = Layer.unwrap(
     Effect.tryPromise(() => import("cloudflare:workers")).pipe(
       Effect.map(({ env }) =>
-        env.DB === undefined
+        env.CATALOG_DB === undefined
           ? Politics.unavailable
-          : Politics.layer.pipe(Layer.provide(D1Client.layer({ db: env.DB }).pipe(Layer.orDie))),
+          : Politics.layer.pipe(
+              Layer.provide(D1Client.layer({ db: env.CATALOG_DB }).pipe(Layer.orDie)),
+            ),
       ),
       Effect.orElseSucceed(() => Politics.unavailable),
     ),
