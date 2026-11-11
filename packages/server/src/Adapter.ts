@@ -2,6 +2,7 @@ import {
   type CatalogEntry,
   type DimensionsMissing,
   IndicatorId,
+  SeriesKey,
   type IndicatorNotFound,
   type SourceUnavailable,
 } from "@civicdata/domain"
@@ -38,11 +39,24 @@ export interface AssetEntry {
   readonly series: Stream.Stream<Stored, SourceUnavailable>
 }
 
-export interface Bulk {
-  // May select any subset of units without narrowing the searchable catalog.
-  readonly changed: (
-    entries: ReadonlyArray<CatalogEntry>,
-  ) => Effect.Effect<Versions, SourceUnavailable>
+// Sources assign a monotone integer from their release chronology, never from
+// lexical version ordering. Membership lists complete series, grouped by asset.
+export const Release = Schema.Struct({
+  version: Schema.NonEmptyString,
+  order: Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)),
+  assets: Schema.NonEmptyArray(
+    Schema.Struct({
+      asset: AssetId,
+      members: Schema.NonEmptyArray(SeriesKey),
+    }),
+  ),
+})
+
+export interface Release extends Schema.Schema.Type<typeof Release> {}
+
+// Download units share one stream contract; selection is either incremental
+// versions or a complete release, so coherent adapters need no unused method.
+export type Bulk = {
   // Entries strictly increase by indicator; each inner stream is consumed
   // before pulling the next entry. Series strictly increase by codesOf.
   // Producers must stream, or sort on disk outside Workers, never buffer an asset.
@@ -50,7 +64,20 @@ export interface Bulk {
     asset: AssetId,
     options: { readonly version: string; readonly entries: ReadonlyArray<CatalogEntry> },
   ) => Stream.Stream<AssetEntry, SourceUnavailable>
-}
+} & (
+  | {
+      readonly changed: (
+        entries: ReadonlyArray<CatalogEntry>,
+      ) => Effect.Effect<Versions, SourceUnavailable>
+      readonly release?: never
+    }
+  | {
+      readonly release: (
+        entries: ReadonlyArray<CatalogEntry>,
+      ) => Effect.Effect<Release, SourceUnavailable>
+      readonly changed?: never
+    }
+)
 
 // No capability means metadata is unavailable. Null fields in an outline mean
 // unknown, false annual or an empty countries array mean confirmed exclusion.
@@ -67,6 +94,7 @@ export interface Discovery {
 
 // One source, as the catalog, the gather and charts use it.
 export interface Adapter {
+  readonly snapshot?: Effect.Effect<Adapter, SourceUnavailable>
   readonly discovery?: Discovery
 
   readonly policy: Policy

@@ -55,7 +55,7 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
 
       const series = Effect.fn("Resolver.series")(function* (query: Asked) {
         const source = sourceOf(query.indicator)
-        const adapter = yield* Sources.get(adapters, query.indicator)
+        const adapter = yield* Sources.get(yield* Sources, query.indicator)
 
         const [described, fetched] = yield* Effect.all(
           [
@@ -261,7 +261,13 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
         })
       })
 
-      return Resolver.of({ resolve })
+      return Resolver.of({
+        resolve: Effect.fn("Resolver.pinned")(function* (view: View) {
+          const pinned = yield* Sources.pin(adapters)
+
+          return yield* resolve(view).pipe(Effect.provideService(Sources, pinned))
+        }),
+      })
     }),
   )
 }

@@ -2,7 +2,7 @@ import {
   type IndicatorId,
   IndicatorNotFound,
   type SeriesKey,
-  type Source,
+  Source,
   sourceOf,
   SourceUnavailable,
 } from "@civicdata/domain"
@@ -11,7 +11,9 @@ import { Context, Effect, Layer, Option, Record } from "effect"
 import { type Adapter, Policy } from "./Adapter.ts"
 import { Cache } from "./Cache.ts"
 import { Pace } from "./Pace.ts"
+import { Releases } from "./Releases.ts"
 import { Sdmx } from "./Sdmx.ts"
+import type { Query } from "./Series.ts"
 import { Store } from "./Store.ts"
 import { WorldBank } from "./WorldBank.ts"
 
@@ -21,6 +23,25 @@ type Interface = Readonly<Record<Source, Adapter>> & {
   readonly Eurostat: Adapter
   readonly OECD: Adapter
 }
+
+const read = (key: SeriesKey, { policy, target }: { policy: Policy; target: Store["Service"] }) =>
+  target.read(key).pipe(
+    Effect.catchTag("StoreUnavailable", (error) =>
+      Policy.$is("StoredOnly")(policy)
+        ? Effect.fail(
+            new SourceUnavailable({
+              source: sourceOf(key.indicator),
+              reason: "StoreUnavailable",
+            }),
+          )
+        : Effect.logWarning(
+            "Store unavailable, asking the source",
+            sourceOf(key.indicator),
+            key.indicator,
+            error,
+          ).pipe(Effect.as(Option.none())),
+    ),
+  )
 
 export class Sources extends Context.Service<Sources, Interface>()("@civicdata/server/Sources") {
   // A syntactically valid id need not name a registered publisher.
@@ -35,6 +56,26 @@ export class Sources extends Context.Service<Sources, Interface>()("@civicdata/s
       ? Effect.fail(new IndicatorNotFound({ indicator }))
       : Effect.succeed(adapter)
   }
+
+  static readonly pin = (sources: Interface) =>
+    Effect.all(
+      Record.map(sources, (adapter) =>
+        Effect.gen(function* () {
+          if (adapter.snapshot === undefined) return adapter
+          // One lazy, shared snapshot per publisher per operation. An unavailable
+          // unrelated publisher must not fail a chart that never reads it.
+          const snapshot = yield* Effect.cached(adapter.snapshot)
+
+          return {
+            ...adapter,
+            snapshot,
+            describe: (indicator: IndicatorId) =>
+              snapshot.pipe(Effect.flatMap((pinned) => pinned.describe(indicator))),
+            fetch: (query: Query) => snapshot.pipe(Effect.flatMap((pinned) => pinned.fetch(query))),
+          }
+        }),
+      ),
+    )
 
   // Each source's adapter as its layer builds it.
   static readonly layer = Layer.effect(
@@ -58,27 +99,9 @@ export class Sources extends Context.Service<Sources, Interface>()("@civicdata/s
     Effect.gen(function* () {
       const sources = yield* Sources
       const store = yield* Store
+      const releases = yield* Effect.serviceOption(Releases)
 
-      const read = (key: SeriesKey, policy: Policy) =>
-        store.read(key).pipe(
-          Effect.catchTag("StoreUnavailable", (error) =>
-            Policy.$is("StoredOnly")(policy)
-              ? Effect.fail(
-                  new SourceUnavailable({
-                    source: sourceOf(key.indicator),
-                    reason: "StoreUnavailable",
-                  }),
-                )
-              : Effect.logWarning(
-                  "Store unavailable, asking the source",
-                  sourceOf(key.indicator),
-                  key.indicator,
-                  error,
-                ).pipe(Effect.as(Option.none())),
-          ),
-        )
-
-      const stored = (adapter: Adapter): Adapter => {
+      const stored = (adapter: Adapter, target = store): Adapter => {
         const { policy } = adapter
 
         if (Policy.$is("Api")(policy)) return adapter
@@ -89,7 +112,7 @@ export class Sources extends Context.Service<Sources, Interface>()("@civicdata/s
           // A dimensionless series supplies stored metadata. Otherwise the
           // adapter supplies metadata, never an observations archive.
           describe: Effect.fn("Sources.describe")(function* (indicator: IndicatorId) {
-            const found = yield* read({ indicator, dimensions: {} }, policy)
+            const found = yield* read({ indicator, dimensions: {} }, { policy, target })
 
             if (Option.isNone(found)) return yield* adapter.describe(indicator)
 
@@ -98,7 +121,7 @@ export class Sources extends Context.Service<Sources, Interface>()("@civicdata/s
             return { indicator: found.value.indicator, dataset, retrievedAt }
           }),
           fetch: Effect.fn("Sources.fetch")(function* (query) {
-            const found = yield* read(query, policy)
+            const found = yield* read(query, { policy, target })
 
             if (Option.isNone(found)) {
               if (Policy.$is("StoredOnly")(policy))
@@ -125,7 +148,36 @@ export class Sources extends Context.Service<Sources, Interface>()("@civicdata/s
         }
       }
 
-      return Sources.of({ ...sources, ...Record.map(sources, stored) })
+      const wrapped = Record.map(sources, (adapter, source): Adapter => {
+        if (adapter.bulk?.release === undefined) return stored(adapter)
+
+        const snapshot = Effect.gen(function* () {
+          const publisher = Source.make(source)
+
+          if (Option.isNone(releases))
+            return yield* new SourceUnavailable({ source: publisher, reason: "StoreUnavailable" })
+
+          if (!Policy.$is("StoredOnly")(adapter.policy))
+            return yield* new SourceUnavailable({ source: publisher })
+          const active = yield* releases.value.current(publisher)
+
+          const pinned = Option.isSome(active)
+            ? store.namespace(active.value.namespace)
+            : Store.of({ ...store, read: () => Effect.succeedNone })
+
+          return stored(adapter, pinned)
+        })
+
+        return {
+          ...adapter,
+          snapshot,
+          describe: (indicator) =>
+            snapshot.pipe(Effect.flatMap((pinned) => pinned.describe(indicator))),
+          fetch: (query) => snapshot.pipe(Effect.flatMap((pinned) => pinned.fetch(query))),
+        }
+      })
+
+      return Sources.of({ ...sources, ...wrapped })
     }),
   )
 
@@ -134,6 +186,7 @@ export class Sources extends Context.Service<Sources, Interface>()("@civicdata/s
   static readonly live = Sources.stored.pipe(
     Layer.provide(Sources.layer),
     Layer.provide(Store.layer),
+    Layer.provide(Releases.live),
     Layer.provide(WorldBank.cached),
     Layer.provide(Sdmx.cached),
     Layer.provide(Pace.http),

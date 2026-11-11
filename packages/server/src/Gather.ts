@@ -1,6 +1,7 @@
 import {
   CatalogUnavailable,
   type CatalogEntry,
+  type SeriesKey,
   sourceOf,
   SourceUnavailable,
   IndicatorId,
@@ -14,20 +15,22 @@ import {
   Effect,
   Layer,
   Option,
+  Predicate,
   Result,
   Schema,
   Stream,
 } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
-import { AssetId, type Bulk, Versions } from "./Adapter.ts"
+import { AssetId, type Bulk, Release, Versions } from "./Adapter.ts"
 import { tables } from "./Catalog.ts"
 import { database, Step } from "./CatalogBuild.ts"
 import { ledger } from "./GatherLedger.ts"
 import { Pace } from "./Pace.ts"
+import { Releases, releaseTables } from "./Releases.ts"
 import { Sdmx } from "./Sdmx.ts"
 import { Sources } from "./Sources.ts"
-import { keyOf, Outcome, type Place, Stored, Store } from "./Store.ts"
+import { judge, keyOf, Outcome, type Place, Stored, Store } from "./Store.ts"
 import { WorldBank } from "./WorldBank.ts"
 
 // Assets per step. The World Bank's bulk download of one is a ZIP
@@ -56,6 +59,7 @@ interface Mirror {
 
 interface Interface {
   // The sources the gather stores, in the order a run gathers them.
+  readonly publish: (mirror: Mirror) => Effect.Effect<void, SourceUnavailable, Step>
   readonly mirrors: ReadonlyArray<Mirror>
   readonly check: (
     mirror: Mirror,
@@ -93,7 +97,8 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
       // made them.
       yield* tables
 
-      const records = yield* ledger
+      const records = yield* ledger()
+      const releases = yield* Releases.pipe(Effect.provide(Releases.layer))
 
       // The candidates held back, one per series: the latest, why, and the
       // country-years it lost. A series' row goes once a candidate replaces
@@ -164,11 +169,23 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
           asset,
           version,
           entries,
-        }: { asset: AssetId; version: string; entries: ReadonlyArray<CatalogEntry> },
+          target = store,
+          baseline,
+          members,
+        }: {
+          asset: AssetId
+          version: string
+          entries: ReadonlyArray<CatalogEntry>
+          target?: Store["Service"]
+          baseline?: Store["Service"] | undefined
+          members?: ReadonlyArray<SeriesKey>
+        },
       ) {
         let previous = ""
         let emitted = false
         const totals = { stored: 0, unchanged: 0, held: 0 }
+        const seen = new Set<string>()
+        const expected = members === undefined ? undefined : new Set(members.map(pathOf))
         const allowed = new Set(entries.map(({ indicator }) => indicator))
         yield* bulk.gather(asset, { version, entries }).pipe(
           Stream.runForEach(({ indicator, series: candidatesStream }) =>
@@ -200,7 +217,7 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
                   if (held.has(series)) settled.push(series)
                 })
 
-              yield* store
+              yield* target
                 .write(
                   entry.indicator,
                   candidatesStream.pipe(
@@ -213,6 +230,32 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
                           (decoded) =>
                             decoded.indicator.id === indicator && decoded.version === version,
                           () => new SourceUnavailable({ source }),
+                        ),
+                        Effect.tap((decoded) =>
+                          Effect.gen(function* () {
+                            const key = pathOf(keyOf(decoded))
+
+                            if (expected !== undefined && (!expected.has(key) || seen.has(key)))
+                              return yield* new SourceUnavailable({ source })
+                            seen.add(key)
+
+                            if (baseline !== undefined) {
+                              const prior = yield* baseline.read(keyOf(decoded))
+
+                              const verdict = judge(
+                                Option.isSome(prior) ? prior.value.observations : [],
+                                decoded.observations,
+                              )
+
+                              if (Predicate.isTagged(verdict, "Hold")) {
+                                yield* hold(decoded, verdict)
+
+                                return yield* new SourceUnavailable({ source })
+                              }
+                            }
+
+                            return undefined
+                          }),
                         ),
                       )
                     }),
@@ -248,14 +291,107 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
           ),
         )
 
-        if (!emitted) return yield* new SourceUnavailable({ source })
+        if (
+          !emitted ||
+          (expected !== undefined && (seen.size !== expected.size || totals.held > 0))
+        )
+          return yield* new SourceUnavailable({ source })
 
         return totals
+      })
+
+      const publish = Effect.fn("Gather.publish")(function* (mirror: Mirror) {
+        const step = yield* Step
+        const { source, bulk } = mirror
+
+        if (bulk.release === undefined) return undefined
+        yield* releaseTables.pipe(
+          Effect.provideService(SqlClient.SqlClient, sql),
+          Effect.mapError(() => new SourceUnavailable({ source })),
+        )
+
+        const catalog = yield* listed(source).pipe(
+          Effect.mapError(() => new SourceUnavailable({ source })),
+        )
+
+        const saved = yield* step
+          .run(
+            `release ${source}`,
+            bulk
+              .release(catalog)
+              .pipe(Effect.flatMap(Schema.encodeEffect(Schema.fromJsonString(Release)))),
+          )
+          .pipe(Effect.mapError(() => new SourceUnavailable({ source })))
+
+        const release = yield* Schema.decodeEffect(Schema.fromJsonString(Release))(saved).pipe(
+          Effect.mapError(() => new SourceUnavailable({ source })),
+        )
+
+        const manifest = yield* releases.prepare(source, release)
+        const active = yield* releases.current(source)
+
+        if (Option.isSome(active) && active.value.release.order >= release.order) return undefined
+        const baseline = Option.isSome(active) ? store.namespace(active.value.namespace) : undefined
+        const target = store.namespace(manifest.namespace)
+
+        const staged = yield* ledger(`/${manifest.namespace}`).pipe(
+          Effect.provideService(SqlClient.SqlClient, sql),
+          Effect.mapError(() => new SourceUnavailable({ source })),
+        )
+
+        const now = DateTime.formatIso(yield* DateTime.now)
+
+        for (const { asset, members } of release.assets) {
+          const versions = [{ asset, version: release.version }]
+
+          const done = yield* staged
+            .summary({ source, versions, now })
+            .pipe(Effect.mapError(() => new SourceUnavailable({ source })))
+
+          if (done.unchanged === 1) continue
+          yield* step
+            .run(
+              `stage ${source} ${manifest.namespace} ${asset}`,
+              Effect.gen(function* () {
+                const result = yield* one(mirror, {
+                  asset,
+                  version: release.version,
+                  entries: catalog,
+                  target,
+                  baseline,
+                  members,
+                })
+
+                if (result.held > 0) return yield* new SourceUnavailable({ source })
+                yield* staged.stored(asset, { source, version: release.version })
+
+                return undefined
+              }),
+            )
+            .pipe(Effect.mapError(() => new SourceUnavailable({ source })))
+        }
+
+        // Every required asset has a completion record written only after its
+        // exact membership persisted. No bucket-content inference is used.
+        const versions = release.assets.map(({ asset }) => ({ asset, version: release.version }))
+
+        const done = yield* staged
+          .summary({ source, versions, now })
+          .pipe(Effect.mapError(() => new SourceUnavailable({ source })))
+
+        if (done.unchanged !== versions.length) return yield* new SourceUnavailable({ source })
+        yield* step
+          .run(`activate ${source} ${manifest.namespace}`, releases.activate(source, manifest))
+          .pipe(Effect.mapError(() => new SourceUnavailable({ source })))
+
+        return undefined
       })
 
       const check = Effect.fn("Gather.check")(
         function* ({ source, bulk }: Mirror) {
           if (Option.isNone(yield* published(source))) return yield* new CatalogUnavailable()
+
+          if (bulk.changed === undefined) return yield* new SourceUnavailable({ source })
 
           const versions = yield* bulk.changed(yield* listed(source)).pipe(
             Effect.flatMap(Schema.decodeEffect(Versions)),
@@ -346,7 +482,7 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
         return bulk === undefined ? [] : [{ source, bulk }]
       })
 
-      return Gather.of({ mirrors, check, gather })
+      return Gather.of({ mirrors, check, gather, publish })
     }).pipe(Effect.orDie),
   )
 
@@ -364,7 +500,10 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
   static readonly run = Effect.fn("Gather.run")(function* () {
     const gather = yield* Gather
 
-    for (const mirror of gather.mirrors) yield* mirrorOne(mirror)
+    for (const mirror of gather.mirrors) {
+      if (mirror.bulk.release === undefined) yield* mirrorOne(mirror)
+      else yield* gather.publish(mirror)
+    }
   })
 }
 

@@ -20,7 +20,7 @@ const Gathered = Schema.TaggedUnion({
 const GatheredJson = Schema.fromJsonString(Gathered)
 
 // Only Gather constructs this ledger, on the build's CATALOG_DB connection.
-export const ledger = Effect.gen(function* () {
+export const ledger = Effect.fn("GatherLedger.open")(function* (namespace = "") {
   const sql = yield* SqlClient.SqlClient
 
   yield* sql`CREATE TABLE IF NOT EXISTS series_gathered (
@@ -78,7 +78,7 @@ export const ledger = Effect.gen(function* () {
         json_extract(wanted.value, '$.version') AS version, gathered.state
       FROM json_each(${JSON.stringify(versions)}) AS wanted
       LEFT JOIN asset_gathered AS gathered
-        ON gathered.scope = ${`${layout}/${source}`}
+        ON gathered.scope = ${`${layout}/${source}${namespace}`}
         AND gathered.asset = json_extract(wanted.value, '$.asset')
       WHERE json_extract(wanted.value, '$.asset') > ${after}
         AND (CASE json_extract(gathered.state, '$._tag')
@@ -103,7 +103,7 @@ export const ledger = Effect.gen(function* () {
           json_extract(state, '$.failures') AS failures,
           json_extract(state, '$.at') AS at
         FROM json_each(${JSON.stringify(versions)}) AS wanted
-        LEFT JOIN asset_gathered ON scope = ${`${layout}/${source}`}
+        LEFT JOIN asset_gathered ON scope = ${`${layout}/${source}${namespace}`}
           AND asset = json_extract(wanted.value, '$.asset')
       )
       SELECT count(CASE WHEN tag = 'Stored' AND stored = version THEN 1 END) AS unchanged,
@@ -118,7 +118,7 @@ export const ledger = Effect.gen(function* () {
   ) {
     const encoded = yield* Schema.encodeEffect(GatheredJson)(state)
     yield* sql`INSERT INTO asset_gathered (scope, asset, state)
-      VALUES (${`${layout}/${source}`}, ${asset}, ${encoded})
+      VALUES (${`${layout}/${source}${namespace}`}, ${asset}, ${encoded})
       ON CONFLICT (scope, asset) DO UPDATE SET state = excluded.state`
   })
 
