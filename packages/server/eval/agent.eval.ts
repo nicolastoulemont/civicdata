@@ -34,7 +34,7 @@ const Built = Layer.effectDiscard(
       CatalogBuild.layer.pipe(
         Layer.provide(database),
         Layer.provide(Vectors.live),
-        Layer.provide(Classifier.unavailable),
+        Layer.provide(Classifier.off),
       ),
       Step.immediate,
     ),

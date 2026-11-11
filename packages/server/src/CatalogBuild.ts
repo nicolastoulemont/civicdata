@@ -15,7 +15,7 @@ import {
 import { SqlClient, SqlSchema } from "effect/sql"
 
 import { tables } from "./Catalog.ts"
-import { Classifier } from "./Classifier.ts"
+import { Classifier, Classifying } from "./Classifier.ts"
 import { fingerprint } from "./fingerprint.ts"
 import { Sdmx } from "./Sdmx.ts"
 import { Vectors, type VectorsUnavailable } from "./Vectors.ts"
@@ -43,13 +43,14 @@ const rowsPerInsert = 250
 // per call.
 const perStep = 100
 
-// Entries classified per step, in one request to the model.
-const perRequest = 50
+// Entries classified per step, in one request to the Decisions API: the
+// most questions it takes in one request.
+const perRequest = 400
 
 // How long a build holds the lease unless it releases it first. A step that
 // keeps failing gives up after about an hour of retries, which fails its
 // source, and a first build of every source makes about 110 embedding and
-// 214 classifying steps in a row. Twelve hours outlasts such a build with
+// 30 classifying steps in a row. Twelve hours outlasts such a build with
 // room to spare, and still frees the lease of a build that crashed within
 // the day, well before the weekly build.
 const leaseFor = Duration.hours(12)
@@ -111,10 +112,10 @@ interface Interface {
   readonly remove: (source: Source) => Effect.Effect<number, VectorsUnavailable>
   // Asks the model which way the published generation's next entries after
   // the row `after` are better, those without a direction for their current
-  // name and definition, and stores the answers. Answers the last row asked
-  // about, or null once every entry has a direction or the model failed: a
-  // failed request stores nothing, so the next build asks again, and never
-  // fails the build.
+  // name and definition by the same model, and stores the answers. Answers
+  // the last row asked about, or null once every entry has a direction, the
+  // model failed or classification is off: a failed request stores nothing,
+  // so the next build asks again, and never fails the build.
   readonly classify: (source: Source, after: number) => Effect.Effect<number | null>
 }
 
@@ -232,6 +233,15 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
         )
       `
 
+      // Directions an earlier version stored record no model. They get the
+      // empty one, which no classifier has, so the next build that
+      // classifies asks about each once more; until then charts keep them.
+      const columns = yield* sql<{ readonly name: string }>`PRAGMA table_info(catalog_direction)`
+
+      if (!columns.some(({ name }) => name === "model")) {
+        yield* sql`ALTER TABLE catalog_direction ADD COLUMN model TEXT NOT NULL DEFAULT ''`
+      }
+
       const leased = SqlSchema.findOneOption({
         Request: Schema.Void,
         Result: Schema.Struct({ holder: Schema.String }),
@@ -277,11 +287,11 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
       })
 
       // The published generation's entries after the row `after` with no
-      // direction for their current name and definition.
+      // direction for their current name and definition, by `model`.
       const unclassified = SqlSchema.findAll({
-        Request: Schema.Struct({ source: Source, after: Schema.Int }),
+        Request: Schema.Struct({ source: Source, after: Schema.Int, model: Schema.String }),
         Result: Pending,
-        execute: ({ source, after }) => sql`
+        execute: ({ source, after, model }) => sql`
           SELECT catalog.rowid, catalog.indicator, catalog.name, catalog.definition FROM catalog
           JOIN catalog_current AS current
             ON current.source = catalog.source AND current.generation = catalog.generation
@@ -289,7 +299,7 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
             AND NOT EXISTS (
               SELECT 1 FROM catalog_direction AS stored
               WHERE stored.indicator = catalog.indicator AND stored.name = catalog.name
-                AND stored.definition = catalog.definition
+                AND stored.definition = catalog.definition AND stored.model = ${model}
             )
           ORDER BY catalog.rowid
           LIMIT ${perRequest}
@@ -449,7 +459,9 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
 
       const classify = Effect.fn("CatalogBuild.classify")(
         function* (source: Source, after: number) {
-          const batch = yield* unclassified({ source, after })
+          if (Classifying.$is("Off")(classifier)) return null
+
+          const batch = yield* unclassified({ source, after, model: classifier.model })
 
           if (!Arr.isReadonlyArrayNonEmpty(batch)) return null
 
@@ -472,12 +484,14 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
           )
 
           yield* sql`
-            INSERT INTO catalog_direction (indicator, name, definition, direction)
+            INSERT INTO catalog_direction (indicator, name, definition, direction, model)
             SELECT json_extract(value, '$.indicator'), json_extract(value, '$.name'),
-              json_extract(value, '$.definition'), json_extract(value, '$.direction')
+              json_extract(value, '$.definition'), json_extract(value, '$.direction'),
+              ${classifier.model}
             FROM json_each(${rows}) WHERE true
             ON CONFLICT (indicator) DO UPDATE SET name = excluded.name,
-              definition = excluded.definition, direction = excluded.direction
+              definition = excluded.definition, direction = excluded.direction,
+              model = excluded.model
           `
 
           return Arr.lastNonEmpty(batch).rowid

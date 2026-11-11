@@ -1,8 +1,7 @@
 import { type CatalogEntry, IndicatorId, Source, SourceUnavailable } from "@civicdata/domain"
 import { beforeEach, describe, expect, it } from "@effect/vitest"
 import { reset } from "cloudflare:test"
-import { Deferred, Effect, Match } from "effect"
-import { FetchHttpClient } from "effect/http"
+import { Deferred, Effect, Match, Schema } from "effect"
 import { TestClock } from "effect/testing"
 
 import { Catalog } from "../src/Catalog.ts"
@@ -11,8 +10,10 @@ import { Directions } from "../src/Directions.ts"
 import {
   build,
   catalogOver,
+  classified,
   drop,
   entry,
+  exec,
   listings,
   published,
   stored,
@@ -20,8 +21,8 @@ import {
   workersAi,
   worldBankList,
 } from "./catalog.ts"
+import { chose, decisions, refused } from "./decisions.ts"
 import { steps } from "./fakes.ts"
-import { fakeModel, recordedOpenAi } from "./model.ts"
 
 // Every test starts from empty bindings: the test Worker's D1 database and
 // buckets are shared by the file's tests.
@@ -58,6 +59,15 @@ const read = (indicators: ReadonlyArray<IndicatorId>) =>
 
     return yield* Effect.forEach(indicators, directions.of)
   }).pipe(Effect.provide(stored))
+
+const Json = Schema.fromJsonString(Schema.Unknown)
+
+// A direction gpt-6-luna gave, as stored.
+const luna = (indicator: string, direction: string) => ({
+  indicator,
+  direction,
+  model: "gpt-6-luna",
+})
 
 const many = (count: number) =>
   Array.from({ length: count }, (_, index) => entry(`TEST.${index}`, `Indicator ${index}`))
@@ -543,119 +553,112 @@ describe("CatalogBuild", () => {
     // Off the list.
     const surgeons = IndicatorId.make("SH.MED.SAOP.P5")
     const richest = IndicatorId.make("SI.DST.10TH.10")
-    const growth = IndicatorId.make("SP.POP.GROW")
     const population = IndicatorId.make("SP.POP.TOTL")
+    const growth = IndicatorId.make("SP.POP.GROW")
+    const residents = IndicatorId.make("ESTAT,TPS00001,1.0")
 
-    // What the model answers: a direction for two entries off the list, one
-    // answer outside the three, one against the list, and the rest left out.
-    const answers = {
-      [surgeons]: "Higher",
-      [richest]: "Lower",
-      [growth]: "Better",
-      [unemployment]: "Higher",
-    }
+    it.effect("stores one direction per indicator, from one request per source", () => {
+      const wire = decisions()
+
+      return Effect.gen(function* () {
+        yield* build(1)
+
+        // The income share's Lower came below the confidence threshold.
+        expect(yield* classified).toEqual([
+          luna("ESTAT,TPS00001,1.0", "Neutral"),
+          luna("ESTAT,UNE_RT_A,1.0", "Lower"),
+          luna("NY.GDP.PCAP.CD", "Higher"),
+          luna("OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M,1.0", "Lower"),
+          luna("SH.MED.SAOP.P5", "Higher"),
+          luna("SI.DST.10TH.10", "Neutral"),
+          luna("SL.UEM.1524.ZS", "Lower"),
+          luna("SL.UEM.TOTL.ZS", "Lower"),
+          luna("SP.DYN.LE00.IN", "Higher"),
+          luna("SP.POP.GROW", "Neutral"),
+          luna("SP.POP.TOTL", "Neutral"),
+        ])
+        // One request per source: Eurostat lists 2, the OECD 1, the World Bank 8.
+        expect(wire.asked().map((asked) => asked.length)).toEqual(expect.arrayContaining([1, 2, 8]))
+        expect(wire.asked()).toHaveLength(3)
+      }).pipe(Effect.provide(catalogOver(listings(), { classifier: wire.classifier })))
+    })
+
+    it.effect("asks a choice question per entry, with the rules in a developer message", () => {
+      const wire = decisions()
+      const long = entry("LONG.1", "A long definition", "x".repeat(500))
+
+      return Effect.gen(function* () {
+        const catalog = yield* CatalogBuild
+
+        yield* catalog.write("World Bank", 1)
+        yield* catalog.publish("World Bank", 1)
+        yield* catalog.classify("World Bank", 0)
+
+        const [body, ...more] = wire.sent()
+
+        expect(more).toEqual([])
+        expect(yield* Schema.decodeEffect(Json)(body ?? "")).toEqual({
+          model: "gpt-6-luna",
+          input: [{ role: "developer", content: expect.stringContaining("When in doubt") }],
+          questions: [
+            {
+              type: "choice",
+              name: "LONG.1",
+              // The definition cut to 400 characters.
+              instructions: JSON.stringify({
+                indicator: "LONG.1",
+                name: "A long definition",
+                definition: "x".repeat(400),
+              }),
+              choices: [
+                { value: "Higher", description: expect.any(String) },
+                { value: "Lower", description: expect.any(String) },
+                { value: "Neutral", description: expect.any(String) },
+              ],
+            },
+          ],
+        })
+      }).pipe(
+        Effect.provide(
+          catalogOver(listings({ "World Bank": [long] }), { classifier: wire.classifier }),
+        ),
+      )
+    })
 
     it.effect(
-      "stores a direction for each new entry, Neutral for an answer outside the three",
+      "stores Neutral for an answer below the threshold, a refusal, a missing answer and one outside the three",
       () => {
-        const lists = listings()
-        const model = fakeModel(answers)
+        const wire = decisions({
+          answers: {
+            [richest]: chose(richest, "Lower", 0.79),
+            [surgeons]: refused(surgeons),
+            [population]: chose(population, "Higher", 0.99),
+            [growth]: chose(growth, "Better", 0.99),
+            [residents]: chose(residents, "Higher", 0.8),
+            [unemployment]: chose(unemployment, "Higher", 0.99),
+          },
+          missing: [population],
+        })
 
         return Effect.gen(function* () {
           yield* build(1)
 
-          // An answer outside the three and a left-out entry read Neutral, and
-          // the hand-checked list wins over the model.
-          expect(yield* read([surgeons, richest, growth, population, unemployment])).toEqual([
-            "Higher",
-            "Lower",
-            "Neutral",
-            "Neutral",
-            "Lower",
-          ])
-          expect(model.asked().flat().toSorted()).toEqual(
-            Source.literals
-              .flatMap((source) => {
-                const listed = lists[source]
-
-                return listed === "down" ? [] : listed.map(({ indicator }) => indicator)
-              })
-              .toSorted(),
+          const rows = new Map(
+            (yield* classified).map((row) => [String(row["indicator"]), row["direction"]]),
           )
-        }).pipe(Effect.provide(catalogOver(lists, { classifier: model.classifier })))
+
+          expect(
+            [richest, surgeons, population, growth, residents].map((one) => rows.get(one)),
+          ).toEqual(["Neutral", "Neutral", "Neutral", "Neutral", "Higher"])
+          // The hand-checked list wins over the model.
+          expect(yield* read([unemployment])).toEqual(["Lower"])
+        }).pipe(Effect.provide(catalogOver(listings(), { classifier: wire.classifier })))
       },
     )
 
-    it.effect(
-      "asks OpenAI for the directions in one structured request and stores its answers",
-      () => {
-        const wire = recordedOpenAi()
-
-        return Effect.gen(function* () {
-          const catalog = yield* CatalogBuild
-
-          yield* catalog.write("World Bank", 1)
-          yield* catalog.publish("World Bank", 1)
-          yield* catalog.classify("World Bank", 0)
-
-          // OpenAI answered Higher for the surgeons, Neutral for the others.
-          expect(yield* read([surgeons, richest, growth, population])).toEqual([
-            "Higher",
-            "Neutral",
-            "Neutral",
-            "Neutral",
-          ])
-
-          // One request, asking for the answer schema by name, about every entry.
-          const [request, ...more] = wire.sent()
-
-          expect(more).toEqual([])
-          expect(request).toContain('"type":"json_schema","name":"directions"')
-
-          for (const { indicator } of worldBankList) expect(request).toContain(indicator)
-        }).pipe(
-          Effect.provide(catalogOver(listings(), { classifier: wire.classifier })),
-          Effect.provideService(FetchHttpClient.Fetch, wire.fetch),
-        )
-      },
-    )
-
-    it.effect("asks the model nothing when a second build finds nothing changed", () => {
-      const model = fakeModel(answers)
-
-      return Effect.gen(function* () {
-        yield* build(1)
-        const first = model.asked().length
-
-        yield* build(2)
-
-        expect(first).toBeGreaterThan(0)
-        expect(model.asked()).toHaveLength(first)
-      }).pipe(Effect.provide(catalogOver(listings(), { classifier: model.classifier })))
-    })
-
-    it.effect("asks again about an entry whose definition changed, and only it", () => {
-      const lists = listings()
-      const model = fakeModel(answers)
-
-      return Effect.gen(function* () {
-        yield* build(1)
-        const first = model.asked().length
-
-        lists["World Bank"] = worldBankList.map((each) =>
-          each.indicator === unemployment
-            ? entry(each.indicator, each.name, "Share of the labor force without work, revised.")
-            : each,
-        )
-        yield* build(2)
-
-        expect(model.asked().slice(first)).toEqual([[unemployment]])
-      }).pipe(Effect.provide(catalogOver(lists, { classifier: model.classifier })))
-    })
-
-    it.effect("publishes the catalog and leaves every entry Neutral when the model is down", () => {
+    it.effect("stores nothing when a request fails, and still publishes the catalog", () => {
       const state = { up: false }
-      const model = fakeModel(answers, state)
+      const wire = decisions({ state })
 
       return Effect.gen(function* () {
         yield* build(1)
@@ -664,19 +667,101 @@ describe("CatalogBuild", () => {
         expect(names(yield* (yield* Catalog).search("life expectancy"))).toEqual([
           "Life expectancy at birth, total (years)",
         ])
-        expect(yield* read([surgeons, richest])).toEqual(["Neutral", "Neutral"])
+        expect(yield* classified).toEqual([])
 
-        // The failed requests stored nothing, so the next build, with the
-        // model back, classifies them.
+        // The next build, with the API back, classifies them.
         state.up = true
         yield* build(2)
 
-        expect(yield* read([surgeons, richest])).toEqual(["Higher", "Lower"])
-      }).pipe(Effect.provide(catalogOver(listings(), { classifier: model.classifier })))
+        expect(yield* read([surgeons, richest])).toEqual(["Higher", "Neutral"])
+        expect(yield* classified).toHaveLength(11)
+      }).pipe(Effect.provide(catalogOver(listings(), { classifier: wire.classifier })))
     })
 
-    it.effect("classifies a source in requests of 50 and resumes after losing a step", () => {
-      const model = fakeModel()
+    it.effect("asks again about a direction another model stored, and not one it stored", () => {
+      const wire = decisions()
+
+      return Effect.gen(function* () {
+        yield* build(1)
+        const first = wire.asked().length
+
+        yield* exec(
+          `UPDATE catalog_direction SET model = 'gpt-6.1-terra' WHERE indicator = '${surgeons}'`,
+        )
+        yield* build(2)
+
+        expect(wire.asked().slice(first)).toEqual([[surgeons]])
+      }).pipe(Effect.provide(catalogOver(listings(), { classifier: wire.classifier })))
+    })
+
+    it.effect("keeps the directions of a table an earlier version made until it asks again", () => {
+      const wire = decisions()
+
+      return Effect.gen(function* () {
+        yield* exec(
+          [
+            "CREATE TABLE catalog_direction (indicator TEXT PRIMARY KEY, name TEXT NOT NULL, definition TEXT NOT NULL, direction TEXT NOT NULL)",
+            `INSERT INTO catalog_direction VALUES ('${surgeons}', 'Specialist surgical workforce (per 100,000 population)', '', 'Lower')`,
+          ].join("\n"),
+        )
+
+        expect(yield* read([surgeons])).toEqual(["Lower"])
+
+        yield* build(1).pipe(
+          Effect.provide(catalogOver(listings(), { classifier: wire.classifier })),
+        )
+
+        expect(wire.asked().flat()).toContain(surgeons)
+        expect(yield* read([surgeons])).toEqual(["Higher"])
+      })
+    })
+
+    it.effect("makes no request when a second build finds nothing new", () => {
+      const wire = decisions()
+
+      return Effect.gen(function* () {
+        yield* build(1)
+        const first = wire.asked().length
+
+        yield* build(2)
+
+        expect(first).toBeGreaterThan(0)
+        expect(wire.asked()).toHaveLength(first)
+      }).pipe(Effect.provide(catalogOver(listings(), { classifier: wire.classifier })))
+    })
+
+    it.effect("asks again about an entry whose definition changed, and only it", () => {
+      const lists = listings()
+      const wire = decisions()
+
+      return Effect.gen(function* () {
+        yield* build(1)
+        const first = wire.asked().length
+
+        lists["World Bank"] = worldBankList.map((each) =>
+          each.indicator === unemployment
+            ? entry(each.indicator, each.name, "Share of the labor force without work, revised.")
+            : each,
+        )
+        yield* build(2)
+
+        expect(wire.asked().slice(first)).toEqual([[unemployment]])
+      }).pipe(Effect.provide(catalogOver(lists, { classifier: wire.classifier })))
+    })
+
+    it.effect("stores nothing with classification off, and still publishes the catalog", () =>
+      Effect.gen(function* () {
+        yield* build(1)
+
+        expect(yield* published()).toHaveLength(3)
+        expect(yield* classified).toEqual([])
+        // Only the hand-checked list colours.
+        expect(yield* read([surgeons, unemployment])).toEqual(["Neutral", "Lower"])
+      }).pipe(Effect.provide(catalogOver(listings()))),
+    )
+
+    it.effect("classifies a source in requests of 400 and resumes after losing a step", () => {
+      const wire = decisions()
       const run = steps(undefined, { lose: "classify World Bank after 0" })
 
       return Effect.gen(function* () {
@@ -689,17 +774,17 @@ describe("CatalogBuild", () => {
 
         yield* CatalogBuild.run({ id: "build 1", generation: 1 }).pipe(Effect.provide(run.layer))
 
-        const sizes = model
+        const sizes = wire
           .asked()
-          .filter((indicators) => indicators.some((indicator) => indicator.startsWith("TEST.")))
-          .map((indicators) => indicators.length)
+          .filter((asked) => asked.some((indicator) => indicator.startsWith("TEST.")))
+          .map((asked) => asked.length)
 
-        // The lost step's 50 were stored before it was lost, so the resumed
-        // build asks about the other 70 only.
-        expect(sizes).toEqual([50, 50, 20])
+        // The lost step's 400 were stored before it was lost, so the resumed
+        // build asks about the other 500 only.
+        expect(sizes).toEqual([400, 400, 100])
       }).pipe(
         Effect.provide(
-          catalogOver(listings({ "World Bank": many(120) }), { classifier: model.classifier }),
+          catalogOver(listings({ "World Bank": many(900) }), { classifier: wire.classifier }),
         ),
       )
     })

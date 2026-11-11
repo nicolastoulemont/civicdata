@@ -26,6 +26,9 @@ declare module "cloudflare:workers" {
     // vitest.eval.config.ts. Only the eval has it.
     readonly RECORDINGS?: { readonly fetch: (request: Request) => Promise<Response> }
     readonly OPENAI_API_KEY?: string
+    // "on" where the catalog Workflow classifies directions, production
+    // only; "off" elsewhere (packages/infra/alchemy.run.ts).
+    readonly CLASSIFY_DIRECTIONS?: string
     readonly OPENAI_MODEL?: string
   }
 }

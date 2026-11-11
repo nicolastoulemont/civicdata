@@ -33,6 +33,7 @@ import { Sdmx } from "../src/Sdmx.ts"
 import { titles } from "../src/titles.gen.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 import { build, catalogOver, entry, listings, stored } from "./catalog.ts"
+import { chose, decisions } from "./decisions.ts"
 import { http, memory, offline } from "./fakes.ts"
 import populationFlow from "./fixtures/eurostat/population-flow.json"
 import populationOptions from "./fixtures/eurostat/population-options.csv?raw"
@@ -42,7 +43,6 @@ import unemploymentFlow from "./fixtures/eurostat/unemployment-flow.json"
 import unemploymentOptions from "./fixtures/eurostat/unemployment-options.csv?raw"
 import unemploymentRates from "./fixtures/eurostat/unemployment-total.csv?raw"
 import unemploymentNotes from "./fixtures/oecd/unemployment-notes.csv?raw"
-import { fakeModel } from "./model.ts"
 
 const population = IndicatorId.make("SP.POP.TOTL")
 const gdp = IndicatorId.make("NY.GDP.MKTP.CD")
@@ -379,8 +379,8 @@ describe("POST /api/views/resolve", () => {
       Effect.gen(function* () {
         yield* Effect.promise(reset)
 
-        // The fake model's answer for GDP, which the list does not hold.
-        const model = fakeModel({ [gdp]: "Higher" })
+        // The Decisions answer for GDP, which the list does not hold.
+        const model = decisions({ answers: { [gdp]: chose(gdp, "Higher", 0.93) } })
 
         yield* build(1).pipe(
           Effect.provide(

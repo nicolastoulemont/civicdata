@@ -165,6 +165,14 @@ if (db === undefined) throw new Error("vitest.config.ts must bind a D1 database 
 export const drop = (...tables: ReadonlyArray<string>) =>
   Effect.promise(() => db.exec(tables.map((table) => `DROP TABLE ${table};`).join(" ")))
 
+// Runs SQL statements on the test Worker's D1 database, one per line.
+export const exec = (statements: string) => Effect.promise(() => db.exec(statements))
+
+// Each direction builds stored, with the model that gave it.
+export const classified = Effect.promise(() =>
+  db.prepare("SELECT indicator, direction, model FROM catalog_direction ORDER BY indicator").all(),
+).pipe(Effect.map(({ results }) => results))
+
 // The published generation of each source.
 export const published = () =>
   Effect.promise(() =>
@@ -173,7 +181,7 @@ export const published = () =>
 
 // The real catalog and its build over the test Worker's local D1 database,
 // with the sources faked as services, Workers AI and Vectorize faked at
-// their bindings, and no classifier unless a test passes one (test/model.ts).
+// their bindings, and classification off unless a test passes a classifier (test/decisions.ts).
 // Each layer built is a Worker starting: it creates the tables it lacks.
 export const catalogOver = (
   lists: Listings,
@@ -181,7 +189,7 @@ export const catalogOver = (
     ai = workersAi({ up: true }),
     index = vectorize().index,
     model,
-    classifier = Classifier.unavailable,
+    classifier = Classifier.off,
   }: {
     ai?: Ai
     index?: Index

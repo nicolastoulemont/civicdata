@@ -1,69 +1,101 @@
-import { type CatalogEntry, Direction } from "@civicdata/domain"
-import { Effect, Layer, Option, Schema } from "effect"
-import { LanguageModel } from "effect/ai"
+import { type CatalogEntry, Direction, IndicatorId } from "@civicdata/domain"
+import { Effect, Layer, Option, type Redacted, Schema } from "effect"
+import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
 
-import { Classifier, ClassifierUnavailable } from "./Classifier.ts"
-import { about } from "./model.ts"
+import { Classifier, ClassifierUnavailable, Classifying } from "./Classifier.ts"
 
-const instructions = `You classify statistical indicators from the World Bank, Eurostat and the OECD by which way their values are better for a country's people.
+// The only model OpenAI's Decisions API serves.
+const model = "gpt-6-luna"
 
-For each indicator you get its code, its official name and its definition. Answer one direction per code:
+const url = "https://api.openai.com/v1/decisions"
+
+// An answer below this confidence is stored as Neutral.
+const threshold = 0.8
+
+const rubric = `You classify statistical indicators from the World Bank, Eurostat and the OECD by which way their values are better for a country's people.
+
+Each question is one indicator: its code, its official name and its definition. Choose one direction:
 
 - Higher: almost everyone agrees more is better, e.g. life expectancy, literacy, GDP per person, access to clean water, a governance score where higher means better governance.
 - Lower: almost everyone agrees less is better, e.g. unemployment, infant mortality, poverty, homicides, public debt, air pollution exposure.
 - Neutral: anything else.
 
-Answer Neutral when:
+Choose Neutral when:
 - reasonable people disagree, e.g. government spending, tax revenue, migration, fertility, population, inflation, wages as a share of income, or any sector's share of GDP, trade or employment;
 - the indicator is a total or a count that grows with a country's size, e.g. GDP, exports, population, number of doctors or students;
 - it splits a total into parts, e.g. shares by field of study, sector, age group or type, where no part is better than another;
 - it is measured before a policy acts, e.g. poverty before social transfers;
 - the name or definition does not make the direction clear;
-- the dataset holds series that differ in direction, e.g. employment and unemployment rates in one dataset, or a value and its share above and below a threshold. Eurostat and OECD codes name whole datasets, so read their names for this: answer Higher or Lower for one only when every series its name suggests is better the same way.
+- the dataset holds series that differ in direction, e.g. employment and unemployment rates in one dataset, or a value and its share above and below a threshold. Eurostat and OECD codes name whole datasets, so read their names for this: choose Higher or Lower for one only when every series its name suggests is better the same way.
 
-When in doubt, answer Neutral. A wrong direction is worse than none.`
+When in doubt, choose Neutral. A wrong direction is worse than none.`
 
-// What the model answers. The direction is any string, so one bad answer
-// leaves only its entry Neutral instead of failing the batch.
-const Answer = Schema.Struct({
-  directions: Schema.Array(
-    Schema.Struct({
-      indicator: Schema.String,
-      direction: Schema.String.annotate({ description: "Higher, Lower or Neutral" }),
-    }),
-  ),
+const choices = [
+  { value: "Higher", description: "More is better, and almost everyone agrees." },
+  { value: "Lower", description: "Less is better, and almost everyone agrees." },
+  { value: "Neutral", description: "Contested, unclear, a size or a split, or in doubt." },
+] satisfies ReadonlyArray<{ value: Direction; description: string }>
+
+// One choice question per entry, named by its code, holding its name and
+// its definition cut to 400 characters.
+const question = ({ indicator, name, definition }: CatalogEntry) => ({
+  type: "choice",
+  name: indicator,
+  instructions: JSON.stringify({ indicator, name, definition: definition.slice(0, 400) }),
+  choices,
 })
 
-const decodeDirection = Schema.decodeUnknownOption(Direction)
+// A Decisions response, keeping each answer undecoded: one bad answer only
+// makes its own entry Neutral.
+const Response = Schema.Struct({ answers: Schema.Array(Schema.Unknown) })
 
-// Asks the language model, in one request per batch.
-export const modelClassifier = Layer.effect(
-  Classifier,
-  Effect.gen(function* () {
-    const model = yield* LanguageModel.LanguageModel
+// The one answer that gives a direction. A refusal, a choice outside the
+// three or any other answer does not decode, and is Neutral.
+const Chosen = Schema.Struct({
+  type: Schema.Literal("choice"),
+  name: IndicatorId,
+  choice: Direction,
+  confidence: Schema.Finite,
+})
 
-    const classify = Effect.fn("Classifier.classify")(
-      function* (entries: ReadonlyArray<CatalogEntry>) {
-        const { value } = yield* model.generateObject({
-          objectName: "directions",
-          schema: Answer,
-          prompt: about(instructions, entries),
-        })
+const decodeChosen = Schema.decodeUnknownOption(Chosen)
 
-        const answered = new Map(
-          value.directions.map(({ indicator, direction }) => [indicator, direction]),
-        )
+// Asks OpenAI's Decisions API, one request per batch of up to 400 entries.
+export const modelClassifier = (apiKey: Redacted.Redacted) =>
+  Layer.effect(
+    Classifier,
+    Effect.gen(function* () {
+      const client = (yield* HttpClient.HttpClient).pipe(HttpClient.filterStatusOk)
 
-        return new Map(
-          entries.map(({ indicator }) => [
-            indicator,
-            Option.getOrElse(decodeDirection(answered.get(indicator)), () => "Neutral" as const),
-          ]),
-        )
-      },
-      Effect.mapError((cause) => new ClassifierUnavailable({ cause })),
-    )
+      const classify = Effect.fn("Classifier.classify")(
+        function* (entries: ReadonlyArray<CatalogEntry>) {
+          const { answers } = yield* client
+            .execute(
+              HttpClientRequest.post(url).pipe(
+                HttpClientRequest.bearerToken(apiKey),
+                HttpClientRequest.bodyJsonUnsafe({
+                  model,
+                  input: [{ role: "developer", content: rubric }],
+                  questions: entries.map(question),
+                }),
+              ),
+            )
+            .pipe(Effect.flatMap(HttpClientResponse.schemaBodyJson(Response)))
 
-    return Classifier.of({ classify })
-  }),
-)
+          const confident = new Map(
+            answers
+              .flatMap((answer) => Option.toArray(decodeChosen(answer)))
+              .filter(({ confidence }) => confidence >= threshold)
+              .map(({ name, choice }) => [name, choice] as const),
+          )
+
+          return new Map(
+            entries.map(({ indicator }) => [indicator, confident.get(indicator) ?? "Neutral"]),
+          )
+        },
+        Effect.mapError((cause) => new ClassifierUnavailable({ cause })),
+      )
+
+      return Classifier.of(Classifying.On({ model, classify }))
+    }),
+  )

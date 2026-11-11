@@ -98,6 +98,10 @@ export default Alchemy.Stack(
           onNone: () => ({}),
           onSome: (key) => ({ OPENAI_API_KEY: key }),
         }),
+        // Only production classifies catalog directions with OpenAI. Every
+        // preview has its own D1, so each would pay a full pass on its first
+        // build; their maps colour the hand-checked indicators only.
+        CLASSIFY_DIRECTIONS: stage === "prod" ? "on" : "off",
         ...Option.match(openAiModel, {
           onNone: () => ({}),
           onSome: (model) => ({ OPENAI_MODEL: model }),
