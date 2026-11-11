@@ -1,7 +1,7 @@
 import type { CatalogEntry } from "@civicdata/domain"
 
-// The OpenAI model the agent, the catalog Workflow's classifier and the
-// titles script use when the deployment does not name one in OPENAI_MODEL.
+// The OpenAI model the agent and the titles script use when the deployment
+// does not name one in OPENAI_MODEL.
 export const defaultModel = "gpt-6.1-terra"
 
 // A request about catalog entries: the instructions, then each entry's code,

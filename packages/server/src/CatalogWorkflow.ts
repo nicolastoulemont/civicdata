@@ -1,19 +1,20 @@
 import type { CloudflareWorkersModule } from "@cloudflare/workers-types"
 import { env, WorkflowEntrypoint } from "cloudflare:workers"
-import { Effect, Layer } from "effect"
+import { Effect, Layer, Redacted } from "effect"
+import { FetchHttpClient } from "effect/http"
 
 import { CatalogBuild, Step } from "./CatalogBuild.ts"
 import { Classifier } from "./Classifier.ts"
 import { modelClassifier } from "./ModelClassifier.ts"
-import { openAi } from "./OpenAi.ts"
 import { PoliticsBuild } from "./PoliticsBuild.ts"
 
-// The agent's OpenAI model classifies directions, when the deployment has a
-// key; without one, the build classifies nothing.
+// OpenAI's Decisions API classifies directions where infra turns it on
+// (production) and the deployment has a key. Elsewhere the build classifies
+// nothing, and the agent keeps the key.
 const classifier = () =>
-  env.OPENAI_API_KEY === undefined
-    ? Classifier.unavailable
-    : modelClassifier.pipe(Layer.provide(openAi(env.OPENAI_API_KEY, env.OPENAI_MODEL)))
+  env.CLASSIFY_DIRECTIONS === "on" && env.OPENAI_API_KEY !== undefined
+    ? modelClassifier(Redacted.make(env.OPENAI_API_KEY)).pipe(Layer.provide(FetchHttpClient.layer))
+    : Classifier.off
 
 // The Workflow that builds the catalog and stores the political records,
 // every Monday at 04:00 UTC and once after each deploy (packages/infra). The

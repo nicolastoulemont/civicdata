@@ -85,14 +85,17 @@ export const tables = Effect.gen(function* () {
     )
   `
   // The direction the catalog Workflow's model gave each indicator, with the
-  // name and definition it read: a build asks again only when they change.
-  // Kept across generations, so an unchanged entry keeps its direction.
+  // name and definition it read and the model that answered: a build asks
+  // again only when one of them changes. Kept across generations, so an
+  // unchanged entry keeps its direction. CatalogBuild.ts adds `model` to a
+  // table an earlier version made.
   yield* sql`
     CREATE TABLE IF NOT EXISTS catalog_direction (
       indicator TEXT PRIMARY KEY,
       name TEXT NOT NULL,
       definition TEXT NOT NULL,
-      direction TEXT NOT NULL
+      direction TEXT NOT NULL,
+      model TEXT NOT NULL
     )
   `
   // Left by the catalog that loaded and embedded itself during searches.
