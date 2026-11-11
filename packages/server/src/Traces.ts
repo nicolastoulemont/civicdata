@@ -37,7 +37,7 @@ export const locale = HttpRouter.middleware(
       const request = yield* HttpServerRequest.HttpServerRequest
       const found = decodeLocale(request.headers["x-user-locale"])
 
-      if (Option.isSome(found)) yield* Effect.annotateCurrentSpan("civicdata.locale", found.value)
+      if (Option.isSome(found)) yield* Effect.annotateCurrentSpan("openfacts.locale", found.value)
 
       return yield* handler
     }),
@@ -85,7 +85,7 @@ const destination = Effect.gen(function* () {
 const url = (endpoint: string) => `${endpoint.replace(/\/$/, "")}/v1/traces`
 
 // A span that ends refusing a View (isRefusal) ends as a success, with the
-// refusal's tag as `civicdata.refusal`: the agent sends the call back to the
+// refusal's tag as `openfacts.refusal`: the agent sends the call back to the
 // model and the page asks the person to pick, so `status = error` keeps to
 // what failed. Every other span ends as it would.
 export const settled = (tracer: Tracer.Tracer): Tracer.Tracer =>
@@ -102,7 +102,7 @@ export const settled = (tracer: Tracer.Tracer): Tracer.Tracer =>
         if (Option.isNone(refusal)) return end(endTime, exit)
 
         span.attribute(
-          "civicdata.refusal",
+          "openfacts.refusal",
           Match.valueTags(refusal.value, {
             IndicatorNotFound: () => "IndicatorNotFound",
             DimensionsMissing: () => "DimensionsMissing",
@@ -132,7 +132,7 @@ export const layer: Layer.Layer<never> = Layer.unwrap(
           url: url(endpoint),
           headers,
           resource: {
-            serviceName: "civicdata-server",
+            serviceName: "openfacts-server",
             serviceVersion: Option.getOrUndefined(version),
             attributes: { "deployment.environment.name": stage },
           },

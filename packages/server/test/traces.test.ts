@@ -166,7 +166,7 @@ describe("the UI locale header", () => {
             expect(response.status).toBe(204)
           }
 
-          expect(recorded.spans.map((span) => span.attributes.get("civicdata.locale"))).toEqual([
+          expect(recorded.spans.map((span) => span.attributes.get("openfacts.locale"))).toEqual([
             "pt-PT",
             "zh-CN",
             undefined,

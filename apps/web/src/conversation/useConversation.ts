@@ -77,7 +77,7 @@ const stepsOf = (id: ConversationId, { question, via }: Pending) =>
     ),
   ).pipe(
     Stream.withSpan(`question.${via}`, {
-      attributes: { "gen_ai.conversation.id": id, "civicdata.question": question },
+      attributes: { "gen_ai.conversation.id": id, "openfacts.question": question },
     }),
   )
 

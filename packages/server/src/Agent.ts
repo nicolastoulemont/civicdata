@@ -1345,12 +1345,12 @@ const traced = <T extends Record<string, Tool.Any>>(
             if (preliminary) return
 
             yield* Effect.annotateCurrentSpan(
-              "civicdata.tool.result",
+              "openfacts.tool.result",
               clip(JSON.stringify(encodedResult)),
             )
 
             if (isRefused(result)) {
-              yield* Effect.annotateCurrentSpan("civicdata.tool.rejection", result.problem)
+              yield* Effect.annotateCurrentSpan("openfacts.tool.rejection", result.problem)
             }
           }),
         ),
@@ -1379,7 +1379,7 @@ const output: Telemetry.SpanTransformer = ({ response, span }) => {
     return []
   })
 
-  span.attribute("civicdata.output", clip(JSON.stringify(parts)))
+  span.attribute("openfacts.output", clip(JSON.stringify(parts)))
 }
 
 // How an answer ended, as its span records it.
@@ -1542,9 +1542,9 @@ export class Agent extends Context.Service<Agent, Interface>()("@openfacts/serve
         yield* Effect.annotateCurrentSpan({
           "gen_ai.operation.name": "invoke_agent",
           "gen_ai.agent.name": "openfacts",
-          "civicdata.question": clip(asked.question),
-          "civicdata.country": Option.getOrElse(asked.country, () => "unknown"),
-          "civicdata.charts.changed": asked.changed.length,
+          "openfacts.question": clip(asked.question),
+          "openfacts.country": Option.getOrElse(asked.country, () => "unknown"),
+          "openfacts.charts.changed": asked.changed.length,
         })
 
         const thinking = yield* Ref.make(Option.none<StepId>())
@@ -1592,7 +1592,7 @@ export class Agent extends Context.Service<Agent, Interface>()("@openfacts/serve
             yield* Ref.set(thinking, Option.some(id))
             yield* send(Thinking.make({ id, state: Running.make({}) }))
 
-            yield* Effect.annotateCurrentSpan("civicdata.answer.rounds", round + 1)
+            yield* Effect.annotateCurrentSpan("openfacts.answer.rounds", round + 1)
 
             const response = yield* chat.generateText({
               prompt: round === 0 ? prompted(asked) : [],
@@ -1617,7 +1617,7 @@ export class Agent extends Context.Service<Agent, Interface>()("@openfacts/serve
 
         yield* decided.pipe(
           Effect.tap((ending) =>
-            Effect.annotateCurrentSpan("civicdata.answer.ending", endedAs(ending)),
+            Effect.annotateCurrentSpan("openfacts.answer.ending", endedAs(ending)),
           ),
           Effect.flatMap(send),
           Effect.provideService(Telemetry.CurrentSpanTransformer, output),

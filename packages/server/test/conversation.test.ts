@@ -3527,7 +3527,7 @@ describe("traces", () => {
 
       expect(ended.filter(({ exit }) => Exit.isFailure(exit))).toEqual([])
       expect(
-        ended.some(({ span }) => span.attributes.get("civicdata.refusal") === "DimensionsMissing"),
+        ended.some(({ span }) => span.attributes.get("openfacts.refusal") === "DimensionsMissing"),
       ).toBe(true)
     }).pipe(Effect.provide(serveApi(model.layer, { traces: traces.layer })))
   })
@@ -3558,10 +3558,10 @@ describe("traces", () => {
           "gen_ai.operation.name": "invoke_agent",
           "gen_ai.agent.name": "openfacts",
           "gen_ai.conversation.id": id,
-          "civicdata.question": "How has life expectancy changed in Brazil?",
-          "civicdata.country": "MEX",
-          "civicdata.answer.rounds": 4,
-          "civicdata.answer.ending": "answered",
+          "openfacts.question": "How has life expectancy changed in Brazil?",
+          "openfacts.country": "MEX",
+          "openfacts.answer.rounds": 4,
+          "openfacts.answer.ending": "answered",
         })
 
         // The run continues the trace of the request that asked the question.
@@ -3584,8 +3584,8 @@ describe("traces", () => {
         expect(requests.map((request) => parent(parent(request))?.spanId)).toEqual(
           Array.from({ length: 4 }, () => run?.spanId),
         )
-        expect(requests[0]?.attributes.get("civicdata.output")).toContain("search_indicators")
-        expect(requests[3]?.attributes.get("civicdata.output")).toContain(takeaway)
+        expect(requests[0]?.attributes.get("openfacts.output")).toContain("search_indicators")
+        expect(requests[3]?.attributes.get("openfacts.output")).toContain(takeaway)
 
         // Each tool call sits in the request that made it, with its arguments,
         // its result, and why it sent the model's chart back.
@@ -3597,7 +3597,7 @@ describe("traces", () => {
           tools.map((span) => ({
             name: span.name,
             id: span.attributes.get("gen_ai.tool.call.id"),
-            rejection: span.attributes.get("civicdata.tool.rejection"),
+            rejection: span.attributes.get("openfacts.tool.rejection"),
             request: requests.findIndex((request) => request.spanId === parentOf(span)),
           })),
         ).toEqual([
@@ -3613,7 +3613,7 @@ describe("traces", () => {
         expect(tools[0]?.attributes.get("parameters")).toMatchObject({
           text: expect.stringContaining("life expectancy"),
         })
-        expect(tools[2]?.attributes.get("civicdata.tool.result")).toContain("SP.DYN.LE00.IN")
+        expect(tools[2]?.attributes.get("openfacts.tool.result")).toContain("SP.DYN.LE00.IN")
       }).pipe(Effect.provide(serveApi(model.layer, { traces: traces.layer, country: "MX" })))
     },
   )
