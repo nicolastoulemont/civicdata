@@ -114,6 +114,7 @@ import { Resolver } from "../src/Resolver.ts"
 import { Sdmx } from "../src/Sdmx.ts"
 import { Sources } from "../src/Sources.ts"
 import { keep, type Storage, Transcript } from "../src/Transcript.ts"
+import { Verification } from "../src/Verification.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 import { http, memory, memoryStorage, recording, offline } from "./fakes.ts"
 import participationFlow from "./fixtures/eurostat/participation-flow.json"
@@ -505,6 +506,7 @@ const serveApi = (
       return Effect.succeed(
         Layer.mergeAll(
           Handlers.pipe(
+            Layer.provide(Verification.none),
             Layer.provide(
               Conversations.local(() => (request) => conversation.fetch(placed(request, country))),
             ),

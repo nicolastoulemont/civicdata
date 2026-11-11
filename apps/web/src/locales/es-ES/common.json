@@ -6,5 +6,9 @@
   "loading": "Cargando",
   "conversations": "Conversaciones",
   "conversationDescription": "Las conversaciones iniciadas en este navegador.",
-  "siteDescription": "Encuentra y entiende los hechos, sin opiniones: cifras oficiales con sus fuentes y el estado de la investigación sobre un tema."
+  "siteDescription": "Encuentra y entiende los hechos, sin opiniones: cifras oficiales con sus fuentes y el estado de la investigación sobre un tema.",
+  "verificationTitle": "Comprobando tu navegador",
+  "verificationDescription": "Completa la comprobación para enviar tu solicitud.",
+  "verificationFailed": "La comprobación del navegador ha fallado. Inténtalo de nuevo.",
+  "tryAgain": "Intentar de nuevo"
 }

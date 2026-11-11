@@ -134,3 +134,11 @@ export { applies, kindOf, Ratio, Transform } from "./Transform.ts"
 export { Change, Ranking, Relation, type Span, transformOf, Trend, View, Year } from "./View.ts"
 
 export { Locale } from "./Locale.ts"
+
+export {
+  verificationAction,
+  verificationHeader,
+  VerificationRequired,
+  VerificationToken,
+  VerificationUnavailable,
+} from "./Verification.ts"

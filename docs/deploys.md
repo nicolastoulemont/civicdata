@@ -32,6 +32,26 @@ SSL/TLS > Edge Certificates.
 References: [Alchemy custom domains](https://alchemy.run/cloudflare/networking/custom-domains/)
 and [Cloudflare custom domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/).
 
+## Bot protection
+
+Cloudflare's HTTP DDoS protection is always enabled for the custom domains.
+Turnstile also checks each question and chart explanation before the server
+starts a model request. Browsing charts, reading answers, and stopping an answer
+need no challenge. Each retry gets a fresh proof; proofs are single-use and expire
+after five minutes. The server checks the proof's action and exact hostname and
+rejects a request if verification fails or Cloudflare cannot be reached.
+
+The managed `openfacts` Turnstile widget allows `openfacts.app`, which also covers
+its preview subdomains. Both GitHub environments have the public variable
+`TURNSTILE_SITE_KEY` and secret `TURNSTILE_SECRET_KEY`. CI passes them to Alchemy;
+only the site key enters the browser bundle. The CI API tokens need no Turnstile
+permissions: widget management is separate from deployment. Local development
+without these bindings skips the check. Production and PR stages fail closed
+when their secret is missing.
+
+References: [DDoS defaults](https://developers.cloudflare.com/ddos-protection/managed-rulesets/http/)
+and [Turnstile validation](https://developers.cloudflare.com/turnstile/get-started/server-side-validation/).
+
 ## What a preview shares with production
 
 A pull request's preview reads production's catalog and stored series: the catalog's D1 tables (the catalog, the political records, the directions and the series' bookkeeping), the `Vectors` index and the `Series` bucket. Its search answers on its first request and its World Bank charts read the store, with no build of its own. It deploys no Catalog or Gather Workflow, and CI starts no catalog build for it.

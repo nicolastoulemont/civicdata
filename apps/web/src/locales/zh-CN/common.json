@@ -6,5 +6,9 @@
   "loading": "加载中",
   "conversations": "对话",
   "conversationDescription": "在此浏览器中发起的对话。",
-  "siteDescription": "查找并理解不掺杂观点的事实：附有来源的官方数据，以及某一主题的研究现状。"
+  "siteDescription": "查找并理解不掺杂观点的事实：附有来源的官方数据，以及某一主题的研究现状。",
+  "verificationTitle": "正在检查浏览器",
+  "verificationDescription": "请完成验证以发送请求。",
+  "verificationFailed": "浏览器验证失败，请重试。",
+  "tryAgain": "重试"
 }

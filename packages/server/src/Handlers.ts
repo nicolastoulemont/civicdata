@@ -10,6 +10,7 @@ import { Conversations } from "./Conversations.ts"
 import { Notes } from "./Notes.ts"
 import { PoliticsRoutes } from "./Politics.ts"
 import { Resolver } from "./Resolver.ts"
+import { Verification } from "./Verification.ts"
 
 const System = HttpApiBuilder.group(Api, "system", (handlers) =>
   handlers.handle("health", () => Effect.void),
@@ -22,13 +23,17 @@ const Views = HttpApiBuilder.group(
     const resolver = yield* Resolver
     const agent = yield* Agent
     const limit = yield* AskLimit
+    const verification = yield* Verification
 
     return handlers
       .handle("resolve", ({ payload }) => resolver.resolve(payload))
       .handle("explain", ({ payload, request }) =>
-        limit
-          .count(request.headers["cf-connecting-ip"] ?? "unknown")
-          .pipe(Effect.andThen(agent.explain(payload))),
+        verification
+          .check(request)
+          .pipe(
+            Effect.andThen(limit.count(request.headers["cf-connecting-ip"] ?? "unknown")),
+            Effect.andThen(agent.explain(payload)),
+          ),
       )
   }),
 )
@@ -60,6 +65,7 @@ const ConversationRoutes = HttpApiBuilder.group(
   "conversation",
   Effect.fn(function* (handlers) {
     const conversations = yield* Conversations
+    const verification = yield* Verification
 
     const forward = ({
       params,
@@ -76,7 +82,9 @@ const ConversationRoutes = HttpApiBuilder.group(
 
     return handlers
       .handleRaw("turns", forward)
-      .handleRaw("ask", forward)
+      .handleRaw("ask", (request) =>
+        verification.check(request.request).pipe(Effect.andThen(forward(request))),
+      )
       .handleRaw("answer", forward)
       .handleRaw("stop", forward)
       .handleRaw("show", forward)

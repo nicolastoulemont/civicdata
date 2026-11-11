@@ -14,6 +14,7 @@ import { Politics } from "./Politics.ts"
 import { Resolver } from "./Resolver.ts"
 import { Sources } from "./Sources.ts"
 import * as Traces from "./Traces.ts"
+import { Verification } from "./Verification.ts"
 
 export { ConversationObject } from "./ConversationObject.ts"
 
@@ -28,6 +29,7 @@ const Live = Layer.mergeAll(
   Layer.provide(Conversations.live),
   Layer.provide(Agent.live.pipe(Layer.provide(Resolver.layer))),
   Layer.provide(AskLimit.live),
+  Layer.provide(Verification.live),
   Layer.provide(Catalog.live),
   Layer.provide(Politics.live),
   Layer.provide(Notes.live),

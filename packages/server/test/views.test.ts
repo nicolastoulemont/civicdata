@@ -34,6 +34,7 @@ import { Politics } from "../src/Politics.ts"
 import { Sdmx } from "../src/Sdmx.ts"
 import { Sources } from "../src/Sources.ts"
 import { titles } from "../src/titles.gen.ts"
+import { Verification } from "../src/Verification.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 import { build, catalogOver, entry, listings, stored } from "./catalog.ts"
 import { chose, decisions } from "./decisions.ts"
@@ -229,6 +230,7 @@ const serve = (
 ) =>
   Layer.mergeAll(
     Handlers.pipe(
+      Layer.provide(Verification.none),
       Layer.provide(notes),
       Layer.provide(Conversations.unavailable),
       Layer.provide(Agent.unavailable),
