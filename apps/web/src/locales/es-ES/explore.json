@@ -181,5 +181,9 @@
   "catalogUnavailable": "La búsqueda de indicadores no está disponible. Vuelve a intentarlo en unos instantes.",
   "electionRecords": "registros electorales",
   "governmentRecords": "registros de gobiernos",
-  "eventRecords": "registros de acontecimientos"
+  "eventRecords": "registros de acontecimientos",
+  "Unreliable": "No fiable",
+  "Missing value": "Valor ausente",
+  "Excluded reference period": "Período de referencia excluido",
+  "Excluded geography": "Cobertura geográfica excluida"
 }

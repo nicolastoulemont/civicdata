@@ -181,5 +181,9 @@
   "catalogUnavailable": "Indicator search is not available. Try again in a moment.",
   "electionRecords": "election records",
   "governmentRecords": "government records",
-  "eventRecords": "event records"
+  "eventRecords": "event records",
+  "Unreliable": "Unreliable",
+  "Missing value": "Missing value",
+  "Excluded reference period": "Excluded reference period",
+  "Excluded geography": "Excluded geography"
 }

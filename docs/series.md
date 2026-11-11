@@ -208,3 +208,24 @@ observation contract cannot preserve, including unreliable and missing values.
 It records the concrete blocker and a one-archive proposal. It adds no catalog
 entries, gather enrollment, stored observations or chart-read capability.
 Production operations still require owner approval.
+
+## Publisher qualifications
+
+`Stored.qualifications` is optional, so existing `series/v2` objects still decode.
+The first qualified source is ILOSTAT's reviewed management table. Each item names
+its complete series key, survey, country and year, raw status/note codes and decoded
+labels, missing-value state and any scope exclusion. It carries no invented value.
+Unknown codes or malformed evidence fail decoding. Transforms involving these
+qualifications currently return `TransformNotApplicable`.
+
+A qualified country-year remains a known place when its publisher records a missing
+number or an excluded reference period. A series with such places can be stored
+without finite observations. The hold-back rule still rejects a replacement that
+loses a known place entirely; it permits an explicit missing qualification to replace
+a numeric observation. Unqualified series keep the previous empty/loss rules.
+
+Qualified hashes include survey, status, notes, missing state and exclusions in a
+canonical order. A note-only revision replaces the stored series. Unqualified
+hashes retain their deployed bytes, so this reader change does not refill the World
+Bank or change its progress scope. Store filters qualification places together with
+numeric observations on reads; resolver/tool results retain both collections.

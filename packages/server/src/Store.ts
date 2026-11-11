@@ -9,6 +9,7 @@ import {
   Dimensions,
   Indicator,
   type IndicatorId,
+  Qualification,
   Observation,
   type SeriesKey,
   sourceOf,
@@ -29,6 +30,7 @@ export const Stored = Schema.Struct({
   dimensions: Dimensions,
   version: Schema.NonEmptyString,
   observations: Schema.Array(Observation),
+  qualifications: Schema.optionalKey(Schema.Array(Qualification)),
 })
 
 export interface Stored extends Schema.Schema.Type<typeof Stored> {}
@@ -52,6 +54,7 @@ const Part = Schema.Struct({
   version: Schema.NonEmptyString,
   retrievedAt: Schema.DateTimeUtc,
   observations: Schema.Array(Observation),
+  qualifications: Schema.optionalKey(Schema.Array(Qualification)),
 })
 
 const PartJson = Schema.toCodecJson(Part)
@@ -93,10 +96,38 @@ const size = 1_000_000
 // that a gather can tell an unchanged series without decoding it. Built with
 // JSON.stringify rather than a Schema encoding, which costs five times the
 // CPU for 14,000 observations.
-const hashOf = (observations: ReadonlyArray<Observation>) =>
+const hashOf = (
+  observations: ReadonlyArray<Observation>,
+  qualifications: ReadonlyArray<Qualification>,
+) =>
   fingerprint(
     JSON.stringify(
-      observations.map(({ country, year, value, flags }) => [country, year, value, flags ?? []]),
+      qualifications.length === 0
+        ? observations.map(({ country, year, value, flags }) => [country, year, value, flags ?? []])
+        : [
+            observations.map(({ country, year, value, flags }) => [
+              country,
+              year,
+              value,
+              flags ?? [],
+            ]),
+            qualifications.map((item) => [
+              item.source,
+              item.series.indicator,
+              codesOf(item.series.dimensions),
+              item.survey.code,
+              item.survey.label,
+              item.country,
+              item.year,
+              item.status?.code ?? null,
+              item.status?.label ?? null,
+              item.missing,
+              item.exclusion ?? null,
+              item.notes
+                .map(({ category, code, label }) => [category, code, label])
+                .toSorted((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))),
+            ]),
+          ],
     ),
   )
 
@@ -183,10 +214,7 @@ const Verdict = Data.taggedEnum<Verdict>()
 
 const placeOf = ({ country, year }: Place) => `${country}:${year}`
 
-export const judge = (
-  stored: ReadonlyArray<Observation>,
-  candidate: ReadonlyArray<Observation>,
-): Verdict => {
+export const judge = (stored: ReadonlyArray<Place>, candidate: ReadonlyArray<Place>): Verdict => {
   const kept = new Set(candidate.map(placeOf))
 
   const lost = stored.flatMap(({ country, year }) =>
@@ -564,10 +592,13 @@ export class Store extends Context.Service<Store, Interface>()("@openfacts/serve
       // The stored series' values, none when it no longer decodes.
       const valuesOf = (stored: Option.Option<Element>, codes: string) =>
         Option.match(stored, {
-          onNone: () => Effect.succeed<ReadonlyArray<Observation>>([]),
+          onNone: () => Effect.succeed<ReadonlyArray<Place>>([]),
           onSome: ([, , part]) =>
             Schema.decodeUnknownEffect(PartJson)(part).pipe(
-              Effect.map(({ observations }) => observations),
+              Effect.map(({ observations, qualifications }) => [
+                ...observations,
+                ...(qualifications ?? []),
+              ]),
               Effect.catchTag("SchemaError", (error) =>
                 Effect.logWarning("Stored series no longer decodes", indicator, codes, error).pipe(
                   Effect.as([]),
@@ -577,10 +608,29 @@ export class Store extends Context.Service<Store, Interface>()("@openfacts/serve
         })
 
       const offer = Effect.fnUntraced(function* (offered: Stored) {
+        yield* Schema.decodeEffect(Schema.Array(Qualification))(offered.qualifications ?? []).pipe(
+          Effect.mapError(() => new SourceUnavailable({ source: sourceOf(indicator) })),
+        )
+
+        if (
+          (offered.qualifications ?? []).some(
+            (item) =>
+              item.series.indicator !== indicator ||
+              codesOf(item.series.dimensions) !== codesOf(offered.dimensions),
+          )
+        )
+          return yield* new SourceUnavailable({ source: sourceOf(indicator) })
         const codes = yield* follow(offered)
         const stored = yield* counterpart(codes)
         const { indicator: named, dataset, dimensions, version, retrievedAt } = offered
         const observations = Arr.sort(offered.observations, byCountryYear)
+
+        const qualifications = [...(offered.qualifications ?? [])].toSorted(
+          (a, b) =>
+            a.country.localeCompare(b.country) ||
+            a.year - b.year ||
+            JSON.stringify(a).localeCompare(JSON.stringify(b)),
+        )
 
         const candidate = {
           indicator: named,
@@ -589,9 +639,10 @@ export class Store extends Context.Service<Store, Interface>()("@openfacts/serve
           version,
           retrievedAt,
           observations,
+          qualifications,
         }
 
-        const hash = yield* hashOf(observations)
+        const hash = yield* hashOf(observations, qualifications)
         const kept = Option.map(stored, (element) => JSON.stringify(element))
 
         if (Option.isSome(kept) && Option.exists(stored, ([, held]) => held === hash)) {
@@ -600,7 +651,7 @@ export class Store extends Context.Service<Store, Interface>()("@openfacts/serve
           return { candidate, outcome: Outcome.Unchanged() } satisfies Offer
         }
 
-        const verdict = judge(yield* valuesOf(stored, codes), observations)
+        const verdict = judge(yield* valuesOf(stored, codes), [...observations, ...qualifications])
 
         if (Verdict.$is("Hold")(verdict)) {
           if (Option.isSome(kept)) yield* add(codes, kept.value)
@@ -615,6 +666,7 @@ export class Store extends Context.Service<Store, Interface>()("@openfacts/serve
           version,
           retrievedAt,
           observations,
+          qualifications,
         }).pipe(Effect.orDie)
 
         yield* add(codes, JSON.stringify([codes, hash, part]))

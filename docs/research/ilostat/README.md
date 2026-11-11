@@ -1,9 +1,8 @@
 # ILOSTAT integration decision
 
-Status: blocked on observation qualifiers. This is the methodological-blocker
-outcome allowed by NTO-219, not an implemented adapter. No ILOSTAT indicator is
-registered, searchable or ingested by this change. No production or preview
-catalog build, fill, gather, agent eval or account operation ran.
+Status: the approved first-table implementation is described below. The evidence
+and blocker analysis record the original review baseline. No production or
+preview fill, manual catalog build, gather, eval or account operation ran.
 
 ## Verified access and bounds
 
@@ -154,3 +153,69 @@ specified above and normalize CSV serialization. No charted values are computed,
 aggregated, interpolated or entered by hand. No external agreement was accepted.
 Any manual production catalog build, fill or gather needs the owner's explanation
 and approval; this proposal authorizes none.
+
+## Implemented first slice
+
+The approved follow-up implements `ILOSTAT:SDG_B552_NOC_RT_A` only. The blocker
+analysis above records the pre-implementation contract. Publisher qualifications
+now travel separately from finite numeric observations, keyed by source, complete
+series choice, country and year. The collection retains raw status and note codes,
+decoded labels, survey labels, missing-value state and exclusion reasons. Unknown
+status, note and survey codes fail closed. The reviewed dictionaries are checked
+in with the codecs; expanding this allowlist requires another definition review.
+No forecast or uncertainty contract is claimed.
+
+The recorded 628 rows have these results under the existing country universe:
+
+- 12 rows are outside supported country codes: COK (2), KOS (7), NIU (1), TKL (1),
+  WLF (1). No country-code equivalence is guessed. There are no regional/world
+  aggregates in this selected archive; X01 remains outside national discovery.
+- The remaining 616 country-years retain their qualifications, including 10 U,
+  42 B and both missing numbers. The original archive has 12 U and 45 B overall.
+- 10 supported country-years have quarter, semester or month reference notes and
+  are excluded from plotted values. Afghanistan 2021 overlaps this count with a
+  missing number. Neither its U status nor its First quarter note disappears.
+- There are 605 finite plotted observations. The noncalendar-year and USA
+  eleven-month annual-average notes remain attached to their observations.
+  None of the selected archive's notes confirms partial geography. Recognized
+  S4 geography exclusions are nevertheless explicit if encountered.
+
+Discovery lists one reviewed table, with an explicit source/survey dimension,
+reviewed survey labels and supported countries. Its year bounds remain unknown
+until stored coverage is queried. It does not enroll 1,204 annual TOC entries.
+Survey codes are encoded as `s` followed by hexadecimal UTF-8 bytes, so
+`BA:15715` is `s42413a3135373135`; decoding each byte pair restores the raw code.
+Global dimension/key grammars, deployed ids and `series/v2` paths are unchanged.
+
+Qualified transforms are rejected with `TransformNotApplicable`, including a
+qualified divisor. Original values retain country-year warnings in resolver and
+chart-tool output, restored charts, shared/embedded charts and the chart's
+visible warning list. Existing unqualified stored payloads still decode and keep
+their previous value hashes. Notes alone change a qualified series' hash.
+
+### Manual first fill
+
+`pnpm --filter @openfacts/server run ilostat` is a Node-only manual operation.
+It requires `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `ILOSTAT_D1_ID` and
+`ILOSTAT_R2_BUCKET`, naming the existing stage database and series bucket. The
+credential needs D1 and R2 object access. Obtain owner approval for the exact
+stage and operation before running it. No such operation ran during development.
+
+The entry point uses the real D1 HTTP client and R2 object API, streams the
+selected gzip through CSV decoding to a temporary directory, uses the machine's
+`sort` with `LC_ALL=C`, groups one complete survey at a time and calls shared
+Gather/Store rules. The TOC version is checked again before offering any series;
+a moving snapshot fails the asset. Day/month/Paris timestamps remain opaque
+versions and never become US dates or lexical chronological release orders.
+Temporary files are removed on exit. Unknown columns/codes, duplicate keys,
+malformed CSV and moving snapshots fail closed. Traffic is paced at 10 requests
+per minute with cooldown on 429 and bounded transient retries. This budget is a
+conservative operational choice, not an asserted publisher quota.
+
+Only a Node adapter supplied with the disk reader enrolls the selected asset.
+Worker catalog and chart readers expose metadata and StoredOnly reads without
+an inoperative scheduled archive mirror. An absent stored series returns typed
+NotStored and makes no observation/archive request. The shared ledger skips
+successful unchanged assets and owns failure/backoff/resume. No new framework or
+cross-source counterpart is introduced. The other six source integrations remain
+outside this PR, and NTO-219 stays open.

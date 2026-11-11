@@ -181,5 +181,9 @@
   "catalogUnavailable": "La recherche d’indicateurs n’est pas disponible. Réessayez dans un instant.",
   "electionRecords": "données électorales",
   "governmentRecords": "données sur les gouvernements",
-  "eventRecords": "données sur les événements"
+  "eventRecords": "données sur les événements",
+  "Unreliable": "Non fiable",
+  "Missing value": "Valeur manquante",
+  "Excluded reference period": "Période de référence exclue",
+  "Excluded geography": "Couverture géographique exclue"
 }

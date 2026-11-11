@@ -13,6 +13,7 @@ import { TestClock } from "effect/testing"
 
 import { Catalog } from "../src/Catalog.ts"
 import { Directions } from "../src/Directions.ts"
+import { Ilostat } from "../src/Ilostat.ts"
 import { Insee } from "../src/Insee.ts"
 import { Resolver } from "../src/Resolver.ts"
 import { Sdmx } from "../src/Sdmx.ts"
@@ -169,7 +170,7 @@ describe("INSEE", () => {
         Resolver.layer.pipe(
           Layer.provide(Directions.listed),
           Layer.provide(Sources.layer),
-          Layer.provide(Layer.mergeAll(Insee.layer, WorldBank.layer, Sdmx.layer)),
+          Layer.provide(Layer.mergeAll(Ilostat.layer, Insee.layer, WorldBank.layer, Sdmx.layer)),
           Layer.provide(http(respond)),
         ),
       ),

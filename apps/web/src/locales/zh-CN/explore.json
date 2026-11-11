@@ -181,5 +181,9 @@
   "catalogUnavailable": "指标搜索暂不可用。请稍后重试。",
   "electionRecords": "选举记录",
   "governmentRecords": "政府记录",
-  "eventRecords": "事件记录"
+  "eventRecords": "事件记录",
+  "Unreliable": "不可靠",
+  "Missing value": "缺失值",
+  "Excluded reference period": "已排除的参考期",
+  "Excluded geography": "已排除的地理范围"
 }

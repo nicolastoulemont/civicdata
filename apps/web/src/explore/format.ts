@@ -22,6 +22,7 @@ export const formatCompact = (value: number) => compact.format(value)
 export const flagLabels: Record<Flag, string> = {
   Provisional: "Provisional",
   Estimated: "Estimated",
+  Unreliable: "Unreliable",
   Break: "Break in series",
 }
 
