@@ -27,11 +27,14 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { act, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { DateTime, Match, Schema } from "effect"
+import type { i18n } from "i18next"
 import { http, HttpResponse } from "msw/http"
 import { useState } from "react"
+import { I18nextProvider } from "react-i18next"
 import { describe, expect, it, vi } from "vitest"
 
 import { network } from "../../test/network.ts"
+import { createI18n } from "../locale.tsx"
 import { Explore } from "./Explore.tsx"
 import { fromUrl } from "./search.ts"
 
@@ -304,11 +307,13 @@ const Page = ({ initial }: PageProps) => {
   )
 }
 
-const show = (view: View) =>
+const show = (view: View, instance: i18n = createI18n()) =>
   render(
-    <QueryClientProvider client={new QueryClient()}>
-      <Page initial={view} />
-    </QueryClientProvider>,
+    <I18nextProvider i18n={instance}>
+      <QueryClientProvider client={new QueryClient()}>
+        <Page initial={view} />
+      </QueryClientProvider>
+    </I18nextProvider>,
   )
 
 const trend = Trend.make({
@@ -733,7 +738,7 @@ describe("Explore", () => {
 
     expect(
       await screen.findByText(
-        "Source: Eurostat, Population on 1 January. Retrieved 8 November 2026.",
+        "Source: Eurostat, Population on 1 January. Retrieved November 8, 2026.",
       ),
     ).toBeDefined()
     await user.click(screen.getByRole("tab", { name: "About" }))
@@ -1207,7 +1212,7 @@ describe("Explore", () => {
 
     expect(await screen.findByRole("status")).toHaveProperty(
       "textContent",
-      "Indicator search needs D1: run `pnpm dev`, not `pnpm dev:web`.",
+      "Indicator search is not available. Try again in a moment.",
     )
   })
 
@@ -2076,4 +2081,38 @@ describe("Explore", () => {
 
     expect(await screen.findByRole("heading", { name: female })).toBeDefined()
   })
+})
+
+it("changes chart framing and number formats without refetching or translating source metadata", async () => {
+  const instance = createI18n()
+  let requests = 0
+
+  network.use(
+    http.post("/api/views/resolve", async ({ request }) => {
+      requests++
+      const view = Schema.decodeUnknownSync(View)(await request.json())
+
+      return HttpResponse.json(Schema.encodeSync(ResolvedViewSchema)(resolvedFor(view)))
+    }),
+  )
+  show(
+    Ranking.make({
+      indicator: population,
+      countries: ["DEU"],
+      year: Year.make(2020),
+      transform: "PerPerson",
+    }),
+    instance,
+  )
+  await userEvent.click(await screen.findByRole("tab", { name: "Data" }))
+  expect(await screen.findByRole("cell", { name: "83.16" })).toBeDefined()
+
+  await act(() => instance.changeLanguage("pt-PT"))
+
+  expect(screen.getByRole("tab", { name: "Dados" })).toBeDefined()
+  expect(screen.getByRole("cell", { name: "Alemanha" })).toBeDefined()
+  expect(screen.getByRole("cell", { name: "83,16" })).toBeDefined()
+  expect(screen.getByRole("heading", { name: "Total population" })).toBeDefined()
+  expect(screen.getByText(/Fonte: World Bank, World Development Indicators/)).toBeDefined()
+  expect(requests).toBe(1)
 })

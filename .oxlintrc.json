@@ -66,6 +66,7 @@
     ".agents/**"
   ],
   "jsPlugins": [
+    { "name": "i18n", "specifier": "./tools/oxlint/i18n/plugin.mjs" },
     {
       "name": "anti-slop",
       "specifier": "./tools/oxlint/anti-slop/index.ts"
@@ -76,6 +77,11 @@
     }
   ],
   "overrides": [
+    { "files": ["apps/web/src/**"], "rules": { "i18n/no-raw-text": "error" } },
+    {
+      "files": ["**/*.test.ts", "**/*.test.tsx", "**/*.stories.tsx", "**/*.gen.ts"],
+      "rules": { "i18n/no-raw-text": "off" }
+    },
     {
       "files": ["packages/infra/**"],
       "rules": {

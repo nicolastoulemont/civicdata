@@ -1,8 +1,9 @@
 import { Api } from "@civicdata/domain"
 import { Effect, Layer } from "effect"
-import { FetchHttpClient, type HttpClient } from "effect/http"
+import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/http"
 import { HttpApiClient } from "effect/http-api"
 
+import { requestLocale } from "@/locale"
 import { traced } from "@/traces"
 
 // Where API requests go. A relative base URL resolves against the page.
@@ -27,10 +28,12 @@ export const request = <A, E>(
   transport: Transport,
   use: (api: HttpApiClient.ForApi<typeof Api>) => Effect.Effect<A, E>,
 ) =>
-  HttpApiClient.make(Api, { baseUrl: transport.baseUrl }).pipe(
-    Effect.flatMap(use),
-    Effect.provide(transport.layer),
-  )
+  HttpApiClient.make(Api, {
+    baseUrl: transport.baseUrl,
+    transformClient: HttpClient.mapRequest((outgoing) =>
+      HttpClientRequest.setHeader(outgoing, "X-User-Locale", requestLocale()),
+    ),
+  }).pipe(Effect.flatMap(use), Effect.provide(transport.layer))
 
 // Runs one request, rejecting with the API's typed error or a transport error.
 export const call = <A, E>(

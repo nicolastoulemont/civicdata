@@ -1,0 +1,11 @@
+{
+  "title": "Settings",
+  "sections": "Settings sections",
+  "appearance": "Appearance",
+  "appearanceDescription": "How civicdata looks in this browser. System follows your device.",
+  "system": "System",
+  "light": "Light",
+  "dark": "Dark",
+  "language": "Language",
+  "languageDescription": "The language civicdata uses in this browser. Source text and existing answers keep their original language."
+}

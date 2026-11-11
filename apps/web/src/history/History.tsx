@@ -2,6 +2,7 @@ import { Link, useParams } from "@tanstack/react-router"
 import { DateTime } from "effect"
 import { Settings, SquarePen } from "lucide-react"
 import { useEffect, useId, useState } from "react"
+import { useTranslation } from "react-i18next"
 
 import { buttonVariants } from "@/components/ui/button"
 import {
@@ -48,6 +49,7 @@ const GitHub = () => (
 // in this browser, newest first, and links to the source and to Settings at
 // the bottom. A drawer on phones.
 export const History = () => {
+  const { t } = useTranslation("home")
   const entries = useEntries()
   const { id } = useParams({ strict: false })
   const { setOpenMobile } = useSidebar()
@@ -62,7 +64,7 @@ export const History = () => {
           <SidebarMenuItem>
             <SidebarMenuButton render={<Link to="/" onClick={() => setOpenMobile(false)} />}>
               <SquarePen aria-hidden />
-              <span>New conversation</span>
+              <span>{t(($) => $.newConversation)}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
@@ -70,11 +72,9 @@ export const History = () => {
       <SidebarContent>
         <nav aria-labelledby={label}>
           <SidebarGroup>
-            <SidebarGroupLabel id={label}>Conversations</SidebarGroupLabel>
+            <SidebarGroupLabel id={label}>{t(($) => $.conversations)}</SidebarGroupLabel>
             {entries.length === 0 ? (
-              <p className="px-2 text-sm text-muted-foreground">
-                The conversations you start are listed here, in this browser only.
-              </p>
+              <p className="px-2 text-sm text-muted-foreground">{t(($) => $.empty)}</p>
             ) : (
               <SidebarMenu className="gap-1.5">
                 {entries.map((entry) => (
@@ -93,13 +93,13 @@ export const History = () => {
               <a
                 className={buttonVariants({ variant: "ghost", size: "icon-sm" })}
                 href="https://github.com/nicolastoulemont/civicdata"
-                aria-label="View the source on GitHub"
+                aria-label={t(($) => $.github)}
               />
             }
           >
             <GitHub />
           </TooltipTrigger>
-          <TooltipContent side="right">View the source on GitHub</TooltipContent>
+          <TooltipContent side="right">{t(($) => $.github)}</TooltipContent>
         </Tooltip>
         <Tooltip>
           <TooltipTrigger
@@ -109,13 +109,13 @@ export const History = () => {
                 to="."
                 search={(prev) => ({ ...prev, settings: "appearance" })}
                 onClick={() => setOpenMobile(false)}
-                aria-label="Settings"
+                aria-label={t(($) => $.settings)}
               />
             }
           >
             <Settings aria-hidden />
           </TooltipTrigger>
-          <TooltipContent side="right">Settings</TooltipContent>
+          <TooltipContent side="right">{t(($) => $.settings)}</TooltipContent>
         </Tooltip>
       </SidebarFooter>
       <SidebarRail />

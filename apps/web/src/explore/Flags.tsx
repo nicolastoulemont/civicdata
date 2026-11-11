@@ -1,6 +1,7 @@
 import type { Country, Flag, ResolvedView } from "@civicdata/domain"
+import { useTranslation } from "react-i18next"
 
-import { countryName, flagLabels } from "./format.ts"
+import { useFormat } from "./useFormat.ts"
 
 const order: ReadonlyArray<Flag> = ["Provisional", "Estimated", "Break"]
 
@@ -26,6 +27,10 @@ interface FlagsProps {
 // Under the chart, the values its source qualifies, e.g. "Provisional:
 // France 2024–2026, Greece 2026." Nothing when no value is flagged.
 export const Flags = ({ resolved }: FlagsProps) => {
+  const { flagLabels, countryName } = useFormat()
+
+  const { t } = useTranslation("explore")
+
   const groups = order.flatMap((flag) => {
     const years = new Map<Country, Array<number>>()
 
@@ -36,7 +41,10 @@ export const Flags = ({ resolved }: FlagsProps) => {
   })
 
   return groups.length === 0 ? null : (
-    <ul aria-label="Flagged values" className="space-y-1 text-sm text-muted-foreground">
+    <ul
+      aria-label={t(($) => $["Flagged values"])}
+      className="space-y-1 text-sm text-muted-foreground"
+    >
       {groups.map(({ flag, years }) => (
         <li key={flag}>
           <span className="font-medium text-foreground">{flagLabels[flag]}:</span>{" "}

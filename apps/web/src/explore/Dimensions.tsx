@@ -1,5 +1,6 @@
 import type { Code, Dimension, View } from "@civicdata/domain"
 import { useId } from "react"
+import { useTranslation } from "react-i18next"
 
 import { Field, FieldLabel } from "@/components/ui/field"
 import {
@@ -23,6 +24,8 @@ interface PickProps {
 // the same "per capita". The closed select shows what fits and the whole label
 // on hover; the open list wraps each label in full.
 const Pick = ({ dimension, value, onChange }: PickProps) => {
+  const { t } = useTranslation("explore")
+
   const id = useId()
   const picked = dimension.options.find((option) => option.code === value)
 
@@ -37,7 +40,7 @@ const Pick = ({ dimension, value, onChange }: PickProps) => {
         }}
       >
         <SelectTrigger id={id} className="w-full" title={picked?.label}>
-          <SelectValue placeholder="Choose…" />
+          <SelectValue placeholder={t(($) => $["Choose…"])} />
         </SelectTrigger>
         <SelectContent className="w-auto max-w-[min(28rem,var(--available-width))] min-w-(--anchor-width)">
           {dimension.options.map((option) => (

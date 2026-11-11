@@ -78,13 +78,16 @@ import {
 } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { type Array as Arr, Cause, DateTime, Duration, Schema, Struct } from "effect"
+import type { i18n } from "i18next"
 import { http, HttpResponse } from "msw/http"
+import { I18nextProvider } from "react-i18next"
 import { describe, expect, it, onTestFinished, vi } from "vitest"
 
 import { SidebarProvider } from "@/components/ui/sidebar"
 
 import { line, typed } from "../../test/composer.ts"
 import { exportedSpans, network } from "../../test/network.ts"
+import { createI18n } from "../locale.tsx"
 import { Conversation } from "./Conversation.tsx"
 
 const id = ConversationId.make("0b5d7c1e-8f4a-4c2b-9d3e-1a2b3c4d5e6f")
@@ -306,7 +309,7 @@ const answer = (via: "ask" | "follow" = "ask", conversation: ConversationId = id
   }
 }
 
-const show = (first?: string) => {
+const show = (first?: string, instance: i18n = createI18n()) => {
   // The header's sidebar toggle needs the sidebar's provider.
   const root = createRootRoute({
     component: () => (
@@ -317,9 +320,13 @@ const show = (first?: string) => {
   })
 
   return render(
-    <QueryClientProvider client={new QueryClient()}>
-      <RouterProvider router={createRouter({ routeTree: root, history: createMemoryHistory() })} />
-    </QueryClientProvider>,
+    <I18nextProvider i18n={instance}>
+      <QueryClientProvider client={new QueryClient()}>
+        <RouterProvider
+          router={createRouter({ routeTree: root, history: createMemoryHistory() })}
+        />
+      </QueryClientProvider>
+    </I18nextProvider>,
   )
 }
 
@@ -2779,4 +2786,32 @@ describe("Conversation", () => {
     expect(await findQuestion("Life expectancy in Brazil")).toBeDefined()
     expect(screen.getAllByRole("alert")).toHaveLength(1)
   })
+})
+
+it("changes saved conversation controls and work logs while keeping the original question and answer", async () => {
+  const instance = createI18n()
+  const question = "What about life expectancy?"
+  const statement = "The original assistant response."
+
+  network.use(
+    turns([
+      {
+        question,
+        answer: Answered.make({ blocks: [said(statement)] }),
+        steps: [searched],
+        took: Duration.seconds(3),
+      },
+    ]),
+  )
+  show(undefined, instance)
+  expect(await screen.findByText(statement)).toBeDefined()
+
+  await act(() => instance.changeLanguage("pt-PT"))
+
+  expect(screen.getByRole("textbox", { name: "Fazer uma pergunta de seguimento" })).toBeDefined()
+  expect(screen.getByRole("group", { name: "Esta resposta foi útil?" })).toBeDefined()
+  await userEvent.click(screen.getByRole("button", { name: /Trabalhou durante 3 s/ }))
+  expect(screen.getByRole("list", { name: "Passos" })).toBeDefined()
+  expect(screen.getByText(statement)).toBeDefined()
+  expect(screen.getAllByText(question).length).toBeGreaterThan(0)
 })

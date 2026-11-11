@@ -11,6 +11,7 @@ import {
   type TurnIndex,
 } from "@civicdata/domain"
 import { Match, Schema } from "effect"
+import { useTranslation } from "react-i18next"
 
 import { Answer } from "./Answer.tsx"
 import { Blocks } from "./Blocks.tsx"
@@ -21,7 +22,7 @@ import { Agent } from "./Row.tsx"
 import type { Entry } from "./timeline.ts"
 import { Stop, type useConversation } from "./useConversation.ts"
 import { Vote } from "./Vote.tsx"
-import { runs, Steps, Worked, Working } from "./Work.tsx"
+import { useRuns, Steps, Worked, Working } from "./Work.tsx"
 
 const isRendered = Schema.is(Rendered)
 const isChart = Schema.is(Chart)
@@ -65,8 +66,10 @@ interface ItemProps {
 // stay as they are, and one that ended on its own, rather than with a question
 // back or a stop, asks whether it was useful. A failed one keeps its steps
 // open above the problem. Each is marked as a question, for the rail to find.
-const Item = ({ id, entry, retry, answering }: ItemProps) =>
-  Match.valueTags(entry, {
+const Item = ({ id, entry, retry, answering }: ItemProps) => {
+  const runs = useRuns()
+
+  return Match.valueTags(entry, {
     Failed: ({ failure }) => (
       <li data-question className="flex flex-col gap-4">
         <Question text={failure.question} />
@@ -116,6 +119,7 @@ const Item = ({ id, entry, retry, answering }: ItemProps) =>
       )
     },
   })
+}
 
 // A question keeps its key while it stays the same kind of row, and the one
 // being answered keeps it once its turn is kept, so its charts stay drawn.
@@ -134,10 +138,14 @@ interface TimelineProps {
 }
 
 // The questions of a conversation, oldest first, then the one being answered.
-export const Timeline = ({ id, entries, retry, answering }: TimelineProps) => (
-  <ol aria-label="Questions and answers" className="flex flex-col gap-8">
-    {entries.map((entry) => (
-      <Item key={key(entry)} id={id} entry={entry} retry={retry} answering={answering} />
-    ))}
-  </ol>
-)
+export const Timeline = ({ id, entries, retry, answering }: TimelineProps) => {
+  const { t } = useTranslation("conversation")
+
+  return (
+    <ol aria-label={t(($) => $["Questions and answers"])} className="flex flex-col gap-8">
+      {entries.map((entry) => (
+        <Item key={key(entry)} id={id} entry={entry} retry={retry} answering={answering} />
+      ))}
+    </ol>
+  )
+}

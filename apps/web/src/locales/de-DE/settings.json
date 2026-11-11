@@ -1,0 +1,11 @@
+{
+  "title": "Einstellungen",
+  "sections": "Einstellungsbereiche",
+  "appearance": "Darstellung",
+  "appearanceDescription": "Das Aussehen von civicdata in diesem Browser. System folgt den Einstellungen deines Geräts.",
+  "system": "System",
+  "light": "Hell",
+  "dark": "Dunkel",
+  "language": "Sprache",
+  "languageDescription": "Die Sprache von civicdata in diesem Browser. Quellentexte und bestehende Antworten behalten ihre ursprüngliche Sprache."
+}

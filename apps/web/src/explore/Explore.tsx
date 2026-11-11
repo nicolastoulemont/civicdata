@@ -20,7 +20,9 @@ import {
 } from "@civicdata/domain"
 import { type UseQueryResult, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Data, Match, Struct } from "effect"
+import type { TFunction } from "i18next"
 import { Fragment, type ReactNode, use, useState } from "react"
+import { useTranslation } from "react-i18next"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -62,14 +64,10 @@ import {
 } from "./edits.ts"
 import { Flags } from "./Flags.tsx"
 import {
-  attribution,
-  countryName,
   indicatorNames,
-  named,
-  period,
+  period as englishPeriod,
   picks,
-  subject,
-  transformLabel,
+  transformLabel as englishTransformLabel,
 } from "./format.ts"
 import { historyOf, SpanEvent, Spanning, spanning } from "./history.ts"
 import { Indicator } from "./Indicator.tsx"
@@ -82,6 +80,7 @@ import { RelatedChart } from "./RelatedChart.tsx"
 import { ShowAs } from "./ShowAs.tsx"
 import { Takeaway } from "./Takeaway.tsx"
 import { type History, TrendChart } from "./TrendChart.tsx"
+import { useFormat } from "./useFormat.ts"
 import { range, YearSelect, years } from "./Years.tsx"
 
 interface SpanProps {
@@ -92,18 +91,20 @@ interface SpanProps {
 
 // A first and a last year, the last never before the first.
 const Span = ({ from, to, onChange }: SpanProps) => {
+  const { t } = useTranslation("explore")
+
   const all = years()
 
   return (
     <>
       <YearSelect
-        label="From"
+        label={t(($) => $["From"])}
         value={from}
         options={range(all[0] ?? from, to)}
         onChange={(next) => onChange({ from: next, to })}
       />
       <YearSelect
-        label="To"
+        label={t(($) => $["To"])}
         value={to}
         options={all.filter((year) => year >= from)}
         onChange={(next) => onChange({ from, to: next })}
@@ -147,13 +148,15 @@ interface SpanYearsProps {
 // Switching to over time first loads the chart's whole history, to start the
 // span at the first year every country shares.
 const SpanYears = ({ view, onChange }: SpanYearsProps) => {
+  const { t } = useTranslation("explore")
+
   const queryClient = useQueryClient()
   const [state, send] = useMachine(spanning, { input: { view, queryClient }, on: onChange })
 
   return (
     <>
       <ToggleGroup
-        aria-label="Years shown"
+        aria-label={t(($) => $["Years shown"])}
         variant="outline"
         value={[view.span === undefined ? "one" : "over"]}
         onValueChange={(next: Array<string>) => {
@@ -162,14 +165,14 @@ const SpanYears = ({ view, onChange }: SpanYearsProps) => {
           if (next.includes("over") && view.span === undefined) send(SpanEvent.Ask())
         }}
       >
-        <ToggleGroupItem value="one">One year</ToggleGroupItem>
+        <ToggleGroupItem value="one">{t(($) => $["One year"])}</ToggleGroupItem>
         <ToggleGroupItem value="over" disabled={Spanning.$is("Loading")(state)}>
-          Over time
+          {t(($) => $["Over time"])}
         </ToggleGroupItem>
       </ToggleGroup>
       {view.span === undefined ? (
         <YearSelect
-          label="Year"
+          label={t(($) => $["Year"])}
           value={view.year}
           options={years()}
           onChange={(year) => onChange(withYear(view, year))}
@@ -183,8 +186,8 @@ const SpanYears = ({ view, onChange }: SpanYearsProps) => {
       )}
       {Spanning.$is("Failed")(state) ? (
         <Alert variant="destructive">
-          <AlertTitle>The years could not be loaded</AlertTitle>
-          <AlertDescription>Try again in a moment.</AlertDescription>
+          <AlertTitle>{t(($) => $["The years could not be loaded"])}</AlertTitle>
+          <AlertDescription>{t(($) => $["Try again in a moment."])}</AlertDescription>
         </Alert>
       ) : null}
     </>
@@ -200,12 +203,14 @@ interface AgainstProps {
 }
 
 // The indicator a relation is plotted against; other charts have none.
-const Against = ({ view, known, onChange }: AgainstProps) =>
-  Match.value(view).pipe(
+const Against = ({ view, known, onChange }: AgainstProps) => {
+  const { t } = useTranslation("explore")
+
+  return Match.value(view).pipe(
     Match.tag("Relation", (relation) => (
       <div className="w-full">
         <Indicator
-          label="Against"
+          label={t(($) => $["Against"])}
           current={{
             indicator: relation.against,
             name: known.get(relation.against) ?? relation.against,
@@ -216,6 +221,7 @@ const Against = ({ view, known, onChange }: AgainstProps) =>
     )),
     Match.orElse(() => null),
   )
+}
 
 interface PerProps {
   view: View
@@ -224,12 +230,14 @@ interface PerProps {
 }
 
 // The indicator a ratio divides by; other transforms have none.
-const Per = ({ view, known, onChange }: PerProps) =>
-  Match.value(transformOf(view)).pipe(
+const Per = ({ view, known, onChange }: PerProps) => {
+  const { t } = useTranslation("explore")
+
+  return Match.value(transformOf(view)).pipe(
     Match.when({ _tag: "Ratio" }, ({ per }) => (
       <div className="min-w-64 flex-1">
         <Indicator
-          label="Per"
+          label={t(($) => $["Per"])}
           current={{ indicator: per, name: known.get(per) ?? per }}
           onChange={(picked) => onChange(withPer(view, picked))}
         />
@@ -237,6 +245,7 @@ const Per = ({ view, known, onChange }: PerProps) =>
     )),
     Match.orElse(() => null),
   )
+}
 
 interface ControlsProps {
   view: View
@@ -285,50 +294,64 @@ interface ProblemProps {
   retry: () => void
 }
 
-const Problem = ({ error, retry }: ProblemProps) =>
-  error instanceof TransformNotApplicable ? (
+const Problem = ({ error, retry }: ProblemProps) => {
+  const { named } = useFormat()
+
+  const { t } = useTranslation("explore")
+
+  return error instanceof TransformNotApplicable ? (
     <Alert variant="destructive">
-      <AlertTitle>This view does not apply to {error.indicator}</AlertTitle>
+      <AlertTitle>
+        {t(($) => $["This view does not apply to {{value}}"], { value: error.indicator })}
+      </AlertTitle>
       <AlertDescription>
-        Its values are percentages or rates, which cannot be shown per person, as growth, as an
-        index or as a ratio.
+        {t(
+          ($) =>
+            $[
+              "Its values are percentages or rates, which cannot be shown per person, as growth, as an index or as a ratio."
+            ],
+        )}
       </AlertDescription>
     </Alert>
   ) : error instanceof DimensionsMissing ? (
     <Alert>
-      <AlertTitle>Choose which series to show</AlertTitle>
+      <AlertTitle>{t(($) => $["Choose which series to show"])}</AlertTitle>
       <AlertDescription>
-        This dataset has a series for each{" "}
-        {list.format(
-          error.dimensions
-            .filter((dimension) => error.open.includes(dimension.id))
-            .map((dimension) => dimension.label.toLowerCase()),
-        )}
-        . Pick one above.
+        {t(($) => $["This dataset has a series for each {{value}}. Pick one above."], {
+          value: list.format(
+            error.dimensions
+              .filter((dimension) => error.open.includes(dimension.id))
+              .map((dimension) => dimension.label.toLowerCase()),
+          ),
+        })}
       </AlertDescription>
     </Alert>
   ) : error instanceof IndicatorNotFound ? (
     <Alert variant="destructive">
-      <AlertTitle>Unknown indicator</AlertTitle>
+      <AlertTitle>{t(($) => $["Unknown indicator"])}</AlertTitle>
       <AlertDescription>
-        {named(sourceOf(error.indicator))} has no indicator {error.indicator}.
+        {t(($) => $["{{value}} has no indicator {{value2}}."], {
+          value: named(sourceOf(error.indicator)),
+          value2: error.indicator,
+        })}
       </AlertDescription>
     </Alert>
   ) : (
     <Alert variant="destructive">
       <AlertTitle>
         {error instanceof SourceUnavailable
-          ? `${named(error.source)} is not responding`
-          : "The data could not be loaded"}
+          ? t(($) => $["{{value1}} is not responding"], { value1: named(error.source) })
+          : t(($) => $["The data could not be loaded"])}
       </AlertTitle>
       <AlertDescription>
-        <p>Try again in a moment.</p>
+        <p>{t(($) => $["Try again in a moment."])}</p>
         <Button variant="outline" size="sm" onClick={retry}>
-          Retry
+          {t(($) => $["Retry"])}
         </Button>
       </AlertDescription>
     </Alert>
   )
+}
 
 // The trend on screen with its whole history, to pick its years over, while
 // the chart is being changed: off for a chart other than a trend or while the
@@ -355,8 +378,10 @@ interface SingleProps {
 }
 
 // A chart of one indicator's values.
-const Single = ({ resolved, picking, moving, politics }: SingleProps) =>
-  Match.valueTags(resolved.view, {
+const Single = ({ resolved, picking, moving, politics }: SingleProps) => {
+  const { t } = useTranslation("explore")
+
+  return Match.valueTags(resolved.view, {
     Trend: (shown) => {
       const { trend, history } = pickedOf(picking, shown)
 
@@ -373,8 +398,10 @@ const Single = ({ resolved, picking, moving, politics }: SingleProps) =>
           />
           {Picking.$is("Failed")(picking) ? (
             <Alert>
-              <AlertTitle>The chart's history could not be loaded</AlertTitle>
-              <AlertDescription>Pick its years with From and To above.</AlertDescription>
+              <AlertTitle>{t(($) => $["The chart's history could not be loaded"])}</AlertTitle>
+              <AlertDescription>
+                {t(($) => $["Pick its years with From and To above."])}
+              </AlertDescription>
             </Alert>
           ) : null}
         </>
@@ -383,6 +410,7 @@ const Single = ({ resolved, picking, moving, politics }: SingleProps) =>
     Ranking: (view) => <RankedChart resolved={{ ...resolved, view }} moving={moving} />,
     Change: (change) => <ChangeChart resolved={resolved} change={change} />,
   })
+}
 
 interface ChartProps {
   resolved: ResolvedView
@@ -498,11 +526,14 @@ const below = { h1: "h2", h3: "h4" } as const
 
 // The line under the title: where, when, as what, and which series.
 const describe = (view: View, resolved: ResolvedView | undefined) => {
-  const shows = transformLabel(view, indicatorNames(resolved === undefined ? [] : [resolved]))
+  const shows = englishTransformLabel(
+    view,
+    indicatorNames(resolved === undefined ? [] : [resolved]),
+  )
 
   return [
     places(view),
-    period(view),
+    englishPeriod(view),
     ...(shows === undefined ? [] : [shows]),
     ...(resolved === undefined ? [] : picks(resolved)),
   ].join(" · ")
@@ -535,22 +566,33 @@ const Sections = ({
   heading,
   onChange,
 }: SectionsProps) => {
+  const { countryName, named, period } = useFormat()
+
+  const { t } = useTranslation("explore")
+
   const hold = use(Hold)
 
   return (
     <Tabs defaultValue="chart" onValueChange={hold}>
       <TabsList>
-        <TabsTrigger value="chart">Chart</TabsTrigger>
-        <TabsTrigger value="data">Data</TabsTrigger>
-        <TabsTrigger value="about">About</TabsTrigger>
+        <TabsTrigger value="chart">{t(($) => $["Chart"])}</TabsTrigger>
+        <TabsTrigger value="data">{t(($) => $["Data"])}</TabsTrigger>
+        <TabsTrigger value="about">{t(($) => $["About"])}</TabsTrigger>
       </TabsList>
       <TabsContent value="chart" className="flex flex-col gap-4">
         {above}
         {resolved.missing.length > 0 ? (
           <Alert>
-            <AlertTitle>No data for {resolved.missing.map(countryName).join(", ")}</AlertTitle>
+            <AlertTitle>
+              {t(($) => $["No data for {{value}}"], {
+                value: resolved.missing.map(countryName).join(", "),
+              })}
+            </AlertTitle>
             <AlertDescription>
-              {named(sourceOf(view.indicator))} has no values for {period(view)}.
+              {t(($) => $["{{value}} has no values for {{value2}}."], {
+                value: named(sourceOf(view.indicator)),
+                value2: period(view),
+              })}
             </AlertDescription>
           </Alert>
         ) : null}
@@ -578,11 +620,11 @@ const Sections = ({
 }
 
 // What each overlay's toggle and notes call its records.
-const overlayNames: Record<Overlay, { toggle: string; records: string }> = {
-  elections: { toggle: "Elections", records: "election" },
-  governments: { toggle: "Governments", records: "government" },
-  events: { toggle: "Events", records: "event" },
-}
+const overlayNames = (t: TFunction<"explore">): Record<Overlay, string> => ({
+  elections: t(($) => $["Elections"]),
+  governments: t(($) => $["Governments"]),
+  events: t(($) => $["Events"]),
+})
 
 // The overlays whose records PPEG and ParlGov keep for each country, so a
 // country without any has no records rather than nothing that happened.
@@ -591,8 +633,22 @@ const archived = (overlays: ReadonlyArray<Overlay>) =>
 
 // The records the chart shows, as a reader would name them: "election or
 // government records".
-const recordsNamed = (overlays: ReadonlyArray<Overlay>) =>
-  `${overlays.map((overlay) => overlayNames[overlay].records).join(" or ")} records`
+interface RecordNamesOptions {
+  t: TFunction<"explore">
+  locale: string
+}
+
+const recordsNamed = (overlays: ReadonlyArray<Overlay>, { t, locale }: RecordNamesOptions) => {
+  const names: Record<Overlay, string> = {
+    elections: t(($) => $.electionRecords),
+    governments: t(($) => $.governmentRecords),
+    events: t(($) => $.eventRecords),
+  }
+
+  return new Intl.ListFormat(locale, { type: "disjunction" }).format(
+    overlays.map((overlay) => names[overlay]),
+  )
+}
 
 // The records of the overlays on: none while every overlay is off, then the
 // trend's own once loaded. While they load, the previous trend's records stay
@@ -621,6 +677,10 @@ interface OverlaysProps {
 // records says so, since no band or marker would read as nothing happening.
 // Events are few by design, so a country with none has nothing to say.
 const Overlays = ({ trend, overlays, records, onOverlays }: OverlaysProps) => {
+  const { countryName, period, locale } = useFormat()
+
+  const { t } = useTranslation("explore")
+
   const hold = use(Hold)
 
   if (trend === undefined) return null
@@ -655,27 +715,38 @@ const Overlays = ({ trend, overlays, records, onOverlays }: OverlaysProps) => {
               )
             }}
           >
-            {overlayNames[overlay].toggle}
+            {overlayNames(t)[overlay]}
           </Toggle>
         ))}
       </div>
       {Records.$is("Failed")(records) ? (
         <Alert>
           <AlertTitle>
-            {recordsNamed(overlays).replace(/^./, (first) => first.toUpperCase())} are unavailable
+            {t(($) => $["{{value}} are unavailable"], {
+              value: recordsNamed(overlays, { t, locale }).replace(/^./, (first) =>
+                first.toUpperCase(),
+              ),
+            })}
           </AlertTitle>
-          <AlertDescription>Try again later.</AlertDescription>
+          <AlertDescription>{t(($) => $["Try again later."])}</AlertDescription>
         </Alert>
       ) : null}
       {unrecorded.length > 0 ? (
         <Alert>
           <AlertTitle>
-            No {recordsNamed(kept)} for {unrecorded.map(countryName).join(", ")}
+            {t(($) => $["No {{value}} for {{value2}}"], {
+              value: recordsNamed(kept, { t, locale }),
+              value2: unrecorded.map(countryName).join(", "),
+            })}
           </AlertTitle>
           <AlertDescription>
-            PPEG and ParlGov record the elections and governments of EU and OECD members, each from
-            a different year. Neither covers {period(trend)} for{" "}
-            {unrecorded.length > 1 ? "these countries" : "it"}.
+            {t(
+              ($) =>
+                $[
+                  "PPEG and ParlGov record the elections and governments of EU and OECD members, each from a different year. Neither covers {{value}} for {{value2}}."
+                ],
+              { value: period(trend), value2: unrecorded.map(countryName).join(", ") },
+            )}
           </AlertDescription>
         </Alert>
       ) : null}
@@ -696,11 +767,13 @@ interface EventCreditsProps {
 // The pages the events and reforms on a chart cite, numbered as their lines
 // in the chart's tooltip say. Nothing while the chart shows none.
 const EventCredits = ({ records }: EventCreditsProps) => {
+  const { t } = useTranslation("explore")
+
   const pages = cited([...(records?.events ?? []), ...(records?.reforms ?? [])])
 
   return pages.length === 0 ? null : (
     <>
-      {" Events: sources "}
+      {t(($) => $[" Events: sources "])}
       {pages.map((page, index) => (
         <Fragment key={page.url}>
           {index === 0 ? "" : " "}
@@ -728,14 +801,16 @@ interface ArchiveCreditsProps {
 // The archives the elections and governments on a chart come from, and the
 // official pages checked by hand after them.
 const ArchiveCredits = ({ overlays, records }: ArchiveCreditsProps) => {
+  const { t } = useTranslation("explore")
+
   if (overlays.length === 0) return null
 
   const pages = officialPages([...(records?.governments ?? []), ...(records?.elections ?? [])])
-  const kinds = overlays.map((overlay) => overlayNames[overlay].toggle.toLowerCase())
+  const kinds = overlays.map((overlay) => overlayNames(t)[overlay].toLowerCase())
 
   return (
     <>
-      {` ${kinds.join(" and ").replace(/^./, (first) => first.toUpperCase())}: `}
+      {` ${kinds.join(t(($) => $[" and "])).replace(/^./, (first) => first.toUpperCase())}: `}
       <a className="underline underline-offset-4" href={archives.PPEG.url}>
         {archives.PPEG.name}
       </a>
@@ -745,7 +820,7 @@ const ArchiveCredits = ({ overlays, records }: ArchiveCreditsProps) => {
       </a>
       {pages.length === 0 ? null : (
         <>
-          {", official records "}
+          {t(($) => $[", official records "])}
           {pages.map((url, index) => (
             <Fragment key={url}>
               {index === 0 ? "" : " "}
@@ -770,18 +845,24 @@ interface ColorCreditsProps {
 // brand page, or the party's Wikidata entry. Bands show on a chart of one
 // country only.
 const ColorCredits = ({ records, countries }: ColorCreditsProps) => {
+  const { t } = useTranslation("explore")
+
   const colors = countries.length === 1 ? tints(terms(records?.governments ?? [])) : []
 
   return colors.length === 0 ? null : (
     <>
-      {" Party colours "}
+      {t(($) => $[" Party colours "])}
       {colors.map((color, index) => (
         <Fragment key={color.url}>
           {index === 0 ? "" : " "}
           <a
             className="underline underline-offset-4"
             href={color.url}
-            aria-label={`Party colour ${index + 1}, ${color.kind === "brand" ? "the party's brand" : "Wikidata"}`}
+            aria-label={t(($) => $["Party colour {{value1}}, {{value2}}"], {
+              value1: index + 1,
+              value2:
+                color.kind === "brand" ? t(($) => $["the party's brand"]) : t(($) => $["Wikidata"]),
+            })}
           >
             {index + 1}
           </a>
@@ -940,6 +1021,10 @@ export const Explore = ({
   changing: initial = false,
   agent,
 }: ExploreProps) => {
+  const { subject, attribution } = useFormat()
+
+  const { t } = useTranslation("explore")
+
   const hold = use(Hold)
   const [changing, setChanging] = useState(initial)
 
@@ -991,7 +1076,7 @@ export const Explore = ({
               setChanging(pressed)
             }}
           >
-            Change
+            {t(($) => $["Change"])}
           </Toggle>
           <CopyLink view={view} overlays={overlays} />
         </CardAction>
@@ -1012,7 +1097,7 @@ export const Explore = ({
       <CardFooter className="text-sm text-muted-foreground">
         <p>
           {query.data === undefined
-            ? `Source: ${sourceOf(view.indicator)}`
+            ? t(($) => $["Source: {{value1}}"], { value1: sourceOf(view.indicator) })
             : attribution(query.data)}
           <Credits overlays={political.overlays} records={politics} countries={view.countries} />
         </p>

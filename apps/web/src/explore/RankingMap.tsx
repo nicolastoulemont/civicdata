@@ -1,9 +1,10 @@
 import { type Country, countries, regionOf, type ResolvedView } from "@civicdata/domain"
 import { use, useId } from "react"
+import { useTranslation } from "react-i18next"
 
-import { countryName, formatCompact, formatValue } from "./format.ts"
-import { phrase, shading } from "./palette.ts"
+import { shading } from "./palette.ts"
 import { banded, type Band, load, offMap, path, shades } from "./sheet.ts"
+import { useFormat } from "./useFormat.ts"
 
 interface RankingMapProps {
   // One year's values.
@@ -21,6 +22,12 @@ interface RankingMapProps {
 // still. A note names the countries too small to draw; the data table lists
 // every value.
 export const RankingMap = ({ resolved, bands }: RankingMapProps) => {
+  const { phrase } = useFormat()
+
+  const { formatValue, countryName, formatCompact } = useFormat()
+
+  const { t } = useTranslation("explore")
+
   const caption = useId()
   const region = regionOf(resolved.view.countries)
   const sheet = use(load(region))
@@ -49,15 +56,22 @@ export const RankingMap = ({ resolved, bands }: RankingMapProps) => {
   const valueOf = (country: Country) => {
     const value = values.get(country)
 
-    return value === undefined ? "no data" : formatValue(value)
+    return value === undefined ? t(($) => $["No data"]) : formatValue(value)
   }
 
   return (
     <figure className="flex flex-col gap-3" aria-labelledby={caption}>
-      <figcaption
-        id={caption}
-        className="sr-only"
-      >{`${region === undefined ? "World map" : `Map of ${region.name}`} ${bands === undefined ? "ranking" : "shading"} countries by ${resolved.title}${better === undefined ? "" : `, ${better.toLowerCase()}`}`}</figcaption>
+      <figcaption id={caption} className="sr-only">
+        {t(($) => $["{{value1}} {{value2}} countries by {{value3}}{{value4}}"], {
+          value1:
+            region === undefined
+              ? t(($) => $["World map"])
+              : t(($) => $["Map of {{region}}"], { region: region.name }),
+          value2: bands === undefined ? t(($) => $["ranking"]) : t(($) => $["shading"]),
+          value3: resolved.title,
+          value4: better === undefined ? "" : `, ${better.toLowerCase()}`,
+        })}
+      </figcaption>
       <svg
         viewBox={`0 0 ${sheet.width} ${sheet.height}`}
         className="h-auto max-h-[70svh] w-full"
@@ -110,12 +124,14 @@ export const RankingMap = ({ resolved, bands }: RankingMapProps) => {
         ))}
         <li className="flex items-center gap-1.5">
           <span className="size-3 rounded-sm bg-border" aria-hidden />
-          No data
+          {t(($) => $["No data"])}
         </li>
       </ul>
       {hidden.length > 0 ? (
         <p className="text-sm text-muted-foreground">
-          Too small to show on this map: {hidden.map(countryName).join(", ")}.
+          {t(($) => $["Too small to show on this map: {{value}}."], {
+            value: hidden.map(countryName).join(", "),
+          })}
         </p>
       ) : null}
     </figure>

@@ -5,8 +5,6 @@
   "ignoreDependencies": [
     // The tsconfig plugin name. @effect/tsgo provides it.
     "@effect/language-service",
-    // Imported only by the vendored anti-slop rules, which are ignored above.
-    "@oxlint/plugins",
     // Data files apps/web/scripts reads by path, not by import.
     "flag-icons",
     "i18n-iso-countries",
@@ -55,6 +53,7 @@
   // CI passes.
   "boundaries": {
     "zones": [
+      { "name": "lint", "patterns": ["tools/oxlint/i18n/**"] },
       { "name": "domain", "patterns": ["packages/domain/**"] },
       { "name": "machine", "patterns": ["packages/machine/**"] },
       { "name": "server", "patterns": ["packages/server/**"] },
@@ -62,6 +61,7 @@
       { "name": "infra", "patterns": ["packages/infra/**"] }
     ],
     "rules": [
+      { "from": "lint", "allow": [] },
       { "from": "domain", "allow": [] },
       { "from": "machine", "allow": [] },
       { "from": "server", "allow": ["domain", "machine"] },

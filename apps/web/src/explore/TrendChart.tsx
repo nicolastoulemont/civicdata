@@ -7,11 +7,14 @@ import {
   type Reform,
   type ResolvedView,
   type Trend,
+  type View,
   When,
   yearOf,
 } from "@civicdata/domain"
 import { Match } from "effect"
+import type { TFunction } from "i18next"
 import { type ComponentProps, useState } from "react"
+import { useTranslation } from "react-i18next"
 import {
   CartesianGrid,
   Line,
@@ -36,21 +39,9 @@ import { useIsMobile } from "@/hooks/use-mobile"
 import { useMachine } from "@/machine"
 
 import { drag, held, type Years } from "./drag.ts"
-import { countryName, formatCompact } from "./format.ts"
 import { color } from "./palette.ts"
-import {
-  cited,
-  governing,
-  happening,
-  reformed,
-  span,
-  spanOf,
-  type Term,
-  terms,
-  tint,
-  votedIn,
-  voting,
-} from "./politics.ts"
+import { usePolitics, cited, span, spanOf, type Term, terms, tint, votedIn } from "./politics.ts"
+import { useFormat } from "./useFormat.ts"
 import { YearWindow } from "./YearWindow.tsx"
 
 type Point = { readonly year: number } & Partial<Record<Country, number>>
@@ -165,9 +156,7 @@ const margin = { top: 5, right: 5, bottom: 5, left: 5 }
 const named = 8
 
 // A country's name, cut to fit beside the plot.
-const short = (country: Country) => {
-  const name = countryName(country)
-
+const short = (name: string) => {
   return name.length > 18 ? `${name.slice(0, 17)}…` : name
 }
 
@@ -181,6 +170,7 @@ interface EndsProps {
 // apart so no two overlap, as on the share card. The legend names them too,
 // so screen readers skip these.
 const Ends = ({ rows, countries, forward }: EndsProps) => {
+  const { countryName } = useFormat()
   const y = useYAxisScale()
   const plot = usePlotArea()
 
@@ -213,7 +203,7 @@ const Ends = ({ rows, countries, forward }: EndsProps) => {
           fill={country === forward ? "var(--foreground)" : "var(--muted-foreground)"}
           opacity={forward !== null && country !== forward ? faint : 1}
         >
-          {short(country)}
+          {short(countryName(country))}
         </text>
       ))}
     </g>
@@ -223,15 +213,22 @@ const Ends = ({ rows, countries, forward }: EndsProps) => {
 // Room right of the plot for the names at the lines' ends, on a trend of
 // few enough countries to name each. None past that, nor on a phone, which
 // has no room beside the plot: the legend names the lines.
-const useRoom = (countries: ReadonlyArray<Country>) =>
-  useIsMobile() || countries.length > named
+const useRoom = (countries: ReadonlyArray<Country>) => {
+  const { countryName } = useFormat()
+
+  return useIsMobile() || countries.length > named
     ? 0
-    : Math.min(130, 8 + 6.5 * Math.max(...countries.map((country) => short(country).length)))
+    : Math.min(
+        130,
+        8 + 6.5 * Math.max(...countries.map((country) => short(countryName(country)).length)),
+      )
+}
 
 // The country brought forward: the one pointed at in the legend, else the
 // one pressed there. A country the trend no longer shows brings none. The
 // others' lines fade.
 const useForward = (countries: ReadonlyArray<Country>) => {
+  const { t } = useTranslation("explore")
   const [pressed, setPressed] = useState<Country | null>(null)
   const [pointed, setPointed] = useState<Country | null>(null)
   const of = (key: string | null) => countries.find((each) => each === key) ?? null
@@ -243,7 +240,7 @@ const useForward = (countries: ReadonlyArray<Country>) => {
     forward,
     faded: (country: Country) => forward !== null && country !== forward,
     picking: {
-      label: "Highlight a country",
+      label: t(($) => $["Highlight a country"]),
       pressed,
       onPress: (key: string | null) => setPressed(of(key)),
       onPoint: (key: string | null) => setPointed(of(key)),
@@ -283,13 +280,16 @@ interface PoliticsProps {
 // the reforms it made, then the events of the year, under its values.
 // Nothing when the chart shows none of them.
 const Politics = ({ terms: all, elections, events, reforms, countries, year }: PoliticsProps) => {
+  const { governing, voting, happening, reformed } = usePolitics()
+  const { countryName } = useFormat()
+
   const pages = cited([...events, ...reforms])
 
   const lines = [
     ...countries.flatMap((country) =>
       [
-        ...governing(all, country, year),
-        ...voting(elections, country, year),
+        ...governing(all, { country, shown: year }),
+        ...voting(elections, { country, shown: year }),
         ...reformed(reforms, { country, shown: year, pages }),
       ].map((line) => (countries.length === 1 ? line : `${countryName(country)}: ${line}`)),
     ),
@@ -353,6 +353,8 @@ interface CaptionOptions extends Record<
   ReadonlyArray<unknown>
 > {
   countries: ReadonlyArray<Country>
+  t: TFunction<"explore">
+  countryName: (country: Country) => string
   bands: ReadonlyArray<{ readonly color: PartyColor | null }>
 }
 
@@ -360,20 +362,23 @@ interface CaptionOptions extends Record<
 // Spain, shaded by head of government, with election years marked".
 const caption = (
   title: string,
-  { countries, bands, markers, periods, moments, reforming }: CaptionOptions,
+  { countries, bands, markers, periods, moments, reforming, t, countryName }: CaptionOptions,
 ) =>
   [
-    `Line chart of ${title} for ${countries.map(countryName).join(", ")}`,
+    t(($) => $["Line chart of {{title}} for {{value2}}"], {
+      title: title,
+      value2: countries.map(countryName).join(", "),
+    }),
     ...(bands.length > 0
       ? [
           bands.some((band) => band.color !== null)
-            ? "shaded by head of government and tinted by their party"
-            : "shaded by head of government",
+            ? t(($) => $["shaded by head of government and tinted by their party"])
+            : t(($) => $["shaded by head of government"]),
         ]
       : []),
-    ...(markers.length > 0 ? ["with election years marked"] : []),
-    ...(periods.length + moments.length > 0 ? ["with events marked"] : []),
-    ...(reforming.length > 0 ? ["with reforms marked"] : []),
+    ...(markers.length > 0 ? [t(($) => $["with election years marked"])] : []),
+    ...(periods.length + moments.length > 0 ? [t(($) => $["with events marked"])] : []),
+    ...(reforming.length > 0 ? [t(($) => $["with reforms marked"])] : []),
   ].join(", ")
 
 interface OverlaysOptions {
@@ -457,6 +462,66 @@ interface TrendChartProps {
 // covers each period and a thin line marks each dated event, and a dotted
 // line in a country's colour marks each of its reforms; the tooltip names
 // them and numbers their sources in the card's source line.
+const drawBands = (bands: ReturnType<typeof overlays>["bands"]) =>
+  bands.map(({ term, x1, x2, color: party }, index) => (
+    <ReferenceArea
+      key={`${term.head} ${term.governments[0].start}`}
+      x1={x1}
+      x2={x2}
+      ifOverflow="hidden"
+      // A light tint of the head's party's colour; grey without one.
+      // Neighbouring bands alternate in strength, so two heads of one
+      // party stay apart.
+      // oxlint-disable-next-line anti-slop/no-shape-in-symbol-names -- Recharts names the prop.
+      shape={Band}
+      fill={party?.hex ?? "var(--muted-foreground)"}
+      fillOpacity={(party === null ? 0.06 : 0.14) * (index % 2 === 0 ? 1 : 1.6)}
+      // A band under two years wide has no room for a name; the
+      // tooltip still gives it.
+      {...(x2 - x1 >= 2
+        ? {
+            label: {
+              value: term.head,
+              position: "insideTopLeft",
+              fontSize: 11,
+              fill: "var(--muted-foreground)",
+            },
+          }
+        : {})}
+    />
+  ))
+
+const coversYears = (view: View, years: Years) =>
+  Match.value(view).pipe(
+    Match.tag("Trend", ({ from, to }) => from === years.from && to === years.to),
+    Match.orElse(() => false),
+  )
+
+interface DataOptions {
+  history: History | undefined
+  years: Years
+  dragged: Years | undefined
+}
+
+const dataFor = (resolved: ResolvedView, { history, years, dragged }: DataOptions) => {
+  // Whether `resolved` holds the years on screen: not while dragging, nor
+  // while the years just picked load.
+  const loaded = dragged === undefined && coversYears(resolved.view, years)
+
+  const observations =
+    history !== undefined && history.same && !loaded
+      ? history.observations.filter(({ year }) => year >= years.from && year <= years.to)
+      : resolved.observations
+
+  const values = (history?.same === true ? history.observations : observations).map(
+    (observation) => observation.value,
+  )
+
+  const rows = byYear(observations)
+
+  return { rows, values }
+}
+
 export const TrendChart = ({
   resolved,
   trend,
@@ -466,6 +531,10 @@ export const TrendChart = ({
   events = none,
   reforms = none,
 }: TrendChartProps) => {
+  const { t } = useTranslation("explore")
+
+  const { countryName, formatCompact } = useFormat()
+
   // The points a source flags get a dot; the note under the chart says why.
   const flagged = new Set(
     resolved.observations.flatMap(({ country, year, flags }) =>
@@ -478,25 +547,7 @@ export const TrendChart = ({
   const dragged = held(dragging)
   const years = dragged ?? { from: trend.from, to: trend.to }
 
-  // Whether `resolved` holds the years on screen: not while dragging, nor
-  // while the years just picked load.
-  const loaded =
-    dragged === undefined &&
-    Match.value(resolved.view).pipe(
-      Match.tag("Trend", ({ from, to }) => from === years.from && to === years.to),
-      Match.orElse(() => false),
-    )
-
-  const observations =
-    history !== undefined && history.same && !loaded
-      ? history.observations.filter(({ year }) => year >= years.from && year <= years.to)
-      : resolved.observations
-
-  const values = (history?.same === true ? history.observations : observations).map(
-    (observation) => observation.value,
-  )
-
-  const rows = byYear(observations)
+  const { rows, values } = dataFor(resolved, { history, years, dragged })
   const alone = aloneIn(rows, trend.countries)
   const heads = governments === undefined ? [] : terms(governments)
 
@@ -520,6 +571,8 @@ export const TrendChart = ({
     <figure className="flex flex-col gap-3">
       <figcaption className="sr-only">
         {caption(resolved.title, {
+          t,
+          countryName,
           countries: trend.countries,
           bands,
           markers,
@@ -534,33 +587,7 @@ export const TrendChart = ({
           margin={{ ...margin, right: margin.right + room }}
           accessibilityLayer
         >
-          {bands.map(({ term, x1, x2, color: party }, index) => (
-            <ReferenceArea
-              key={`${term.head} ${term.governments[0].start}`}
-              x1={x1}
-              x2={x2}
-              ifOverflow="hidden"
-              // A light tint of the head's party's colour; grey without one.
-              // Neighbouring bands alternate in strength, so two heads of one
-              // party stay apart.
-              // oxlint-disable-next-line anti-slop/no-shape-in-symbol-names -- Recharts names the prop.
-              shape={Band}
-              fill={party?.hex ?? "var(--muted-foreground)"}
-              fillOpacity={(party === null ? 0.06 : 0.14) * (index % 2 === 0 ? 1 : 1.6)}
-              // A band under two years wide has no room for a name; the
-              // tooltip still gives it.
-              {...(x2 - x1 >= 2
-                ? {
-                    label: {
-                      value: term.head,
-                      position: "insideTopLeft",
-                      fontSize: 11,
-                      fill: "var(--muted-foreground)",
-                    },
-                  }
-                : {})}
-            />
-          ))}
+          {drawBands(bands)}
           {periods.map(({ event, x1, x2 }) => (
             <ReferenceArea
               key={event.id}

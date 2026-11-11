@@ -1,6 +1,7 @@
 import { type IndicatorId, sourceOf, type View } from "@civicdata/domain"
 import { Match } from "effect"
 
+import { createI18n } from "../locale.tsx"
 import { countryName, period, subject, transformLabel } from "./format.ts"
 
 const list = new Intl.ListFormat("en", { type: "conjunction" })
@@ -17,6 +18,7 @@ export const places = (view: View) => {
 // the link, so a crafted URL cannot put words in a preview. Without an
 // indicator's name the title falls back to its code.
 export const preview = (view: View, names: ReadonlyMap<IndicatorId, string>) => {
+  const t = createI18n().getFixedT("en-US", "explore")
   const label = transformLabel(view, names)
 
   const verb = Match.valueTags(view, {
@@ -28,6 +30,11 @@ export const preview = (view: View, names: ReadonlyMap<IndicatorId, string>) => 
 
   return {
     title: `${subject(view, names)} · ${period(view)}`,
-    description: `${verb} ${places(view)}${label === undefined ? "" : ` (${label})`}. Source: ${sourceOf(view.indicator)}.`,
+    description: t(($) => $["{{verb}} {{value2}}{{value3}}. Source: {{value4}}."], {
+      verb: verb,
+      value2: places(view),
+      value3: label === undefined ? "" : ` (${label})`,
+      value4: sourceOf(view.indicator),
+    }),
   }
 }

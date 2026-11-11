@@ -15,11 +15,8 @@ const countryNames = new Map(countries.map((country) => [country.code, country.n
 export const countryName = (country: Country) => countryNames.get(country) ?? country
 
 const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 })
-const full = new Intl.NumberFormat("en", { maximumFractionDigits: 2 })
 
 export const formatCompact = (value: number) => compact.format(value)
-
-export const formatValue = (value: number) => full.format(value)
 
 // What a flag says about a value, as a reader would put it.
 export const flagLabels: Record<Flag, string> = {
@@ -102,8 +99,8 @@ export const picks = (resolved: ResolvedView) =>
   })
 
 // When the first series was retrieved; the others were fetched with it.
-export const retrieved = (resolved: ResolvedView) =>
-  DateTime.toDateUtc(resolved.sources[0].retrievedAt).toLocaleDateString("en-GB", {
+export const retrieved = (resolved: ResolvedView, locale = "en-GB") =>
+  DateTime.toDateUtc(resolved.sources[0].retrievedAt).toLocaleDateString(locale, {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -116,16 +113,19 @@ export const named = (source: Source) => (source === "Eurostat" ? source : `The 
 // The credit every chart carries, on the page and on its link-preview card:
 // each source with the datasets taken from it, e.g. "Source: Eurostat,
 // Population on 1 January; World Bank, World Development Indicators."
-export const attribution = (resolved: ResolvedView) => {
+export const credits = (resolved: ResolvedView) => {
   const datasets = new Map<Source, Set<string>>()
 
   for (const { source, dataset } of resolved.sources)
     datasets.set(source, (datasets.get(source) ?? new Set()).add(dataset))
 
-  const credits = [...datasets].map(([source, each]) => `${source}, ${[...each].join(", ")}`)
+  const labels = [...datasets].map(([source, each]) => `${source}, ${[...each].join(", ")}`)
 
-  return `Source: ${credits.join("; ")}. Retrieved ${retrieved(resolved)}.`
+  return labels.join("; ")
 }
+
+export const attribution = (resolved: ResolvedView) =>
+  `Source: ${credits(resolved)}. Retrieved ${retrieved(resolved)}.`
 
 // The source's own page for a series fetched to draw the chart.
 export const page = ({ source, indicator, url }: ResolvedView["sources"][number]) => {

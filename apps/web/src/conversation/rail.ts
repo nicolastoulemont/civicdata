@@ -1,5 +1,6 @@
 import { Text } from "@civicdata/domain"
 import { Match, Schema } from "effect"
+import type { TFunction } from "i18next"
 
 import { explain } from "./Problem.tsx"
 import type { Entry } from "./timeline.ts"
@@ -15,23 +16,23 @@ export interface Preview {
 
 // The start of an answer is the first thing the agent wrote, the agent's
 // question back, or how the answer ended.
-export const preview = (entry: Entry): Preview =>
+export const preview = (entry: Entry, t: TFunction<"conversation">): Preview =>
   Match.valueTags(entry, {
     Failed: ({ failure }) => ({
       question: failure.question,
-      answer: explain(failure.error).title,
+      answer: explain(failure.error, t).title,
     }),
     Turn: ({ turn }) => ({
       question: turn.question,
       answer: Match.valueTags(turn.answer, {
         Answered: ({ blocks }) => blocks.find(isText)?.text,
         Asked: ({ question }) => question,
-        Unanswered: () => "No data found",
-        Exhausted: () => "Cut short",
-        Stopped: () => "Stopped",
+        Unanswered: () => t(($) => $["No data found"]),
+        Exhausted: () => t(($) => $["Cut short"]),
+        Stopped: () => t(($) => $["Stopped"]),
       }),
     }),
-    Pending: ({ pending }) => ({ question: pending.question, answer: "Answering…" }),
+    Pending: ({ pending }) => ({ question: pending.question, answer: t(($) => $["Answering…"]) }),
   })
 
 // The questions in view: the first and last of them, by place.

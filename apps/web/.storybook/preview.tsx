@@ -4,9 +4,11 @@ import { ResolvedView } from "@civicdata/domain"
 import type { Decorator, Preview } from "@storybook/react-vite"
 import { Schema } from "effect"
 import { type ReactNode, useLayoutEffect } from "react"
+import { I18nextProvider } from "react-i18next"
 
 import { Card, CardContent, CardFooter } from "../src/components/ui/card.tsx"
 import { attribution } from "../src/explore/format.ts"
+import { createI18n } from "../src/locale.tsx"
 
 const isResolved = Schema.is(ResolvedView)
 
@@ -45,8 +47,17 @@ const carded: Decorator = (Story, { args, globals }) => {
   )
 }
 
+const instance = createI18n()
+
 const preview: Preview = {
-  decorators: [carded],
+  decorators: [
+    (Story) => (
+      <I18nextProvider i18n={instance}>
+        <Story />
+      </I18nextProvider>
+    ),
+    carded,
+  ],
   globalTypes: {
     theme: {
       description: "Colour theme",

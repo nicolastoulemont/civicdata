@@ -1,6 +1,8 @@
 import type { ResolvedView } from "@civicdata/domain"
+import { useTranslation } from "react-i18next"
 
-import { countryName, formatValue, page } from "./format.ts"
+import { page } from "./format.ts"
+import { useFormat } from "./useFormat.ts"
 
 // How many of a source's differing values the note spells out.
 const shown = 4
@@ -13,6 +15,10 @@ interface DisagreementsProps {
 // from the chart's, each cited with its dataset: "Eurostat, Unemployment by
 // sex and age: France 2022 7.3 (chart: 7.9)". Nothing when they agree.
 export const Disagreements = ({ resolved }: DisagreementsProps) => {
+  const { countryName, formatValue } = useFormat()
+
+  const { t } = useTranslation("explore")
+
   if (resolved.disagreements.length === 0) return null
 
   const ours = new Map(
@@ -20,8 +26,13 @@ export const Disagreements = ({ resolved }: DisagreementsProps) => {
   )
 
   return (
-    <section aria-label="Other sources" className="space-y-1 text-sm text-muted-foreground">
-      <p className="font-medium text-foreground">Other sources give other values</p>
+    <section
+      aria-label={t(($) => $["Other sources"])}
+      className="space-y-1 text-sm text-muted-foreground"
+    >
+      <p className="font-medium text-foreground">
+        {t(($) => $["Other sources give other values"])}
+      </p>
       <ul className="space-y-1">
         {resolved.disagreements.map(({ source, observations }) => (
           <li key={source.indicator}>
@@ -32,12 +43,19 @@ export const Disagreements = ({ resolved }: DisagreementsProps) => {
             :{" "}
             {observations
               .slice(0, shown)
-              .map(
-                ({ country, year, value }) =>
-                  `${countryName(country)} ${year} ${formatValue(value)} (chart: ${formatValue(ours.get(`${country}:${year}`) ?? Number.NaN)})`,
+              .map(({ country, year, value }) =>
+                t(($) => $["{{value1}} {{year}} {{value3}} (chart: {{value4}})"], {
+                  value1: countryName(country),
+                  year: year,
+                  value3: formatValue(value),
+                  value4: formatValue(ours.get(`${country}:${year}`) ?? Number.NaN),
+                }),
               )
               .join("; ")}
-            {observations.length > shown ? `; and ${observations.length - shown} more` : ""}.
+            {observations.length > shown
+              ? t(($) => $["; and {{value1}} more"], { value1: observations.length - shown })
+              : ""}
+            .
           </li>
         ))}
       </ul>

@@ -1,0 +1,11 @@
+{
+  "title": "Paramètres",
+  "sections": "Rubriques des paramètres",
+  "appearance": "Apparence",
+  "appearanceDescription": "L’apparence de civicdata dans ce navigateur. Système suit les réglages de votre appareil.",
+  "system": "Système",
+  "light": "Clair",
+  "dark": "Sombre",
+  "language": "Langue",
+  "languageDescription": "La langue de civicdata dans ce navigateur. Les textes des sources et les réponses existantes conservent leur langue d’origine."
+}

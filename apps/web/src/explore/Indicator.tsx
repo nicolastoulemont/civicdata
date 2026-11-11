@@ -6,7 +6,9 @@ import {
 } from "@civicdata/domain"
 import { type UseQueryResult, useQuery } from "@tanstack/react-query"
 import { Data, Match } from "effect"
+import type { TFunction } from "i18next"
 import { useDeferredValue, useId, useMemo, useState } from "react"
+import { useTranslation } from "react-i18next"
 
 import {
   Combobox,
@@ -19,12 +21,12 @@ import { Field, FieldLabel } from "@/components/ui/field"
 
 import { searchQuery } from "./api.ts"
 
-const problem = (error: Error) =>
+const problem = (error: Error, t: TFunction<"explore">) =>
   error instanceof CatalogUnavailable
-    ? "Indicator search needs D1: run `pnpm dev`, not `pnpm dev:web`."
+    ? t(($) => $.catalogUnavailable)
     : error instanceof SourceUnavailable
-      ? "The World Bank catalog is not responding. Try again in a moment."
-      : "Indicator search failed."
+      ? t(($) => $["The World Bank catalog is not responding. Try again in a moment."])
+      : t(($) => $["Indicator search failed."])
 
 // Where the search for the typed text stands. Idle until two characters are
 // typed, so a pick, which clears the text, lists no earlier results. While
@@ -63,13 +65,13 @@ const statusOf = (
 
 // The line under the search box: what the search is doing, why there are no
 // results, or nothing.
-const line = (status: Status) =>
+const line = (status: Status, t: TFunction<"explore">) =>
   Match.valueTags(status, {
     Idle: () => null,
-    Searching: () => "Searching…",
+    Searching: () => t(($) => $["Searching…"]),
     Found: () => null,
-    Empty: () => "No indicator matches.",
-    Failed: ({ error }) => problem(error),
+    Empty: () => t(($) => $["No indicator matches."]),
+    Failed: ({ error }) => problem(error, t),
   })
 
 const listed = (status: Status): ReadonlyArray<CatalogEntry> =>
@@ -91,7 +93,9 @@ interface IndicatorProps {
 // Switches the chart to another indicator found by name, definition or code.
 // The current indicator stays among the options so it remains selected while
 // search results change.
-export const Indicator = ({ label = "Indicator", current, onChange }: IndicatorProps) => {
+export const Indicator = ({ label, current, onChange }: IndicatorProps) => {
+  const { t } = useTranslation("explore")
+
   const id = useId()
   const [text, setText] = useState("")
   const typed = text.trim()
@@ -112,11 +116,11 @@ export const Indicator = ({ label = "Indicator", current, onChange }: IndicatorP
     ? found
     : [selected, ...found]
 
-  const shown = line(status)
+  const shown = line(status, t)
 
   return (
     <Field>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <FieldLabel htmlFor={id}>{label ?? t(($) => $["Indicator"])}</FieldLabel>
       <Combobox
         items={items}
         value={selected}
@@ -135,7 +139,7 @@ export const Indicator = ({ label = "Indicator", current, onChange }: IndicatorP
             onChange({ id: entry.indicator, name: entry.name })
         }}
       >
-        <ComboboxInput id={id} placeholder="Search indicators" />
+        <ComboboxInput id={id} placeholder={t(($) => $["Search indicators"])} />
         <ComboboxContent>
           {shown === null ? null : (
             <output className="block px-3 py-2 text-sm text-muted-foreground">{shown}</output>

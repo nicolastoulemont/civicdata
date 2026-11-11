@@ -1,5 +1,6 @@
 import type { ConversationId } from "@civicdata/domain"
 import { useEffect, useRef, useState } from "react"
+import { useTranslation } from "react-i18next"
 
 import { FollowUp } from "./FollowUp.tsx"
 import { Header } from "./Header.tsx"
@@ -19,6 +20,8 @@ interface ConversationProps {
 // A conversation with the agent, newest question last. `first` is a question
 // to ask as soon as the conversation opens: the one typed on the home page.
 export const Conversation = ({ id, first }: ConversationProps) => {
+  const { t } = useTranslation("conversation")
+
   const { turns, error, pending, failures, retry, stop, ask } = useConversation(id)
 
   const [dismissed, setDismissed] = useState<Error | null>(null)
@@ -43,7 +46,7 @@ export const Conversation = ({ id, first }: ConversationProps) => {
         <Scroll
           key={id}
           asked={pending?.via === "ask" ? pending.started : undefined}
-          previews={questions.map(preview)}
+          previews={questions.map((entry) => preview(entry, t))}
           composer={
             <FollowUp
               id={id}
@@ -64,7 +67,12 @@ export const Conversation = ({ id, first }: ConversationProps) => {
               ) : null}
               {empty ? (
                 <p className="text-muted-foreground">
-                  No questions yet. A conversation is deleted 30 days after its last question.
+                  {t(
+                    ($) =>
+                      $[
+                        "No questions yet. A conversation is deleted 30 days after its last question."
+                      ],
+                  )}
                 </p>
               ) : null}
               <Timeline

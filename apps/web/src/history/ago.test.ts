@@ -1,11 +1,14 @@
 import { DateTime } from "effect"
 import { describe, expect, it } from "vitest"
 
+import { createI18n } from "../locale.tsx"
 import { ago } from "./ago.ts"
 
 const now = DateTime.makeUnsafe("2026-11-09T12:00:00Z")
 
-const before = (iso: string) => ago(DateTime.makeUnsafe(iso), now)
+const t = createI18n().getFixedT("en-US", "home")
+
+const before = (iso: string) => ago(DateTime.makeUnsafe(iso), { now, t })
 
 describe("ago", () => {
   it("says now under a minute, and for a time slightly ahead of the clock", () => {

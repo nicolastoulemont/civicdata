@@ -1,6 +1,7 @@
 import { type Block, Chart } from "@civicdata/domain"
 import { Schema } from "effect"
 import { Fragment, type ReactNode } from "react"
+import { useTranslation } from "react-i18next"
 
 import { Prose } from "@/explore/Prose"
 
@@ -25,6 +26,8 @@ interface BlocksProps {
 // agent answers stays as it is once the answer is kept. Once a person changes
 // a chart, the words grey out and say so.
 export const Blocks = ({ blocks, charts, work, changed = false }: BlocksProps) => {
+  const { t } = useTranslation("conversation")
+
   const after = work?.[blocks.length] ?? null
 
   if (blocks.length === 0 && after === null) return null
@@ -45,7 +48,11 @@ export const Blocks = ({ blocks, charts, work, changed = false }: BlocksProps) =
           <Fragment key={index}>
             {work?.[index]}
             {isChart(block) ? (
-              <section aria-label={`Chart ${place + 1} of the answer`}>{charts[place]}</section>
+              <section
+                aria-label={t(($) => $["Chart {{value1}} of the answer"], { value1: place + 1 })}
+              >
+                {charts[place]}
+              </section>
             ) : (
               <Prose
                 text={block.text}
@@ -60,7 +67,7 @@ export const Blocks = ({ blocks, charts, work, changed = false }: BlocksProps) =
       {after}
       {changed && blocks.some((block) => !isChart(block)) ? (
         <p className="text-sm text-muted-foreground">
-          This answer describes the charts before your changes.
+          {t(($) => $["This answer describes the charts before your changes."])}
         </p>
       ) : null}
     </div>

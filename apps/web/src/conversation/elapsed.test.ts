@@ -1,7 +1,11 @@
 import { Duration } from "effect"
 import { describe, expect, it } from "vitest"
 
-import { elapsed } from "./elapsed.ts"
+import { createI18n } from "../locale.tsx"
+import { elapsed as format } from "./elapsed.ts"
+
+const elapsed = (duration: Duration.Duration) =>
+  format(duration, createI18n().getFixedT("en-US", "conversation"))
 
 describe("elapsed", () => {
   it.each([

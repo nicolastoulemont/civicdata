@@ -1,53 +1,61 @@
 import type { QueryClient } from "@tanstack/react-query"
 import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from "@tanstack/react-router"
+import { useTranslation } from "react-i18next"
 
+import { createI18n } from "@/locale"
 import { origin } from "@/origin"
 import { script } from "@/settings/appearance"
 
 import styles from "@/styles.css?url"
 
 // The head script sets data-theme on <html> before React hydrates it.
-const Root = () => (
-  <html lang="en" suppressHydrationWarning>
-    <head>
-      <HeadContent />
-    </head>
-    <body>
-      <Outlet />
-      <Scripts />
-    </body>
-  </html>
-)
+const Root = () => {
+  const { i18n } = useTranslation()
 
-const description = "Charts of public data about countries, with the source of every number."
+  return (
+    <html lang={i18n.language} suppressHydrationWarning>
+      <head>
+        <HeadContent />
+      </head>
+      <body>
+        <Outlet />
+        <Scripts />
+      </body>
+    </html>
+  )
+}
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   loader: () => ({ origin: origin() }),
   // Routes below override the title and description.
-  head: ({ loaderData }) => ({
-    meta: [
-      { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "civicdata" },
-      { name: "description", content: description },
-      { property: "og:site_name", content: "civicdata" },
-      { property: "og:type", content: "website" },
-      { property: "og:title", content: "civicdata" },
-      { property: "og:description", content: description },
-      ...(loaderData === undefined
-        ? []
-        : [
-            { property: "og:image", content: `${loaderData.origin}/preview.png` },
-            { property: "og:image:width", content: "1200" },
-            { property: "og:image:height", content: "630" },
-            { property: "og:image:alt", content: "civicdata" },
-            { name: "twitter:card", content: "summary_large_image" },
-          ]),
-    ],
-    links: [{ rel: "stylesheet", href: styles }],
-    // Applies the stored appearance before first paint; the server cannot read
-    // browser storage.
-    scripts: [{ children: script }],
-  }),
+  head: ({ loaderData }) => {
+    const description = createI18n().getFixedT("en-US", "common")(($) => $.siteDescription)
+
+    return {
+      meta: [
+        { charSet: "utf-8" },
+        { name: "viewport", content: "width=device-width, initial-scale=1" },
+        { title: "civicdata" },
+        { name: "description", content: description },
+        { property: "og:site_name", content: "civicdata" },
+        { property: "og:type", content: "website" },
+        { property: "og:title", content: "civicdata" },
+        { property: "og:description", content: description },
+        ...(loaderData === undefined
+          ? []
+          : [
+              { property: "og:image", content: `${loaderData.origin}/preview.png` },
+              { property: "og:image:width", content: "1200" },
+              { property: "og:image:height", content: "630" },
+              { property: "og:image:alt", content: "civicdata" },
+              { name: "twitter:card", content: "summary_large_image" },
+            ]),
+      ],
+      links: [{ rel: "stylesheet", href: styles }],
+      // Applies the stored appearance before first paint; the server cannot read
+      // browser storage.
+      scripts: [{ children: script }],
+    }
+  },
   component: Root,
 })

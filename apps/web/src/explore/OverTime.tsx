@@ -2,11 +2,12 @@ import { inYear, type Ranked, type Related, type Span, Year } from "@civicdata/d
 import { cn } from "cn"
 import { Pause, Play } from "lucide-react"
 import { type ReactNode, useEffect, useEffectEvent, useState } from "react"
+import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
 import { Slider } from "@/components/ui/slider"
 
-import { countryName } from "./format.ts"
+import { useFormat } from "./useFormat.ts"
 
 // A slider reports one value per thumb; this one has one.
 const yearOf = (value: number | ReadonlyArray<number>) => Year.make([value].flat()[0] ?? 0)
@@ -23,6 +24,22 @@ export interface Moving {
   readonly agent: Year | undefined
   // Saves a year: when the reader lets go of the slider, or pauses.
   readonly onYear: (year: Year) => void
+}
+
+interface PlaybackProps {
+  playing: boolean
+  onClick: () => void
+}
+
+const Playback = ({ playing, onClick }: PlaybackProps) => {
+  const { t } = useTranslation("explore")
+
+  return (
+    <Button variant="outline" size="sm" onClick={onClick}>
+      {playing ? <Pause aria-hidden /> : <Play aria-hidden />}
+      {playing ? t(($) => $["Pause"]) : t(($) => $["Play"])}
+    </Button>
+  )
 }
 
 interface OverTimeProps extends Moving {
@@ -43,6 +60,10 @@ const step = 1000
 // Play shows the next year each second and saves nothing until it pauses:
 // when the reader presses Pause or moves the slider, or at the last year.
 export const OverTime = ({ resolved, span, year, agent, onYear, children }: OverTimeProps) => {
+  const { countryName } = useFormat()
+
+  const { t } = useTranslation("explore")
+
   const { from, to } = span
   const [live, setLive] = useState(year)
   const [saved, setSaved] = useState(year)
@@ -83,19 +104,25 @@ export const OverTime = ({ resolved, span, year, agent, onYear, children }: Over
     return () => clearInterval(timer)
   }, [playing])
 
+  const labels = {
+    missing: t(($) => $["No data in {{value}} for {{value2}}."], {
+      value: shown.view.year,
+      value2: shown.missing.map(countryName).join(", "),
+    }),
+    year: t(($) => $["Year"]),
+    agent: t(($) => $["Agent's year {{value}}"], { value: marked }),
+  }
+
   return (
     <div className="flex flex-col gap-4">
       {children(shown.view.year, playing)}
       {shown.missing.length > 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No data in {shown.view.year} for {shown.missing.map(countryName).join(", ")}.
-        </p>
+        <p className="text-sm text-muted-foreground">{labels.missing}</p>
       ) : null}
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            size="sm"
+          <Playback
+            playing={playing}
             onClick={() => {
               if (playing) {
                 setPlaying(false)
@@ -109,10 +136,7 @@ export const OverTime = ({ resolved, span, year, agent, onYear, children }: Over
 
               setPlaying(true)
             }}
-          >
-            {playing ? <Pause aria-hidden /> : <Play aria-hidden />}
-            {playing ? "Pause" : "Play"}
-          </Button>
+          />
           <output aria-live="polite" className="text-sm font-medium tabular-nums">
             {shown.view.year}
           </output>
@@ -123,7 +147,7 @@ export const OverTime = ({ resolved, span, year, agent, onYear, children }: Over
           max={to}
           step={1}
           thumbAlignment="center"
-          labels={["Year"]}
+          labels={[labels.year]}
           onValueChange={(value) => {
             setPlaying(false)
             setLive(yearOf(value))
@@ -149,7 +173,7 @@ export const OverTime = ({ resolved, span, year, agent, onYear, children }: Over
               className={cn("absolute whitespace-nowrap", align(at(marked)))}
               style={{ left: `${at(marked)}%` }}
             >
-              Agent's year {marked}
+              {labels.agent}
             </span>
           </div>
         )}
