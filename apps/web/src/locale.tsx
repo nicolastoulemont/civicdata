@@ -10,14 +10,14 @@ import { resources } from "./messages.ts"
 export const fallback: Locale = "en-US"
 
 export const languages: Record<Locale, string> = {
-  "en-US": "English (United States)",
-  "fr-FR": "Français",
-  "es-ES": "Español",
-  "pt-BR": "Português (Brasil)",
-  "pt-PT": "Português (Portugal)",
-  "it-IT": "Italiano",
-  "de-DE": "Deutsch",
-  "zh-CN": "简体中文",
+  "en-US": "🇺🇸 English (United States)",
+  "fr-FR": "🇫🇷 Français",
+  "es-ES": "🇪🇸 Español",
+  "pt-BR": "🇧🇷 Português (Brasil)",
+  "pt-PT": "🇵🇹 Português (Portugal)",
+  "it-IT": "🇮🇹 Italiano",
+  "de-DE": "🇩🇪 Deutsch",
+  "zh-CN": "🇨🇳 简体中文",
 }
 
 const isLocale = Schema.is(Locale)

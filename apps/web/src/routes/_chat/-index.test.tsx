@@ -202,7 +202,7 @@ it("changes the home and sidebar language from Settings without changing chart l
   await userEvent.click(screen.getByRole("link", { name: "Settings" }))
   await userEvent.click(await screen.findByRole("link", { name: "Language" }))
   await userEvent.click(screen.getByRole("combobox", { name: "Language" }))
-  await userEvent.click(await screen.findByRole("option", { name: "Français" }))
+  await userEvent.click(await screen.findByRole("option", { name: "🇫🇷 Français" }))
 
   expect(await screen.findByRole("dialog", { name: "Paramètres" })).toBeDefined()
   await userEvent.keyboard("{Escape}")

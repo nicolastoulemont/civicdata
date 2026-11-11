@@ -147,7 +147,7 @@ it("opens the language section and lets the user pick among eight locales", asyn
 
   await userEvent.click(settings.getByRole("combobox", { name: "Language" }))
   expect(screen.getAllByRole("option")).toHaveLength(8)
-  await userEvent.click(screen.getByRole("option", { name: "简体中文" }))
+  await userEvent.click(screen.getByRole("option", { name: "🇨🇳 简体中文" }))
 
   expect(localStorage.getItem("i18nextLng")).toBe("zh-CN")
   expect(screen.getByRole("dialog")).toBeDefined()
