@@ -28,7 +28,8 @@
           "@effect/sql-d1",
           "@effect/vitest",
           "effect/ai",
-          "@effect/ai-openai"
+          "@effect/ai-openai",
+          "effect/observability"
         ]
       }
     ]

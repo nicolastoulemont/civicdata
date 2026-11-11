@@ -62,7 +62,9 @@ interface Pending {
 // The steps of the answer to `pending`, asked or followed. Asking fails with
 // TooManyQuestions or ConversationBusy before the answer starts, and either
 // fails with AgentUnavailable, SourceUnavailable or CatalogUnavailable during
-// it. Following an answer the server was not giving has no steps.
+// it. Following an answer the server was not giving has no steps. One span
+// runs from the request to the last step; the server's spans of the answer
+// sit inside it.
 const stepsOf = (id: ConversationId, { question, via }: Pending) =>
   Stream.unwrap(
     request(page, (api) =>
@@ -70,6 +72,10 @@ const stepsOf = (id: ConversationId, { question, via }: Pending) =>
         ? api.conversation.ask({ params: { id }, payload: { question } })
         : api.conversation.answer({ params: { id } }),
     ),
+  ).pipe(
+    Stream.withSpan(`question.${via}`, {
+      attributes: { "gen_ai.conversation.id": id, "civicdata.question": question },
+    }),
   )
 
 type QuestionError = Stream.Error<ReturnType<typeof stepsOf>>

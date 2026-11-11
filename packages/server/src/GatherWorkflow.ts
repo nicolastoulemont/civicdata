@@ -4,6 +4,7 @@ import { Effect, Layer } from "effect"
 
 import { Step } from "./CatalogBuild.ts"
 import { Gather } from "./Gather.ts"
+import * as Traces from "./Traces.ts"
 
 // The Workflow that gathers each source's series into the store, every day at
 // 05:00 UTC (packages/infra). Workers only:
@@ -11,11 +12,17 @@ import { Gather } from "./Gather.ts"
 // outside workerd.
 export class GatherWorkflow extends WorkflowEntrypoint {
   override async run(
-    _event: Readonly<CloudflareWorkersModule.WorkflowEvent<unknown>>,
+    event: Readonly<CloudflareWorkersModule.WorkflowEvent<unknown>>,
     step: CloudflareWorkersModule.WorkflowStep,
   ) {
+    // The tracer's scope closes when the run ends, which exports what is left.
     await Effect.runPromise(
-      Gather.run().pipe(Effect.provide(Layer.merge(Step.workflow(step), Gather.live))),
+      Gather.run().pipe(
+        Effect.withSpan("GatherWorkflow.run", {
+          attributes: { "workflow.instance": event.instanceId },
+        }),
+        Effect.provide(Layer.mergeAll(Step.workflow(step), Gather.live, Traces.layer)),
+      ),
     )
   }
 }

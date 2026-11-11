@@ -51,6 +51,25 @@ export default Alchemy.Stack(
       (model) => model !== "",
     )
 
+    // Where the stage sends its spans (docs/traces.md): Grafana Cloud's OTLP
+    // endpoint and its Authorization header, or the local Grafana `pnpm dev` starts.
+    // Without an endpoint the stage records none.
+    const otlpEndpoint = Option.filter(
+      yield* Config.option(Config.String("OTEL_EXPORTER_OTLP_ENDPOINT")),
+      (endpoint) => endpoint !== "",
+    )
+
+    const otlpHeaders = Option.filter(
+      yield* Config.option(Config.Redacted("OTEL_EXPORTER_OTLP_HEADERS")),
+      (headers) => Redacted.value(headers) !== "",
+    )
+
+    // The commit deployed, which GitHub Actions sets. Each span carries it.
+    const version = Option.filter(
+      yield* Config.option(Config.String("GITHUB_SHA")),
+      (sha) => sha !== "",
+    )
+
     // The Workflows' account-wide names, one per stage. CI reads the
     // catalog's from the stack output to start a build after each deploy.
     const prefix = `civicdata-${stage.toLowerCase().replaceAll(/[^a-z0-9-]/g, "-")}`
@@ -111,6 +130,25 @@ export default Alchemy.Stack(
         ...Option.match(openAiModel, {
           onNone: () => ({}),
           onSome: (model) => ({ OPENAI_MODEL: model }),
+        }),
+        // Each visitor's browser sends a batch of spans at most every five
+        // seconds, and one more when the page hides.
+        TRACE_LIMIT: Cloudflare.RateLimit("TraceLimit", {
+          namespaceId: 1002,
+          simple: { limit: 30, period: 60 },
+        }),
+        STAGE: stage,
+        ...Option.match(version, {
+          onNone: () => ({}),
+          onSome: (sha) => ({ VERSION: sha }),
+        }),
+        ...Option.match(otlpEndpoint, {
+          onNone: () => ({}),
+          onSome: (endpoint) => ({ OTEL_EXPORTER_OTLP_ENDPOINT: endpoint }),
+        }),
+        ...Option.match(otlpHeaders, {
+          onNone: () => ({}),
+          onSome: (headers) => ({ OTEL_EXPORTER_OTLP_HEADERS: headers }),
         }),
       },
     })

@@ -81,10 +81,12 @@ import {
   Schema,
   Stream,
   Struct,
+  type Tracer,
 } from "effect"
 import { AiError, LanguageModel, type Response } from "effect/ai"
 import { HttpServer } from "effect/http"
 import { HttpApiTest } from "effect/http-api"
+import { OtlpExporter } from "effect/observability"
 import { TestClock } from "effect/testing"
 import { strToU8, zipSync } from "fflate"
 
@@ -102,7 +104,7 @@ import { Resolver } from "../src/Resolver.ts"
 import { Sdmx } from "../src/Sdmx.ts"
 import { keep, type Storage, Transcript } from "../src/Transcript.ts"
 import { WorldBank } from "../src/WorldBank.ts"
-import { http, memory, memoryStorage } from "./fakes.ts"
+import { http, memory, memoryStorage, recording } from "./fakes.ts"
 import participationFlow from "./fixtures/eurostat/participation-flow.json"
 import participationOptions from "./fixtures/eurostat/participation-options.csv?raw"
 import participation from "./fixtures/eurostat/participation.csv?raw"
@@ -346,6 +348,8 @@ interface ServeOptions {
   // The conversations' Durable Object storage. Without it, each conversation
   // keeps its transcript in memory.
   readonly storage?: Storage
+  // Where the conversation's spans go. Without it, they go nowhere.
+  readonly traces?: Layer.Layer<OtlpExporter.Flusher>
 }
 
 // The conversation's Durable Object alarm, which Cloudflare fires `keep` after
@@ -372,6 +376,7 @@ const serveApi = (
     politics = Politics.unavailable,
     findings = Findings.holding([]),
     notes = recordedNotes,
+    traces = OtlpExporter.layerFlusher,
   }: ServeOptions = {},
 ) => {
   const agent = Agent.layer.pipe(
@@ -391,7 +396,7 @@ const serveApi = (
   return Layer.unwrap(
     Effect.clockWith((clock) => {
       const conversation = open(
-        Layer.mergeAll(transcript, agent, limit).pipe(
+        Layer.mergeAll(transcript, agent, limit, traces).pipe(
           Layer.provideMerge(Layer.succeed(Clock.Clock, clock)),
         ),
       )
@@ -3220,4 +3225,95 @@ describe("breaks in series", () => {
       )
     }).pipe(Effect.provide(serveApi(model.layer, { sdmx: cachedEurostat().layer })))
   })
+})
+
+// The id of the span a span sits in, if any.
+const parentOf = (span: Tracer.Span | undefined) =>
+  span === undefined ? undefined : Option.getOrUndefined(span.parent)?.spanId
+
+describe("traces", () => {
+  it.effect(
+    "traces an answer as the agent's run, with each model request and tool call in it",
+    () => {
+      const model = scripted([
+        Effect.succeed(call("search_indicators", { text: "life expectancy", source: null })),
+        Effect.succeed(
+          call("show_chart", { ...brazil, from: 1960, to: 1961 }, { step: "chart-1" }),
+        ),
+        Effect.succeed(call("show_chart", brazil, { step: "chart-2" })),
+      ])
+
+      const traces = recording()
+
+      return Effect.gen(function* () {
+        yield* answer("How has life expectancy changed in Brazil?")
+
+        const runs = traces.spans.filter((span) => span.name === "Agent.answer")
+
+        expect(runs).toHaveLength(1)
+
+        const [run] = runs
+
+        expect(Object.fromEntries(run?.attributes ?? [])).toMatchObject({
+          "gen_ai.operation.name": "invoke_agent",
+          "gen_ai.agent.name": "civicdata",
+          "gen_ai.conversation.id": id,
+          "gen_ai.input.messages": expect.stringContaining(
+            "How has life expectancy changed in Brazil?",
+          ),
+          "civicdata.answer.rounds": 4,
+          "civicdata.answer.ending": "answered",
+        })
+
+        // The run continues the trace of the request that asked the question.
+        const asked = traces.spans.find(
+          (span) => span.kind === "server" && span.traceId === run?.traceId,
+        )
+
+        expect(asked?.attributes.get("http.request.method")).toBe("POST")
+
+        const parent = (span: Tracer.Span | undefined) =>
+          traces.spans.find((candidate) => candidate.spanId === parentOf(span))
+
+        // Each round of the run is a chat turn and its model request, which
+        // records what the model answered.
+        const requests = traces.spans.filter((span) => span.name === "LanguageModel.generateText")
+
+        expect(requests.map((request) => parent(request)?.name)).toEqual(
+          Array.from({ length: 4 }, () => "Chat.generateText"),
+        )
+        expect(requests.map((request) => parent(parent(request))?.spanId)).toEqual(
+          Array.from({ length: 4 }, () => run?.spanId),
+        )
+        expect(requests[0]?.attributes.get("gen_ai.output.messages")).toContain("search_indicators")
+        expect(requests[3]?.attributes.get("gen_ai.output.messages")).toContain(takeaway)
+
+        // Each tool call sits in the request that made it, with its arguments,
+        // its result, and why it sent the model's chart back.
+        const tools = traces.spans.filter(
+          (span) => span.attributes.get("gen_ai.operation.name") === "execute_tool",
+        )
+
+        expect(
+          tools.map((span) => ({
+            name: span.name,
+            id: span.attributes.get("gen_ai.tool.call.id"),
+            rejection: span.attributes.get("civicdata.tool.rejection"),
+            request: requests.findIndex((request) => request.spanId === parentOf(span)),
+          })),
+        ).toEqual([
+          { name: "execute_tool search_indicators", id: "call-search_indicators", request: 0 },
+          {
+            name: "execute_tool show_chart",
+            id: "chart-1",
+            rejection: expect.stringContaining("The World Bank has no values"),
+            request: 1,
+          },
+          { name: "execute_tool show_chart", id: "chart-2", request: 2 },
+        ])
+        expect(tools[0]?.attributes.get("gen_ai.tool.call.arguments")).toContain("life expectancy")
+        expect(tools[2]?.attributes.get("gen_ai.tool.call.result")).toContain("SP.DYN.LE00.IN")
+      }).pipe(Effect.provide(serveApi(model.layer, { traces: traces.layer })))
+    },
+  )
 })

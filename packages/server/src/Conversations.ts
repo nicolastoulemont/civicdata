@@ -1,5 +1,22 @@
 import { AgentUnavailable, type ConversationId } from "@civicdata/domain"
 import { Context, Effect, Layer } from "effect"
+import { HttpTraceContext } from "effect/http"
+
+// The request as this Worker's span sends it on: the conversation's spans sit
+// inside the Worker's, not beside them under the browser's.
+const continued = (request: Request) =>
+  Effect.currentSpan.pipe(
+    Effect.map((span) => {
+      const headers = new Headers(request.headers)
+
+      for (const [name, value] of Object.entries(HttpTraceContext.toHeaders(span))) {
+        headers.set(name, value)
+      }
+
+      return new Request(request, { headers })
+    }),
+    Effect.orElseSucceed(() => request),
+  )
 
 interface Interface {
   // Sends a request about one conversation to the place that holds it.
@@ -50,9 +67,10 @@ export class Conversations extends Context.Service<Conversations, Interface>()(
               Conversations,
               Conversations.of({
                 forward: (id, request) =>
-                  Effect.tryPromise(() =>
-                    namespace.get(namespace.idFromName(id)).fetch(request),
-                  ).pipe(
+                  continued(request).pipe(
+                    Effect.flatMap((sent) =>
+                      Effect.tryPromise(() => namespace.get(namespace.idFromName(id)).fetch(sent)),
+                    ),
                     Effect.tapError((error) => Effect.logWarning("Conversation failed", error)),
                     Effect.mapError(() => new AgentUnavailable()),
                   ),

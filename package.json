@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "turbo run build",
-    "dev": "pnpm --filter @civicdata/infra run dev",
+    "dev": "docker compose up --detach --wait && OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 OTEL_EXPORTER_OTLP_HEADERS= pnpm --filter @civicdata/infra run dev",
     "dev:web": "turbo run dev --filter=@civicdata/web",
     "storybook": "pnpm --filter @civicdata/web run storybook",
     "typecheck": "turbo run typecheck",
