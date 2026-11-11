@@ -195,7 +195,7 @@ their previous value hashes. Notes alone change a qualified series' hash.
 
 ### Manual first fill
 
-`pnpm --filter @civicdata/server run ilostat` is a Node-only manual operation.
+`pnpm --filter @openfacts/server run ilostat` is a Node-only manual operation.
 It requires `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `ILOSTAT_D1_ID` and
 `ILOSTAT_R2_BUCKET`, naming the existing stage database and series bucket. The
 credential needs D1 and R2 object access. Obtain owner approval for the exact

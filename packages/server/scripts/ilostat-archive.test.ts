@@ -74,6 +74,24 @@ it.effect("rejects a moving TOC before offering any series", () =>
   }),
 )
 
+it.effect("reports a failed download through the archive error channel", () =>
+  Effect.gen(function* () {
+    const result = yield* run(() =>
+      Promise.resolve(
+        new Response(
+          new ReadableStream({
+            pull(controller) {
+              controller.error(new Error("download failed"))
+            },
+          }),
+        ),
+      ),
+    ).pipe(Effect.result)
+
+    expect(result).toMatchObject({ failure: { source: "ILOSTAT" } })
+  }),
+)
+
 it.effect("rejects unknown notes, status codes and surveys", () =>
   Effect.gen(function* () {
     const valid = {

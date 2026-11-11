@@ -1,6 +1,6 @@
-import { Trend, Year } from "@openfacts/domain"
 import { D1Client } from "@effect/sql-d1"
 import { beforeEach, expect, it } from "@effect/vitest"
+import { Code, DimensionId, Trend, Year } from "@openfacts/domain"
 import { reset } from "cloudflare:test"
 import { DateTime, Effect, Layer, Stream } from "effect"
 import { SqlClient } from "effect/sql"
@@ -70,7 +70,22 @@ it.effect(
           .pipe(Effect.result) ?? Effect.die("missing adapter")
       )
 
-      expect(result).toMatchObject({ failure: { reason: "NotStored" } })
+      expect(result).toMatchObject({
+        failure: { open: ["source"], dimensions: [{ id: "source" }] },
+      })
+      const adapter = yield* Sources.get(reads, indicator)
+
+      const absent = yield* adapter
+        .fetch({
+          indicator,
+          dimensions: { [DimensionId.make("source")]: Code.make("s42413a3135373135") },
+          countries: ["AFG"],
+          from: Year.make(2020),
+          to: Year.make(2025),
+        })
+        .pipe(Effect.result)
+
+      expect(absent).toMatchObject({ failure: { reason: "NotStored" } })
       expect(requests).toEqual([tocUrl, tocUrl])
     }),
 )

@@ -4,10 +4,10 @@ import { mkdtemp, open, rm } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { createInterface } from "node:readline"
-import { Readable } from "node:stream"
 import { promisify } from "node:util"
 import { createGunzip } from "node:zlib"
 
+import { NodeStream } from "@effect/platform-node"
 import { SourceUnavailable } from "@openfacts/domain"
 import { DateTime, Effect, Layer, Schema, Stream } from "effect"
 import { HttpClient } from "effect/http"
@@ -48,15 +48,17 @@ export const archiveLayer = Layer.effect(
             )
 
             const response = yield* client.get(archiveUrl)
-            const bytes = yield* Stream.toAsyncIterableEffect(response.stream)
             const retrievedAt = yield* DateTime.now
             const staged = join(folder, "rows")
             const sorted = join(folder, "sorted")
-            const decoded = Readable.from(bytes).pipe(createGunzip())
-            const lines = createInterface({ input: decoded, crlfDelay: Infinity })
             const output = yield* Effect.tryPromise(() => open(staged, "w"))
             let header: string | undefined
-            yield* Stream.fromAsyncIterable(lines, unavailable).pipe(
+            // Keep download and gzip failures in the Effect stream, including
+            // interruption and cleanup, rather than a detached Node pipe.
+            yield* response.stream.pipe(
+              NodeStream.pipeThroughDuplex({ evaluate: createGunzip, onError: unavailable }),
+              Stream.decodeText(),
+              Stream.splitLines,
               Stream.mapEffect(
                 Effect.fn(function* (line) {
                   if (header === undefined) {

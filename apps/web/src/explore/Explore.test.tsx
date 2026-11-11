@@ -963,6 +963,14 @@ describe("Explore", () => {
   })
 
   it("shows missing ILOSTAT warnings and reference-period notes after resolving a saved chart", async () => {
+    const saved = Trend.make({
+      indicator: IndicatorId.make("ILOSTAT:SDG_B552_NOC_RT_A"),
+      dimensions: Schema.decodeUnknownSync(Dimensions)({ source: "s42413a3135373135" }),
+      countries: ["AFG"],
+      from: Year.make(2021),
+      to: Year.make(2021),
+    })
+
     network.use(
       http.post("/api/views/resolve", async ({ request }) => {
         const view = Schema.decodeUnknownSync(Trend)(await request.json())
@@ -970,16 +978,24 @@ describe("Explore", () => {
         return HttpResponse.json(
           Schema.encodeSync(ResolvedViewSchema)({
             ...resolvedFor(view),
+            sources: [
+              {
+                ...source(view.indicator),
+                source: "ILOSTAT",
+                dataset: "SDG_B552_NOC_RT_A; International Labour Organization (ILO), ILOSTAT",
+                url: "https://rplumber.ilo.org/data/indicator?format=.csv.gz&id=SDG_B552_NOC_RT_A",
+              },
+            ],
             qualifications: [
               {
                 source: "ILOSTAT",
-                survey: { code: "BA:15715", label: "Labour Force Survey" },
+                survey: { code: "BA:15715", label: "LFS - Labour Force Survey" },
                 series: {
-                  indicator: IndicatorId.make("ILOSTAT:SDG_B552_NOC_RT_A"),
-                  dimensions: {},
+                  indicator: view.indicator,
+                  dimensions: view.dimensions ?? {},
                 },
-                country: "FRA",
-                year: Year.make(2020),
+                country: "AFG",
+                year: Year.make(2021),
                 missing: true,
                 exclusion: "ReferencePeriod",
                 status: { code: "U", label: "Unreliable" },
@@ -996,7 +1012,7 @@ describe("Explore", () => {
         )
       }),
     )
-    show(trend)
+    show(saved)
     const warnings = within(await screen.findByRole("list", { name: "Flagged values" }))
     expect(warnings.getByText(/Unreliable/)).toBeDefined()
     expect(warnings.getByText("Missing value")).toBeDefined()

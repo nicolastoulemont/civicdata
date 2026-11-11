@@ -26,6 +26,7 @@
           "effect/FileSystem",
           "effect/PlatformError",
           "@effect/platform-node",
+          "@effect/platform-node-shared/NodeStream",
           "effect/http-api",
           "effect/sql",
           "effect/reactivity",

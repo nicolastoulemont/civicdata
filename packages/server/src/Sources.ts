@@ -1,4 +1,6 @@
 import {
+  DimensionId,
+  DimensionsMissing,
   type IndicatorId,
   IndicatorNotFound,
   type SeriesKey,
@@ -125,6 +127,31 @@ export class Sources extends Context.Service<Sources, Interface>()("@openfacts/s
             return { indicator: found.value.indicator, dataset, retrievedAt }
           }),
           fetch: Effect.fn("Sources.fetch")(function* (query) {
+            if (Policy.$is("StoredOnly")(policy)) {
+              const { dimensions } = yield* adapter.describe(query.indicator)
+
+              if (dimensions !== undefined) {
+                const open = dimensions
+                  .filter(
+                    ({ id, options }) => !options.some(({ code }) => code === query.dimensions[id]),
+                  )
+                  .map(({ id }) => id)
+
+                const extra = Object.keys(query.dimensions)
+                  .filter((id) => !dimensions.some((dimension) => dimension.id === id))
+                  .map((id) => DimensionId.make(id))
+
+                const [first, ...rest] = [...open, ...extra]
+
+                if (first !== undefined)
+                  return yield* new DimensionsMissing({
+                    indicator: query.indicator,
+                    dimensions,
+                    open: [first, ...rest],
+                  })
+              }
+            }
+
             const found = yield* read(query, { policy, target })
 
             if (Option.isNone(found)) {
