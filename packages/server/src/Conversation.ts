@@ -245,10 +245,44 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
 
         const answered = Option.match(saved, { onNone: () => [], onSome: (found) => found.turns })
 
-        return isAnswering(now)
-          ? { answered, answering: { question: now.question, started: now.started } }
-          : { answered }
+        if (isAnswering(now)) {
+          return { answered, answering: { question: now.question, started: now.started } }
+        }
+
+        // No answer runs here, so the one saved as running ran in an earlier
+        // life of this object and was cut off with it.
+        const lost = Option.getOrUndefined(saved)?.answering
+
+        return lost === undefined ? { answered } : { answered, lost }
       }).pipe(Semaphore.withPermit(lock))
+
+      // The chat to answer a question with, and the changes it builds on. The
+      // question is saved as being answered before the agent starts, and its
+      // turn replaces it, so a restart that cuts the answer off leaves a trace
+      // of the question.
+      const begin = Effect.fnUntraced(function* ({
+        question,
+        started,
+      }: Pick<Answer, "question" | "started">) {
+        const saved = yield* transcript.load
+
+        const chat = Option.isNone(saved)
+          ? yield* agent.start
+          : yield* Chat.fromJson(saved.value.chat).pipe(Effect.orDie)
+
+        const asked = yield* chat.exportJson.pipe(Effect.orDie)
+
+        yield* transcript.save({
+          ...Option.getOrElse(saved, () => ({ chat: asked, turns: [] })),
+          answering: { question, started },
+        })
+
+        return {
+          chat,
+          changed: Option.match(saved, { onNone: () => [], onSome: changedOf }),
+          asked,
+        }
+      }, Semaphore.withPermit(lock))
 
       // Answers to the end, saving the turn before its last step goes out. A
       // stop cuts the agent off, so it makes no more model requests, and
@@ -257,16 +291,8 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
       // does not build on it. The steps still running then end as stopped.
       const answer = Effect.fn("Conversation.answer")(
         function* ({ question, started, steps, stop }: Answer) {
-          const saved = yield* transcript.load
           const work = yield* Ref.make<ReadonlyArray<Work>>([])
-
-          const chat = Option.isNone(saved)
-            ? yield* agent.start
-            : yield* Chat.fromJson(saved.value.chat).pipe(Effect.orDie)
-
-          const changed = Option.match(saved, { onNone: () => [], onSome: changedOf })
-
-          const asked = yield* chat.exportJson.pipe(Effect.orDie)
+          const { chat, changed, asked } = yield* begin({ question, started })
 
           // A turn keeps the steps the agent ended and how long it took,
           // stopped or not. The turns are read again under the lock, as a
@@ -332,10 +358,18 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
             yield* PubSub.publish(steps, Arr.append(cut, stopped))
           }
         },
+        // An answer that kept no turn drops its question before it lets the
+        // conversation answer again.
         (effect, { steps }) =>
           effect.pipe(
             Effect.onExit((exit) => PubSub.end(steps, exit)),
-            Effect.ensuring(phase.send(PhaseEvent.Finished({ steps }))),
+            Effect.ensuring(
+              transcript.forget.pipe(
+                Effect.catchDefect((defect) => Effect.logError("Question not dropped", defect)),
+                Semaphore.withPermit(lock),
+                Effect.andThen(phase.send(PhaseEvent.Finished({ steps }))),
+              ),
+            ),
             // Whoever follows the answer receives its failure.
             Effect.ignore,
           ),

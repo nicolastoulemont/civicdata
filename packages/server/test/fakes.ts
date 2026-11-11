@@ -48,6 +48,7 @@ export const memoryStorage = (
 
   const fake: Storage = {
     get: (key) => Promise.resolve(values.get(key)),
+    put: (key, value) => Promise.resolve(void values.set(key, value)),
     getAlarm: () => Promise.resolve(alarms.at(-1) ?? null),
     transaction: async (closure) => {
       const puts = new Map<string, string>()

@@ -1730,6 +1730,42 @@ describe("conversations", () => {
     }).pipe(Effect.provide(serveApi(scripted([]).layer, { storage: fake })))
   })
 
+  it.effect("reports an answer a restart cut off as lost, until the question is asked again", () =>
+    Effect.gen(function* () {
+      const { fake } = memoryStorage()
+      const deciding = yield* Deferred.make<void>()
+
+      // The model never replies: the object restarts while it decides.
+      const cut = scripted([
+        Deferred.succeed(deciding, undefined).pipe(Effect.andThen(Effect.never)),
+      ])
+
+      const started = yield* DateTime.now
+
+      yield* ask("Life expectancy in Brazil").pipe(
+        Effect.andThen(Deferred.await(deciding)),
+        Effect.provide(serveApi(cut.layer, { storage: fake })),
+      )
+
+      // A new object reads the same storage, as after a deploy.
+      return yield* Effect.gen(function* () {
+        expect(yield* turns).toEqual({
+          answered: [],
+          lost: { question: "Life expectancy in Brazil", started },
+        })
+
+        yield* answer("Life expectancy in Brazil")
+
+        const after = yield* turns
+
+        expect(after).not.toHaveProperty("lost")
+        expect(after.answered.map(({ question }) => question)).toEqual([
+          "Life expectancy in Brazil",
+        ])
+      }).pipe(Effect.provide(serveApi(scripted([]).layer, { storage: fake })))
+    }),
+  )
+
   it.effect("passes a failed answer on to whoever follows it", () =>
     Effect.gen(function* () {
       const reply = yield* Deferred.make<ReadonlyArray<Response.PartEncoded>, AiError.AiError>()

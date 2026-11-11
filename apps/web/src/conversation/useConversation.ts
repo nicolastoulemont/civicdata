@@ -13,7 +13,7 @@ import {
   type View,
 } from "@civicdata/domain"
 import { queryOptions, useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { DateTime, Effect, Option, Result, Schema, Stream, Struct } from "effect"
+import { Data, DateTime, Effect, Option, Result, Schema, Stream, Struct } from "effect"
 import { useEffect, useRef, useState } from "react"
 
 import { call, page } from "@/api"
@@ -82,12 +82,15 @@ type QuestionError = Result.Result.Failure<
   Awaited<ReturnType<typeof ask>> | Awaited<ReturnType<typeof follow>>
 >
 
+// The server restarted while it answered the question, and lost the answer.
+export class AnswerLost extends Data.TaggedError("AnswerLost") {}
+
 // A question whose answer failed, with the steps the agent took before it,
 // each as it last was.
 export interface Failure {
   readonly question: string
   readonly steps: ReadonlyArray<Step>
-  readonly error: QuestionError
+  readonly error: QuestionError | AnswerLost
   readonly before: number
   readonly retryAt: number
 }
@@ -196,9 +199,28 @@ export const useConversation = (id: ConversationId) => {
     })
   }, [answering, answered, isPending, mutate, conversation.dataUpdatedAt])
 
+  // A question the server lost fails like any other, once: asking it again
+  // here may have failed too.
+  const lost = conversation.data?.lost
+
+  const failed =
+    lost === undefined ||
+    failures.some((failure) => failure.question === lost.question && failure.before === answered)
+      ? failures
+      : [
+          ...failures,
+          {
+            question: lost.question,
+            steps: [],
+            error: new AnswerLost(),
+            before: answered,
+            retryAt: 0,
+          },
+        ]
+
   return {
     turns,
-    failures: failures.filter(
+    failures: failed.filter(
       (failure) =>
         conversation.data?.answered[failure.before]?.question !== failure.question &&
         !(asking.isPending && asking.variables?.question === failure.question),
