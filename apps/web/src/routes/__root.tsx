@@ -35,11 +35,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       meta: [
         { charSet: "utf-8" },
         { name: "viewport", content: "width=device-width, initial-scale=1" },
-        { title: "civicdata" },
+        { title: "openfacts" },
         { name: "description", content: description },
-        { property: "og:site_name", content: "civicdata" },
+        { property: "og:site_name", content: "openfacts" },
         { property: "og:type", content: "website" },
-        { property: "og:title", content: "civicdata" },
+        { property: "og:title", content: "openfacts" },
         { property: "og:description", content: description },
         ...(loaderData === undefined
           ? []
@@ -47,11 +47,17 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
               { property: "og:image", content: `${loaderData.origin}/preview.png` },
               { property: "og:image:width", content: "1200" },
               { property: "og:image:height", content: "630" },
-              { property: "og:image:alt", content: "civicdata" },
+              { property: "og:image:alt", content: "openfacts" },
               { name: "twitter:card", content: "summary_large_image" },
             ]),
       ],
-      links: [{ rel: "stylesheet", href: styles }],
+      links: [
+        { rel: "stylesheet", href: styles },
+        { rel: "icon", href: "/favicon.ico", sizes: "32x32" },
+        { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+        { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
+        { rel: "manifest", href: "/site.webmanifest" },
+      ],
       // Applies the stored appearance before first paint; the server cannot read
       // browser storage.
       scripts: [{ children: script }],

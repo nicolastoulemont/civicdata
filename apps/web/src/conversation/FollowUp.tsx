@@ -15,7 +15,7 @@ interface SuggestOptions {
 
 const suggest = (last: Ending | undefined, { answering, t }: SuggestOptions) =>
   answering !== undefined
-    ? t(($) => $["Write your next question while civicdata answers"])
+    ? t(($) => $["Write your next question while openfacts answers"])
     : last === undefined
       ? t(($) => $["How has life expectancy changed in Brazil?"])
       : Match.valueTags(last, {

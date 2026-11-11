@@ -492,12 +492,20 @@ export const card = async (fetched: ResolvedView) => {
 
   const footer = height - 22
 
-  text(image, label, fit(label, attribution(resolved), width - 2 * margin - 70), {
-    x: margin,
-    y: footer,
-    ink: "muted",
-  })
-  text(image, body, "civicdata", { x: width - margin, y: footer, ink: "foreground", align: "end" })
+  // The site's address, so a shared image says where the chart lives.
+  const site = "openfacts.app"
+
+  text(
+    image,
+    label,
+    fit(label, attribution(resolved), width - 2 * margin - measure(body, site) - 16),
+    {
+      x: margin,
+      y: footer,
+      ink: "muted",
+    },
+  )
+  text(image, body, site, { x: width - margin, y: footer, ink: "foreground", align: "end" })
 
   const box = {
     left: margin,

@@ -18,7 +18,7 @@ const attributes = new Set([
 const words = (value) => /\p{L}/u.test(value)
 
 const brand = new Set([
-  "civicdata",
+  "openfacts",
   "World Bank",
   "Eurostat",
   "OECD",

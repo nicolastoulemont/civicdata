@@ -27,7 +27,7 @@ interface AgentProps {
 // The agent's row: no bubble and no avatar, the full width of the lane.
 export const Agent = ({ children }: AgentProps) => (
   <div className="group flex min-w-0 flex-col gap-3">
-    <Author>civicdata</Author>
+    <Author>openfacts</Author>
     {children}
   </div>
 )

@@ -6,6 +6,7 @@ import { Lane } from "@/conversation/Lane"
 import { QuestionForm } from "@/conversation/QuestionForm"
 import type { Search } from "@/explore/search"
 import { Toggle } from "@/history/Toggle"
+import { Mark } from "@/Mark"
 
 const examples: ReadonlyArray<{ key: "population" | "gdp" | "life"; search: Search }> = [
   {
@@ -50,7 +51,10 @@ const Home = () => {
       <Toggle className="absolute top-3 left-3" />
       <Lane>
         <div className="mb-6 flex flex-col items-center gap-2 text-center">
-          <h1 className="text-3xl font-medium tracking-tight">civicdata</h1>
+          <h1 className="flex items-center gap-2.5 text-3xl font-semibold tracking-tighter">
+            <Mark className="size-8" />
+            openfacts
+          </h1>
           <p className="text-sm text-muted-foreground">{t(($) => $.intro)}</p>
         </div>
         <QuestionForm

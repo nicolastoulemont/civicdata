@@ -200,9 +200,15 @@ importers:
       '@oxlint/plugins':
         specifier: 1.92.0
         version: 1.92.0
+      '@resvg/resvg-js':
+        specifier: 2.6.2
+        version: 2.6.2
       fallow:
         specifier: ^3.41.0
         version: 3.41.0
+      opentype.js:
+        specifier: ^2.0.0
+        version: 2.0.0
       oxfmt:
         specifier: ^0.77.0
         version: 0.77.0

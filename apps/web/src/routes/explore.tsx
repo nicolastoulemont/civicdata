@@ -102,7 +102,7 @@ export const Route = createFileRoute("/explore")({
       loaderData === undefined
         ? []
         : [
-            { title: `${loaderData.title} · civicdata` },
+            { title: `${loaderData.title} · openfacts` },
             { name: "description", content: loaderData.description },
             { property: "og:title", content: loaderData.title },
             { property: "og:description", content: loaderData.description },

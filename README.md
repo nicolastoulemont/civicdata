@@ -1,6 +1,13 @@
-# civicdata
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/brand/logo-dark.svg">
+    <img src="docs/brand/logo-light.svg" alt="openfacts" height="48">
+  </picture>
+</h1>
 
-civicdata makes data about the economy and public policy easier to read and understand. You ask a question in your own words, such as "How has unemployment in Spain changed since 2000?", and get charts of official figures from the World Bank, Eurostat, the OECD or INSEE, the assistant's account of what they show, and the source of every charted number. It is for people who want to follow how a country is doing without being statisticians.
+[openfacts.app](https://openfacts.app)
+
+openfacts makes data about the economy and public policy easier to read and understand. You ask a question in your own words, such as "How has unemployment in Spain changed since 2000?", and get charts of official figures from the World Bank, Eurostat, the OECD or INSEE, the assistant's account of what they show, and the source of every charted number. It is for people who want to follow how a country is doing without being statisticians.
 
 ![An answer: the question, a line chart of Spain's unemployment rate from 2009 to 2025, a two-sentence takeaway, and the line "Source: Eurostat, Unemployment rate - annual data. Retrieved 9 November 2026."](docs/answer.webp)
 
@@ -43,7 +50,7 @@ civicdata makes data about the economy and public policy easier to read and unde
 | Official pages, checked by hand                        | Cabinets and elections since, 24 major events and 20 pension reforms, in `packages/server/src/official/`                              | Facts, linked per record                                                                                                    | The government, parliament or electoral authority page |
 | Research findings, reviewed by hand                    | Findings on why figures moved, each with its studies, in `packages/server/src/research/`                                              | Our own wording and the studies' bibliographic data; no paper text                                                          | Each study, in the finding's card                      |
 
-The Worldwide Governance Indicators are perceptions, which the World Bank says are estimates and not an official rating of a country's governance. Its [usage advisory](https://www.worldbank.org/en/publication/worldwide-governance-indicators/usage-advisory) forbids republishing the rescaled values of five licensed underlying sources; civicdata charts only each dimension's estimate and score.
+The Worldwide Governance Indicators are perceptions, which the World Bank says are estimates and not an official rating of a country's governance. Its [usage advisory](https://www.worldbank.org/en/publication/worldwide-governance-indicators/usage-advisory) forbids republishing the rescaled values of five licensed underlying sources; openfacts charts only each dimension's estimate and score.
 
 PPEG and ParlGov ask for no credit under CC0; the chart cites them as they ask to be cited. How the three sets of political records combine is in [docs/catalog.md](docs/catalog.md#political-records).
 
