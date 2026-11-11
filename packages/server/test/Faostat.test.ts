@@ -19,6 +19,7 @@ import { Sdmx } from "../src/Sdmx.ts"
 import { Sources } from "../src/Sources.ts"
 import { Store } from "../src/Store.ts"
 import { summarize } from "../src/Summary.ts"
+import { Vdem } from "../src/Vdem.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 import { http } from "./fakes.ts"
 import { seriesDb, bucket } from "./series.ts"
@@ -33,7 +34,14 @@ it.effect("registers FAOSTAT in the real all-publisher registry", () =>
       Effect.provide(
         Sources.layer.pipe(
           Layer.provide(
-            Layer.mergeAll(WorldBank.layer, Sdmx.layer, Insee.layer, Ilostat.layer, Faostat.layer),
+            Layer.mergeAll(
+              Vdem.layer,
+              WorldBank.layer,
+              Sdmx.layer,
+              Insee.layer,
+              Ilostat.layer,
+              Faostat.layer,
+            ),
           ),
           Layer.provide(http(() => new Response(toc))),
         ),

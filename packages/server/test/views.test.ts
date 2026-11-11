@@ -36,6 +36,7 @@ import { Politics } from "../src/Politics.ts"
 import { Sdmx } from "../src/Sdmx.ts"
 import { Sources } from "../src/Sources.ts"
 import { titles } from "../src/titles.gen.ts"
+import { Vdem } from "../src/Vdem.ts"
 import { Verification } from "../src/Verification.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 import { build, catalogOver, entry, listings, stored } from "./catalog.ts"
@@ -242,6 +243,7 @@ const serve = (
       Layer.provide(Sources.layer),
       Layer.provide(Insee.layer.pipe(Layer.provide(offline))),
       Layer.provide(Ilostat.layer.pipe(Layer.provide(offline))),
+      Layer.provide(Vdem.layer),
       Layer.provide(Faostat.layer.pipe(Layer.provide(offline))),
       Layer.provide(source),
       Layer.provide(sdmx),

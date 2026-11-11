@@ -18,7 +18,8 @@
     "eval": "vitest run --config vitest.eval.config.ts agent",
     "probe": "vitest run --config vitest.eval.config.ts probe",
     "ilostat": "node scripts/ilostat.ts",
-    "faostat": "node scripts/faostat.ts"
+    "faostat": "node scripts/faostat.ts",
+    "vdem": "node scripts/vdem.ts"
   },
   "dependencies": {
     "@effect/ai-openai": "4.1.2",

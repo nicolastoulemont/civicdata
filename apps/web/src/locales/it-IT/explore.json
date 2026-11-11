@@ -185,5 +185,6 @@
   "Unreliable": "Non attendibile",
   "Missing value": "Valore mancante",
   "Excluded reference period": "Periodo di riferimento escluso",
-  "Excluded geography": "Copertura geografica esclusa"
+  "Excluded geography": "Copertura geografica esclusa",
+  "Estimate {{estimate}}; 68% HPD interval {{lower}}–{{upper}} ({{version}})": "Stima {{estimate}}; intervallo HPD al 68% {{lower}}–{{upper}} ({{version}})"
 }

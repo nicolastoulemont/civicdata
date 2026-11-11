@@ -185,5 +185,6 @@
   "Unreliable": "不可靠",
   "Missing value": "缺失值",
   "Excluded reference period": "已排除的参考期",
-  "Excluded geography": "已排除的地理范围"
+  "Excluded geography": "已排除的地理范围",
+  "Estimate {{estimate}}; 68% HPD interval {{lower}}–{{upper}} ({{version}})": "估计值 {{estimate}}；68% HPD 区间 {{lower}}–{{upper}}（{{version}}）"
 }

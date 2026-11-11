@@ -3,6 +3,9 @@ import { useTranslation } from "react-i18next"
 
 import { useFormat } from "./useFormat.ts"
 
+const estimated = (item: Qualification): item is Extract<Qualification, { source: "V-Dem" }> =>
+  item.source === "V-Dem"
+
 const unreliable = (item: Qualification) => item.source === "ILOSTAT" && item.status?.code === "U"
 
 const publisher = (item: Qualification) =>
@@ -36,7 +39,8 @@ interface FlagsProps {
 export const Flags = ({ resolved }: FlagsProps) => {
   const { flagLabels, countryName } = useFormat()
 
-  const { t } = useTranslation("explore")
+  const { t, i18n } = useTranslation("explore")
+  const number = new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 3 })
 
   const groups = order.flatMap((flag) => {
     const years = new Map<Country, Array<number>>()
@@ -66,6 +70,20 @@ export const Flags = ({ resolved }: FlagsProps) => {
           {unreliable(item)
             ? flagLabels.Unreliable
             : item.status !== undefined && `${item.status.code}: ${item.status.label}`}
+          {estimated(item) && item.interval !== null && item.estimate !== null && (
+            <span>
+              {t(
+                ($) =>
+                  $["Estimate {{estimate}}; 68% HPD interval {{lower}}–{{upper}} ({{version}})"],
+                {
+                  estimate: number.format(item.estimate),
+                  lower: number.format(item.interval.lower),
+                  upper: number.format(item.interval.upper),
+                  version: item.version.split("/")[0],
+                },
+              )}
+            </span>
+          )}
           {item.missing && <span>{t(($) => $["Missing value"])}</span>}
           {item.exclusion !== undefined && <span>{exclusionLabels[item.exclusion]}</span>}
           {item.notes.map((note) => ` · ${note.category} ${note.code}: ${note.label}`).join("")}

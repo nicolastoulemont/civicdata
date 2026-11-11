@@ -19,6 +19,7 @@ import { Insee } from "../src/Insee.ts"
 import { Resolver } from "../src/Resolver.ts"
 import { Sdmx } from "../src/Sdmx.ts"
 import { Sources } from "../src/Sources.ts"
+import { Vdem } from "../src/Vdem.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 import { build, catalogOver, listings } from "./catalog.ts"
 import { http, memory } from "./fakes.ts"
@@ -172,7 +173,14 @@ describe("INSEE", () => {
           Layer.provide(Directions.listed),
           Layer.provide(Sources.layer),
           Layer.provide(
-            Layer.mergeAll(Faostat.layer, Ilostat.layer, Insee.layer, WorldBank.layer, Sdmx.layer),
+            Layer.mergeAll(
+              Vdem.layer,
+              Faostat.layer,
+              Ilostat.layer,
+              Insee.layer,
+              WorldBank.layer,
+              Sdmx.layer,
+            ),
           ),
           Layer.provide(http(respond)),
         ),

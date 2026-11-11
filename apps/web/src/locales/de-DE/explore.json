@@ -185,5 +185,6 @@
   "Unreliable": "Unzuverlässig",
   "Missing value": "Fehlender Wert",
   "Excluded reference period": "Ausgeschlossener Bezugszeitraum",
-  "Excluded geography": "Ausgeschlossene geografische Abdeckung"
+  "Excluded geography": "Ausgeschlossene geografische Abdeckung",
+  "Estimate {{estimate}}; 68% HPD interval {{lower}}–{{upper}} ({{version}})": "Schätzwert {{estimate}}; 68-%-HPD-Intervall {{lower}}–{{upper}} ({{version}})"
 }

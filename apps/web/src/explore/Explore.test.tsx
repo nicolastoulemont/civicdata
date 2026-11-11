@@ -1080,6 +1080,71 @@ describe("Explore", () => {
     expect(screen.getAllByText(/FAO. 2026. FAOSTAT/).length).toBeGreaterThan(0)
   })
 
+  it("shows the published estimate, interval and attribution after restoring a V-Dem chart", async () => {
+    const saved = Trend.make({
+      indicator: IndicatorId.make("V-Dem:v2x_polyarchy"),
+      countries: ["FRA"],
+      from: Year.make(2025),
+      to: Year.make(2025),
+    })
+
+    network.use(
+      http.post("/api/views/resolve", async ({ request }) => {
+        const view = Schema.decodeUnknownSync(Trend)(await request.json())
+
+        return HttpResponse.json(
+          Schema.encodeSync(ResolvedViewSchema)({
+            ...resolvedFor(view),
+            observations: [
+              { country: "FRA", year: Year.make(2025), value: 0.865, flags: ["Estimated"] },
+            ],
+            sources: [
+              {
+                ...source(view.indicator),
+                source: "V-Dem",
+                dataset: "Coppedge et al. (2026). V-Dem Country-Year Dataset v16. CC BY-SA 4.0",
+                url: "https://doi.org/10.23696/vdemds26",
+              },
+            ],
+            qualifications: [
+              {
+                source: "V-Dem",
+                series: { indicator: view.indicator, dimensions: {} },
+                country: "FRA",
+                year: Year.make(2025),
+                missing: false,
+                notes: [],
+                version:
+                  "V16/f4dd26922e658442524dfd954bf14f7ebe622d5d/39b412d39a061c18f20c98e4ad4d6355b05a0441df31be4ee9aec420dc3d95ea",
+                evidence: {
+                  commit: "f4dd26922e658442524dfd954bf14f7ebe622d5d",
+                  sha256: "39b412d39a061c18f20c98e4ad4d6355b05a0441df31be4ee9aec420dc3d95ea",
+                },
+                estimate: 0.865,
+                interval: {
+                  lower: 0.828,
+                  upper: 0.914,
+                  method: "HPD",
+                  level: 0.68,
+                  lowerField: "v2x_polyarchy_codelow",
+                  upperField: "v2x_polyarchy_codehigh",
+                  codebook: "https://v-dem.net/documents/70/codebook_v16.pdf",
+                },
+              },
+            ],
+          }),
+        )
+      }),
+    )
+    show(saved)
+    const warnings = within(await screen.findByRole("list", { name: "Flagged values" }))
+    expect(warnings.getByText("Estimate 0.865; 68% HPD interval 0.828–0.914 (V16)")).toBeDefined()
+    expect(screen.getAllByText(/Coppedge et al.*CC BY-SA 4.0/).length).toBeGreaterThan(0)
+    await userEvent.setup().click(screen.getByRole("tab", { name: "Data" }))
+    const evidence = within(await screen.findByRole("list", { name: "Flagged values" }))
+    expect(evidence.getByText("Estimate 0.865; 68% HPD interval 0.828–0.914 (V16)")).toBeDefined()
+  })
+
   it("lists the values a source flags under the chart and in the data table", async () => {
     network.use(
       http.post("/api/views/resolve", async ({ request }) => {
