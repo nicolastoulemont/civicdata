@@ -29,7 +29,7 @@ The conversation writes the row after the answer's last step goes out, so the pa
 
 ## Votes
 
-Under each answer that ended on its own (answered, unanswered or cut short, not asked back or stopped), the page asks "Was this answer useful?" with a thumbs up and a thumbs down. A thumbs down asks what went wrong: wrong measure, wrong countries, wrong years, missing data, wrong text, or something else. `PUT /api/conversations/<id>/turns/<turn>/vote` keeps the vote on the turn, so the page shows it again, and sets the row's `vote`. The last vote counts. The `Answers.vote` span records `civicdata.vote` (`up` or `down`) and `civicdata.vote.reason`.
+Under each answer that ended on its own (answered, unanswered or cut short, not asked back or stopped), the page asks "Was this answer useful?" with a thumbs up and a thumbs down. A thumbs down asks what went wrong: wrong measure, wrong countries, wrong years, missing data, wrong text, or something else. `PUT /api/conversations/<id>/turns/<turn>/vote` keeps the vote on the turn, so the page shows it again, and sets the row's `vote`. The last vote counts. The `Answers.vote` span records `openfacts.vote` (`up` or `down`) and `openfacts.vote.reason`.
 
 ## What people did with an answer
 

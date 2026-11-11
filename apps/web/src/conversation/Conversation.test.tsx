@@ -663,7 +663,7 @@ describe("Conversation", () => {
       expect(
         exportedSpans().find((span) => span.traceId === trace && span.name === "question.ask")
           ?.attributes,
-      ).toMatchObject({ "civicdata.question": question, "gen_ai.conversation.id": id }),
+      ).toMatchObject({ "openfacts.question": question, "gen_ai.conversation.id": id }),
     )
   })
 

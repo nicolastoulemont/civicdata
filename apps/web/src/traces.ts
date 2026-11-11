@@ -27,7 +27,7 @@ const keepalive = Layer.effect(
 
 const exporter = OtlpTracer.layer({
   url: "/api/otlp/v1/traces",
-  resource: { serviceName: "civicdata-web" },
+  resource: { serviceName: "openfacts-web" },
 }).pipe(Layer.provide(OtlpSerialization.layerJson), Layer.provide(keepalive))
 
 // An error the page did not catch, as a failed span of its own.

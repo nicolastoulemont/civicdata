@@ -212,10 +212,10 @@ export class Answers extends Context.Service<Answers, Interface>()("@openfacts/s
         }, kept)
 
         const vote = Effect.fn("Answers.vote")(function* (turn: TurnIndex, choice: Vote) {
-          yield* Effect.annotateCurrentSpan("civicdata.vote", isDown(choice) ? "down" : "up")
+          yield* Effect.annotateCurrentSpan("openfacts.vote", isDown(choice) ? "down" : "up")
 
           if (isDown(choice) && choice.reason !== undefined) {
-            yield* Effect.annotateCurrentSpan("civicdata.vote.reason", choice.reason)
+            yield* Effect.annotateCurrentSpan("openfacts.vote.reason", choice.reason)
           }
 
           const id = yield* idOf(conversation, turn)
@@ -226,7 +226,7 @@ export class Answers extends Context.Service<Answers, Interface>()("@openfacts/s
         }, kept)
 
         const count = Effect.fn("Answers.count")(function* (turn: TurnIndex, what: Tally) {
-          yield* Effect.annotateCurrentSpan("civicdata.answer.action", what)
+          yield* Effect.annotateCurrentSpan("openfacts.answer.action", what)
 
           const id = yield* idOf(conversation, turn)
           const column = sql(columnOf[what])

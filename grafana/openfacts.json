@@ -1,5 +1,5 @@
 {
-  "uid": "civicdata",
+  "uid": "openfacts",
   "title": "openfacts",
   "description": "The agent's answers, the app's requests and the sources behind them, from Tempo traces (docs/traces.md).",
   "tags": ["openfacts"],
@@ -117,7 +117,7 @@
             "uid": "${traces}"
           },
           "queryType": "traceql",
-          "query": "{ span.gen_ai.operation.name = \"invoke_agent\" && resource.deployment.environment.name = \"$stage\" && span.civicdata.answer.ending = \"answered\" } | count_over_time()",
+          "query": "{ span.gen_ai.operation.name = \"invoke_agent\" && resource.deployment.environment.name = \"$stage\" && span.openfacts.answer.ending = \"answered\" } | count_over_time()",
           "limit": 50,
           "metricsQueryType": "range"
         }
@@ -162,7 +162,7 @@
             "uid": "${traces}"
           },
           "queryType": "traceql",
-          "query": "{ span.gen_ai.operation.name = \"invoke_agent\" && resource.deployment.environment.name = \"$stage\" && span.civicdata.answer.ending = \"exhausted\" } | count_over_time()",
+          "query": "{ span.gen_ai.operation.name = \"invoke_agent\" && resource.deployment.environment.name = \"$stage\" && span.openfacts.answer.ending = \"exhausted\" } | count_over_time()",
           "limit": 50,
           "metricsQueryType": "range"
         }
@@ -207,7 +207,7 @@
             "uid": "${traces}"
           },
           "queryType": "traceql",
-          "query": "{ span.gen_ai.operation.name = \"execute_tool\" && resource.deployment.environment.name = \"$stage\" && span.civicdata.tool.rejection != nil } | count_over_time()",
+          "query": "{ span.gen_ai.operation.name = \"execute_tool\" && resource.deployment.environment.name = \"$stage\" && span.openfacts.tool.rejection != nil } | count_over_time()",
           "limit": 50,
           "metricsQueryType": "range"
         }
@@ -342,7 +342,7 @@
             "uid": "${traces}"
           },
           "queryType": "traceql",
-          "query": "{ span.gen_ai.operation.name = \"invoke_agent\" && resource.deployment.environment.name = \"$stage\" } | count_over_time() by (span.civicdata.answer.ending)",
+          "query": "{ span.gen_ai.operation.name = \"invoke_agent\" && resource.deployment.environment.name = \"$stage\" } | count_over_time() by (span.openfacts.answer.ending)",
           "limit": 50,
           "metricsQueryType": "range"
         }
@@ -415,7 +415,7 @@
             "uid": "${traces}"
           },
           "queryType": "traceql",
-          "query": "{ resource.deployment.environment.name = \"$stage\" } << { resource.service.name = \"civicdata-web\" && name = \"question.ask\" } | quantile_over_time(duration, .5, .9)",
+          "query": "{ resource.deployment.environment.name = \"$stage\" } << { resource.service.name = \"openfacts-web\" && name = \"question.ask\" } | quantile_over_time(duration, .5, .9)",
           "limit": 50,
           "metricsQueryType": "range"
         }
@@ -500,7 +500,7 @@
             "uid": "${traces}"
           },
           "queryType": "traceql",
-          "query": "{ span.gen_ai.operation.name = \"invoke_agent\" && resource.deployment.environment.name = \"$stage\" } | quantile_over_time(span.civicdata.answer.rounds, .5, .9)",
+          "query": "{ span.gen_ai.operation.name = \"invoke_agent\" && resource.deployment.environment.name = \"$stage\" } | quantile_over_time(span.openfacts.answer.rounds, .5, .9)",
           "limit": 50,
           "metricsQueryType": "range"
         }
@@ -646,7 +646,7 @@
             "uid": "${traces}"
           },
           "queryType": "traceql",
-          "query": "{ span.gen_ai.operation.name = \"execute_tool\" && resource.deployment.environment.name = \"$stage\" && span.civicdata.tool.rejection != nil } | count_over_time() by (span.gen_ai.tool.name)",
+          "query": "{ span.gen_ai.operation.name = \"execute_tool\" && resource.deployment.environment.name = \"$stage\" && span.openfacts.tool.rejection != nil } | count_over_time() by (span.gen_ai.tool.name)",
           "limit": 50,
           "metricsQueryType": "range"
         }
@@ -865,7 +865,7 @@
             "uid": "${traces}"
           },
           "queryType": "traceql",
-          "query": "{ span.gen_ai.operation.name = \"execute_tool\" && resource.deployment.environment.name = \"$stage\" && span.civicdata.tool.rejection != nil } | select(span.gen_ai.tool.name, span.civicdata.tool.rejection)",
+          "query": "{ span.gen_ai.operation.name = \"execute_tool\" && resource.deployment.environment.name = \"$stage\" && span.openfacts.tool.rejection != nil } | select(span.gen_ai.tool.name, span.openfacts.tool.rejection)",
           "limit": 50,
           "tableType": "spans",
           "spss": 3
@@ -902,7 +902,7 @@
             "uid": "${traces}"
           },
           "queryType": "traceql",
-          "query": "{ span.gen_ai.operation.name = \"invoke_agent\" && resource.deployment.environment.name = \"$stage\" && span.civicdata.answer.ending =~ \"exhausted|unanswered\" } | select(span.civicdata.answer.ending, span.civicdata.answer.rounds, span.civicdata.question)",
+          "query": "{ span.gen_ai.operation.name = \"invoke_agent\" && resource.deployment.environment.name = \"$stage\" && span.openfacts.answer.ending =~ \"exhausted|unanswered\" } | select(span.openfacts.answer.ending, span.openfacts.answer.rounds, span.openfacts.question)",
           "limit": 50,
           "tableType": "spans",
           "spss": 3
@@ -1522,7 +1522,7 @@
             "uid": "${traces}"
           },
           "queryType": "traceql",
-          "query": "{ resource.service.name = \"civicdata-web\" && name = \"page.error\" } | count_over_time()",
+          "query": "{ resource.service.name = \"openfacts-web\" && name = \"page.error\" } | count_over_time()",
           "limit": 50,
           "metricsQueryType": "range"
         }
@@ -1595,7 +1595,7 @@
             "uid": "${traces}"
           },
           "queryType": "traceql",
-          "query": "{ resource.service.name = \"civicdata-web\" && name = \"page.error\" } | select(span.url.path)",
+          "query": "{ resource.service.name = \"openfacts-web\" && name = \"page.error\" } | select(span.url.path)",
           "limit": 50,
           "tableType": "spans",
           "spss": 3
