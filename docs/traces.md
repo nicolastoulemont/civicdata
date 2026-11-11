@@ -79,9 +79,26 @@ The free tier holds 50 GB of traces a month, kept 14 days. A question's trace is
 
 Previews and production share the stack. Tell them apart with `resource.deployment.environment.name`, e.g. `{ resource.deployment.environment.name = "prod" }`.
 
+## Dashboard
+
+`grafana/civicdata.json` is one dashboard, built on TraceQL queries over the spans, so it adds no metric series to bill. Its Stage picker filters every panel to one stage, `prod` by default, except the page error panels: browser spans carry no stage, so the browser panels keep the questions whose trace reached that stage's Worker, and page errors count every stage.
+
+| Row                  | Shows                                                                                                                       |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Questions            | answers run, how they ended, tool calls sent back, tokens, and the time a visitor waits for an answer                       |
+| Agent                | rounds per answer, tool calls and rejections by tool, tool and answer time, the calls sent back with why, answers with none |
+| Model                | input and output tokens, and model request time                                                                             |
+| Requests and sources | requests, failures and time by route, and failures and time by source host                                                  |
+| Page and workflows   | errors the page did not catch, and each Workflow run                                                                        |
+| Volume               | spans sent by service, which is what Grafana Cloud bills                                                                    |
+
+`pnpm dev` loads it into the local Grafana, which rereads the file when it changes. Grafana there won't save edits to a dashboard it loaded from a file: edit the JSON, or edit a copy in Grafana and paste its JSON (Edit, then Settings, then JSON Model) into the file.
+
+In Grafana Cloud, import it once: Dashboards, then New, then Import, then upload `grafana/civicdata.json`. Import it again after the file changes, choosing to overwrite.
+
 ## Reading the agent
 
-In Grafana, Explore with Tempo runs these TraceQL queries; the ones with `|` draw a chart over time.
+For a question the dashboard does not answer, Explore with Tempo runs TraceQL queries such as these; the ones with `|` draw a chart over time.
 
 | Question                                            | TraceQL                                                                                                          |
 | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |

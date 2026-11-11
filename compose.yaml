@@ -4,9 +4,13 @@ name: civicdata
 
 services:
   # Grafana with Tempo, receiving the app's spans over OTLP/HTTP on 4318.
-  # Grafana at http://localhost:3000 signs you in on its own.
+  # Grafana at http://localhost:3000 signs you in on its own, and loads the
+  # civicdata dashboard from grafana/, rereading it when the file changes.
   grafana:
     image: grafana/otel-lgtm:0.40.0
     ports:
       - "3000:3000"
       - "4318:4318"
+    volumes:
+      - ./grafana/dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/civicdata.yaml:ro
+      - ./grafana:/civicdata/dashboards:ro

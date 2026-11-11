@@ -1,0 +1,8 @@
+# Loads civicdata.json into the Grafana `pnpm dev` starts (compose.yaml).
+apiVersion: 1
+
+providers:
+  - name: civicdata
+    type: file
+    options:
+      path: /civicdata/dashboards
