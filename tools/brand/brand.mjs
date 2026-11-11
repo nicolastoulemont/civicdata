@@ -132,7 +132,7 @@ const preview = (width, height) => {
     .map((row, index) => line(regular, row, { x: left, y: top + 330 + index * 48, size: 34 }).paths)
     .join("")
 
-  const sources = line(regular, "Data: World Bank, Eurostat, OECD", {
+  const sources = line(regular, "Data: World Bank, Eurostat, OECD, INSEE", {
     x: left,
     y: top + 330 + (rows.length - 1) * 48 + 76,
     size: 26,
