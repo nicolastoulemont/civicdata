@@ -1,4 +1,4 @@
-import { ResolvedView, Turns } from "@civicdata/domain"
+import { ConversationNotFound, ResolvedView, Turns } from "@civicdata/domain"
 import {
   type AsyncStorage,
   experimental_createQueryPersister,
@@ -105,6 +105,9 @@ interface Kind<A, I> {
   readonly schema: Schema.Codec<A, I>
   // Whether data may be saved. Data that may not deletes the saved entry.
   readonly keeps?: (data: A) => boolean
+  // Whether a failed request says the server no longer has the data, which
+  // deletes the saved entry.
+  readonly gone?: (error: Error) => boolean
   // Whether a restored query asks the server for anything newer.
   readonly refresh?: boolean
 }
@@ -113,7 +116,7 @@ interface Kind<A, I> {
 // for it, so the page never waits on restoring the rest.
 const keep = <A, I>(
   queryClient: QueryClient,
-  { store, name, schema, keeps = () => true, refresh = false }: Kind<A, I>,
+  { store, name, schema, keeps = () => true, gone = () => false, refresh = false }: Kind<A, I>,
 ) => {
   const prefix = `civicdata-${name}`
   const codec = Entry(schema)
@@ -160,12 +163,14 @@ const keep = <A, I>(
     },
   })
 
+  const drop = (query: Query) => store.removeItem(`${prefix}-${query.queryHash}`)
+
   const save = (query: Query) => {
     const { data } = query.state
 
     return valid(data) && keeps(data)
       ? saved.persistQuery(query).catch(() => undefined)
-      : store.removeItem(`${prefix}-${query.queryHash}`)
+      : drop(query)
   }
 
   // The persister's own function saves after every fetch. This one saves only
@@ -181,7 +186,11 @@ const keep = <A, I>(
       if (restored !== undefined) return restored
     }
 
-    const data = await queryFn(context)
+    const data = await Promise.resolve(queryFn(context)).catch(async (error: Error) => {
+      if (gone(error)) await drop(query)
+
+      throw error
+    })
 
     notifyManager.schedule(() => void save(query))
 
@@ -218,8 +227,9 @@ export const persist = (queryClient: QueryClient, store = indexedDb()) => {
     name: "conversation",
     schema: Turns,
     // Only finished turns are saved. A conversation being answered, or one
-    // with no turns (new, or deleted by the server), loses its entry.
+    // with no turns, loses its entry, and so does one the server deleted.
     keeps: ({ answered, answering }) => answering === undefined && answered.length > 0,
+    gone: (error) => error instanceof ConversationNotFound,
     // The conversation may have moved on in another tab.
     refresh: true,
   })

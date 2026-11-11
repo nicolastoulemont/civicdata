@@ -65,6 +65,7 @@ export {
   AgentUnavailable,
   CatalogUnavailable,
   ConversationBusy,
+  ConversationNotFound,
   DimensionsMissing,
   IndicatorNotFound,
   NoChart,

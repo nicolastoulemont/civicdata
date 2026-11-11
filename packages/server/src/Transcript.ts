@@ -91,7 +91,7 @@ const savedOf = ({ changed, ...saved }: typeof Stored.Type): Saved => {
 }
 
 // Conversations saved before turns kept how their answer ended sit under
-// "transcript"; they read as empty until their alarm deletes them.
+// "transcript"; they read as not found until their alarm deletes them.
 const key = "conversation"
 
 // A conversation is deleted this long after its last question.

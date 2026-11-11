@@ -2,6 +2,7 @@ import {
   Answered,
   Chart,
   ConversationId,
+  ConversationNotFound,
   Ended,
   IndicatorId,
   ResolvedView,
@@ -264,6 +265,29 @@ describe("persist", () => {
 
     expect(await findChart()).toBeDefined()
     expect((await timeline()).getByText("How has life expectancy changed in Brazil?")).toBeDefined()
+  })
+
+  it("forgets a saved conversation the server has deleted", async () => {
+    const { store, values } = memory()
+
+    network.use(turns({ answered: [charted] }), resolve)
+    show(store)
+    await findChart()
+    await waitFor(() => expect(values.size).toBe(2))
+    cleanup()
+
+    network.use(
+      http.get(`/api/conversations/${id}`, () =>
+        HttpResponse.json(Schema.encodeSync(ConversationNotFound)(new ConversationNotFound()), {
+          status: 404,
+        }),
+      ),
+    )
+    show(store)
+
+    expect(await screen.findByText(/No questions yet/)).toBeDefined()
+    expect(screen.queryByText("How has life expectancy changed in Brazil?")).toBeNull()
+    await waitFor(() => expect(values.size).toBe(1))
   })
 
   it("loads from the network when the browser blocks storage", async () => {

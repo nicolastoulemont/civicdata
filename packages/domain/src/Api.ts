@@ -17,6 +17,7 @@ import {
   AgentUnavailable,
   CatalogUnavailable,
   ConversationBusy,
+  ConversationNotFound,
   DimensionsMissing,
   IndicatorNotFound,
   NoChart,
@@ -107,8 +108,9 @@ const Steps = HttpApiSchema.StreamSse({
   error: Schema.Union([AgentUnavailable, SourceUnavailable, CatalogUnavailable]),
 })
 
-// One conversation with the agent. Its turns are empty until the first
-// question; a conversation idle for 30 days is deleted and reads as empty.
+// One conversation with the agent. It exists from its first question, even
+// one that failed or went over the ask limit, until 30 days after its last;
+// `turns` fails with ConversationNotFound before and after.
 // An answer runs to the end and is kept even when nobody reads it: `answer`
 // streams the one in progress from its first step, and nothing when there is
 // none. Only `stop` ends an answer early: it keeps the turn as Stopped, and
@@ -121,7 +123,7 @@ class Conversation extends HttpApiGroup.make("conversation")
     HttpApiEndpoint.get("turns", "/:id", {
       params: { id: ConversationId },
       success: Turns,
-      error: AgentUnavailable,
+      error: [AgentUnavailable, ConversationNotFound],
     }),
   )
   .add(

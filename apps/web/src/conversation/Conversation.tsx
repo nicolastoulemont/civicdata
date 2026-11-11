@@ -19,7 +19,8 @@ interface ConversationProps {
 // A conversation with the agent, newest question last. `first` is a question
 // to ask as soon as the conversation opens: the one typed on the home page.
 export const Conversation = ({ id, first }: ConversationProps) => {
-  const { turns, pending, failures, retry, stop, ask } = useConversation(id)
+  const { turns, error, pending, failures, retry, stop, ask } = useConversation(id)
+
   const [dismissed, setDismissed] = useState<Error | null>(null)
   const sent = useRef(false)
 
@@ -30,15 +31,14 @@ export const Conversation = ({ id, first }: ConversationProps) => {
     ask(first)
   }, [first, ask])
 
-  const all = turns.data ?? []
-  const questions = entries({ turns: all, failures, pending })
+  const questions = entries({ turns, failures, pending })
 
   const empty =
-    all.length === 0 && pending === undefined && failures.length === 0 && first === undefined
+    turns.length === 0 && pending === undefined && failures.length === 0 && first === undefined
 
   return (
     <div className="flex h-svh flex-col">
-      <Header title={all[0]?.question ?? pending?.question ?? first} />
+      <Header title={turns[0]?.question ?? pending?.question ?? first} />
       <main className="flex min-h-0 flex-1 flex-col">
         <Scroll
           key={id}
@@ -47,7 +47,7 @@ export const Conversation = ({ id, first }: ConversationProps) => {
           composer={
             <FollowUp
               id={id}
-              last={all.at(-1)?.answer}
+              last={turns.at(-1)?.answer}
               answering={
                 pending === undefined
                   ? undefined
@@ -59,8 +59,8 @@ export const Conversation = ({ id, first }: ConversationProps) => {
         >
           <Lane>
             <div className="flex flex-col gap-6">
-              {turns.isError && turns.error !== dismissed ? (
-                <Problem error={turns.error} dismiss={() => setDismissed(turns.error)} />
+              {error !== null && error !== dismissed ? (
+                <Problem error={error} dismiss={() => setDismissed(error)} />
               ) : null}
               {empty ? (
                 <p className="text-muted-foreground">

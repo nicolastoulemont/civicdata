@@ -7,6 +7,7 @@ import {
   Chart,
   ConversationBusy,
   ConversationId,
+  ConversationNotFound,
   Coverage,
   Covered,
   Cited,
@@ -214,6 +215,13 @@ const turns = (answered: ReadonlyArray<Turn>, answering?: Turns["answering"]) =>
       encodeTurns(answering === undefined ? { answered } : { answered, answering }),
     ),
   )
+
+// A conversation the server does not have: new, or deleted.
+const missing = http.get(`/api/conversations/${id}`, () =>
+  HttpResponse.json(Schema.encodeSync(ConversationNotFound)(new ConversationNotFound()), {
+    status: 404,
+  }),
+)
 
 // When the server started the answers it is giving in these tests.
 const started = DateTime.makeUnsafe("2026-11-09T12:00:00Z")
@@ -2540,10 +2548,26 @@ describe("Conversation", () => {
     followed.end()
   })
 
-  it("says an empty conversation has no questions", async () => {
-    network.use(turns([]))
+  it("says a conversation the server does not have has no questions", async () => {
+    network.use(missing)
     show()
 
     expect(await screen.findByText(/No questions yet/)).toBeDefined()
+  })
+
+  it("shows only the question's failure when a new conversation's first question fails", async () => {
+    network.use(
+      missing,
+      http.post(`/api/conversations/${id}/questions`, () =>
+        HttpResponse.json(Schema.encodeSync(TooManyQuestions)(new TooManyQuestions()), {
+          status: 429,
+        }),
+      ),
+    )
+    show("Life expectancy in Brazil")
+
+    expect(await screen.findByText("Too many questions in a minute")).toBeDefined()
+    expect(await findQuestion("Life expectancy in Brazil")).toBeDefined()
+    expect(screen.getAllByRole("alert")).toHaveLength(1)
   })
 })
