@@ -29,7 +29,9 @@ import { type Adapter, Policy } from "./Adapter.ts"
 import { Cache } from "./Cache.ts"
 import * as Csv from "./Csv.ts"
 import { geo } from "./geo.ts"
+import { eurostat, oecd, type SdmxSource } from "./SdmxSource.ts"
 import { Answer, type Query, widen } from "./Series.ts"
+import { Structures, discovery } from "./Structures.ts"
 import { plain } from "./text.ts"
 
 // A dataflow's name and description, and for the OECD the order of its
@@ -51,14 +53,10 @@ const Options = Schema.Struct({
 
 type Options = typeof Options.Type
 
-// The sources that publish through SDMX.
-export type SdmxSource = "Eurostat" | "OECD"
+export { eurostat, oecd } from "./SdmxSource.ts"
 
 // Each SDMX source's adapter. Nothing of theirs is stored yet.
 type Interface = { readonly [source in SdmxSource]: Adapter }
-
-export const eurostat = "https://ec.europa.eu/eurostat/api/dissemination"
-export const oecd = "https://sdmx.oecd.org/public/rest"
 
 const sdmxCsv = "application/vnd.sdmx.data+csv;version=2.0.0"
 
@@ -230,6 +228,8 @@ const area = (indicator: IndicatorId) =>
 
 const make = (remember: Remember) =>
   Effect.gen(function* () {
+    const structures = yield* Structures.pipe(Effect.provide(Structures.layer))
+
     const client = (yield* HttpClient.HttpClient).pipe(
       HttpClient.retryTransient({
         retryOn: "errors-only",
@@ -518,6 +518,7 @@ const make = (remember: Remember) =>
 
     const adapter = (source: SdmxSource): Adapter => ({
       policy: Policy.None(),
+      discovery: discovery(structures, source),
       // The catalog keeps its own copy in D1.
       list: list(source),
       describe,

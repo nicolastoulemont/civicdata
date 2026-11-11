@@ -11,18 +11,20 @@ import {
   Option,
   Order,
   Schema,
+  Stream,
 } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
+import { Cache } from "./Cache.ts"
 import { tables } from "./Catalog.ts"
 import { Classifier, Classifying } from "./Classifier.ts"
 import { fingerprint } from "./fingerprint.ts"
 import { searchable, Outline, Outlines } from "./Outlines.ts"
 import { Pace } from "./Pace.ts"
-import type { SdmxSource } from "./Sdmx.ts"
+import { Sdmx } from "./Sdmx.ts"
 import { Sources } from "./Sources.ts"
-import { Structures } from "./Structures.ts"
 import { Vectors, type VectorsUnavailable } from "./Vectors.ts"
+import { WorldBank } from "./WorldBank.ts"
 
 // The catalog's D1 inside Workers, where the Workflows that build the
 // catalog, store the political records and gather the series run: the one
@@ -55,16 +57,6 @@ const perStep = 100
 // Entries classified per step, in one request to the Decisions API: the
 // most questions it takes in one request.
 const perRequest = 400
-
-// Codelists a step asks the source for when their codes lack labels.
-// Eurostat answers 60 requests a minute; the OECD 50 an hour, shared with
-// every chart, so a build asks it for at most one step's worth. The first
-// fill reads every label from the bulk files (scripts/outlines.ts), so a
-// build only meets the few codelists new datasets bring.
-const codelists: Record<SdmxSource, { readonly perStep: number; readonly steps: number }> = {
-  Eurostat: { perStep: 25, steps: Number.POSITIVE_INFINITY },
-  OECD: { perStep: 10, steps: 1 },
-}
 
 // How long a build holds the lease unless it releases it first. A step that
 // keeps failing gives up after about an hour of retries, which fails its
@@ -117,6 +109,7 @@ type Saved =
 
 interface Interface {
   readonly sources: ReadonlyArray<Source>
+  readonly discovery: ReadonlyMap<Source, number>
   // Takes the lease that lets one build at a time change the catalog, for
   // the Workflow instance `holder`, and answers whether it holds it. An
   // instance that already holds it takes it again, so a replayed step
@@ -126,15 +119,15 @@ interface Interface {
   readonly release: (holder: string) => Effect.Effect<void>
   // Stores the outline of each of the source's datasets that changed, from the
   // files a Worker can read, and answers how many it wrote.
-  readonly outline: (source: SdmxSource) => Effect.Effect<number, SourceUnavailable>
+  readonly outline: (source: Source) => Effect.Effect<number, SourceUnavailable>
   // Asks the source for its next codelists after `after` whose codes in use
   // lack labels, and stores the labels. Answers the last codelist asked, or
   // null once none lacks labels. A codelist the source fails to give is
   // skipped until the next build.
-  readonly label: (source: SdmxSource, after: string) => Effect.Effect<string | null>
+  readonly label: (source: Source, after: string) => Effect.Effect<string | null>
   // Writes the labels each of the source's datasets embeds, where they
   // changed, and answers how many.
-  readonly describe: (source: SdmxSource) => Effect.Effect<number>
+  readonly describe: (source: Source) => Effect.Effect<number>
   // Lists the source's indicators into the generation, replacing what an
   // earlier attempt wrote there, and answers how many it wrote. It leaves
   // out the datasets search does not show, those with no annual values or
@@ -252,7 +245,6 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
       const vectors = yield* Vectors
       const classifier = yield* Classifier
       const outlines = yield* Outlines
-      const structures = yield* Structures
 
       yield* tables
 
@@ -436,7 +428,10 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
 
               if (outline === undefined) return [{ indicator, name, definition, labels: "" }]
 
-              return searchable({ annual: outline.annual === 1, countries: outline.countries })
+              return searchable({
+                annual: outline.annual === -1 ? null : outline.annual === 1,
+                countries: outline.countries,
+              })
                 ? [{ indicator, name, definition, labels: outline.text }]
                 : []
             }),
@@ -590,20 +585,24 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
         Effect.catchTags({ SqlError: Effect.die, SchemaError: Effect.die }),
       )
 
-      const outline = Effect.fn("CatalogBuild.outline")(function* (source: SdmxSource) {
-        return yield* outlines.write(source, structures.outlines(source))
+      const outline = Effect.fn("CatalogBuild.outline")(function* (source: Source) {
+        return yield* outlines.write(source, sources[source]?.discovery?.outlines ?? Stream.empty)
       })
 
-      const label = Effect.fn("CatalogBuild.label")(function* (source: SdmxSource, after: string) {
+      const label = Effect.fn("CatalogBuild.label")(function* (source: Source, after: string) {
+        const codelists = sources[source]?.discovery?.codelists
+
+        if (codelists === undefined) return null
+
         const listed = yield* outlines.unlabelled(source, {
           after,
-          limit: codelists[source].perStep,
+          limit: codelists.perStep,
         })
 
         if (!Arr.isReadonlyArrayNonEmpty(listed)) return null
 
         for (const codelist of listed) {
-          yield* structures.codelist(source, codelist).pipe(
+          yield* codelists.labels(codelist).pipe(
             Effect.flatMap((labels) => outlines.label(source, { codelist, labels })),
             Effect.catchTag("SourceUnavailable", () => Effect.void),
           )
@@ -614,6 +613,13 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
 
       return CatalogBuild.of({
         sources: Object.keys(sources).map((source) => Source.make(source)),
+        discovery: new Map(
+          Object.entries(sources).flatMap(([source, adapter]) =>
+            adapter.discovery === undefined
+              ? []
+              : [[Source.make(source), adapter.discovery.codelists?.steps ?? 0]],
+          ),
+        ),
         take,
         release,
         outline,
@@ -632,11 +638,13 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
   // Workflow provides the Classifier (CatalogWorkflow.ts).
   static readonly live = CatalogBuild.layer.pipe(
     Layer.provide(Outlines.layer),
-    Layer.provide(Structures.layer),
-    Layer.provide(Pace.gathering),
     Layer.provide(database),
     Layer.provide(Vectors.live),
-    Layer.provide(Sources.live),
+    Layer.provide(Sources.layer),
+    Layer.provide(WorldBank.cached),
+    Layer.provide(Sdmx.cached),
+    Layer.provide(Pace.gathering),
+    Layer.provide(Cache.layer),
   )
 
   // One generation of every source, numbered by the build's start time, so
@@ -700,12 +708,16 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
     // Stores the outlines of a source's datasets, the labels their codes lack
     // and the labels search embeds, before its entries are written. Outlines
     // the source fails to give leave the stored ones in place.
-    const refine = Effect.fn("CatalogBuild.refine")(function* (source: SdmxSource) {
+    const refine = Effect.fn("CatalogBuild.refine")(function* (source: Source) {
       yield* step.run(`outline ${source}`, build.outline(source))
 
       let after: string | null = ""
 
-      for (let steps = 0; after !== null && steps < codelists[source].steps; steps += 1) {
+      for (
+        let steps = 0;
+        after !== null && steps < (build.discovery.get(source) ?? 0);
+        steps += 1
+      ) {
         after = yield* step.run(`label ${source} after ${after}`, build.label(source, after))
       }
 
@@ -713,11 +725,7 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
     })
 
     const one = Effect.fn("CatalogBuild.source")(function* (source: Source) {
-      if (source === "Eurostat" || source === "OECD") {
-        yield* refine(source).pipe(
-          Effect.catch((error) => Effect.logWarning("Refreshing outlines failed", source, error)),
-        )
-      }
+      if (build.discovery.has(source)) yield* refine(source)
 
       const written = yield* step.run(`write ${source}`, build.write(source, generation))
 

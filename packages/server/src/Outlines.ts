@@ -1,13 +1,12 @@
-import { Code, Country, DimensionId, IndicatorId, sourceOf } from "@civicdata/domain"
-import { Array as Arr, Context, Effect, Layer, Option, Schema, Stream } from "effect"
+import { Code, Country, DimensionId, IndicatorId, type Source, sourceOf } from "@civicdata/domain"
+import { Array as Arr, Context, Effect, Layer, Option, Record, Schema, Stream } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
 import { areas } from "./Csv.ts"
 import { fingerprint } from "./fingerprint.ts"
-import type { SdmxSource } from "./Sdmx.ts"
 
-// What the catalog knows of a Eurostat dataset's or an OECD dataflow's
-// series, from the files each source publishes about all of them at once.
+// What the catalog knows of a publisher's datasets. SDMX parsers supply
+// the same contract as file adapters.
 // The parsers here are shared by the catalog Workflow (CatalogBuild.ts) and
 // the script that fills a stage's catalog the first time
 // (scripts/outlines.ts).
@@ -21,11 +20,12 @@ export type Codelist = typeof Codelist.Type
 
 // One dimension of a dataset: the codes its series take, in the source's
 // order, and the codelist that labels them, or null when the source does not
-// say which.
+// say which. File adapters can label codes directly without a codelist.
 export const Dimension = Schema.Struct({
   id: DimensionId,
   codelist: Schema.NullOr(Codelist),
   codes: Schema.NonEmptyArray(Code),
+  labels: Schema.optionalKey(Schema.Record(Code, Schema.String)),
 })
 
 export interface Dimension extends Schema.Schema.Type<typeof Dimension> {}
@@ -33,13 +33,14 @@ export interface Dimension extends Schema.Schema.Type<typeof Dimension> {}
 // A dataset's outline: its dimensions besides country, frequency and time;
 // whether it has annual values; which of our countries it covers; and its
 // first and last year with an annual value, or with any value where the
-// source does not tell them apart (the OECD). The countries and years are
+// source does not tell them apart (the OECD). Null means unknown, while
+// false annual or empty countries confirm exclusion. Countries and years are
 // bounds for the whole dataset, not for each series: find_years gives those.
 export const Outline = Schema.Struct({
   indicator: IndicatorId,
   dimensions: Schema.Array(Dimension),
-  annual: Schema.Boolean,
-  countries: Schema.Array(Country),
+  annual: Schema.NullOr(Schema.Boolean),
+  countries: Schema.NullOr(Schema.Array(Country)),
   years: Schema.NullOr(Schema.Struct({ first: Schema.Int, last: Schema.Int })),
 })
 
@@ -49,7 +50,7 @@ export interface Outline extends Schema.Schema.Type<typeof Outline> {}
 // annual values, or none of our countries, is left out of the catalog's
 // search.
 export const searchable = (outline: Pick<Outline, "annual" | "countries">) =>
-  outline.annual && outline.countries.length > 0
+  outline.annual !== false && (outline.countries === null || outline.countries.length > 0)
 
 const isCode = Schema.is(Code)
 const isDimension = Schema.is(DimensionId)
@@ -416,10 +417,15 @@ const embedded = (
 ) =>
   outline.dimensions
     .toSorted((a, b) => a.codes.length - b.codes.length)
-    .flatMap(({ codelist, codes }) =>
-      codelist === null
-        ? []
-        : codes.flatMap((code) => label(codelist, code) ?? []).slice(0, labelsPerDimension),
+    .flatMap(({ codelist, codes, labels }) =>
+      codes
+        .flatMap(
+          (code) =>
+            Option.getOrUndefined(Record.get(labels ?? {}, code)) ??
+            (codelist === null ? undefined : label(codelist, code)) ??
+            [],
+        )
+        .slice(0, labelsPerDimension),
     )
     .filter((text, at, all) => all.indexOf(text) === at)
     .join("; ")
@@ -430,8 +436,8 @@ const embedded = (
 const Row = Schema.Struct({
   searchable: Schema.Boolean,
   indicator: IndicatorId,
-  annual: Schema.Boolean,
-  countries: Schema.Array(Country),
+  annual: Schema.Int,
+  countries: Schema.NullOr(Schema.Array(Country)),
   first: Schema.NullOr(Schema.Int),
   last: Schema.NullOr(Schema.Int),
   dimensions: Schema.Array(Dimension),
@@ -492,20 +498,20 @@ interface Interface {
   // no longer gives. Answers how many it wrote. A stream that gives no
   // outline changes nothing: the file was empty, not every dataset gone.
   readonly write: <E>(
-    source: SdmxSource,
+    source: Source,
     outlines: Stream.Stream<Outline, E>,
   ) => Effect.Effect<number, E>
   // The source's codelists after `after`, in order, with a code in use that
   // has no label: at most `limit`.
   readonly unlabelled: (
-    source: SdmxSource,
+    source: Source,
     options: { readonly after: string; readonly limit: number },
   ) => Effect.Effect<ReadonlyArray<Codelist>>
   // Labels the codes of the codelist that have no label, from `labels`, or
   // with the code itself when the source gave it no label, so no build asks
   // for the codelist again. Answers how many codes it labelled.
   readonly label: (
-    source: SdmxSource,
+    source: Source,
     {
       codelist,
       labels,
@@ -513,7 +519,7 @@ interface Interface {
   ) => Effect.Effect<number>
   // Writes the text each of the source's outlines embeds, from its labels,
   // where it changed. Answers how many it wrote.
-  readonly describe: (source: SdmxSource) => Effect.Effect<number>
+  readonly describe: (source: Source) => Effect.Effect<number>
 }
 
 // The catalog's outlines and labels in D1. Builds write them: the catalog
@@ -532,14 +538,15 @@ export class Outlines extends Context.Service<Outlines, Interface>()("@civicdata
           sql`SELECT indicator, fingerprint FROM catalog_outline WHERE source = ${source}`,
       })
 
-      const store = Effect.fnUntraced(function* (source: SdmxSource, rows: string) {
+      const store = Effect.fnUntraced(function* (source: Source) {
         yield* sql`
           INSERT INTO catalog_outline
             (indicator, source, annual, countries, first, last, dimensions, fingerprint)
           SELECT value ->> 'indicator', ${source}, value ->> 'annual',
-            json_extract(value, '$.countries'), value ->> 'first', value ->> 'last',
+            value -> 'countries', value ->> 'first', value ->> 'last',
             json_extract(value, '$.dimensions'), value ->> 'fingerprint'
-          FROM json_each(${rows}) WHERE true
+          FROM catalog_outline_stage AS staged, json_each(staged.rows)
+          WHERE staged.source = ${source}
           ON CONFLICT (indicator) DO UPDATE SET source = excluded.source,
             annual = excluded.annual, countries = excluded.countries,
             first = excluded.first, last = excluded.last,
@@ -548,15 +555,17 @@ export class Outlines extends Context.Service<Outlines, Interface>()("@civicdata
         yield* sql`
           INSERT OR IGNORE INTO catalog_label (source, codelist, code)
           SELECT ${source}, dimension.value ->> 'codelist', code.value
-          FROM json_each(${rows}) AS row,
+          FROM catalog_outline_stage AS staged, json_each(staged.rows) AS row,
             json_each(row.value, '$.dimensions') AS dimension,
             json_each(dimension.value, '$.codes') AS code
-          WHERE row.value ->> 'searchable' AND dimension.value ->> 'codelist' IS NOT NULL
+          WHERE staged.source = ${source} AND row.value ->> 'searchable' AND dimension.value ->> 'codelist' IS NOT NULL
         `
       })
 
-      const write = <E>(source: SdmxSource, outlines: Stream.Stream<Outline, E>) =>
+      const write = <E>(source: Source, outlines: Stream.Stream<Outline, E>) =>
         Effect.gen(function* () {
+          yield* sql`DELETE FROM catalog_outline_stage WHERE source = ${source}`.pipe(Effect.orDie)
+
           const stored = new Map(
             (yield* prints(source).pipe(Effect.orDie)).map(({ indicator, fingerprint: print }) => [
               indicator,
@@ -583,7 +592,7 @@ export class Outlines extends Context.Service<Outlines, Interface>()("@civicdata
                       {
                         searchable: searchable(outline),
                         indicator: outline.indicator,
-                        annual: outline.annual,
+                        annual: outline.annual === null ? -1 : Number(outline.annual),
                         countries: outline.countries,
                         first: outline.years?.first ?? null,
                         last: outline.years?.last ?? null,
@@ -601,7 +610,11 @@ export class Outlines extends Context.Service<Outlines, Interface>()("@civicdata
                   Schema.encodeEffect(RowJson)(row),
                 ).pipe(Effect.orDie)
 
-                for (const group of bySize(encoded)) yield* store(source, group).pipe(Effect.orDie)
+                for (const group of bySize(encoded)) {
+                  yield* sql`INSERT INTO catalog_outline_stage (source, rows) VALUES (${source}, ${group})`.pipe(
+                    Effect.orDie,
+                  )
+                }
 
                 written += rows.length
               }),
@@ -609,6 +622,9 @@ export class Outlines extends Context.Service<Outlines, Interface>()("@civicdata
           )
 
           if (seen.length === 0) return 0
+
+          yield* store(source).pipe(Effect.orDie)
+          yield* sql`DELETE FROM catalog_outline_stage WHERE source = ${source}`.pipe(Effect.orDie)
 
           const ids = yield* Schema.encodeEffect(IdsJson)(seen).pipe(Effect.orDie)
 
@@ -621,7 +637,7 @@ export class Outlines extends Context.Service<Outlines, Interface>()("@civicdata
         }).pipe(Effect.withSpan("Outlines.write", { attributes: { source } }))
 
       const unlabelled = Effect.fn("Outlines.unlabelled")(
-        function* (source: SdmxSource, { after, limit }: { after: string; limit: number }) {
+        function* (source: Source, { after, limit }: { after: string; limit: number }) {
           const rows = yield* sql<{ readonly codelist: string }>`
             SELECT DISTINCT codelist FROM catalog_label
             WHERE source = ${source} AND label IS NULL AND codelist > ${after}
@@ -636,7 +652,7 @@ export class Outlines extends Context.Service<Outlines, Interface>()("@civicdata
 
       const label = Effect.fn("Outlines.label")(
         function* (
-          source: SdmxSource,
+          source: Source,
           { codelist, labels }: { codelist: Codelist; labels: ReadonlyMap<string, string> },
         ) {
           const missing = yield* sql<{ readonly code: string }>`
@@ -674,7 +690,7 @@ export class Outlines extends Context.Service<Outlines, Interface>()("@civicdata
       })
 
       const describe = Effect.fn("Outlines.describe")(
-        function* (source: SdmxSource) {
+        function* (source: Source) {
           const rows = yield* sql<{
             readonly codelist: string
             readonly code: string

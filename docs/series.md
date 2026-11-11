@@ -6,12 +6,13 @@ World Bank charts read from our own copy of the World Development Indicators ins
 
 Each source implements one contract, `Adapter` in `packages/server/src/Adapter.ts`, and nothing outside its implementation picks between sources. The `Sources` service (`Sources.ts`) holds every source's adapter by name, and a caller picks one with `sourceOf(indicator)`: the resolver and the agent's `describe_indicator` to chart and describe, the catalog build to list, the gather to store.
 
-| Member     | Answers                                                                         |
-| ---------- | ------------------------------------------------------------------------------- |
-| `policy`   | what we keep of the source's data: `Full` or `None`                             |
-| `list`     | its catalog entries: World Bank indicators, Eurostat datasets or OECD dataflows |
-| `describe` | an entry's name and definition, and the dataset a chart credits                 |
-| `fetch`    | one series' values for some countries and years, from the source's API          |
+| Member      | Answers                                                                                                            |
+| ----------- | ------------------------------------------------------------------------------------------------------------------ |
+| `discovery` | optional dataset dimensions, code labels, annual eligibility, countries and year bounds; unknown facts remain null |
+| `policy`    | what we keep of the source's data: `Full` or `None`                                                                |
+| `list`      | its catalog entries: World Bank indicators, Eurostat datasets or OECD dataflows                                    |
+| `describe`  | an entry's name and definition, and the dataset a chart credits                                                    |
+| `fetch`     | one series' values for some countries and years, from the source's API                                             |
 
 A `Full` policy carries the gather's part of the contract:
 
@@ -110,4 +111,4 @@ Run the `Gather series` GitHub workflow with the stage, `prod` or `pr-<number>`,
 
 ## Identity compatibility
 
-Adding explicit publisher ids does not change `series/v2`, the three deployed publishers' names, `pathOf`, pack prefixes or gather ledger scopes. Existing World Bank packs and `series/v2/World Bank` ledger decisions are reused, without a full refetch. New publishers' indicator keys include their name (`Publisher:native-code`), so identical native codes cannot collide across publishers. Gather discovers only registered adapters whose policy is `Full`; accepting an id never creates coverage or starts a gather for an unregistered publisher. An unregistered indicator answers `IndicatorNotFound` at chart resolution. New publisher metadata and storage policies will be added by later slices.
+Adding explicit publisher ids does not change `series/v2`, the three deployed publishers' names, `pathOf`, pack prefixes or gather ledger scopes. Existing World Bank packs and `series/v2/World Bank` ledger decisions are reused, without a full refetch. New publishers' indicator keys include their name (`Publisher:native-code`), so identical native codes cannot collide across publishers. Gather discovers only registered adapters whose policy is `Full`; accepting an id never creates coverage or starts a gather for an unregistered publisher. An unregistered indicator answers `IndicatorNotFound` at chart resolution. Publisher discovery is an optional adapter capability (see [catalog.md](catalog.md#publisher-discovery)); new storage policies remain later slices.

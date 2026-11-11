@@ -218,6 +218,22 @@ const unemploymentOutline: Labelled = {
   ],
 }
 
+const fixtureOutline: Labelled = {
+  indicator: IndicatorId.make("Fixture:measure"),
+  annual: null,
+  countries: null,
+  years: { first: 2000, last: 2025 },
+  dimensions: [
+    {
+      id: DimensionId.make("measure"),
+      codes: [
+        { code: "median", label: "Median disposable income" },
+        { code: "mean", label: "Mean disposable income" },
+      ],
+    },
+  ],
+}
+
 // A catalog of one indicator from each source. A search finds those whose
 // name holds its text, of one source when it names one.
 const catalog = Layer.succeed(
@@ -226,9 +242,9 @@ const catalog = Layer.succeed(
     outlines: (indicators) =>
       Effect.succeed(
         new Map(
-          indicators.includes(unemploymentOutline.indicator)
-            ? [[unemploymentOutline.indicator, unemploymentOutline]]
-            : [],
+          [unemploymentOutline, fixtureOutline].flatMap((outline) =>
+            indicators.includes(outline.indicator) ? [[outline.indicator, outline]] : [],
+          ),
         ),
       ),
     search: (text, options) =>
@@ -1414,6 +1430,10 @@ describe("conversations", () => {
         }),
       )
       expect(model.prompts[1]).toContain('"indicator":"Fixture:measure","source":"Fixture"')
+      expect(model.prompts[1]).toContain('"label":"Median disposable income"')
+      expect(model.prompts[1]).toContain(
+        '"coverage":{"countries":null,"years":{"first":2000,"last":2025}}',
+      )
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
@@ -1441,7 +1461,7 @@ describe("conversations", () => {
       expect(result).not.toContain("PC_ACT")
       // The OECD's dataflow has no stored outline: its rejection lists them.
       expect(result).toContain(
-        '"name":"Monthly unemployment rates","definition":"","dimensions":null',
+        '"name":"Monthly unemployment rates","definition":"","coverage":null,"dimensions":null',
       )
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
@@ -1456,7 +1476,7 @@ describe("conversations", () => {
       yield* answer("Life expectancy in Brazil")
 
       expect(model.prompts[1]).toContain(
-        '"name":"Life expectancy at birth, total (years)","definition":"","dimensions":[]',
+        '"name":"Life expectancy at birth, total (years)","definition":"","coverage":null,"dimensions":[]',
       )
     }).pipe(Effect.provide(serveApi(model.layer)))
   })

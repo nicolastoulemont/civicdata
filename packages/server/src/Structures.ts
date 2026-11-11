@@ -3,6 +3,7 @@ import { Context, Effect, Layer, Schema, Stream } from "effect"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
 import { Gunzip } from "fflate"
 
+import type { Discovery } from "./Adapter.ts"
 import {
   type Codelist,
   Constraints,
@@ -17,7 +18,7 @@ import {
   type Outline,
   Outlines,
 } from "./Outlines.ts"
-import { eurostat, oecd, type SdmxSource } from "./Sdmx.ts"
+import { eurostat, oecd, type SdmxSource } from "./SdmxSource.ts"
 
 const structure = "application/vnd.sdmx.structure+json;version=1.0"
 
@@ -213,4 +214,14 @@ export const fill = Effect.fn("Structures.fill")(function* (source: SdmxSource) 
     labels: labelled.reduce((sum, count) => sum + count, 0),
     texts: yield* outlines.describe(source),
   }
+})
+
+// SDMX adapters keep their own request limits; orchestration only sees a capability.
+export const discovery = (structures: Interface, source: SdmxSource): Discovery => ({
+  outlines: structures.outlines(source),
+  codelists: {
+    perStep: source === "Eurostat" ? 25 : 10,
+    steps: source === "Eurostat" ? Number.POSITIVE_INFINITY : 1,
+    labels: (key) => structures.codelist(source, key),
+  },
 })

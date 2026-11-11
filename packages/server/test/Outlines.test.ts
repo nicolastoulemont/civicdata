@@ -1,11 +1,21 @@
-import { type CatalogEntry, IndicatorId } from "@civicdata/domain"
+import {
+  type CatalogEntry,
+  IndicatorId,
+  Source,
+  SourceUnavailable,
+  Code,
+  Country,
+  DimensionId,
+} from "@civicdata/domain"
 import { beforeEach, describe, expect, it } from "@effect/vitest"
 import { reset } from "cloudflare:test"
 import { env } from "cloudflare:workers"
-import { Effect, Schema } from "effect"
+import { Effect, Schema, Stream } from "effect"
 
+import { type Adapter, type Discovery, Policy } from "../src/Adapter.ts"
 import { Catalog } from "../src/Catalog.ts"
 import { CatalogBuild } from "../src/CatalogBuild.ts"
+import { Outline } from "../src/Outlines.ts"
 import { constraints, Constraints, DataStructures } from "../src/Outlines.ts"
 import { fill } from "../src/Structures.ts"
 import {
@@ -177,7 +187,10 @@ describe("Outlines", () => {
 
       const before = yield* stored
 
-      yield* build(2).pipe(Effect.provide(catalogOver(listings(), { structures: unstructured })))
+      yield* build(2).pipe(
+        Effect.provide(catalogOver(listings(), { structures: unstructured }), { local: true }),
+        Effect.flip,
+      )
 
       expect(yield* stored).toEqual(before)
       expect(names(yield* (yield* Catalog).search("unemployment by sex"))).toEqual([
@@ -238,3 +251,159 @@ it.effect("combines repeated Actual constraints into one stable dataset outline"
     expect(repeated).toEqual(original)
   }),
 )
+
+describe("registered publisher discovery", () => {
+  const source = Source.make("Example Files")
+  const indicator = IndicatorId.make("Example Files:income")
+
+  const outline = (changes: Partial<Outline> = {}): Outline => ({
+    indicator,
+    dimensions: [
+      {
+        id: DimensionId.make("measure"),
+        codelist: null,
+        codes: [Code.make("median"), Code.make("constructor"), Code.make("toString")],
+        labels: { [Code.make("median")]: "Median disposable income" },
+      },
+    ],
+    annual: true,
+    countries: [Country.make("FRA")],
+    years: { first: 2000, last: 2025 },
+    ...changes,
+  })
+
+  const adapter = (outlines: Discovery): Adapter => ({
+    policy: Policy.None(),
+    discovery: outlines,
+    list: Effect.succeed([
+      entry(indicator, "Household income"),
+      entry("Example Files:monthly", "Monthly income"),
+      entry("Example Files:outside", "Outside income"),
+      entry("Example Files:unknown", "Unknown income"),
+    ]),
+    describe: () => Effect.die("unused"),
+    fetch: () => Effect.die("unused"),
+  })
+
+  it.effect("publishes file labels and known or unknown coverage through the normal build", () => {
+    const { index, upserts } = vectorize()
+
+    const discovery = {
+      outlines: Stream.fromIterable([
+        outline(),
+        outline({ indicator: IndicatorId.make("Example Files:monthly"), annual: false }),
+        outline({ indicator: IndicatorId.make("Example Files:outside"), countries: [] }),
+        outline({
+          indicator: IndicatorId.make("Example Files:unknown"),
+          annual: null,
+          countries: null,
+          years: null,
+        }),
+      ]),
+    }
+
+    return Effect.gen(function* () {
+      yield* build(1)
+      const catalog = yield* Catalog
+      expect(names(yield* catalog.search("income", { source })).toSorted()).toEqual([
+        "Household income",
+        "Unknown income",
+      ])
+      const found = yield* catalog.outlines([indicator, IndicatorId.make("Example Files:unknown")])
+      expect(found.get(indicator)?.dimensions[0]?.codes).toEqual([
+        { code: "median", label: "Median disposable income" },
+        { code: "constructor", label: "constructor" },
+        { code: "toString", label: "toString" },
+      ])
+      expect((yield* stored)[0]).toContainEqual(
+        expect.objectContaining({ indicator, text: "Median disposable income" }),
+      )
+      expect(found.get(indicator)?.countries).toEqual(["FRA"])
+      expect(found.get(indicator)?.years).toEqual({ first: 2000, last: 2025 })
+      expect(found.get(IndicatorId.make("Example Files:unknown"))).toMatchObject({
+        annual: null,
+        countries: null,
+        years: null,
+      })
+      const embedded = upserts().length
+      yield* build(2)
+      expect(upserts()).toHaveLength(embedded)
+
+      const changed = {
+        outlines: Stream.concat(
+          discovery.outlines.pipe(Stream.drop(1)),
+          Stream.succeed(
+            outline({
+              dimensions: [
+                {
+                  id: DimensionId.make("measure"),
+                  codelist: null,
+                  codes: [Code.make("median")],
+                  labels: { [Code.make("median")]: "Revised median income" },
+                },
+              ],
+            }),
+          ),
+        ),
+      }
+
+      yield* build(3).pipe(
+        Effect.provide(
+          catalogOver(listings(), { index, adapters: { [source]: adapter(changed) } }),
+          { local: true },
+        ),
+      )
+      expect(upserts().slice(embedded)).toEqual([1])
+    }).pipe(
+      Effect.provide(
+        catalogOver(listings(), { index, adapters: { [source]: adapter(discovery) } }),
+      ),
+    )
+  })
+
+  it.effect("retains the published catalog when discovery fails and other sources advance", () => {
+    const state = { up: true }
+
+    const discovery = {
+      outlines: Stream.unwrap(
+        Effect.suspend(() =>
+          state.up
+            ? Effect.succeed(Stream.succeed(outline()))
+            : Effect.succeed(
+                Stream.concat(
+                  Stream.fromIterable(
+                    Array.from({ length: 101 }, (_, at) =>
+                      outline({
+                        indicator:
+                          at === 0 ? indicator : IndicatorId.make(`Example Files:partial${at}`),
+                        countries: [],
+                        dimensions: [],
+                      }),
+                    ),
+                  ),
+                  Stream.fail(new SourceUnavailable({ source })),
+                ),
+              ),
+        ),
+      ),
+    }
+
+    const lists = listings()
+
+    return Effect.gen(function* () {
+      yield* build(1)
+      const before = yield* stored
+      state.up = false
+      lists["World Bank"] = [entry("NEW.1", "Newly listed")]
+      expect(yield* build(2).pipe(Effect.flip)).toMatchObject({ sources: [source] })
+      expect(yield* stored).toEqual(before)
+      expect(names(yield* (yield* Catalog).search("income", { source }))).toEqual([
+        "Household income",
+        "Monthly income",
+        "Outside income",
+        "Unknown income",
+      ])
+      expect(names(yield* (yield* Catalog).search("newly listed"))).toEqual(["Newly listed"])
+    }).pipe(Effect.provide(catalogOver(lists, { adapters: { [source]: adapter(discovery) } })))
+  })
+})
