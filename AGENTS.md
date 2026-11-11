@@ -60,4 +60,4 @@ civicdata charts public data about countries from the World Bank, Eurostat and t
 ## Git
 
 - Conventional commits: the title says why the change matters; the body describes the behavior.
-- Pull requests squash-merge into `main`. Each same-repo pull request deploys a `pr-<n>` preview.
+- Pull requests squash-merge into `main`. Each same-repo pull request deploys a `pr-<n>` preview, which reads production's catalog and stored series. Add the `own-catalog` label to a pull request that changes what the catalog or the store holds or how either is built ([docs/deploys.md](docs/deploys.md#the-own-catalog-label)).

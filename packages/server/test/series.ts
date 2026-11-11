@@ -16,11 +16,13 @@ import unemployment from "./fixtures/worldbank/bulk-unemployment.csv?raw"
 import unknown from "./fixtures/worldbank/bulk-unknown.xml?raw"
 import sources from "./fixtures/worldbank/sources.json"
 
-const db = env.DB
+const db = env.CATALOG_DB
 const series = env.SERIES
 
 if (db === undefined || series === undefined) {
-  throw new Error("vitest.config.ts must bind a D1 database as DB and an R2 bucket as SERIES")
+  throw new Error(
+    "vitest.config.ts must bind a D1 database as CATALOG_DB and an R2 bucket as SERIES",
+  )
 }
 
 // The World Bank's bulk downloads of population and unemployment, trimmed to

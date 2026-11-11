@@ -3,7 +3,7 @@ import { D1Client } from "@effect/sql-d1"
 import { Context, Effect, Layer, Option, Schema } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
-import { tables } from "./Catalog.ts"
+import { orUnbuilt } from "./built.ts"
 
 interface Interface {
   // Which way an indicator's values are better; Neutral when nobody knows.
@@ -78,8 +78,6 @@ export class Directions extends Context.Service<Directions, Interface>()(
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient
 
-      yield* tables
-
       const stored = SqlSchema.findOneOption({
         Request: IndicatorId,
         Result: Schema.Struct({ direction: Schema.String }),
@@ -93,9 +91,14 @@ export class Directions extends Context.Service<Directions, Interface>()(
 
           if (listed !== undefined) return listed
 
-          // A stored value that is not a direction is Neutral.
+          // A stored value that is not a direction is Neutral, and so is an
+          // indicator on a database no build has written to.
+          const found = yield* stored(indicator).pipe(
+            orUnbuilt({ sql, tables: ["catalog_direction"], value: Option.none() }),
+          )
+
           return Option.getOrElse(
-            Option.flatMap(yield* stored(indicator), ({ direction }) => decode(direction)),
+            Option.flatMap(found, ({ direction }) => decode(direction)),
             () => "Neutral" as const,
           )
         },
@@ -119,14 +122,16 @@ export class Directions extends Context.Service<Directions, Interface>()(
     Directions.of({ of: (indicator) => Effect.succeed(checked.get(indicator) ?? "Neutral") }),
   )
 
-  // D1 inside Workers (deployed, or under `alchemy dev`). Plain `pnpm dev`
-  // runs in Node, where `cloudflare:workers` does not exist.
+  // The catalog's D1 inside Workers (deployed, or under `alchemy dev`). Plain
+  // `pnpm dev` runs in Node, where `cloudflare:workers` does not exist.
   static readonly live = Layer.unwrap(
     Effect.tryPromise(() => import("cloudflare:workers")).pipe(
       Effect.map(({ env }) =>
-        env.DB === undefined
+        env.CATALOG_DB === undefined
           ? Directions.listed
-          : Directions.layer.pipe(Layer.provide(D1Client.layer({ db: env.DB }).pipe(Layer.orDie))),
+          : Directions.layer.pipe(
+              Layer.provide(D1Client.layer({ db: env.CATALOG_DB }).pipe(Layer.orDie)),
+            ),
       ),
       Effect.orElseSucceed(() => Directions.listed),
     ),

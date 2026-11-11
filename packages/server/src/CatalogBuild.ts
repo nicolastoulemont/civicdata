@@ -20,14 +20,20 @@ import { fingerprint } from "./fingerprint.ts"
 import { Sources } from "./Sources.ts"
 import { Vectors, type VectorsUnavailable } from "./Vectors.ts"
 
-// D1 inside Workers, where the Workflow that builds the catalog and stores
-// the political records runs. It has no use without the DB binding.
+// The catalog's D1 inside Workers, where the Workflows that build the
+// catalog, store the political records and gather the series run: the one
+// layer every build writes through. A Worker that reads another stage's
+// catalog binds no Workflow (packages/infra/alchemy.run.ts), so a build
+// there, such as one left scheduled by a deploy that failed half way, stops
+// before it writes anything.
 export const database = Layer.unwrap(
   Effect.promise(() => import("cloudflare:workers")).pipe(
     Effect.flatMap(({ env }) =>
-      env.DB === undefined
-        ? Effect.die("The Workflow needs the DB binding")
-        : Effect.succeed(D1Client.layer({ db: env.DB }).pipe(Layer.orDie)),
+      env.CATALOG === undefined || env.GATHER === undefined
+        ? Effect.die("This Worker binds no Workflow, so it builds nothing")
+        : env.CATALOG_DB === undefined
+          ? Effect.die("The Workflow needs the CATALOG_DB binding")
+          : Effect.succeed(D1Client.layer({ db: env.CATALOG_DB }).pipe(Layer.orDie)),
     ),
   ),
 )

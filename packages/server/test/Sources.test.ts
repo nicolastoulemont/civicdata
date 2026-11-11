@@ -88,9 +88,11 @@ const registry = (asked: Array<Query>) =>
     }),
   )
 
-const db = env.DB
+// The catalog's database: the gather lists what the catalog build published
+// there.
+const db = env.CATALOG_DB
 
-if (db === undefined) throw new Error("vitest.config.ts must bind a D1 database as DB")
+if (db === undefined) throw new Error("vitest.config.ts must bind a D1 database as CATALOG_DB")
 
 const view = (code: string) =>
   Trend.make({

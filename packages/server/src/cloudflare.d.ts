@@ -8,11 +8,22 @@ declare module "cloudflare:workers" {
   export const waitUntil: (promise: Promise<unknown>) => void
   export const env: {
     readonly CACHE?: import("./Cache.ts").Bucket
-    // Every stored series, filled by GatherWorkflow (Store.ts).
+    // Every stored series, filled by GatherWorkflow (Store.ts): production's
+    // in a preview without the own-catalog label. Requests only read it.
     readonly SERIES?: import("./Store.ts").SeriesBucket
+    // The stage's own database, for what requests write. Never production's
+    // in a preview (packages/infra/alchemy.run.ts).
     readonly DB?: import("@cloudflare/workers-types").D1Database
+    // The catalog, the political records, the directions and the series'
+    // bookkeeping: production's in a preview without the own-catalog label,
+    // the same database as DB everywhere else. Requests only read it.
+    readonly CATALOG_DB?: import("@cloudflare/workers-types").D1Database
     readonly AI?: import("./Vectors.ts").Ai
     readonly VECTORS?: import("./Vectors.ts").Index
+    // The catalog and gathering Workflows, bound only where the stage owns
+    // its catalog. A build runs only where both are bound (CatalogBuild.ts).
+    readonly CATALOG?: unknown
+    readonly GATHER?: unknown
     readonly ASK_LIMIT?: {
       readonly limit: (options: { readonly key: string }) => Promise<{ readonly success: boolean }>
     }

@@ -7,9 +7,11 @@ import { defineConfig } from "vitest/config"
 export const runtime = {
   compatibilityDate: "2026-08-31",
   compatibilityFlags: ["new_module_registry"],
-  // Local R2 buckets and a D1 database under the binding names packages/infra gives the Worker.
+  // Local R2 buckets and D1 databases under the binding names packages/infra
+  // gives the Worker. CATALOG_DB is a database of its own here, as it is
+  // production's in a preview, so a test sees what requests write to it.
   r2Buckets: ["CACHE", "SERIES"],
-  d1Databases: ["DB"],
+  d1Databases: ["DB", "CATALOG_DB"],
 }
 
 export default defineConfig({ plugins: [cloudflareTest({ miniflare: runtime })] })

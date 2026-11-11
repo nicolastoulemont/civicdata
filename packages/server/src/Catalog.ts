@@ -3,6 +3,7 @@ import { D1Client } from "@effect/sql-d1"
 import { Array as Arr, Context, Effect, Layer, Schema } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
+import { orUnbuilt } from "./built.ts"
 import { Vectors } from "./Vectors.ts"
 
 interface Interface {
@@ -58,7 +59,8 @@ const fuse = (rankings: ReadonlyArray<ReadonlyArray<CatalogEntry>>) => {
 // a fingerprint of what each generation stores, which tells a build whether a
 // listing matches the published generation; `catalog_direction` holds which
 // way each indicator's values are better. A build writes a new generation
-// and publishes it once complete (see CatalogBuild.ts).
+// and publishes it once complete (see CatalogBuild.ts). Only builds run this:
+// readers never create tables (built.ts).
 export const tables = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient
 
@@ -112,8 +114,6 @@ export class Catalog extends Context.Service<Catalog, Interface>()("@civicdata/s
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient
       const vectors = yield* Vectors
-
-      yield* tables
 
       // The sources with a published generation.
       const published = SqlSchema.findAll({
@@ -194,8 +194,11 @@ export class Catalog extends Context.Service<Catalog, Interface>()("@civicdata/s
 
           // Before a build publishes the source searched, or any source for
           // a search of all, there is nothing to search: an unpublished
-          // source would answer that it lists no such indicator.
-          const sources = yield* published()
+          // source would answer that it lists no such indicator. A database
+          // no build has written to has published nothing.
+          const sources = yield* published().pipe(
+            orUnbuilt({ sql, tables: ["catalog", "catalog_current"], value: [] }),
+          )
 
           if (
             source === null
@@ -233,15 +236,15 @@ export class Catalog extends Context.Service<Catalog, Interface>()("@civicdata/s
     Catalog.of({ search: () => Effect.fail(new CatalogUnavailable()) }),
   )
 
-  // D1 inside Workers (deployed, or under `alchemy dev`). Plain `pnpm dev`
-  // runs in Node, where `cloudflare:workers` does not exist.
+  // The catalog's D1 inside Workers (deployed, or under `alchemy dev`). Plain
+  // `pnpm dev` runs in Node, where `cloudflare:workers` does not exist.
   static readonly live = Layer.unwrap(
     Effect.tryPromise(() => import("cloudflare:workers")).pipe(
       Effect.map(({ env }) =>
-        env.DB === undefined
+        env.CATALOG_DB === undefined
           ? Catalog.unavailable
           : Catalog.layer.pipe(
-              Layer.provide(D1Client.layer({ db: env.DB }).pipe(Layer.orDie)),
+              Layer.provide(D1Client.layer({ db: env.CATALOG_DB }).pipe(Layer.orDie)),
               Layer.provide(Vectors.live),
             ),
       ),

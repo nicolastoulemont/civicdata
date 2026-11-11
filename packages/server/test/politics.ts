@@ -48,9 +48,9 @@ export const recorded = (changes: Files = {}) =>
 // retries would wait on the test clock.
 export const gone = () => new Response("Not Found", { status: 404 })
 
-const db = env.DB
+const db = env.CATALOG_DB
 
-if (db === undefined) throw new Error("vitest.config.ts must bind a D1 database as DB")
+if (db === undefined) throw new Error("vitest.config.ts must bind a D1 database as CATALOG_DB")
 
 // The records as the version before fingerprints left them.
 export const dropFingerprints = Effect.promise(() => db.exec("DROP TABLE politics_fingerprint"))
