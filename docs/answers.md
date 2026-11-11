@@ -6,22 +6,27 @@ A conversation deletes itself 30 days after its last question, and Grafana Cloud
 
 The conversation writes a row each time it keeps a turn: answered, asked back, unanswered, cut short after 18 rounds, or stopped. An answer that fails, such as when the model is unavailable, keeps no turn and writes no row.
 
-| Column      | Holds                                                                                      |
-| ----------- | ------------------------------------------------------------------------------------------ |
-| `id`        | a random id of the row's own                                                               |
-| `asked`     | when the question came, as ISO 8601 UTC                                                    |
-| `questions` | the conversation's questions up to this one, oldest first, scrubbed, as a JSON array       |
-| `changed`   | the charts the person changed before asking, each with its turn and place, as JSON         |
-| `ending`    | how the answer ended, with its charts and text, as the domain's `Ending` in JSON           |
-| `steps`     | what the agent did: searches, fetches and the calls the server sent back, as JSON          |
-| `took`      | milliseconds from the question to the ending                                               |
-| `model`     | the model that answered: `OPENAI_MODEL`, or the default in `packages/server/src/OpenAi.ts` |
-| `version`   | the commit deployed, when CI set it                                                        |
-| `trace`     | the trace id, to open the full trace in Grafana while it is kept                           |
+| Column      | Holds                                                                                                                                |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `id`        | a SHA-256 hash of the conversation's Durable Object id and the turn's place                                                          |
+| `asked`     | when the question came, as ISO 8601 UTC                                                                                              |
+| `questions` | the conversation's questions up to this one, oldest first, scrubbed, as a JSON array                                                 |
+| `changed`   | the charts the person changed before asking, each with its turn and place, as JSON                                                   |
+| `ending`    | how the answer ended, with its charts and text, as the domain's `Ending` in JSON                                                     |
+| `steps`     | what the agent did: searches, fetches and the calls the server sent back, as JSON                                                    |
+| `took`      | milliseconds from the question to the ending                                                                                         |
+| `model`     | the model that answered: `OPENAI_MODEL`, or the default in `packages/server/src/OpenAi.ts`                                           |
+| `version`   | the commit deployed, when CI set it                                                                                                  |
+| `trace`     | the trace id, to open the full trace in Grafana while it is kept                                                                     |
+| `vote`      | what the person thought of the answer, as the domain's `Vote` in JSON: `Up`, or `Down` with an optional reason; null until they vote |
 
-A row never holds the conversation's id, since whoever has it can read the conversation, nor an IP address, user agent or referrer. Its trace id does lead to the conversation id for the 14 days Grafana keeps the trace.
+A row never holds the conversation's id, since whoever has it can read the conversation, nor an IP address, user agent or referrer. Its own id lets a vote find the row with nothing more stored: only this Worker can turn a conversation's link into its object's id, and the hash cannot be turned back. A conversation deleted after 30 days and asked again from the same link reuses its object, so its new answers replace the old rows at the same places. Its trace id does lead to the conversation id for the 14 days Grafana keeps the trace.
 
 The conversation writes the row after the answer's last step goes out, so the page shows the ending before the write starts; it takes the next question once the write ends and the answer's stream closes. A write that fails or takes over 5 seconds is logged as a warning on the `Answers.log` span and dropped. The answer is kept either way.
+
+## Votes
+
+Under each answer that ended on its own (answered, unanswered or cut short, not asked back or stopped), the page asks "Was this answer useful?" with a thumbs up and a thumbs down. A thumbs down asks what went wrong: wrong measure, wrong countries, wrong years, missing data, wrong text, or something else. `PUT /api/conversations/<id>/turns/<turn>/vote` keeps the vote on the turn, so the page shows it again, and sets the row's `vote`. The last vote counts. The `Answers.vote` span records `civicdata.vote` (`up` or `down`) and `civicdata.vote.reason`.
 
 ## Scrubbing
 

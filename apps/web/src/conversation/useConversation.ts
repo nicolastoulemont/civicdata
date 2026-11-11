@@ -12,6 +12,7 @@ import {
   type TurnIndex,
   type Turns,
   type View,
+  type Vote,
 } from "@civicdata/domain"
 import { Machine } from "@civicdata/machine"
 import {
@@ -489,6 +490,31 @@ export const useShow = (
               answered: (answered) =>
                 answered.map((each, index) =>
                   index === turn ? showing(each, { chart, view }) : each,
+                ),
+            }),
+      ),
+  })
+}
+
+// Keeps what the person thought of a turn's answer, one vote at a time and in
+// order. While a vote is sent, `variables` holds it; once the server keeps
+// it, the saved conversation shows it too. Rejects with TurnNotFound or
+// AgentUnavailable, and the vote stays as it was.
+export const useVote = (id: ConversationId, turn: TurnIndex) => {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    scope: { id: `conversation-${id}-turn-${turn}-vote` },
+    mutationFn: (vote: Vote) =>
+      call(page, (api) => api.conversation.vote({ params: { id, turn }, payload: vote })),
+    onSuccess: (_, vote) =>
+      queryClient.setQueryData(turnsQuery(id).queryKey, (previous?: Turns) =>
+        previous === undefined
+          ? previous
+          : Struct.evolve(previous, {
+              answered: (answered) =>
+                answered.map((each, index) =>
+                  index === turn ? Struct.assign(each, { vote }) : each,
                 ),
             }),
       ),
