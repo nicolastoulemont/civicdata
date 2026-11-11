@@ -27,7 +27,10 @@ export const releaseTables = Effect.gen(function* () {
 
 interface Interface {
   readonly current: (source: Source) => Effect.Effect<Option.Option<Manifest>, SourceUnavailable>
-  readonly prepare: (source: Source, release: Release) => Effect.Effect<Manifest, SourceUnavailable>
+  readonly prepare: (
+    source: Source,
+    release: Release,
+  ) => Effect.Effect<Option.Option<Manifest>, SourceUnavailable>
   readonly activate: (source: Source, manifest: Manifest) => Effect.Effect<void, SourceUnavailable>
 }
 
@@ -74,6 +77,9 @@ export class Releases extends Context.Service<Releases, Interface>()("@civicdata
 
         const active = yield* current(source)
 
+        if (Option.isSome(active) && active.value.release.order >= release.order)
+          return Option.none<Manifest>()
+
         // Removal is rejected. A future explicit removal policy must also account
         // for dimensions and country-years; omission never means permission.
         if (
@@ -88,7 +94,7 @@ export class Releases extends Context.Service<Releases, Interface>()("@civicdata
         const base = Option.isSome(active) ? active.value.namespace : null
         const namespace = yield* fingerprint(JSON.stringify({ source, release, base }))
 
-        return { release, namespace, base }
+        return Option.some({ release, namespace, base })
       })
 
       const activate = Effect.fn("Releases.activate")(function* (

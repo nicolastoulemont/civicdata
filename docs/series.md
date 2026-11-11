@@ -114,6 +114,11 @@ and failed writes cannot complete an asset. Completion is recorded in
 `asset_gathered` under a namespace-specific scope after the whole asset persists.
 A retry skips those completed assets; if only activation failed, it downloads
 nothing. A failed asset may leave staged packs, but no chart reads them.
+Failed assets retain their reason and failure count in the same ledger. After
+three failed runs, that asset waits seven days; a new release bypasses the wait.
+Other eligible assets still stage, until five consecutive attempts fail. A
+backed-off or failed required asset prevents activation without discarding the
+other assets' completed progress.
 
 Hold-back compares every candidate against the previous active release, including
 its country-years. Empty or lossy candidates still enter `series_held` and reject

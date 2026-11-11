@@ -327,11 +327,11 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
           Effect.mapError(() => new SourceUnavailable({ source })),
         )
 
-        const manifest = yield* releases.prepare(source, release)
-        const active = yield* releases.current(source)
+        const prepared = yield* releases.prepare(source, release)
 
-        if (Option.isSome(active) && active.value.release.order >= release.order) return undefined
-        const baseline = Option.isSome(active) ? store.namespace(active.value.namespace) : undefined
+        if (Option.isNone(prepared)) return undefined
+        const manifest = prepared.value
+        const baseline = manifest.base === null ? undefined : store.namespace(manifest.base)
         const target = store.namespace(manifest.namespace)
 
         const staged = yield* ledger(`/${manifest.namespace}`).pipe(
@@ -341,15 +341,25 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
 
         const now = DateTime.formatIso(yield* DateTime.now)
 
-        for (const { asset, members } of release.assets) {
+        const stage = Effect.fn("Gather.stage")(function* (
+          asset: AssetId,
+          members: ReadonlyArray<SeriesKey>,
+        ) {
           const versions = [{ asset, version: release.version }]
 
           const done = yield* staged
             .summary({ source, versions, now })
             .pipe(Effect.mapError(() => new SourceUnavailable({ source })))
 
-          if (done.unchanged === 1) continue
-          yield* step
+          if (done.unchanged === 1) return Option.none()
+
+          const [wanted] = yield* staged
+            .work({ source, versions, after: "", now })
+            .pipe(Effect.mapError(() => new SourceUnavailable({ source })))
+
+          if (wanted === undefined) return Option.none()
+
+          const attempt = yield* step
             .run(
               `stage ${source} ${manifest.namespace} ${asset}`,
               Effect.gen(function* () {
@@ -368,7 +378,37 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
                 return undefined
               }),
             )
-            .pipe(Effect.mapError(() => new SourceUnavailable({ source })))
+            .pipe(
+              Effect.tapError((error) =>
+                Effect.gen(function* () {
+                  const completed = yield* staged.summary({ source, versions, now })
+
+                  if (completed.unchanged === 0) {
+                    yield* staged.failed(asset, {
+                      source,
+                      version: release.version,
+                      previous: wanted.state,
+                      reason: String(error.cause),
+                    })
+                  }
+                }),
+              ),
+              Effect.mapError(() => new SourceUnavailable({ source })),
+              Effect.result,
+            )
+
+          return Option.some(attempt)
+        })
+
+        let consecutive = 0
+
+        for (const { asset, members } of release.assets) {
+          const attempt = yield* stage(asset, members)
+
+          if (Option.isNone(attempt)) continue
+          consecutive = Result.isFailure(attempt.value) ? consecutive + 1 : 0
+
+          if (consecutive === 5) break
         }
 
         // Every required asset has a completion record written only after its

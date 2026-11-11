@@ -87,7 +87,6 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
       ) {
         const { from, transform } = query
 
-        // Growth needs the year before the first one shown.
         // Growth needs the year before the first one shown. Other sources'
         // series for the same figure are fetched with it; they check the chart
         // and never fail it: one that fails is left out.

@@ -12,6 +12,7 @@ import { beforeEach, expect, it } from "@effect/vitest"
 import { reset } from "cloudflare:test"
 import { env } from "cloudflare:workers"
 import { DateTime, Effect, Layer, Schema, Stream } from "effect"
+import { TestClock } from "effect/testing"
 
 import { type Adapter, AssetId, Policy, type Release } from "../src/Adapter.ts"
 import { Step, StepFailed } from "../src/CatalogBuild.ts"
@@ -43,6 +44,7 @@ const trend = (indicator = first) =>
 
 type Fault =
   | "none"
+  | "first"
   | "stream"
   | "store"
   | "activation"
@@ -52,6 +54,11 @@ type Fault =
   | "duplicate"
   | "remove"
   | "members"
+
+const streamFailures = new Map<Fault, string>([
+  ["first", first],
+  ["stream", second],
+])
 
 const fixture = () => {
   let order = 1
@@ -114,7 +121,7 @@ const fixture = () => {
 
             if (String(asset) === second) yield* during
 
-            if (fault === "stream" && String(asset) === second)
+            if (streamFailures.get(fault) === asset)
               return Stream.fail(new SourceUnavailable({ source: "Fixture" }))
 
             if (fault === "omit" && String(asset) === second) return Stream.empty
@@ -209,7 +216,15 @@ const expectRelease = (resolver: Resolver["Service"], version: number) =>
     }
   })
 
-for (const fault of ["stream", "store", "activation", "omit", "held", "foreign"] as const) {
+for (const fault of [
+  "first",
+  "stream",
+  "store",
+  "activation",
+  "omit",
+  "held",
+  "foreign",
+] as const) {
   it.effect(
     `keeps a coherent release on ${fault}, resumes completed assets, and rejects replay`,
     () => {
@@ -385,6 +400,47 @@ it.effect("rejects an in-flight older ingestion after a newer publisher activate
     )
     yield* source.run.pipe(Effect.flip)
     const resolver = yield* Resolver
+    yield* expectRelease(resolver, 3)
+  }).pipe(Effect.provide(source.charts))
+})
+
+it.effect("backs off failed release assets and retries after a week or a new version", () => {
+  const source = fixture()
+
+  return Effect.gen(function* () {
+    yield* build(1).pipe(Effect.provide(catalogOver(listings({ Fixture: entries }))))
+    yield* source.run
+    source.set(2, "stream")
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      yield* source.run.pipe(Effect.flip)
+      yield* TestClock.adjust("1 day")
+    }
+
+    const failed = yield* Effect.promise(() =>
+      database
+        .prepare(
+          "SELECT json_extract(state, '$.failures') AS failures FROM asset_gathered WHERE asset = ? AND json_extract(state, '$.wanted') = 'version-2'",
+        )
+        .bind(second)
+        .first(),
+    )
+
+    expect(failed).toEqual({ failures: 3 })
+
+    const requests = source.downloads.length
+    yield* source.run.pipe(Effect.flip)
+    expect(source.downloads).toHaveLength(requests)
+    const resolver = yield* Resolver
+    yield* expectRelease(resolver, 1)
+
+    yield* TestClock.adjust("6 days")
+    yield* source.run.pipe(Effect.flip)
+    expect(source.downloads).toHaveLength(requests + 1)
+
+    source.set(3)
+    yield* source.run
+    expect(source.downloads).toHaveLength(requests + 3)
     yield* expectRelease(resolver, 3)
   }).pipe(Effect.provide(source.charts))
 })
