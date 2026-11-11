@@ -110,8 +110,17 @@ For a question the dashboard does not answer, Explore with Tempo runs TraceQL qu
 | Which tools are slow?                               | `{ span.gen_ai.operation.name = "execute_tool" } \| quantile_over_time(duration, .9) by (span.gen_ai.tool.name)` |
 | How many tokens do answers use?                     | `{ name = "LanguageModel.generateText" } \| sum_over_time(span.gen_ai.usage.input_tokens)`                       |
 | One conversation, every question                    | `{ span.gen_ai.conversation.id = "<id from /c/<id>>" }`                                                          |
-| Errors the page did not catch                       | `{ resource.service.name = "civicdata-web" && name = "page.error" }`                                             |
-| Sources that failed                                 | `{ span.http.response.status_code >= 500 && kind = client }`                                                     |
+
+## From Claude Code
+
+`.mcp.json` adds Grafana Cloud's hosted MCP server to every checkout, so an agent can run these queries and read the dashboard itself, and `.claude/settings.json` approves it. Set it up once per person:
+
+1. In the Grafana Cloud stack, enable Grafana Assistant. The MCP server is part of it, and each person who signs in counts as an active Assistant user.
+2. Start `claude` in the repository, run `/mcp`, choose `grafana`, and sign in. On the consent screen, keep Read and Query access and clear Write access: debugging needs TraceQL queries, never changes to the stack.
+
+A failing request's trace id is the second field of the `traceparent` header the page sends, in the browser's network panel.
+| Errors the page did not catch | `{ resource.service.name = "civicdata-web" && name = "page.error" }` |
+| Sources that failed | `{ span.http.response.status_code >= 500 && kind = client }` |
 
 Open a trace from any result to see its waterfall: each round, what the model wrote, each tool it called with its arguments and result, and the source requests behind it.
 
