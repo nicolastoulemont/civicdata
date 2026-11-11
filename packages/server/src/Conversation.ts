@@ -22,6 +22,7 @@ import {
   type Turns,
   type View,
   type Vote,
+  withShown,
   type Work,
 } from "@civicdata/domain"
 import { Machine } from "@civicdata/machine"
@@ -140,9 +141,7 @@ const showing = (
       : (turn.shown?.[place] ?? null),
   )
 
-  return shown.every((each) => each === null)
-    ? Struct.omit(turn, ["shown"])
-    : Struct.assign(turn, { shown })
+  return withShown(turn, shown)
 }
 
 // A chart a person changed that the model has not heard of, as the model reads

@@ -14,6 +14,7 @@ import {
   type Turns,
   type View,
   type Vote,
+  withShown,
 } from "@civicdata/domain"
 import { Machine } from "@civicdata/machine"
 import {
@@ -464,9 +465,7 @@ const showing = (turn: Turn, { chart, view }: { chart: ChartIndex; view: View })
       : (turn.shown?.[place] ?? null),
   )
 
-  return shown.every((each) => each === null)
-    ? Struct.omit(turn, ["shown"])
-    : Struct.assign(turn, { shown })
+  return withShown(turn, shown)
 }
 
 // The loaded conversation with the turn at `turn` as the server now keeps it.
