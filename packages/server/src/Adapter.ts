@@ -7,6 +7,7 @@ import {
 } from "@civicdata/domain"
 import { Data, type Effect, Schema, type Stream } from "effect"
 
+import type { Codelist, Outline } from "./Outlines.ts"
 import type { Answer, Described, Query } from "./Series.ts"
 import type { Stored } from "./Store.ts"
 
@@ -43,9 +44,23 @@ export type Policy = Data.TaggedEnum<{
 
 export const Policy = Data.taggedEnum<Policy>()
 
-// One source, as the catalog, the gather and the charts use it. Each source
-// implements it once; the Sources registry picks one by `sourceOf`.
+// No capability means metadata is unavailable. Null fields in an outline mean
+// unknown, false annual or an empty countries array mean confirmed exclusion.
+export interface Discovery {
+  readonly outlines: Stream.Stream<Outline, SourceUnavailable>
+  readonly codelists?: {
+    readonly perStep: number
+    readonly steps: number
+    readonly labels: (
+      key: Codelist,
+    ) => Effect.Effect<ReadonlyMap<string, string>, SourceUnavailable>
+  }
+}
+
+// One source, as the catalog, the gather and charts use it.
 export interface Adapter {
+  readonly discovery?: Discovery
+
   readonly policy: Policy
   // Every catalog entry the source publishes: a World Bank indicator, a
   // Eurostat dataset or an OECD dataflow.

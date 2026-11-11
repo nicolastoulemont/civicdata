@@ -252,13 +252,13 @@ const listedDimensions = (outline: Labelled | undefined, indicator: IndicatorId)
 }
 
 const SearchIndicators = Tool.make("search_indicators", {
-  description: `Search the catalog's indicators by words in their name or definition, or by code. Returns up to 10 matches, best first, each with its source. A Eurostat or OECD dataset holds several series, e.g. by sex or age: "dimensions" lists each dimension that takes several codes, with up to ${codesListed} of its codes and labels and how many more it has. Pass one code of each to find_years and show_chart. A World Bank indicator is one series and has no dimensions. When "dimensions" is null, or the code you need is among the "more", find_years' rejection lists every code.`,
+  description: `Search the catalog's indicators by words in their name or definition, or by code. Returns up to 10 matches, best first, each with its source. A dataset can hold several series, e.g. by sex or age: "dimensions" lists each dimension that takes several codes, with up to ${codesListed} of its codes and labels and how many more it has. Pass one code of each to find_years and show_chart. A World Bank indicator is one series and has no dimensions. When "dimensions" is null, or the code you need is among the "more", find_years' rejection lists every code.`,
   parameters: Schema.Struct({
     text: Schema.String.annotate({
       description: "Words to search for, e.g. 'life expectancy' or 'GDP per capita'",
     }),
     source: Schema.NullOr(Source).annotate({
-      description: "Only this source's indicators; null for all three",
+      description: "Only this source's indicators; null for all registered sources",
     }),
   }),
   success: Schema.Array(
@@ -267,6 +267,12 @@ const SearchIndicators = Tool.make("search_indicators", {
       source: Source,
       name: Schema.String,
       definition: Schema.String,
+      coverage: Schema.NullOr(
+        Schema.Struct({
+          countries: Schema.NullOr(Schema.Array(Country)),
+          years: Schema.NullOr(Schema.Struct({ first: Schema.Int, last: Schema.Int })),
+        }),
+      ),
       dimensions: Schema.NullOr(
         Schema.Array(
           Schema.Struct({
@@ -1059,8 +1065,8 @@ const ToolsLayer = Tools.toLayer(
                   dimensions: listedDimensions(outlines.get(indicator), indicator),
                   coverage: outlines.has(indicator)
                     ? {
-                        countries: outlines.get(indicator)?.countries,
-                        years: outlines.get(indicator)?.years,
+                        countries: outlines.get(indicator)?.countries ?? null,
+                        years: outlines.get(indicator)?.years ?? null,
                       }
                     : null,
                 })),
@@ -1438,7 +1444,7 @@ Choose indicators from the catalog's actual coverage. Search across sources unle
 2. Pick the chart type as the section on chart types below says, and the countries.
    - Countries are ISO 3166-1 alpha-3 codes for every source. When a place name is not plainly one country, call find_countries. List the members of a group yourself, e.g. the G7 or the Nordic countries.
    - A question can start by saying which country the person is asking from. When the question needs a country and neither it nor an earlier question names one, e.g. "Why is everything so expensive now?", chart that country, and name it in your first sentence, e.g. "In France, prices...", so a wrong guess shows. Never call ask_user only to learn the country.
-   - A Eurostat or OECD dataflow holds several series, e.g. by sex or age. search_indicators lists its dimensions and codes: pass one code of each, for the series the question asks for, else the total. When it lists none, or cuts a list short of the code you need, find_years' and show_chart's rejections list them all.
+   - A dataset can hold several series, e.g. by sex or age. search_indicators lists its dimensions and codes: pass one code of each, for the series the question asks for, else the total. When it lists none, or cuts a list short of the code you need, find_years' and show_chart's rejections list them all.
    - Charts show annual values. Prefer a Eurostat or OECD dataflow whose name does not say quarterly or monthly.
 3. Call find_years with the indicator, the countries and the series before show_chart, and pick the years from what it returns. When the question names a first year, pass it as from, e.g. ${year - 50} for "the last 50 years"; else pass null. For a relation, call it for both indicators.
    - A chart you show stays in the answer, so pick its indicator before show_chart. When the indicator's values start long after the first year the question asks for, call find_years for the other indicators search_indicators found for the same measure, and chart the one that covers the most years. If none covers them, chart the years there are and say in one sentence where the data starts.

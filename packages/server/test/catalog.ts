@@ -12,7 +12,7 @@ import { Directions } from "../src/Directions.ts"
 import { Outlines } from "../src/Outlines.ts"
 import { eurostat, oecd } from "../src/Sdmx.ts"
 import { Sources } from "../src/Sources.ts"
-import { Structures } from "../src/Structures.ts"
+import { discovery, Structures } from "../src/Structures.ts"
 import { type Ai, type Index, Vectors } from "../src/Vectors.ts"
 import { http } from "./fakes.ts"
 import eurostatCodelists from "./fixtures/structures/eurostat-codelists.json?raw"
@@ -101,14 +101,19 @@ const listing = (lists: Listings, source: Source): Adapter => ({
 })
 
 // Every source, answering only its catalog entries.
-const sources = (lists: Listings) =>
-  Layer.succeed(
+const sources = (lists: Listings, extra: Readonly<Record<Source, Adapter>>) =>
+  Layer.effect(
     Sources,
-    Sources.of({
-      ...Object.fromEntries(Object.keys(lists).map((source) => [source, listing(lists, source)])),
-      "World Bank": listing(lists, "World Bank"),
-      Eurostat: listing(lists, "Eurostat"),
-      OECD: listing(lists, "OECD"),
+    Effect.gen(function* () {
+      const structures = yield* Structures
+
+      return Sources.of({
+        ...Object.fromEntries(Object.keys(lists).map((source) => [source, listing(lists, source)])),
+        "World Bank": listing(lists, "World Bank"),
+        Eurostat: { ...listing(lists, "Eurostat"), discovery: discovery(structures, "Eurostat") },
+        OECD: { ...listing(lists, "OECD"), discovery: discovery(structures, "OECD") },
+        ...extra,
+      })
     }),
   )
 
@@ -264,18 +269,20 @@ export const catalogOver = (
     model,
     classifier = Classifier.off,
     structures = recordings().layer,
+    adapters = {},
   }: {
     ai?: Ai
     index?: Index
     model?: string
     classifier?: Layer.Layer<Classifier>
     structures?: Layer.Layer<Structures>
+    adapters?: Readonly<Record<Source, Adapter>>
   } = {},
 ) =>
   Layer.mergeAll(Catalog.layer, CatalogBuild.layer).pipe(
     Layer.provideMerge(Outlines.layer),
+    Layer.provide(sources(lists, adapters)),
     Layer.provideMerge(structures),
-    Layer.provide(sources(lists)),
     Layer.provide(Vectors.cloudflare({ ai, index, model })),
     Layer.provide(classifier),
     Layer.provide(D1Client.layer({ db }).pipe(Layer.orDie)),

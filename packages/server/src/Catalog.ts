@@ -148,6 +148,8 @@ export const tables = Effect.gen(function* () {
       text TEXT NOT NULL DEFAULT ''
     )
   `
+  // A streamed refresh stages changed chunks before touching published outlines.
+  yield* sql`CREATE TABLE IF NOT EXISTS catalog_outline_stage (source TEXT NOT NULL, rows TEXT NOT NULL)`
   // The label of each code an outline uses, by its source's codelist. A code
   // gets a row when an outline first uses it, with no label until a build or
   // the first fill reads its codelist.
@@ -333,15 +335,17 @@ export class Catalog extends Context.Service<Catalog, Interface>()("@civicdata/s
               indicator,
               {
                 indicator,
-                annual: annual === 1,
+                annual: annual === -1 ? null : annual === 1,
                 countries,
                 years: first === null || last === null ? null : { first, last },
-                dimensions: dimensions.map(({ id, codelist, codes }) => ({
+                dimensions: dimensions.map(({ id, codelist, codes, labels: names }) => ({
                   id,
                   codes: Arr.map(codes, (code) => ({
                     code,
                     label:
-                      (codelist === null ? undefined : label.get(`${codelist} ${code}`)) ?? code,
+                      names?.[code] ??
+                      (codelist === null ? undefined : label.get(`${codelist} ${code}`)) ??
+                      code,
                   })),
                 })),
               } satisfies Labelled,
