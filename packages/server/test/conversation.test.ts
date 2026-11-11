@@ -1,4 +1,5 @@
 import {
+  type Action,
   AgentUnavailable,
   Answered,
   Api,
@@ -16,6 +17,7 @@ import {
   Covered,
   Definition,
   DimensionId,
+  Down,
   Evidence,
   Exhausted,
   Finding,
@@ -61,11 +63,15 @@ import {
   TurnNotFound,
   Unanswered,
   Unresolved,
+  Up,
   View,
+  Vote,
   Year,
 } from "@civicdata/domain"
+import { D1Client } from "@effect/sql-d1"
 import { beforeEach, describe, expect, it } from "@effect/vitest"
 import { reset } from "cloudflare:test"
+import { env } from "cloudflare:workers"
 import {
   Array as Arr,
   Clock,
@@ -77,6 +83,7 @@ import {
   Exit,
   Fiber,
   Layer,
+  Match,
   Option,
   Schema,
   Stream,
@@ -89,8 +96,10 @@ import { HttpApiTest } from "effect/http-api"
 import { TestClock } from "effect/testing"
 import { strToU8, zipSync } from "fflate"
 
+import { Logged } from "../eval/candidates.ts"
 import { Policy } from "../src/Adapter.ts"
 import { Agent } from "../src/Agent.ts"
+import { Answers } from "../src/Answers.ts"
 import { AskLimit } from "../src/AskLimit.ts"
 import { Catalog } from "../src/Catalog.ts"
 import { open } from "../src/ConversationObject.ts"
@@ -351,6 +360,8 @@ interface ServeOptions {
   readonly storage?: Storage
   // Where the conversation's spans go. Without it, they go nowhere.
   readonly traces?: Layer.Layer<never>
+  // Where answers are logged. Without it, nowhere.
+  readonly answers?: Layer.Layer<Answers>
 }
 
 // The conversation's Durable Object alarm, which Cloudflare fires `keep` after
@@ -378,6 +389,7 @@ const serveApi = (
     findings = Findings.holding([]),
     notes = recordedNotes,
     traces = Layer.empty,
+    answers = Answers.none,
   }: ServeOptions = {},
 ) => {
   const agent = Agent.layer.pipe(
@@ -398,7 +410,7 @@ const serveApi = (
   return Layer.unwrap(
     Effect.clockWith((clock) => {
       const conversation = open(
-        Layer.mergeAll(transcript, agent, limit).pipe(
+        Layer.mergeAll(transcript, agent, limit, answers).pipe(
           Layer.provideMerge(Layer.succeed(Clock.Clock, clock)),
         ),
         { tracer: traces },
@@ -462,6 +474,18 @@ const show = (turn: number, view: View, { chart = 0 }: { chart?: number } = {}) 
       params: { id, turn: TurnIndex.make(turn), chart: ChartIndex.make(chart) },
       payload: view,
     }),
+  )
+
+// Votes on the answer of the turn at `turn`.
+const vote = (turn: number, choice: Vote) =>
+  Effect.flatMap(client, (api) =>
+    api.conversation.vote({ params: { id, turn: TurnIndex.make(turn) }, payload: choice }),
+  )
+
+// Counts what the person did with the charts of the turn at `turn`.
+const act = (turn: number, action: Action) =>
+  Effect.flatMap(client, (api) =>
+    api.conversation.act({ params: { id, turn: TurnIndex.make(turn) }, payload: { action } }),
   )
 
 // An answer of these blocks, in order.
@@ -3221,6 +3245,40 @@ const parentOf = (span: Tracer.Span | undefined) =>
   span === undefined ? undefined : Option.getOrUndefined(span.parent)?.spanId
 
 describe("traces", () => {
+  // A series left open is sent back to the model, not a failure: the spans
+  // that refused it end as successes and name the refusal.
+  it.effect("records a series left open as a refusal, not an error", () => {
+    const model = scripted([
+      Effect.succeed(
+        call("find_years", {
+          indicator: "ESTAT,UNE_RT_A,1.0",
+          countries: ["FRA"],
+          dimensions: null,
+          from: null,
+        }),
+      ),
+    ])
+
+    const traces = recording()
+
+    return Effect.gen(function* () {
+      yield* recordedDay
+      yield* answer("Unemployment in France")
+
+      const ended = traces.spans.flatMap((span) =>
+        Match.valueTags(span.status, {
+          Started: () => [],
+          Ended: ({ exit }) => [{ span, exit }],
+        }),
+      )
+
+      expect(ended.filter(({ exit }) => Exit.isFailure(exit))).toEqual([])
+      expect(
+        ended.some(({ span }) => span.attributes.get("civicdata.refusal") === "DimensionsMissing"),
+      ).toBe(true)
+    }).pipe(Effect.provide(serveApi(model.layer, { traces: traces.layer })))
+  })
+
   it.effect(
     "traces an answer as the agent's run, with each model request and tool call in it",
     () => {
@@ -3247,9 +3305,7 @@ describe("traces", () => {
           "gen_ai.operation.name": "invoke_agent",
           "gen_ai.agent.name": "civicdata",
           "gen_ai.conversation.id": id,
-          "gen_ai.input.messages": expect.stringContaining(
-            "How has life expectancy changed in Brazil?",
-          ),
+          "civicdata.question": "How has life expectancy changed in Brazil?",
           "civicdata.answer.rounds": 4,
           "civicdata.answer.ending": "answered",
         })
@@ -3274,8 +3330,8 @@ describe("traces", () => {
         expect(requests.map((request) => parent(parent(request))?.spanId)).toEqual(
           Array.from({ length: 4 }, () => run?.spanId),
         )
-        expect(requests[0]?.attributes.get("gen_ai.output.messages")).toContain("search_indicators")
-        expect(requests[3]?.attributes.get("gen_ai.output.messages")).toContain(takeaway)
+        expect(requests[0]?.attributes.get("civicdata.output")).toContain("search_indicators")
+        expect(requests[3]?.attributes.get("civicdata.output")).toContain(takeaway)
 
         // Each tool call sits in the request that made it, with its arguments,
         // its result, and why it sent the model's chart back.
@@ -3300,9 +3356,224 @@ describe("traces", () => {
           },
           { name: "execute_tool show_chart", id: "chart-2", request: 2 },
         ])
-        expect(tools[0]?.attributes.get("gen_ai.tool.call.arguments")).toContain("life expectancy")
-        expect(tools[2]?.attributes.get("gen_ai.tool.call.result")).toContain("SP.DYN.LE00.IN")
+        expect(tools[0]?.attributes.get("parameters")).toMatchObject({
+          text: expect.stringContaining("life expectancy"),
+        })
+        expect(tools[2]?.attributes.get("civicdata.tool.result")).toContain("SP.DYN.LE00.IN")
       }).pipe(Effect.provide(serveApi(model.layer, { traces: traces.layer })))
     },
   )
+})
+
+const db = env.DB
+
+if (db === undefined) throw new Error("vitest.config.ts must bind a D1 database as DB")
+
+// Answers logged to the test Worker's D1 database.
+const logged = Answers.layer({
+  conversation: "conversation-object",
+  model: "gpt-test",
+  version: "abc123",
+}).pipe(Layer.provide(D1Client.layer({ db }).pipe(Layer.orDie)))
+
+// Every row of the answer log, oldest first.
+const rows = Effect.promise(() => db.prepare("SELECT * FROM answers ORDER BY asked").all()).pipe(
+  Effect.flatMap(({ results }) => Schema.decodeUnknownEffect(Schema.Array(Logged))(results)),
+  Effect.orDie,
+)
+
+describe("answer log", () => {
+  beforeEach(() => reset())
+
+  it.effect(
+    "logs each answer with the questions so far, scrubbed, and nothing naming the conversation",
+    () => {
+      const model = scripted([
+        Effect.succeed(call("show_chart", brazil)),
+        Effect.succeed(words(takeaway)),
+        Effect.succeed(call("show_chart", { ...brazil, countries: ["BRA", "MEX"] })),
+      ])
+
+      return Effect.gen(function* () {
+        yield* answer("Life expectancy in Brazil")
+        yield* TestClock.adjust("1 minute")
+        yield* answer("Add Mexico and mail it to ana.r@example.org or +33 6 12 34 56 78")
+
+        const kept = yield* rows
+
+        expect(kept).toEqual([
+          {
+            asked: "1970-01-01T00:00:00.000Z",
+            questions: ["Life expectancy in Brazil"],
+            changed: [],
+            ending: charted(chart(brazilTrend), said()),
+            steps: [fetched()],
+            took: 0,
+            model: "gpt-test",
+            version: "abc123",
+            trace: expect.any(String),
+            vote: null,
+            changes: 0,
+            downloads: 0,
+            shares: 0,
+          },
+          expect.objectContaining({
+            asked: "1970-01-01T00:01:00.000Z",
+            questions: [
+              "Life expectancy in Brazil",
+              "Add Mexico and mail it to [email] or [number]",
+            ],
+          }),
+        ])
+        expect(JSON.stringify(kept)).not.toContain(id)
+      }).pipe(Effect.provide(serveApi(model.layer, { answers: logged })))
+    },
+  )
+
+  it.effect("logs the chart a person changed before asking", () => {
+    const model = scripted([
+      Effect.succeed(call("show_chart", brazil)),
+      Effect.succeed(words(takeaway)),
+      Effect.succeed(words("Mexico is not shown.")),
+    ])
+
+    const mexico = Trend.make({ ...brazilTrend, countries: ["MEX"] })
+
+    return Effect.gen(function* () {
+      yield* answer("Life expectancy in Brazil")
+      yield* show(0, mexico)
+      yield* answer("Why did it fall?")
+
+      const [, second] = yield* rows
+
+      expect(second?.changed).toEqual([
+        { turn: TurnIndex.make(0), chart: ChartIndex.make(0), view: mexico },
+      ])
+    }).pipe(Effect.provide(serveApi(model.layer, { answers: logged })))
+  })
+
+  it.effect("logs an answer the person stopped", () =>
+    Effect.gen(function* () {
+      const waiting = yield* Deferred.make<void>()
+
+      const model = scripted([
+        Deferred.succeed(waiting, undefined).pipe(Effect.andThen(Effect.never)),
+      ])
+
+      return yield* Effect.gen(function* () {
+        const steps = yield* ask("Life expectancy in Brazil").pipe(
+          Effect.flatMap(Stream.runCollect),
+          Effect.forkChild,
+        )
+
+        yield* Deferred.await(waiting)
+        yield* stop
+        yield* Fiber.join(steps)
+
+        const [only] = yield* rows
+
+        expect(only?.ending).toEqual(Stopped.make({}))
+      }).pipe(Effect.provide(serveApi(model.layer, { answers: logged })))
+    }),
+  )
+
+  it.effect("drops answers asked over a year ago", () => {
+    const model = scripted([Effect.succeed(words(takeaway)), Effect.succeed(words(takeaway))])
+
+    return Effect.gen(function* () {
+      yield* answer("Life expectancy in Brazil")
+      yield* TestClock.adjust("366 days")
+      yield* answer("Life expectancy in Mexico")
+
+      expect((yield* rows).map((row) => row.questions)).toEqual([
+        ["Life expectancy in Brazil", "Life expectancy in Mexico"],
+      ])
+    }).pipe(Effect.provide(serveApi(model.layer, { answers: logged })))
+  })
+
+  it.effect("keeps the person's last vote on the turn and its logged answer", () => {
+    const model = scripted([Effect.succeed(call("show_chart", brazil))])
+
+    return Effect.gen(function* () {
+      yield* answer("Life expectancy in Brazil")
+      yield* vote(0, Down.make({ reason: "countries" }))
+
+      expect((yield* turns).answered[0]?.vote).toEqual(Down.make({ reason: "countries" }))
+      expect((yield* rows)[0]?.vote).toEqual(Down.make({ reason: "countries" }))
+
+      yield* vote(0, Up.make({}))
+
+      expect((yield* turns).answered[0]?.vote).toEqual(Up.make({}))
+      expect((yield* rows)[0]?.vote).toEqual(Up.make({}))
+    }).pipe(Effect.provide(serveApi(model.layer, { answers: logged })))
+  })
+
+  it.effect("keeps votes and counts in a log made before they were kept", () => {
+    const model = scripted([Effect.succeed(call("show_chart", brazil))])
+
+    return Effect.gen(function* () {
+      yield* Effect.promise(() =>
+        db.exec(
+          "CREATE TABLE answers (id TEXT PRIMARY KEY, asked TEXT NOT NULL, questions TEXT NOT NULL, changed TEXT NOT NULL, ending TEXT NOT NULL, steps TEXT NOT NULL, took INTEGER, model TEXT NOT NULL, version TEXT, trace TEXT)",
+        ),
+      )
+
+      yield* answer("Life expectancy in Brazil")
+      yield* vote(0, Up.make({}))
+      yield* act(0, "share")
+
+      expect((yield* rows)[0]).toMatchObject({ vote: Up.make({}), shares: 1 })
+    }).pipe(Effect.provide(serveApi(model.layer, { answers: logged })))
+  })
+
+  it.effect("counts the chart changes, downloads and shares of each answer", () => {
+    const model = scripted([Effect.succeed(call("show_chart", brazil))])
+
+    return Effect.gen(function* () {
+      yield* answer("Life expectancy in Brazil")
+      yield* show(0, Trend.make({ ...brazilTrend, countries: ["MEX"] }))
+      yield* show(0, brazilTrend)
+      yield* act(0, "download")
+      yield* act(0, "share")
+
+      expect((yield* rows)[0]).toMatchObject({ changes: 2, downloads: 1, shares: 1 })
+    }).pipe(Effect.provide(serveApi(model.layer, { answers: logged })))
+  })
+
+  it.effect("refuses an action on a turn the conversation does not have", () => {
+    const model = scripted([Effect.succeed(call("show_chart", brazil))])
+
+    return Effect.gen(function* () {
+      yield* answer("Life expectancy in Brazil")
+
+      expect(yield* Effect.flip(act(1, "download"))).toEqual(
+        new TurnNotFound({ turn: TurnIndex.make(1) }),
+      )
+    }).pipe(Effect.provide(serveApi(model.layer, { answers: logged })))
+  })
+
+  it.effect("refuses a vote on a turn the conversation does not have", () => {
+    const model = scripted([Effect.succeed(call("show_chart", brazil))])
+
+    return Effect.gen(function* () {
+      yield* answer("Life expectancy in Brazil")
+
+      expect(yield* Effect.flip(vote(1, Up.make({})))).toEqual(
+        new TurnNotFound({ turn: TurnIndex.make(1) }),
+      )
+    }).pipe(Effect.provide(serveApi(model.layer, { answers: logged })))
+  })
+
+  it.effect("answers as usual when the log cannot be written", () => {
+    const model = scripted([Effect.succeed(call("show_chart", brazil))])
+
+    return Effect.gen(function* () {
+      yield* Effect.promise(() => db.exec("CREATE TABLE answers (id INTEGER PRIMARY KEY)"))
+
+      expect((yield* answer("Life expectancy in Brazil")).at(-1)).toEqual(
+        charted(chart(brazilTrend), said()),
+      )
+      expect((yield* turns).answered).toHaveLength(1)
+    }).pipe(Effect.provide(serveApi(model.layer, { answers: logged })))
+  })
 })

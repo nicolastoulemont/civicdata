@@ -1,4 +1,18 @@
-import { Config, ConfigProvider, Context, Effect, Exit, Layer, Option, Schema, Scope } from "effect"
+import { isRefusal } from "@civicdata/domain"
+import {
+  Cause,
+  Config,
+  ConfigProvider,
+  Context,
+  Effect,
+  Exit,
+  Layer,
+  Match,
+  Option,
+  Schema,
+  Scope,
+  Tracer,
+} from "effect"
 import {
   FetchHttpClient,
   type HttpClient,
@@ -53,6 +67,42 @@ const destination = Effect.gen(function* () {
 
 const url = (endpoint: string) => `${endpoint.replace(/\/$/, "")}/v1/traces`
 
+// A span that ends refusing a View (isRefusal) ends as a success, with the
+// refusal's tag as `civicdata.refusal`: the agent sends the call back to the
+// model and the page asks the person to pick, so `status = error` keeps to
+// what failed. Every other span ends as it would.
+export const settled = (tracer: Tracer.Tracer): Tracer.Tracer =>
+  Tracer.make({
+    span: (options) => {
+      const span = tracer.span(options)
+      const end = span.end.bind(span)
+
+      span.end = (endTime, exit) => {
+        const refusal = Exit.isFailure(exit)
+          ? Option.filter(Cause.findErrorOption(exit.cause), isRefusal)
+          : Option.none()
+
+        if (Option.isNone(refusal)) return end(endTime, exit)
+
+        span.attribute(
+          "civicdata.refusal",
+          Match.valueTags(refusal.value, {
+            IndicatorNotFound: () => "IndicatorNotFound",
+            DimensionsMissing: () => "DimensionsMissing",
+            TransformNotApplicable: () => "TransformNotApplicable",
+          }),
+        )
+        end(endTime, Exit.void)
+      }
+
+      return span
+    },
+    context: tracer.context,
+  })
+
+// The tracer in context, settled.
+const settling = Layer.effect(Tracer.Tracer, Effect.map(Effect.service(Tracer.Tracer), settled))
+
 // The server's spans exported to the destination, or recorded nowhere. Closing
 // its scope exports what is left.
 export const layer: Layer.Layer<never> = Layer.unwrap(
@@ -72,6 +122,7 @@ export const layer: Layer.Layer<never> = Layer.unwrap(
         }).pipe(
           Layer.provide(OtlpSerialization.layerProtobuf),
           Layer.provide(FetchHttpClient.layer),
+          (exporting) => Layer.provide(settling, exporting),
         ),
     }),
   ),

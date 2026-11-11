@@ -1,10 +1,12 @@
 import {
+  Asked,
   type Block,
   blocksOf,
   Chart,
   ChartIndex,
   type ConversationId,
   Rendered,
+  Stopped,
   type Turn,
   type TurnIndex,
 } from "@civicdata/domain"
@@ -18,10 +20,13 @@ import { Reply } from "./Reply.tsx"
 import { Agent } from "./Row.tsx"
 import type { Entry } from "./timeline.ts"
 import { Stop, type useConversation } from "./useConversation.ts"
+import { Vote } from "./Vote.tsx"
 import { runs, Steps, Worked, Working } from "./Work.tsx"
 
 const isRendered = Schema.is(Rendered)
 const isChart = Schema.is(Chart)
+const isAsked = Schema.is(Asked)
+const isStopped = Schema.is(Stopped)
 
 interface ChartsInput {
   id: ConversationId
@@ -57,8 +62,9 @@ interface ItemProps {
 // One question and its answer. The one being answered shows each block as
 // soon as the agent writes it, after the steps that led to it, and the steps
 // since below. Once it is kept, its steps fold above its answer and the blocks
-// stay as they are. A failed one keeps its steps open above the problem. Each
-// is marked as a question, for the rail to find.
+// stay as they are, and one that ended on its own, rather than with a question
+// back or a stop, asks whether it was useful. A failed one keeps its steps
+// open above the problem. Each is marked as a question, for the rail to find.
 const Item = ({ id, entry, retry, answering }: ItemProps) =>
   Match.valueTags(entry, {
     Failed: ({ failure }) => (
@@ -84,6 +90,9 @@ const Item = ({ id, entry, retry, answering }: ItemProps) =>
               changed={turn.shown?.some((view) => view !== null) ?? false}
             />
             <Reply answer={turn.answer} />
+            {isAsked(turn.answer) || isStopped(turn.answer) ? null : (
+              <Vote id={id} turn={index} vote={turn.vote} />
+            )}
           </Agent>
         </li>
       )

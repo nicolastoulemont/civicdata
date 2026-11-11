@@ -13,8 +13,9 @@ civicdata makes data about the economy and public policy easier to read and unde
 - Open About for what the indicator measures and what its source writes about it: the World Bank's notes on why it matters, its limits and its method, Eurostat's on how it measures the data and how far it compares across countries and over time, and the OECD's on the chart's countries. A World Bank indicator also lists related indicators to chart instead. Open Data for every value in a table, a CSV download, and a link to the request made to the source.
 - On a trend chart of EU and OECD members, turn on Elections, Governments and Events: a mark for each national election, a band for each government, and major events and pension reforms, each with its source.
 - See which values a source flags as provisional, estimated or a break in series, and where another source publishes a different figure for the same measure.
+- Say whether an answer was useful with a thumbs up or down, and what went wrong with one you voted down. The vote stays with the answer, and the last one counts.
 - Share a chart with its link. The link opens the same chart, and its preview card shows the chart with its source.
-- Go back to an earlier conversation from the sidebar, which shows how its last question stands: still being answered, answered, waiting for your reply, no data, stopped, or not answered when its first question failed. The list is kept in your browser only, and a conversation is deleted 30 days after its last question.
+- Go back to an earlier conversation from the sidebar, which shows how its last question stands: still being answered, answered, waiting for your reply, no data, stopped, or not answered when its first question failed. The list is kept in your browser only, and a conversation is deleted 30 days after its last question. Each question and its answer are also kept for a year, without the conversation's link and with email addresses and phone numbers removed, so we can find answers that went wrong ([docs/answers.md](docs/answers.md)).
 
 ## How it keeps numbers honest
 

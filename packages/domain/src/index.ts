@@ -5,6 +5,7 @@ export { CatalogEntry } from "./Catalog.ts"
 export { Cited, idOf, nameOf, RecordId } from "./Cited.ts"
 
 export {
+  Action,
   Answered,
   Asked,
   Block,
@@ -17,6 +18,7 @@ export {
   Coverage,
   Covered,
   Definition,
+  Down,
   Ended,
   Ending,
   Exhausted,
@@ -31,6 +33,7 @@ export {
   put,
   Question,
   Read,
+  Reason,
   Recorded,
   Records,
   Rejected,
@@ -52,6 +55,8 @@ export {
   Turns,
   Unanswered,
   Unresolved,
+  Up,
+  Vote,
   type Work,
 } from "./Conversation.ts"
 
@@ -69,6 +74,7 @@ export {
   DimensionsMissing,
   IndicatorNotFound,
   NoChart,
+  isRefusal,
   PoliticsUnavailable,
   SourceUnavailable,
   TooManyQuestions,

@@ -1,10 +1,10 @@
-import { ArrowDown } from "lucide-react"
+import { ChevronDown } from "lucide-react"
 import { type ReactNode, useCallback, useLayoutEffect, useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Hold } from "@/hold"
 
-import { inView, type Preview } from "./rail.ts"
+import { inView, type Preview, type Seen } from "./rail.ts"
 import { Rail } from "./Rail.tsx"
 import { type Follow, followScroll } from "./scroll.ts"
 
@@ -38,7 +38,9 @@ const refit = (viewport: HTMLElement, content: HTMLElement) => {
 
 // The composer is docked at the end of the content and sticks to the bottom
 // of the viewport, so rows scroll under it and the last one still ends above
-// it, however tall the composer grows. The scroll button rides on top of it.
+// it, however tall the composer grows. The dock has no background: rows show
+// through the frosted composer and in the gap beneath it. The scroll button
+// rides on top of it.
 // The rail beside it jumps between the rows marked as questions. `asked`
 // changes each time a question is asked here, and is undefined otherwise.
 export const Scroll = ({ children, composer, previews, asked }: ScrollProps) => {
@@ -51,7 +53,7 @@ export const Scroll = ({ children, composer, previews, asked }: ScrollProps) => 
   // left to finish.
   const bottom = useRef(0)
   const [mode, setMode] = useState<Follow>("following")
-  const [current, setCurrent] = useState(0)
+  const [seen, setSeen] = useState<Seen>({ first: 0, last: 0 })
 
   const change = useCallback((next: Follow) => {
     follow.current = next
@@ -60,7 +62,9 @@ export const Scroll = ({ children, composer, previews, asked }: ScrollProps) => 
 
   const hold = useCallback(() => change("stopped"), [change])
 
-  // Which question is in view, measured above the composer.
+  // Which questions are in view, measured above the composer. A scroll that
+  // keeps the same questions in view keeps the state, so the rail does not
+  // render again.
   const locate = useCallback(() => {
     const node = viewport.current
     const below = dock.current
@@ -73,7 +77,9 @@ export const Scroll = ({ children, composer, previews, asked }: ScrollProps) => 
       (question) => question.getBoundingClientRect().top - top,
     )
 
-    setCurrent(inView(tops, node.clientHeight - below.offsetHeight))
+    const next = inView(tops, node.clientHeight - below.offsetHeight)
+
+    setSeen((was) => (was.first === next.first && was.last === next.last ? was : next))
   }, [])
 
   // Puts a question 24px from the top and holds it there, as scrolling up does.
@@ -145,7 +151,7 @@ export const Scroll = ({ children, composer, previews, asked }: ScrollProps) => 
 
   return (
     <div className="@container relative flex min-h-0 flex-1 flex-col">
-      <Rail previews={previews} current={current} jump={jump} />
+      <Rail previews={previews} seen={seen} jump={jump} />
       <section
         ref={viewport}
         aria-label="Conversation"
@@ -175,25 +181,21 @@ export const Scroll = ({ children, composer, previews, asked }: ScrollProps) => 
           <div className="isolate pt-6 pb-8">
             <Hold value={hold}>{children}</Hold>
           </div>
-          <div
-            ref={dock}
-            className="sticky bottom-0 z-10 mt-auto bg-background before:pointer-events-none before:absolute before:inset-x-0 before:bottom-full before:h-6 before:bg-linear-to-t before:from-background"
-          >
+          <div ref={dock} className="sticky bottom-0 z-10 mt-auto">
             {mode === "stopped" ? (
-              <div className="pointer-events-none absolute inset-x-0 bottom-full mb-3 flex justify-center">
+              <div className="pointer-events-none absolute inset-x-0 bottom-full mb-1.5 flex justify-center">
                 <Button
                   variant="outline"
-                  size="icon-lg"
-                  className="pointer-events-auto rounded-full bg-background shadow-sm motion-reduce:transition-none"
-                  aria-label="Scroll to end"
-                  title="Scroll to end"
+                  size="xs"
+                  className="pointer-events-auto rounded-full bg-card/80 shadow-sm backdrop-blur-md motion-reduce:transition-none dark:bg-card/80"
                   onClick={() => {
                     change("following")
                     end(reduced() ? "instant" : "smooth")
                     viewport.current?.focus({ preventScroll: true })
                   }}
                 >
-                  <ArrowDown aria-hidden="true" />
+                  <ChevronDown aria-hidden="true" data-icon="inline-start" />
+                  Scroll to end
                 </Button>
               </div>
             ) : null}

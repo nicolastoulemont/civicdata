@@ -5,6 +5,7 @@ import { Array as Arr, Clock, Effect, Layer, Predicate, Schedule, Stream } from 
 import { FetchHttpClient } from "effect/http"
 
 import { Agent } from "../src/Agent.ts"
+import { Answers } from "../src/Answers.ts"
 import { Catalog } from "../src/Catalog.ts"
 import { CatalogBuild, database, Step } from "../src/CatalogBuild.ts"
 import { Classifier } from "../src/Classifier.ts"
@@ -83,7 +84,9 @@ const answer = Effect.fn("eval.answer")(
 
     return yield* Effect.fromOption(Arr.last((yield* conversation.turns).answered))
   },
-  Effect.provide(Conversation.layer.pipe(Layer.provide(Transcript.memory))),
+  Effect.provide(
+    Conversation.layer.pipe(Layer.provide(Transcript.memory), Layer.provide(Answers.none)),
+  ),
   // A run that asks the OECD what no recording answers can spend the budget
   // in src/Pace.ts, which fails the answer with SourceUnavailable. That
   // measures the pacer, not the agent, so the case is asked again in a new

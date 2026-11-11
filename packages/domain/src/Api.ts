@@ -3,6 +3,7 @@ import { HttpApi, HttpApiEndpoint, HttpApiGroup, HttpApiSchema } from "effect/ht
 
 import { CatalogEntry, SearchText } from "./Catalog.ts"
 import {
+  Action,
   ChartIndex,
   ConversationId,
   Explanation,
@@ -10,6 +11,7 @@ import {
   Step,
   TurnIndex,
   Turns,
+  Vote,
 } from "./Conversation.ts"
 import { CountryList } from "./Country.ts"
 import { DimensionList } from "./Dimension.ts"
@@ -117,7 +119,8 @@ const Steps = HttpApiSchema.StreamSse({
 // does nothing once the answer has ended. `show` keeps the chart a person
 // changed one of a turn's charts to, and the next question builds on it;
 // showing the agent's own chart changes it back. It works while an answer
-// runs.
+// runs. `vote` keeps what the person thought of a turn's answer, replacing
+// their earlier vote. `act` counts what the person did with a turn's charts.
 class Conversation extends HttpApiGroup.make("conversation")
   .add(
     HttpApiEndpoint.get("turns", "/:id", {
@@ -154,6 +157,22 @@ class Conversation extends HttpApiGroup.make("conversation")
       payload: View,
       success: HttpApiSchema.NoContent,
       error: [AgentUnavailable, TurnNotFound, NoChart],
+    }),
+  )
+  .add(
+    HttpApiEndpoint.put("vote", "/:id/turns/:turn/vote", {
+      params: { id: ConversationId, turn: TurnIndex },
+      payload: Vote,
+      success: HttpApiSchema.NoContent,
+      error: [AgentUnavailable, TurnNotFound],
+    }),
+  )
+  .add(
+    HttpApiEndpoint.post("act", "/:id/turns/:turn/actions", {
+      params: { id: ConversationId, turn: TurnIndex },
+      payload: Schema.Struct({ action: Action }),
+      success: HttpApiSchema.NoContent,
+      error: [AgentUnavailable, TurnNotFound],
     }),
   )
   .prefix("/conversations") {}

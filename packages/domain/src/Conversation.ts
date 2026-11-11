@@ -376,17 +376,41 @@ export const chartsOf = (ending: Ending): ReadonlyArray<Chart> => blocksOf(endin
 // not change it.
 const Shown = Schema.Array(Schema.NullOr(View))
 
+// What went wrong with an answer, as the person who voted it down says.
+export const Reason = Schema.Literals(["indicator", "countries", "years", "data", "text", "other"])
+
+export type Reason = typeof Reason.Type
+
+// The person found the answer useful.
+export const Up = Schema.TaggedStruct("Up", {})
+
+// The person did not, and may say why.
+export const Down = Schema.TaggedStruct("Down", { reason: Schema.optionalKey(Reason) })
+
+// What the person thought of an answer. Their last vote counts.
+export const Vote = Schema.Union([Up, Down])
+
+export type Vote = typeof Vote.Type
+
+// What a person did with one of an answer's charts, besides changing it:
+// downloaded its data as CSV, or copied its link.
+export const Action = Schema.Literals(["download", "share"])
+
+export type Action = typeof Action.Type
+
 // A question and how the agent answered it: the steps it ended on the way,
 // and how long the answer took from the question to its ending. Turns saved
 // before the work log have neither. `shown` holds the charts on screen where
 // a person changed the ones the agent answered with; a turn never changed,
-// or changed back, has none.
+// or changed back, has none. `vote` is what the person thought of the answer,
+// once they voted.
 export const Turn = Schema.Struct({
   question: Question,
   answer: Ending,
   steps: Schema.optionalKey(Schema.Array(Ended)),
   took: Schema.optionalKey(Schema.DurationFromMillis),
   shown: Schema.optionalKey(Shown),
+  vote: Schema.optionalKey(Vote),
 })
 
 export interface Turn extends Schema.Schema.Type<typeof Turn> {}

@@ -902,7 +902,7 @@
             "uid": "${traces}"
           },
           "queryType": "traceql",
-          "query": "{ span.gen_ai.operation.name = \"invoke_agent\" && resource.deployment.environment.name = \"$stage\" && span.civicdata.answer.ending =~ \"exhausted|unanswered\" } | select(span.civicdata.answer.ending, span.civicdata.answer.rounds, span.gen_ai.input.messages)",
+          "query": "{ span.gen_ai.operation.name = \"invoke_agent\" && resource.deployment.environment.name = \"$stage\" && span.civicdata.answer.ending =~ \"exhausted|unanswered\" } | select(span.civicdata.answer.ending, span.civicdata.answer.rounds, span.civicdata.question)",
           "limit": 50,
           "tableType": "spans",
           "spss": 3
@@ -1351,7 +1351,7 @@
     {
       "type": "timeseries",
       "title": "Source failures by host",
-      "description": "Requests to the World Bank, Eurostat, the OECD and OpenAI that failed.",
+      "description": "Requests to the World Bank, Eurostat, the OECD and OpenAI that the source could not serve: a 5xx, a 429, or no answer. A 4xx such as the OECD's 404 for a key without data is an answer, and is left out.",
       "datasource": {
         "type": "tempo",
         "uid": "${traces}"
@@ -1364,7 +1364,7 @@
             "uid": "${traces}"
           },
           "queryType": "traceql",
-          "query": "{ kind = client && resource.deployment.environment.name = \"$stage\" && span.server.address != nil && (span.http.response.status_code >= 400 || status = error) } | count_over_time() by (span.server.address)",
+          "query": "{ kind = client && resource.deployment.environment.name = \"$stage\" && span.server.address != nil && (span.http.response.status_code >= 500 || span.http.response.status_code = 429 || (status = error && span.http.response.status_code = nil)) } | count_over_time() by (span.server.address)",
           "limit": 50,
           "metricsQueryType": "range"
         }

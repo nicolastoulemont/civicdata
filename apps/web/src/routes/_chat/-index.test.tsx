@@ -182,3 +182,9 @@ it("keeps each conversation's draft when moving between conversations", async ()
   act(() => router.history.back())
   await waitFor(async () => expect(typed(await findFollowUp())).toBe("And in Chile?"))
 })
+
+it("says how long questions are kept before the visitor asks one", async () => {
+  open()
+
+  expect(await screen.findByText(/Questions and answers are kept for a year/)).toBeDefined()
+})

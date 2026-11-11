@@ -1,4 +1,5 @@
 import {
+  Action,
   AgentUnavailable,
   Answered,
   type Block,
@@ -13,6 +14,7 @@ import {
   Cited,
   Day,
   Definition,
+  Down,
   End,
   Ended,
   Exhausted,
@@ -43,6 +45,8 @@ import {
   Step,
   StepId,
   Stopped,
+  Up,
+  Vote,
   type Study,
   Text,
   TooManyQuestions,
@@ -160,9 +164,10 @@ const showing = (turn: Turn, { chart, view }: { chart: number; view: View }): Tu
 }
 
 // A conversation the server keeps between page loads, with the charts people
-// changed its turns' charts to. Showing the agent's own chart changes it back.
+// changed its turns' charts to, their votes, and what they did with the charts. Showing the agent's own chart changes it back.
 const kept = (answered: ReadonlyArray<Turn>) => {
   let current = answered
+  const acted: Array<{ turn: number; action: Action }> = []
 
   const handlers = [
     http.get(`/api/conversations/${id}`, () =>
@@ -179,9 +184,27 @@ const kept = (answered: ReadonlyArray<Turn>) => {
 
       return new HttpResponse(null, { status: 204 })
     }),
+    http.put(`/api/conversations/${id}/turns/:turn/vote`, async ({ params, request }) => {
+      const vote = Schema.decodeUnknownSync(Vote)(await request.json())
+
+      current = current.map((turn, index) =>
+        index === Number(params["turn"]) ? Struct.assign(turn, { vote }) : turn,
+      )
+
+      return new HttpResponse(null, { status: 204 })
+    }),
+    http.post(`/api/conversations/${id}/turns/:turn/actions`, async ({ params, request }) => {
+      const { action } = Schema.decodeUnknownSync(Schema.Struct({ action: Action }))(
+        await request.json(),
+      )
+
+      acted.push({ turn: Number(params["turn"]), action })
+
+      return new HttpResponse(null, { status: 204 })
+    }),
   ]
 
-  return { handlers, turns: () => current }
+  return { handlers, turns: () => current, actions: () => acted }
 }
 
 const brazilAnswer = {
@@ -1724,6 +1747,98 @@ describe("Conversation", () => {
 
     expect(await screen.findByText("Brazil · 2000–2001")).toBeDefined()
     expect(screen.queryByText("This answer describes the charts before your changes.")).toBeNull()
+  })
+
+  it("asks whether an answer was useful, and keeps the vote and what went wrong", async () => {
+    const user = userEvent.setup()
+    const conversation = kept([brazilAnswer])
+
+    network.use(...conversation.handlers, resolve)
+    const page = show()
+
+    await user.click(await screen.findByRole("button", { name: "Not useful" }))
+    await user.click(await screen.findByRole("button", { name: "Wrong countries" }))
+
+    await vi.waitFor(() =>
+      expect(conversation.turns()[0]?.vote).toEqual(Down.make({ reason: "countries" })),
+    )
+
+    // A reload shows the vote the conversation kept.
+    page.unmount()
+    show()
+
+    const useful = await screen.findByRole("group", { name: "Was this answer useful?" })
+    const wrong = screen.getByRole("group", { name: "What went wrong?" })
+
+    expect(
+      within(useful).getByRole("button", { name: "Not useful" }).getAttribute("aria-pressed"),
+    ).toBe("true")
+    expect(
+      within(wrong).getByRole("button", { name: "Wrong countries" }).getAttribute("aria-pressed"),
+    ).toBe("true")
+
+    // Changing their mind replaces the vote, and the question of what went wrong goes.
+    await user.click(within(useful).getByRole("button", { name: "Useful" }))
+
+    await vi.waitFor(() => expect(conversation.turns()[0]?.vote).toEqual(Up.make({})))
+    expect(screen.queryByRole("group", { name: "What went wrong?" })).toBeNull()
+  })
+
+  it("counts a download of an answer's data and a copy of its link", async () => {
+    const user = userEvent.setup()
+    const conversation = kept([brazilAnswer])
+
+    network.use(...conversation.handlers, resolve)
+    show()
+
+    await user.click(await screen.findByRole("button", { name: "Copy link" }))
+    await user.click(screen.getByRole("tab", { name: "Data" }))
+    const download = await screen.findByRole("link", { name: "Download CSV" })
+
+    // happy-dom would navigate the page to the link's data: URL, ending the
+    // test's document; the click still reaches the page's handler.
+    download.addEventListener("click", (event) => event.preventDefault())
+    await user.click(download)
+
+    await vi.waitFor(() =>
+      expect(conversation.actions()).toEqual([
+        { turn: 0, action: "share" },
+        { turn: 0, action: "download" },
+      ]),
+    )
+  })
+
+  it("says why a vote could not be kept, and shows the vote kept before", async () => {
+    network.use(
+      turns([brazilAnswer]),
+      http.put(`/api/conversations/${id}/turns/:turn/vote`, () =>
+        HttpResponse.json(Schema.encodeSync(TurnNotFound)(new TurnNotFound({ turn: 0 })), {
+          status: 404,
+        }),
+      ),
+      resolve,
+    )
+    show()
+
+    await userEvent.setup().click(await screen.findByRole("button", { name: "Useful" }))
+
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "Your vote could not be kept. This conversation no longer has this answer.",
+    )
+    expect(screen.getByRole("button", { name: "Useful" }).getAttribute("aria-pressed")).toBe(
+      "false",
+    )
+  })
+
+  it("asks for no vote on an answer the person stopped", async () => {
+    network.use(
+      turns([{ question: "Life expectancy in Brazil", answer: Stopped.make({}) }]),
+      resolve,
+    )
+    show()
+
+    expect(await screen.findByText("You stopped")).toBeDefined()
+    expect(screen.queryByRole("group", { name: "Was this answer useful?" })).toBeNull()
   })
 
   it("says why a change could not be kept, and shows the chart kept before", async () => {

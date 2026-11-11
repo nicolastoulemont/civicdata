@@ -1,4 +1,5 @@
 import {
+  type Action,
   type AgentUnavailable,
   type Block,
   type CatalogUnavailable,
@@ -19,6 +20,7 @@ import {
   TurnNotFound,
   type Turns,
   type View,
+  type Vote,
   type Work,
 } from "@civicdata/domain"
 import { Machine } from "@civicdata/machine"
@@ -44,6 +46,7 @@ import {
 import { Chat } from "effect/ai"
 
 import { Agent, type Changed } from "./Agent.ts"
+import { Answers } from "./Answers.ts"
 import { type Edit, type Saved, Transcript } from "./Transcript.ts"
 
 // Why an answer stopped short.
@@ -72,6 +75,12 @@ interface Interface {
     turn: TurnIndex,
     options: { readonly chart: ChartIndex; readonly view: View },
   ) => Effect.Effect<void, TurnNotFound | NoChart>
+  // Keeps what the person thought of a turn's answer, replacing their earlier
+  // vote, and logs it with the answer. Fails with TurnNotFound.
+  readonly vote: (turn: TurnIndex, vote: Vote) => Effect.Effect<void, TurnNotFound>
+  // Counts what the person did with one of a turn's charts on its logged
+  // answer, as `show` counts each change. Fails with TurnNotFound.
+  readonly act: (turn: TurnIndex, action: Action) => Effect.Effect<void, TurnNotFound>
   // Deletes the conversation once no answer is running: now, or when the
   // answer in progress fails. An answer that keeps its turn keeps the
   // conversation too, as saving it moves the alarm on, even when this alarm
@@ -258,12 +267,13 @@ const isExpiring = Phase.$is("Expiring")
 export class Conversation extends Context.Service<Conversation, Interface>()(
   "@civicdata/server/Conversation",
 ) {
-  // Needs an Agent and a Transcript.
+  // Needs an Agent, a Transcript and Answers.
   static readonly layer = Layer.effect(
     Conversation,
     Effect.gen(function* () {
       const agent = yield* Agent
       const transcript = yield* Transcript
+      const answers = yield* Answers
       // Answers run in the conversation's scope, not the request's, so a
       // visitor leaving does not stop them.
       const scope = yield* Effect.scope
@@ -336,9 +346,12 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
       // keeps the turn as Stopped with the chat as it was before the
       // question: the agent never finished its answer, so the next question
       // does not build on it. The steps still running then end as stopped.
+      // A kept turn goes to Answers once its last step is out, so the write
+      // never holds up the ending.
       const answer = Effect.fn("Conversation.answer")(
         function* ({ question, started, steps, stop }: Answer) {
           const work = yield* Ref.make<ReadonlyArray<Work>>([])
+          const logged = yield* Ref.make(Option.none<{ turn: Turn; earlier: Array<string> }>())
           const { chat, changed, asked } = yield* begin({ question, started })
 
           // A turn keeps the steps the agent ended and how long it took,
@@ -359,12 +372,15 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
                   ? latest.edits
                   : unheardOf(latest, changed)
 
-            const next: Saved = {
-              chat: json,
-              turns: [...(latest?.turns ?? []), { question, answer: ending, steps: kept, took }],
-            }
+            const earlier = latest?.turns ?? []
+            const turn = { question, answer: ending, steps: kept, took }
+            const next: Saved = { chat: json, turns: [...earlier, turn] }
 
             yield* transcript.save(unheard === undefined ? next : { ...next, edits: unheard })
+            yield* Ref.set(
+              logged,
+              Option.some({ turn, earlier: earlier.map((each) => each.question) }),
+            )
             yield* phase.send(PhaseEvent.Saved())
           })
 
@@ -402,6 +418,16 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
 
             yield* save(stopped, asked).pipe(Semaphore.withPermit(lock))
             yield* PubSub.publish(steps, Arr.append(cut, stopped))
+          }
+
+          const kept = yield* Ref.get(logged)
+
+          if (Option.isSome(kept)) {
+            yield* answers.log(kept.value.turn, {
+              asked: started,
+              earlier: kept.value.earlier,
+              changed: changed.map(({ turn, chart, view }) => ({ turn, chart, view })),
+            })
           }
         },
         // An answer that kept no turn drops its question before it lets the
@@ -457,34 +483,61 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
 
       // A chart the model has not heard of changing yet becomes an edit,
       // which knows the chart that was on screen before.
-      const show = Effect.fn("Conversation.show")(function* (
-        turn: TurnIndex,
-        change: Pick<Changed, "chart" | "view">,
-      ) {
-        const saved = yield* transcript.load
-        const found = Option.flatMap(saved, ({ turns: all }) => Arr.get(all, turn))
+      const show = Effect.fn("Conversation.show")(
+        function* (turn: TurnIndex, change: Pick<Changed, "chart" | "view">) {
+          const saved = yield* transcript.load
+          const found = Option.flatMap(saved, ({ turns: all }) => Arr.get(all, turn))
 
-        if (Option.isNone(saved) || Option.isNone(found)) return yield* new TurnNotFound({ turn })
+          if (Option.isNone(saved) || Option.isNone(found)) return yield* new TurnNotFound({ turn })
 
-        const next = showing(found.value, change)
-        const known = onScreen(found.value)[change.chart]
+          const next = showing(found.value, change)
+          const known = onScreen(found.value)[change.chart]
 
-        if (next === undefined || known === undefined) {
-          return yield* new NoChart({ turn, chart: change.chart })
-        }
+          if (next === undefined || known === undefined) {
+            return yield* new NoChart({ turn, chart: change.chart })
+          }
 
-        const edit = { turn, chart: change.chart, known }
-        const { edits } = saved.value
+          const edit = { turn, chart: change.chart, known }
+          const { edits } = saved.value
 
-        return yield* transcript.save({
-          ...saved.value,
-          turns: saved.value.turns.with(turn, next),
-          edits:
-            edits !== undefined && edits.some((each) => samePlace(each, edit))
-              ? edits
-              : Arr.append(edits ?? [], edit),
-        })
-      }, Semaphore.withPermit(lock))
+          return yield* transcript.save({
+            ...saved.value,
+            turns: saved.value.turns.with(turn, next),
+            edits:
+              edits !== undefined && edits.some((each) => samePlace(each, edit))
+                ? edits
+                : Arr.append(edits ?? [], edit),
+          })
+        },
+        (effect, turn) =>
+          effect.pipe(Semaphore.withPermit(lock), Effect.andThen(answers.count(turn, "change"))),
+      )
+
+      const vote = Effect.fn("Conversation.vote")(function* (turn: TurnIndex, choice: Vote) {
+        yield* Effect.gen(function* () {
+          const saved = yield* transcript.load
+          const found = Option.flatMap(saved, ({ turns: all }) => Arr.get(all, turn))
+
+          if (Option.isNone(saved) || Option.isNone(found)) {
+            return yield* new TurnNotFound({ turn })
+          }
+
+          return yield* transcript.save({
+            ...saved.value,
+            turns: saved.value.turns.with(turn, Struct.assign(found.value, { vote: choice })),
+          })
+        }).pipe(Semaphore.withPermit(lock))
+
+        yield* answers.vote(turn, choice)
+      })
+
+      const act = Effect.fn("Conversation.act")(function* (turn: TurnIndex, action: Action) {
+        const found = Option.flatMap(yield* transcript.load, ({ turns: all }) => Arr.get(all, turn))
+
+        if (Option.isNone(found)) return yield* new TurnNotFound({ turn })
+
+        return yield* answers.count(turn, action)
+      })
 
       // Waits out a deletion the alarm started. An answer running is not
       // waited for.
@@ -498,7 +551,7 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
           Effect.withSpan("Conversation.expire"),
         )
 
-      return Conversation.of({ turns, open, ask, follow, stop, show, expire })
+      return Conversation.of({ turns, open, ask, follow, stop, show, vote, act, expire })
     }),
   )
 }
