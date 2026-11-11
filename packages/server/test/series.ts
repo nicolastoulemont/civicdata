@@ -107,21 +107,26 @@ export const serving = (published: Published) => {
   return { layer, requests: () => requests }
 }
 
-// The test Worker's SERIES bucket, counting the objects written to it.
+// The test Worker's SERIES bucket, counting the objects read from it and
+// written to it.
 export const bucket = () => {
-  let puts = 0
+  let [gets, puts] = [0, 0]
 
   const counted: SeriesBucket = {
-    get: (key) => series.get(key),
-    head: (key) => series.head(key),
+    get: (key) => {
+      gets += 1
+
+      return series.get(key)
+    },
     put: (key, value, options) => {
       puts += 1
 
       return series.put(key, value, options)
     },
+    delete: (keys) => series.delete(keys),
   }
 
-  return { bucket: counted, puts: () => puts }
+  return { bucket: counted, gets: () => gets, puts: () => puts }
 }
 
 // Each test names its own indicators, such as `HOLD.POP`, so the series one

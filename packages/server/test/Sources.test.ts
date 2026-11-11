@@ -11,7 +11,7 @@ import { D1Client } from "@effect/sql-d1"
 import { beforeEach, describe, expect, it } from "@effect/vitest"
 import { reset } from "cloudflare:test"
 import { env } from "cloudflare:workers"
-import { DateTime, Effect, Layer, Option, Schema } from "effect"
+import { DateTime, Effect, Layer, Option, Schema, Stream } from "effect"
 
 import { type Adapter, Policy } from "../src/Adapter.ts"
 import { Step } from "../src/CatalogBuild.ts"
@@ -40,7 +40,7 @@ const madeUp = (asked: Array<Query>): Adapter => ({
     changed: (gathered) =>
       Effect.succeed(Option.isSome(gathered) ? Option.none() : Option.some("2026-11")),
     gather: ({ indicator, name, definition }: CatalogEntry, release) =>
-      Effect.succeed(
+      Stream.fromIterable(
         (["F", "M"] as const).map((code, at) => ({
           indicator: { id: indicator, name, definition },
           dataset: "Made-up statistics",
@@ -126,7 +126,8 @@ describe("a source that implements the contract", () => {
       )
       yield* Gather.run().pipe(Effect.provide(Layer.merge(gather, Step.immediate)))
 
-      expect(store.puts()).toBe(2)
+      // Both series in one pack.
+      expect(store.puts()).toBe(1)
 
       const resolver = yield* Resolver
       const women = yield* resolver.resolve(view("F"))

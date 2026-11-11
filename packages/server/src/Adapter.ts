@@ -5,7 +5,7 @@ import type {
   IndicatorNotFound,
   SourceUnavailable,
 } from "@civicdata/domain"
-import { Data, type Effect, type Option } from "effect"
+import { Data, type Effect, type Option, type Stream } from "effect"
 
 import type { Answer, Described, Query } from "./Series.ts"
 import type { Stored } from "./Store.ts"
@@ -20,12 +20,14 @@ export type Policy = Data.TaggedEnum<{
     readonly changed: (
       gathered: Option.Option<string>,
     ) => Effect.Effect<Option.Option<string>, SourceUnavailable>
-    // Every series of one catalog entry, in bulk, as candidates for the
-    // store, dated with `release`.
+    // The series of one catalog entry, in bulk, as candidates for the store,
+    // dated with `release`: sorted by their dimensions' codes (`codesOf`),
+    // each once, so the store packs them as they arrive and never holds the
+    // entry. A series left out keeps its stored values.
     readonly gather: (
       entry: CatalogEntry,
       release: string,
-    ) => Effect.Effect<ReadonlyArray<Stored>, SourceUnavailable>
+    ) => Stream.Stream<Stored, SourceUnavailable>
     // The API request that answers the query with the values a stored series
     // holds, which a chart read from the store links.
     readonly url: (query: Query) => string
