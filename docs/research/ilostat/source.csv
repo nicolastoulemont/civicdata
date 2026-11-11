@@ -1,0 +1,228 @@
+source,source.label,ref_area
+BA:15715,LFS - Labour Force Survey,AFG
+BB:6361,HIES - Households Living Conditions Survey,AFG
+BA:13951,LFS - Employment Survey,AGO
+BX:13366,HS - Core Welfare Indicators Questionnaire,AGO
+AA:835,PC - Population Census,AGO
+BA:480,LFS - Labour Force Survey,ALB
+BB:7401,HIES - Living Standards Survey,ALB
+BA:716,LFS - Labour Force Survey,ARE
+BA:150,"LFS - Permanent Household Survey, Urban",ARG
+AA:6363,PC - Population Census,ARM
+BA:518,LFS - Labour Force Survey,AUS
+BB:15747,"HIES - Household, Income and Labour Dynamics Survey",AUS
+BA:103,LFS - Labour Force Survey,AUT
+BB:7040,HIES - Living Standards Survey,BDI
+BA:2257,LFS - EU Labour Force Survey,BEL
+BB:426,HIES - Monitoring Survey of the Modular and Integrated Survey of Household Living Conditions,BEN
+BA:904,LFS - Labour Force Survey,BFA
+BA:15678,LFS - Regional Integrated Survey on Employment and the Informal Sector,BFA
+BB:16126,HIES - Harmonized Survey on Household Living Conditions,BFA
+BA:673,LFS - Labour Force Survey,BGD
+BA:2258,LFS - EU Labour Force Survey,BGR
+BA:17,LFS - Labour Force & Household Survey,BHS
+BA:493,LFS - Labour Force Survey,BIH
+BA:13362,LFS - Labour Force Survey,BLR
+AA:483,PC - Population Census,BLR
+BA:934,LFS - Labour Force Survey,BLZ
+BA:74,LFS - Continuous Employment Survey,BOL
+BB:73,HIES - Household Survey,BOL
+BX:15722,HS - Survey of Improvement of Living Conditions,BOL
+BX:6355,HS - Continuous National Household Sample Survey,BRA
+BX:356,HS - National Household Sample Survey,BRA
+BA:338,LFS - Labour Force Survey,BRB
+BB:15690,HIES - Survey on Living Conditions,BRB
+BA:8230,LFS - Labour Force Survey,BRN
+BA:625,LFS - Labour Force Survey,BTN
+BX:15710,HS - Multi-Topic Household Survey,BWA
+AA:963,PC - Population Census,BWA
+BA:253,LFS - Labour Force Survey,CHE
+BX:138,HS - National Survey on Socio-Economic Conditions,CHL
+BA:7345,LFS - National Survey on the Employment Situation,CIV
+BA:14098,LFS - Regional Integrated Survey on Employment and the Informal Sector,CIV
+BA:3051,LFS - Survey on Employment and household's living conditions,COD
+BB:7091,HIES - Indicator Cluster Survey,COD
+BX:16939,HS - Core Welfare Indicators Questionnaire,COD
+BA:15665,LFS - Labour Force Survey,COK
+BB:14048,HIES - Household Income and Expenditure Survey,COK
+BA:358,LFS - Integrated Household Survey,COL
+BX:2226,HS - Continuous Household Survey,COL
+BA:7395,LFS - Continuous Multi-Objective Survey Employment and Labor Market Statistics,CPV
+BA:12883,LFS - Continuous Employment Survey,CRI
+BX:7407,HS - Household Survey of Multiple Purposes,CRI
+AA:1034,PC - Population Census,CUB
+BA:36,LFS - Labour Force Survey,CYP
+BA:149,LFS - Labour Force Sample Survey,CZE
+BA:2242,LFS - EU Labour Force Survey,DEU
+BA:2487,LFS - EU Labour Force Survey,DNK
+BA:13413,LFS - Continuous National Labour Force Survey,DOM
+BA:3,LFS - National Labour Force Survey,DOM
+BA:19,"LFS - National Survey on Employment, Unemployment and Underemployment",ECU
+BA:582,LFS - Labour Force Sample Survey,EGY
+BA:2244,LFS - EU Labour Force Survey,ESP
+BA:42,LFS - Labour Force Survey,EST
+BA:1126,LFS - National Labor Force Survey,ETH
+BA:2486,LFS - EU Labour Force Survey,FIN
+BA:1135,"LFS - Employment, Unemployment Survey",FJI
+AA:1134,PC - Population Census,FJI
+BA:148,LFS - Employment Survey,FRA
+BB:14055,HIES - Household Income and Expenditure Survey,FSM
+BA:583,LFS - National Employment and Unemployment Survey,GAB
+BA:666,LFS - Labour Force Survey,GBR
+BA:2247,LFS - EU Labour Force Survey,GBR
+BA:13950,LFS - Labour Force Survey,GEO
+BX:180,HS - Integrated Household Survey,GEO
+BA:1163,LFS - Labour Force Survey,GHA
+BB:3078,HIES - Living Standards Survey,GHA
+BA:15631,LFS - National Survey on Employment and the Informal Sector,GIN
+BA:7014,LFS - Labour Force Survey,GMB
+BB:15952,HIES - Harmonized Survey on Household Living Conditions,GNB
+BA:15635,LFS - Integrated Regional Survey on Employment and Informal Sector,GNB
+BB:16937,HIES - National Household Survey,GNQ
+BA:317,LFS - Labour Force Survey,GRC
+BA:1193,LFS - Labour Force Survey,GRD
+BA:660,LFS - Employment and Income Survey,GTM
+BB:16732,HIES - Household Income and Expenditure Survey,GTM
+BX:5867,HS - Living Conditions National Survey,GTM
+BA:1214,LFS - Labour Force Survey,GUY
+BX:504,HS - Continuous Multi-Purpose Household Survey,HND
+BA:2251,LFS - EU Labour Force Survey,HRV
+BA:656,LFS - Labour Force Survey,HUN
+BA:510,LFS - National Labour Force Survey,IDN
+BA:14121,LFS - Periodic Labour Force Survey,IND
+BX:2228,HS - National Sample Survey,IND
+BA:772,LFS - EU Labour Force Survey,IRL
+BA:675,LFS - Labour Force Survey,IRN
+AA:1267,PC - Population Census,IRN
+BA:16073,LFS - Labour Force Survey,IRQ
+BB:3075,HIES - Household Socio-Economic Survey,IRQ
+BA:2255,LFS - EU Labour Force Survey,ISL
+BA:706,LFS - Labour Force Survey,ISR
+BA:2238,LFS - EU Labour Force Survey,ITA
+BA:65,LFS - Labour Force Survey,JAM
+BA:682,LFS - Employment and Unemployment Survey,JOR
+BA:259,LFS - Labour Force Survey,JPN
+BX:3465,HS - Continuous household survey,KEN
+BA:496,LFS - Employment and Unemployment Survey,KGZ
+BA:1321,LFS - Labour Force Survey,KHM
+BB:3064,HIES - Household Socio-Economic Survey,KHM
+BB:15723,HIES - Household Income and Expenditure Survey,KIR
+AA:1326,PC - Population Census,KIR
+BA:700,LFS - Labour Force Survey,KOS
+BA:6651,LFS - Labour Force Survey,LAO
+BA:14074,LFS - Labour Force Survey,LBN
+BA:16,LFS - Labour Force Survey,LBR
+BA:1359,LFS - Labour Force Survey,LKA
+BA:13,LFS - Integrated Labour Force Survey,LSO
+BA:2245,LFS - EU Labour Force Survey,LTU
+BA:2261,LFS - EU Labour Force Survey,LUX
+BA:2246,LFS - EU Labour Force Survey,LVA
+BA:7423,LFS - National Survey on Employment and the Informal Sector,MDG
+BX:220,HS - Periodic Household Survey,MDG
+BB:704,HIES - Household Income and Expenditure Survey,MDV
+AA:705,PC - Population Census,MDV
+BA:463,LFS - National Occupation and Employment Survey,MEX
+XA:1875,ILO - Modelled Estimates,MEX
+BB:14101,HIES - Household Income and Expenditure Survey,MHL
+AA:1406,PC - Population Census,MHL
+BA:501,LFS - Labour Force Survey,MKD
+BB:16232,HIES - Harmonized Survey on Household Living Conditions,MLI
+BA:341,LFS - Labour Force Survey,MLT
+BA:7009,LFS - Labour Force Survey,MMR
+AA:1421,PC - Population Census,MMR
+BA:14129,LFS - Labour Force Survey,MNE
+BA:702,LFS - Labour Force Survey,MNG
+AA:1428,PC - Population Census,MNG
+BB:8363,HIES - Household Budget Survey,MOZ
+BA:15746,LFS - Labour Force Survey,MSR
+BA:82,LFS - Continuous Multi-Purpose Household Survey,MUS
+BA:1448,LFS - Labour Force Survey,MWI
+AA:539,PC - Population and Housing Census,MYS
+BA:1468,LFS - Labour Force Survey,NAM
+BB:7017,HIES - Household Income and Expenditure Survey,NAM
+BA:14071,LFS - National Survey on Employment and the Informal Sector,NER
+BA:8313,"LFS - Unemployment, Under-employment Watch",NGA
+BX:7338,HS - General Household Survey,NGA
+BA:692,LFS - Continuous Household Survey,NIC
+BB:5868,HIES - National Household Survey on Measuring Living Conditions,NIC
+AA:1497,PC - Population Census,NIU
+BA:2236,LFS - EU Labour Force Survey,NLD
+BA:2250,LFS - EU Labour Force Survey,NOR
+BA:1510,LFS - Labour Force Survey,NPL
+BB:7344,HIES - Living Standards Survey,NPL
+BB:14049,HIES - Household Income and Expenditure Survey,NRU
+AA:1513,PC - Population Census,NRU
+BA:538,LFS - Labour Force Survey,PAK
+BB:16125,HIES - Household Income and Expenditure Survey,PAK
+BA:511,LFS - Labour Market Survey,PAN
+BB:16128,HIES - Living Standards Survey,PAN
+BA:16208,"LFS - Permanent Employment Survey, National",PER
+BA:629,LFS - Labour Force Survey,PHL
+BB:14046,HIES - Household Income and Expenditure Survey,PLW
+AA:1541,PC - Population Census,PLW
+BX:16221,HS - Socio-Demographic and Economic Survey,PNG
+BB:13369,HIES - Household Income and Expenditure Survey,PNG
+BA:432,LFS - Labour Force Survey,POL
+BA:2252,LFS - EU Labour Force Survey,PRT
+BA:199,LFS - Employment Survey,PRT
+BA:592,LFS - Labour Force Survey,PSE
+BA:436,LFS - Household Labour Force Survey,ROU
+BA:120,LFS - Labour Force Survey,RUS
+BA:1590,LFS - Labour Force Survey,RWA
+BA:1603,LFS - Labor Market Panel Survey,SDN
+BA:13368,LFS - National Employment Survey,SEN
+BA:5873,LFS - Labour Force Survey,SGP
+BB:14050,HIES - Household Income and Expenditure Survey,SLB
+BA:1629,LFS - Labour Force Survey,SLE
+BX:15953,HS - Integrated Household Survey,SLE
+BX:461,HS - Multi-purpose Household Survey,SLV
+BA:15656,LFS - Labour Force Survey,SOM
+BA:467,LFS - Labour Force Survey,SRB
+BB:16200,HIES - Living Standards Measurement Survey,SRB
+BB:16233,HIES - Household Budget Survey,STP
+BB:15691,HIES - Survey on Living Conditions,SUR
+BA:398,LFS - Labour Force Survey,SVK
+BA:446,LFS - Labour Force Survey,SVN
+BA:2519,LFS - EU Labour Force Survey,SWE
+BA:1672,LFS - Labour Force Survey,SWZ
+BA:2524,LFS - Labour Force Survey,SYC
+BA:14123,LFS - Regional Integrated Survey on Employment and the Informal Sector,TGO
+BB:16196,HIES - Living Standards Measurement Survey,TGO
+BA:741,LFS - Labour Force Survey,THA
+BB:15893,HIES - Household Socio-Economic Survey,THA
+BA:498,LFS - Labour Force Survey,TJK
+BB:2229,HIES - Living Standards Survey,TJK
+BB:16122,HIES - Household Income and Expenditure Survey,TKL
+AA:7393,PC - Population Census,TKL
+BA:3050,LFS - Labour Force Survey,TLS
+AA:7002,PC - Population Census,TLS
+BA:1712,LFS - Labour Force Survey,TON
+BB:16119,HIES - Household Income and Expenditure Survey,TON
+BA:549,LFS - Continuous Sample Survey of the Population,TTO
+BA:743,LFS - National Population and Employment Survey,TUN
+BA:15955,LFS - Labor Market Panel Survey,TUN
+BB:16926,HIES - National Survey on Household Budget and Consumption,TUN
+BA:622,LFS - Household Labour Force Survey,TUR
+AA:1726,PC - Population Census,TUR
+XA:2164,ILO - Modelled Estimates,TUR
+BB:14047,HIES - Household Income and Expenditure Survey,TUV
+AA:1732,PC - Population Census,TUV
+BA:1743,LFS - Labour Force Survey,TZA
+BB:2542,HIES - National Panel Survey,TZA
+BA:13047,LFS - National Labour Force Survey,UGA
+BB:268,HIES - National Household Survey,UGA
+BA:475,LFS - Labour Force Survey,UKR
+BA:348,LFS - Continuous Household Survey,URY
+BA:453,LFS - Current Population Survey,USA
+BA:1788,LFS - Labour Force Survey,VNM
+BA:16938,LFS - Labour Force Survey,VUT
+BB:15632,HIES - Household Income and Expenditure Survey,VUT
+AA:52,PC - Population and Housing Census,VUT
+BB:16123,HIES - Household Income and Expenditure Survey,WLF
+BA:1794,LFS - Labour Force Survey,WSM
+XA:8405,ILO - Modelled Estimates,X01
+BA:13360,LFS - Labour Force Survey,YEM
+BA:595,LFS - Quarterly Labour Force Survey,ZAF
+BA:2212,LFS - Labour Force Survey,ZMB
+BB:739,HIES - Living Conditions Monitoring Survey,ZMB
+BA:1823,LFS - Labour Force Survey,ZWE

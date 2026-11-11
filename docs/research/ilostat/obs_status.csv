@@ -1,0 +1,8 @@
+obs_status,obs_status.label
+A,Adjusted
+B,Break in series
+M,Model-based extrapolation
+U,Unreliable
+R,Real value
+I,Imputation
+,

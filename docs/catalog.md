@@ -146,3 +146,12 @@ Official references: [API catalogue](https://www.insee.fr/fr/information/8184146
 [Melodi OpenAPI and endpoint licence](https://api-apimanager.insee.fr/portal/environments/DEFAULT/apis/a890b735-159c-4c91-90b7-35159c7c9126/pages/ee625968-272a-4637-a259-68272aa63766/content),
 and [user guide](https://api-apimanager.insee.fr/portal/environments/DEFAULT/apis/a890b735-159c-4c91-90b7-35159c7c9126/pages/712a242a-9d5c-4675-aa24-2a9d5c4675c4/content).
 The separate BDM service supports SDMX 2.1; this adapter reads Melodi JSON, not BDM.
+
+## ILOSTAT status
+
+ILOSTAT remains unregistered. The [bounded official-data audit](research/ilostat/README.md)
+found source-specific quality and reference-period notes that the current
+observation contract cannot preserve, including unreliable and missing values.
+It records the concrete blocker and a one-archive proposal. It adds no catalog
+entries, gather enrollment, stored observations or chart-read capability.
+Production operations still require owner approval.
