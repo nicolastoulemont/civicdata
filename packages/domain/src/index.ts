@@ -19,6 +19,7 @@ export {
   Definition,
   Ended,
   Ending,
+  Exhausted,
   Explanation,
   Failed,
   Fetch,

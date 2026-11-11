@@ -307,10 +307,12 @@ export const Answered = Schema.TaggedStruct("Answered", {
 })
 
 // The question can be read several ways that give different charts; the
-// agent asks which, offering choices. The reply is the next question.
+// agent asks which, offering choices. The reply is the next question. A
+// question asked after the agent wrote blocks keeps them, in order, before it.
 export const Asked = Schema.TaggedStruct("Asked", {
   question: Schema.String,
   choices: Schema.NonEmptyArray(Schema.String),
+  blocks: Schema.optionalKey(Schema.NonEmptyArray(Block)),
 })
 
 // The agent wrote nothing and showed no chart, e.g. because no indicator
@@ -323,9 +325,16 @@ export const Stopped = Schema.TaggedStruct("Stopped", {
   blocks: Schema.optionalKey(Schema.NonEmptyArray(Block)),
 })
 
+// The agent was still calling tools when it reached its limit of model
+// requests, so the answer was cut short. It keeps the blocks written by then,
+// in order. Answers cut short before any block have none.
+export const Exhausted = Schema.TaggedStruct("Exhausted", {
+  blocks: Schema.optionalKey(Schema.NonEmptyArray(Block)),
+})
+
 // What the agent did while answering, streamed as it happens: each step of
 // work every time its state changes, then how the answer ended.
-export const Step = Schema.Union([Work, Answered, Asked, Unanswered, Stopped])
+export const Step = Schema.Union([Work, Answered, Asked, Unanswered, Exhausted, Stopped])
 
 export type Step = typeof Step.Type
 
@@ -340,17 +349,18 @@ export const put = <S extends Step>(steps: ReadonlyArray<S>, step: S): ReadonlyA
 }
 
 // How an answer ended.
-export const Ending = Schema.Union([Answered, Asked, Unanswered, Stopped])
+export const Ending = Schema.Union([Answered, Asked, Unanswered, Exhausted, Stopped])
 
 export type Ending = typeof Ending.Type
 
 // The blocks an answer ended with: every block of an answer, those written
-// before a stop, or none.
+// before a question back, the limit or a stop, or none.
 export const blocksOf = (ending: Ending): ReadonlyArray<Block> =>
   Match.valueTags(ending, {
     Answered: ({ blocks }) => blocks,
+    Asked: ({ blocks }) => blocks ?? [],
+    Exhausted: ({ blocks }) => blocks ?? [],
     Stopped: ({ blocks }) => blocks ?? [],
-    Asked: () => [],
     Unanswered: () => [],
   })
 

@@ -34,6 +34,7 @@ const ended = (answer: Ending): Status =>
     }),
     Asked: () => ({ label: "Your reply", className: "bg-status-reply/10 text-status-reply" }),
     Unanswered: () => ({ label: "No data", className: "bg-status-idle/10 text-status-idle" }),
+    Exhausted: () => ({ label: "Cut short", className: "bg-status-idle/10 text-status-idle" }),
     Stopped: () => ({ label: "Stopped", className: "bg-status-idle/10 text-status-idle" }),
   })
 

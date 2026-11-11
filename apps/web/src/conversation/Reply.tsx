@@ -20,7 +20,8 @@ interface ReplyProps {
 }
 
 // How the agent answered: what it wrote and the charts it drew, in order, a
-// question back, nothing, or the blocks written before the person stopped it.
+// question back after any blocks written before it, nothing, or the blocks
+// written before the agent reached its limit or the person stopped it.
 export const Reply = ({ id, index, turn }: ReplyProps) => {
   const charts = chartsOf(turn.answer).map((chart, place) => (
     <Answer
@@ -42,7 +43,12 @@ export const Reply = ({ id, index, turn }: ReplyProps) => {
 
   return Match.valueTags(turn.answer, {
     Answered: ({ blocks }) => answers(blocks),
-    Asked: ({ question }) => <p>{question}</p>,
+    Asked: ({ question, blocks = [] }) => (
+      <>
+        {blocks.length === 0 ? null : answers(blocks)}
+        <p>{question}</p>
+      </>
+    ),
     Unanswered: () => (
       <Alert>
         <AlertTitle>No World Bank indicator answers this question</AlertTitle>
@@ -50,6 +56,14 @@ export const Reply = ({ id, index, turn }: ReplyProps) => {
           Name what to measure and where, like “GDP per person in France and Germany since 2000”.
         </AlertDescription>
       </Alert>
+    ),
+    Exhausted: ({ blocks = [] }) => (
+      <>
+        {blocks.length === 0 ? null : answers(blocks)}
+        <p className="text-sm text-muted-foreground">
+          Cut short: civicdata reached its limit of steps before it finished this answer
+        </p>
+      </>
     ),
     Stopped: ({ blocks = [] }) => (
       <>

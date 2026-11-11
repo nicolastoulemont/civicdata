@@ -4,6 +4,7 @@ import {
   Asked,
   Chart,
   Dimensions,
+  Exhausted,
   IndicatorId,
   Politics,
   Ranking,
@@ -214,6 +215,18 @@ describe("score", () => {
       'the question "Which GDP?", want no chart',
     ])
     expect(score([expected], Unanswered.make({}))).toEqual(["no chart, want a trend"])
+  })
+
+  it("fails an answer cut short at the limit or ended with a question, charts and all", () => {
+    const charts = [Chart.make({ view: brazilAndMexico() })] as const
+
+    expect(score([expected], Exhausted.make({ blocks: charts }))).toEqual([
+      "cut short, want a trend",
+    ])
+    expect(score([Expected.Unanswered()], Exhausted.make({}))).toEqual(["cut short, want no chart"])
+    expect(
+      score([expected], Asked.make({ question: "Which GDP?", choices: ["Real"], blocks: charts })),
+    ).toEqual(['the question "Which GDP?", want a trend'])
   })
 
   it("scores the charts of an answer and none of its text", () => {
