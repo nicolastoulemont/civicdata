@@ -21,8 +21,8 @@ export const Logged = Schema.Struct({
   changed: Schema.fromJsonString(
     Schema.Array(Schema.Struct({ turn: TurnIndex, chart: ChartIndex, view: View })),
   ),
-  ending: Schema.fromJsonString(Ending),
-  steps: Schema.fromJsonString(Schema.Array(Ended)),
+  ending: Schema.fromJsonString(Schema.toCodecJson(Ending)),
+  steps: Schema.fromJsonString(Schema.toCodecJson(Schema.Array(Ended))),
   took: Schema.NullOr(Schema.Number),
   model: Schema.String,
   version: Schema.NullOr(Schema.String),

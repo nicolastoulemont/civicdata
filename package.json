@@ -14,7 +14,8 @@
     "format:check": "oxfmt --check",
     "fallow": "fallow",
     "check": "pnpm format:check && pnpm lint && pnpm fallow && turbo run typecheck test build",
-    "prepare": "effect-tsgo patch --typescript"
+    "prepare": "effect-tsgo patch --typescript",
+    "evals": "node packages/server/scripts/evals.ts"
   },
   "devDependencies": {
     "@effect/tsgo": "0.67.5",

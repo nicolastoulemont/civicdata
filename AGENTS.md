@@ -37,7 +37,7 @@ civicdata charts public data about countries from the World Bank, Eurostat and t
 - Server tests run inside workerd through `@cloudflare/vitest-plugin`, whose compatibility date must match the one in `packages/infra/alchemy.run.ts`.
 - Frontend tests render the feature with its real providers and fake HTTP with MSW handlers registered on `network` from `apps/web/test/network.ts`; a request no handler answers fails the test. Use same-origin URLs: happy-dom sends a CORS preflight before any cross-origin request.
 - Fake through layers or MSW; lint rejects module mocking (`vi.mock`).
-- The assistant's eval (`packages/server/eval`) is not a check. Run it only when the user asks for an eval run in the current task, never to verify your own change, before pushing, or after changing the prompt, a tool or the model. It refuses to start without `RUN_AGENT_EVAL=1`; set that only under such a request. Adding or editing cases needs no run: `pnpm check` typechecks them.
+- Evals: read `docs/evals.md` before running, reviewing, archiving or restoring assistant evals. Paid evals and probes run only on the user's explicit request for that run in the current task; `pnpm check` never needs one.
 
 ## Cloudflare Workers
 

@@ -6,7 +6,8 @@
     "dev": "./with-key.sh alchemy dev",
     "deploy": "./with-key.sh alchemy deploy --yes",
     "destroy": "alchemy destroy --yes",
-    "typecheck": "effect-tsgo tsc --noEmit"
+    "typecheck": "effect-tsgo tsc --noEmit",
+    "deploy:evals": "alchemy deploy evals.run.ts --stage archive --yes"
   },
   "devDependencies": {
     "@alchemy.run/cloudflare": "2.0.0-beta.85",

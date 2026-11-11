@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process"
-import { randomUUID } from "node:crypto"
+import { createHash, randomUUID } from "node:crypto"
 import { existsSync } from "node:fs"
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises"
 import { dirname, join } from "node:path"
@@ -10,13 +10,15 @@ import { gunzip, gzip } from "node:zlib"
 import { cloudflareTest } from "@cloudflare/vitest-plugin"
 import { defineConfig } from "vitest/config"
 
+import { context } from "./scripts/evals/context.ts"
 import { runtime } from "./vitest.config.ts"
 
-// Every case spends OpenAI tokens and a run takes about 25 minutes, so the
-// eval starts only when someone asked for a run, never as a routine check.
+// Every question spends OpenAI tokens and a run takes from 25 minutes to
+// over an hour, so the eval and the probe run start only when someone asked
+// for a run, never as a routine check.
 if (process.env["RUN_AGENT_EVAL"] !== "1") {
   throw new Error(
-    "The agent eval runs only on request: it spends OpenAI tokens and takes about 25 minutes. Coding agents run it only when the user asked for an eval run in the current task, never to check their own change. To run it: RUN_AGENT_EVAL=1 pnpm --filter @civicdata/server eval",
+    "The agent eval and probe run start only on request: they spend OpenAI tokens and take from 25 minutes to over an hour. Coding agents run them only when the user asked for a run in the current task, never to check their own change. To run one: RUN_AGENT_EVAL=1 pnpm --filter @civicdata/server eval (or probe)",
   )
 }
 
@@ -55,6 +57,8 @@ if (key === undefined || key === "") {
   )
 }
 
+const captured = context(fileURLToPath(new URL("../../", import.meta.url)))
+
 const recordings = fileURLToPath(new URL("eval/recordings", import.meta.url))
 
 // The sources' recorded answers (eval/Recordings.ts), one gzipped file per
@@ -64,7 +68,11 @@ const RECORDINGS = async (request: Request) => {
 
   if (request.method !== "PUT")
     return readFile(file).then(
-      async (zipped) => new Response(await promisify(gunzip)(zipped)),
+      async (zipped) => {
+        await remember(zipped)
+
+        return new Response(await promisify(gunzip)(zipped))
+      },
       () => new Response(null, { status: 404 }),
     )
 
@@ -73,21 +81,55 @@ const RECORDINGS = async (request: Request) => {
   const written = `${file}.${randomUUID()}`
 
   await mkdir(dirname(file), { recursive: true })
-  await writeFile(written, await promisify(gzip)(await request.text()))
+  const zipped = await promisify(gzip)(await request.text())
+
+  await writeFile(written, zipped)
   await rename(written, file)
+  await remember(zipped)
 
   return new Response(null, { status: 204 })
 }
 
-// Asks the agent every question in eval/cases.ts, against OpenAI and the
-// sources' recorded answers. Each question costs a few model requests, so
-// this runs on request only, never in CI.
+// This run's folder for the probe run's answers (eval/probe.eval.ts), named
+// by when it started. Made on the first answer written.
+const run = fileURLToPath(
+  new URL(`eval/runs/${new Date().toISOString().replaceAll(":", "-")}/`, import.meta.url),
+)
+
+// Initialize on the first input or answer, including failed and partial runs.
+let initialized: Promise<void> | undefined
+
+const initialize = () => {
+  initialized ??= mkdir(join(run, "inputs/recordings"), { recursive: true }).then(() =>
+    writeFile(join(run, "context.json"), JSON.stringify(captured, null, 2), { flag: "wx" }),
+  )
+
+  return initialized
+}
+
+// Keep the exact response bytes used by this run, even if fixtures are refreshed later.
+const remember = async (zipped: Uint8Array) => {
+  await initialize()
+  const hash = createHash("sha256").update(zipped).digest("hex")
+  await writeFile(join(run, "inputs/recordings", `${hash}.json.gz`), zipped)
+}
+
+const RUNS = async (request: Request) => {
+  await initialize()
+  await writeFile(join(run, new URL(request.url).pathname), await request.text())
+
+  return new Response(null, { status: 204 })
+}
+
+// Asks the agent every question in eval/cases.ts (eval) or eval/probes.ts
+// (probe), against OpenAI and the sources' recorded answers. Each question
+// costs a few model requests, so this runs on request only, never in CI.
 export default defineConfig({
   plugins: [
     cloudflareTest({
       miniflare: {
         ...runtime,
-        serviceBindings: { RECORDINGS },
+        serviceBindings: { RECORDINGS, RUNS },
         bindings:
           model === undefined
             ? { OPENAI_API_KEY: key }

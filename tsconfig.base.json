@@ -23,6 +23,9 @@
         "name": "@effect/language-service",
         "allowedUnstableApis": [
           "effect/http",
+          "effect/FileSystem",
+          "effect/PlatformError",
+          "@effect/platform-node",
           "effect/http-api",
           "effect/sql",
           "effect/reactivity",
