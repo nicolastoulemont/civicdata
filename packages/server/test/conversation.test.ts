@@ -3556,7 +3556,7 @@ describe("traces", () => {
 
         expect(Object.fromEntries(run?.attributes ?? [])).toMatchObject({
           "gen_ai.operation.name": "invoke_agent",
-          "gen_ai.agent.name": "civicdata",
+          "gen_ai.agent.name": "openfacts",
           "gen_ai.conversation.id": id,
           "civicdata.question": "How has life expectancy changed in Brazil?",
           "civicdata.country": "MEX",

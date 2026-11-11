@@ -113,7 +113,7 @@ describe("explore URL", () => {
     expect(toQuery(view)).toBe(
       "?chart=trend&indicator=SP.POP.TOTL&countries=FRA%2CDEU&from=2000&to=2022&transform=per-person",
     )
-    expect(fromUrl(new URL(`https://civicdata.example/explore.png${toQuery(view)}`))).toEqual(view)
+    expect(fromUrl(new URL(`https://openfacts.example/explore.png${toQuery(view)}`))).toEqual(view)
   })
 
   it.each([

@@ -186,7 +186,7 @@ class Conversation extends HttpApiGroup.make("conversation")
   )
   .prefix("/conversations") {}
 
-export class Api extends HttpApi.make("civicdata")
+export class Api extends HttpApi.make("openfacts")
   .add(System)
   .add(Views)
   .add(Indicators)

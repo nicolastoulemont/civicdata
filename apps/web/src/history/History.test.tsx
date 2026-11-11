@@ -203,7 +203,7 @@ describe("History", () => {
 
     expect(
       (await screen.findByRole("link", { name: "View the source on GitHub" })).getAttribute("href"),
-    ).toBe("https://github.com/nicolastoulemont/civicdata")
+    ).toBe("https://github.com/nicolastoulemont/openfacts")
   })
 
   it("lists this browser's conversations newest first, with how long ago each was asked", async () => {

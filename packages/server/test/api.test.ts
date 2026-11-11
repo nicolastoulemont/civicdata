@@ -3,7 +3,7 @@ import { handle } from "@openfacts/server"
 import { Effect } from "effect"
 
 const send = (path: string, init?: RequestInit) =>
-  Effect.promise(() => handle(new Request(new URL(path, "https://civicdata.test"), init)))
+  Effect.promise(() => handle(new Request(new URL(path, "https://openfacts.test"), init)))
 
 describe("api", () => {
   it.effect("reports health", () =>
