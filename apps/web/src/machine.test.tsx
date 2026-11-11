@@ -1,4 +1,4 @@
-import { Machine } from "@civicdata/machine"
+import { Machine } from "@openfacts/machine"
 import { render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { Data, Effect } from "effect"

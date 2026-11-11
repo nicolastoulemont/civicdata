@@ -1,3 +1,4 @@
+import { describe, expect, it } from "@effect/vitest"
 import {
   Dimensions,
   IndicatorId,
@@ -5,8 +6,7 @@ import {
   IndicatorNotes as IndicatorNotesSchema,
   IndicatorNotFound,
   SourceUnavailable,
-} from "@civicdata/domain"
-import { describe, expect, it } from "@effect/vitest"
+} from "@openfacts/domain"
 import { Effect, Layer, Option, Schema } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
 import { TestClock } from "effect/testing"

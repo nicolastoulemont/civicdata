@@ -9,7 +9,7 @@ import {
   Stopped,
   type Turn,
   type TurnIndex,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import { Match, Schema } from "effect"
 import { useTranslation } from "react-i18next"
 

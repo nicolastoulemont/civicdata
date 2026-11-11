@@ -1,4 +1,4 @@
-import { isRanked, type Ranked, type ResolvedView, type Year } from "@civicdata/domain"
+import { isRanked, type Ranked, type ResolvedView, type Year } from "@openfacts/domain"
 import type { Meta, StoryObj } from "@storybook/react-vite"
 import { useState } from "react"
 

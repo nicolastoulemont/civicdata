@@ -1,4 +1,4 @@
-import { Source } from "@civicdata/domain"
+import { Source } from "@openfacts/domain"
 import { env } from "cloudflare:workers"
 import { DateTime, Effect, Layer, Option, Result, Schema } from "effect"
 import { Base64 } from "effect/encoding"

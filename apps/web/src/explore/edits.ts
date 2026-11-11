@@ -15,7 +15,7 @@ import {
   Trend,
   type View,
   Year,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import { Match, Struct } from "effect"
 
 // Edits a user makes to a View through the page's controls. Each returns a

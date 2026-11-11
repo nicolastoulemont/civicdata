@@ -1,4 +1,4 @@
-import { Source } from "@civicdata/domain"
+import { Source } from "@openfacts/domain"
 import { DateTime, Effect, Option, Schema } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 

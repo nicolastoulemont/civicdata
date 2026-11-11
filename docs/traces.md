@@ -88,7 +88,7 @@ Previews and production share the stack. Tell them apart with `resource.deployme
 
 ## Dashboard
 
-`grafana/civicdata.json` is one dashboard, built on TraceQL queries over the spans, so it adds no metric series to bill. Its Stage picker filters every panel to one stage, `prod` by default, except the page error panels: browser spans carry no stage, so the browser panels keep the questions whose trace reached that stage's Worker, and page errors count every stage.
+`grafana/openfacts.json` is one dashboard, built on TraceQL queries over the spans, so it adds no metric series to bill. Its Stage picker filters every panel to one stage, `prod` by default, except the page error panels: browser spans carry no stage, so the browser panels keep the questions whose trace reached that stage's Worker, and page errors count every stage.
 
 | Row                  | Shows                                                                                                                       |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------- |
@@ -101,7 +101,7 @@ Previews and production share the stack. Tell them apart with `resource.deployme
 
 `pnpm dev` loads it into the local Grafana, which rereads the file when it changes. Grafana there won't save edits to a dashboard it loaded from a file: edit the JSON, or edit a copy in Grafana and paste its JSON (Edit, then Settings, then JSON Model) into the file.
 
-In Grafana Cloud, import it once: Dashboards, then New, then Import, then upload `grafana/civicdata.json`. Import it again after the file changes, choosing to overwrite.
+In Grafana Cloud, import it once: Dashboards, then New, then Import, then upload `grafana/openfacts.json`. Import it again after the file changes, choosing to overwrite.
 
 ## Reading the agent
 

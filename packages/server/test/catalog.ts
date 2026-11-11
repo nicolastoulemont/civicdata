@@ -1,5 +1,5 @@
-import { type CatalogEntry, IndicatorId, type Source, SourceUnavailable } from "@civicdata/domain"
 import { D1Client } from "@effect/sql-d1"
+import { type CatalogEntry, IndicatorId, type Source, SourceUnavailable } from "@openfacts/domain"
 import { env } from "cloudflare:workers"
 import { Effect, Layer } from "effect"
 import { gzipSync, strToU8 } from "fflate"

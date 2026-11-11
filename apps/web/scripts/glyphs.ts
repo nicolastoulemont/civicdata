@@ -1,6 +1,6 @@
 // Writes src/card/faces.gen.ts: Geist glyphs as bitmaps for the link-preview
 // card, which the server draws without a font engine. Run with
-// `pnpm --filter @civicdata/web run glyphs` after changing a face below.
+// `pnpm --filter @openfacts/web run glyphs` after changing a face below.
 import { readFileSync, writeFileSync } from "node:fs"
 
 // opentype.js ships CommonJS, which Node exposes as a default export only.

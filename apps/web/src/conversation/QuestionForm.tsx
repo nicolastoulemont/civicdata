@@ -1,4 +1,4 @@
-import { maxQuestion, Question } from "@civicdata/domain"
+import { maxQuestion, Question } from "@openfacts/domain"
 import {
   type Editor,
   Extension,

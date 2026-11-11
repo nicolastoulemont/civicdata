@@ -1,11 +1,11 @@
 // Writes scripts/flags.json: the colours of each country's flag and the share
 // of the flag each covers, measured from the flag-icons SVG flags (MIT
 // licence). scripts/colors.ts derives each country's chart colours from it.
-// Run with `pnpm --filter @civicdata/web run flags`, then `pnpm format`, after
+// Run with `pnpm --filter @openfacts/web run flags`, then `pnpm format`, after
 // upgrading flag-icons or when the domain's country list changes.
 import { readFileSync, writeFileSync } from "node:fs"
 
-import { countries } from "@civicdata/domain"
+import { countries } from "@openfacts/domain"
 import { Resvg } from "@resvg/resvg-js"
 
 import { distance, hex, lab, type Lab, type Rgb } from "./oklab.ts"

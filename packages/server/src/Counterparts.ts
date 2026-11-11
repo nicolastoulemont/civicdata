@@ -5,7 +5,7 @@ import {
   type ResolvedView,
   type SeriesKey,
   type Transform,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import { Schema } from "effect"
 
 const pick = Schema.decodeSync(Dimensions)

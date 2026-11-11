@@ -1,4 +1,4 @@
-import { IndicatorId, Ranking, Relation, Trend, Year } from "@civicdata/domain"
+import { IndicatorId, Ranking, Relation, Trend, Year } from "@openfacts/domain"
 import { describe, expect, it } from "vitest"
 
 import { preview } from "./preview.ts"

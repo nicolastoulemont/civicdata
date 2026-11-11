@@ -1,4 +1,4 @@
-import { Source } from "@civicdata/domain"
+import { Source } from "@openfacts/domain"
 import { Option, Schema } from "effect"
 
 import { empty, Ledger, refuse, Slot, take } from "./Pace.ts"

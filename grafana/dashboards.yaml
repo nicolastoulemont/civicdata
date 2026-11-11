@@ -1,8 +1,8 @@
-# Loads civicdata.json into the Grafana `pnpm dev` starts (compose.yaml).
+# Loads openfacts.json into the Grafana `pnpm dev` starts (compose.yaml).
 apiVersion: 1
 
 providers:
-  - name: civicdata
+  - name: openfacts
     type: file
     options:
-      path: /civicdata/dashboards
+      path: /openfacts/dashboards

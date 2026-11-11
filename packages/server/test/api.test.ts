@@ -1,5 +1,5 @@
-import { handle } from "@civicdata/server"
 import { describe, expect, it } from "@effect/vitest"
+import { handle } from "@openfacts/server"
 import { Effect } from "effect"
 
 const send = (path: string, init?: RequestInit) =>

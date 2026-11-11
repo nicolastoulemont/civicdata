@@ -3,7 +3,7 @@
 // oxlint-disable-next-line typescript/triple-slash-reference
 /// <reference path="./cloudflare.d.ts" />
 
-import { type CatalogEntry, IndicatorId } from "@civicdata/domain"
+import { type CatalogEntry, IndicatorId } from "@openfacts/domain"
 import { Array as Arr, Context, Effect, Layer, Schema } from "effect"
 
 const Embedded = Schema.Struct({ data: Schema.NonEmptyArray(Schema.Array(Schema.Finite)) })
@@ -104,7 +104,7 @@ const decode =
 // Indicator meaning, embedded by Workers AI and searched in Vectorize.
 // Search treats a failure as "no neighbors" rather than failing: words still
 // find indicators.
-export class Vectors extends Context.Service<Vectors, Interface>()("@civicdata/server/Vectors") {
+export class Vectors extends Context.Service<Vectors, Interface>()("@openfacts/server/Vectors") {
   static readonly cloudflare = ({
     ai,
     index,

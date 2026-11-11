@@ -1,5 +1,5 @@
 {
-  "name": "@civicdata/server",
+  "name": "@openfacts/server",
   "private": true,
   "type": "module",
   "exports": {
@@ -19,10 +19,10 @@
     "probe": "vitest run --config vitest.eval.config.ts probe"
   },
   "dependencies": {
-    "@civicdata/domain": "workspace:*",
-    "@civicdata/machine": "workspace:*",
     "@effect/ai-openai": "4.1.2",
     "@effect/sql-d1": "4.1.2",
+    "@openfacts/domain": "workspace:*",
+    "@openfacts/machine": "workspace:*",
     "effect": "catalog:",
     "entities": "7.0.1",
     "fflate": "0.8.3"

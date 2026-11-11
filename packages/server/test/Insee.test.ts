@@ -1,3 +1,4 @@
+import { describe, expect, it } from "@effect/vitest"
 import {
   Dimensions,
   DimensionsMissing,
@@ -6,8 +7,7 @@ import {
   SourceUnavailable,
   Trend,
   Year,
-} from "@civicdata/domain"
-import { describe, expect, it } from "@effect/vitest"
+} from "@openfacts/domain"
 import { Effect, Layer, Schema, Stream } from "effect"
 import { TestClock } from "effect/testing"
 

@@ -1,4 +1,4 @@
-import { TooManyQuestions } from "@civicdata/domain"
+import { TooManyQuestions } from "@openfacts/domain"
 import { Context, Effect, Layer } from "effect"
 
 interface Interface {
@@ -8,7 +8,7 @@ interface Interface {
 
 // Each question costs model calls, so a deployment caps how often one visitor
 // can ask. The cap itself lives in the ASK_LIMIT binding's configuration.
-export class AskLimit extends Context.Service<AskLimit, Interface>()("@civicdata/server/AskLimit") {
+export class AskLimit extends Context.Service<AskLimit, Interface>()("@openfacts/server/AskLimit") {
   static readonly none = Layer.succeed(AskLimit, AskLimit.of({ count: () => Effect.void }))
 
   // The Workers rate limit binding, when the deployment has one. A failing

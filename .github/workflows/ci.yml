@@ -100,14 +100,14 @@ jobs:
           labels=$(gh api "repos/$REPO/issues/$PR/labels" --jq '.[].name')
           if grep -qx own-catalog <<< "$labels"; then own=true; else own=false; fi
           echo "OWN_CATALOG=$own" >> "$GITHUB_ENV"
-      - run: pnpm --filter @civicdata/infra exec alchemy deploy --yes --stage "$STAGE"
+      - run: pnpm --filter @openfacts/infra exec alchemy deploy --yes --stage "$STAGE"
       # In CI, Alchemy prints log lines and status messages to stdout before the
       # value, which it prints last as indented JSON. Parse from its opening
       # brace. The stack output comes from pull request code, so accept a bare
       # https origin only before it reaches the comment.
       - id: url
         run: |
-          output=$(pnpm --silent --filter @civicdata/infra exec alchemy state cat "civicdata/$STAGE/output" --log-level=none --no-input)
+          output=$(pnpm --silent --filter @openfacts/infra exec alchemy state cat "civicdata/$STAGE/output" --log-level=none --no-input)
           if ! url=$(sed -n '/^{/,$p' <<< "$output" | jq -er .url); then
             echo "::error::Could not read the preview URL from the stack output"
             printf '%s\n' "$output"
@@ -129,7 +129,7 @@ jobs:
         name: Start a catalog build
         if: env.OWN_CATALOG != 'false'
         run: |
-          output=$(pnpm --silent --filter @civicdata/infra exec alchemy state cat "civicdata/$STAGE/output" --log-level=none --no-input)
+          output=$(pnpm --silent --filter @openfacts/infra exec alchemy state cat "civicdata/$STAGE/output" --log-level=none --no-input)
           if ! name=$(sed -n '/^{/,$p' <<< "$output" | jq -er .catalog); then
             echo "::error::Could not read the catalog Workflow from the stack output"
             printf '%s\n' "$output"
@@ -236,7 +236,7 @@ jobs:
       - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           require-lockfile: true
-      - run: pnpm --filter @civicdata/infra exec alchemy deploy --yes --stage "$STAGE"
+      - run: pnpm --filter @openfacts/infra exec alchemy deploy --yes --stage "$STAGE"
       - *build
 
   cleanup:
@@ -264,7 +264,7 @@ jobs:
       - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           require-lockfile: true
-      - run: pnpm --filter @civicdata/infra exec alchemy destroy --yes --stage "$STAGE"
+      - run: pnpm --filter @openfacts/infra exec alchemy destroy --yes --stage "$STAGE"
 
   preview-removed:
     needs: cleanup

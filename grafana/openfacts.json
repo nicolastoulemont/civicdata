@@ -1,8 +1,8 @@
 {
   "uid": "civicdata",
-  "title": "civicdata",
+  "title": "openfacts",
   "description": "The agent's answers, the app's requests and the sources behind them, from Tempo traces (docs/traces.md).",
-  "tags": ["civicdata"],
+  "tags": ["openfacts"],
   "editable": true,
   "schemaVersion": 41,
   "time": {

@@ -1,4 +1,4 @@
-import type { Cited, Country } from "@civicdata/domain"
+import type { Cited, Country } from "@openfacts/domain"
 import { cn } from "cn"
 import { Struct } from "effect"
 import { type ComponentProps, createContext, use } from "react"

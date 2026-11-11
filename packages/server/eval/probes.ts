@@ -1,4 +1,4 @@
-import { ChartIndex, Ended, Ending, TurnIndex, View, Vote } from "@civicdata/domain"
+import { ChartIndex, Ended, Ending, TurnIndex, View, Vote } from "@openfacts/domain"
 import { Array as Arr, Predicate, Schema } from "effect"
 
 import { Logged } from "./candidates.ts"

@@ -13,7 +13,7 @@ import {
   type Turn,
   Turns,
   Year,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import {
   createMemoryHistory,

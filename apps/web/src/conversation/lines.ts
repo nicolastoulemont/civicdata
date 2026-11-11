@@ -20,7 +20,7 @@ import {
   transformOf,
   type Unresolved,
   type View,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import { Match, Predicate } from "effect"
 import type { TFunction } from "i18next"
 import {

@@ -1,5 +1,5 @@
-import { Unanswered } from "@civicdata/domain"
 import { describe, expect, it } from "@effect/vitest"
+import { Unanswered } from "@openfacts/domain"
 import { Effect, Exit, Option } from "effect"
 import { TestClock } from "effect/testing"
 

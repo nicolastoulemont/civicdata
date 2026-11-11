@@ -24,8 +24,8 @@ import {
   type Vote,
   withShown,
   type Work,
-} from "@civicdata/domain"
-import { Machine } from "@civicdata/machine"
+} from "@openfacts/domain"
+import { Machine } from "@openfacts/machine"
 import {
   Array as Arr,
   Context,
@@ -269,7 +269,7 @@ const isExpiring = Phase.$is("Expiring")
 // it was, which after a first question is open with no turns. Only `stop`
 // ends an answer early.
 export class Conversation extends Context.Service<Conversation, Interface>()(
-  "@civicdata/server/Conversation",
+  "@openfacts/server/Conversation",
 ) {
   // Needs an Agent, a Transcript and Answers.
   static readonly layer = Layer.effect(

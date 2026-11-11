@@ -11,7 +11,7 @@ import {
   Up,
   View,
   Vote,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import { Array as Arr, Order, Schema } from "effect"
 
 // A row of the answer log, as docs/answers.md describes it.

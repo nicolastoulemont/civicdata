@@ -1,5 +1,5 @@
-import { Year } from "@civicdata/domain"
 import { beforeEach, describe, expect, it } from "@effect/vitest"
+import { Year } from "@openfacts/domain"
 import { reset } from "cloudflare:test"
 import { DateTime, Effect, Layer } from "effect"
 import { TestClock } from "effect/testing"

@@ -1,3 +1,4 @@
+import { describe, expect, it } from "@effect/vitest"
 import {
   Api,
   Change,
@@ -14,8 +15,7 @@ import {
   TransformNotApplicable,
   Trend,
   Year,
-} from "@civicdata/domain"
-import { describe, expect, it } from "@effect/vitest"
+} from "@openfacts/domain"
 import { reset } from "cloudflare:test"
 import { DateTime, Effect, Layer, Schema } from "effect"
 import { HttpServer } from "effect/http"

@@ -7,7 +7,7 @@ import {
   regionOf,
   type ResolvedView,
   type Trend,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import { Match } from "effect"
 
 import { colors } from "@/explore/colors.gen"

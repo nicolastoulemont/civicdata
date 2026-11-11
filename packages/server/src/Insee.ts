@@ -7,7 +7,7 @@ import {
   SourceUnavailable,
   Year,
   type Observation,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import {
   Array as Arr,
   Context,
@@ -343,7 +343,7 @@ const make = Effect.gen(function* () {
 })
 
 // API reads only. No bulk capability and no gather enrollment.
-export class Insee extends Context.Service<Insee, Adapter>()("@civicdata/server/Insee") {
+export class Insee extends Context.Service<Insee, Adapter>()("@openfacts/server/Insee") {
   static readonly layer = Layer.effect(Insee, make)
   static readonly cached = Layer.effect(
     Insee,

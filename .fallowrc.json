@@ -25,7 +25,7 @@
     // Object classes.
     { "file": "apps/web/src/server.ts", "exports": ["*"] },
     // The Workflow classes the Worker entry exports. They reach the entry
-    // through the `workerd` condition of @civicdata/server/workflow, which
+    // through the `workerd` condition of @openfacts/server/workflow, which
     // Fallow does not resolve.
     {
       "file": "packages/server/src/workflows.ts",

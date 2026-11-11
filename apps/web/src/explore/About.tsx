@@ -5,7 +5,7 @@ import {
   type ResolvedView,
   sourceOf,
   type View,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import { useQuery } from "@tanstack/react-query"
 import { Fragment, useId } from "react"
 import { useTranslation } from "react-i18next"

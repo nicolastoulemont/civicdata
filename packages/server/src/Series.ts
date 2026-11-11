@@ -5,7 +5,7 @@ import {
   Observation,
   type SeriesKey,
   Year,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import { DateTime, Effect, Schema } from "effect"
 
 // What the Resolver asks a source adapter for: one series' values for some

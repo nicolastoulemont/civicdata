@@ -1,4 +1,4 @@
-import { ConversationId, Step, Turns, Unanswered } from "@civicdata/domain"
+import { ConversationId, Step, Turns, Unanswered } from "@openfacts/domain"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import {
   createMemoryHistory,

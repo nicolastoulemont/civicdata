@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it } from "@effect/vitest"
 import {
   Api,
   type Country,
@@ -6,8 +7,7 @@ import {
   type Government,
   PoliticsUnavailable,
   Year,
-} from "@civicdata/domain"
-import { beforeEach, describe, expect, it } from "@effect/vitest"
+} from "@openfacts/domain"
 import { reset } from "cloudflare:test"
 import { Effect, Layer } from "effect"
 import { HttpServer } from "effect/http"

@@ -5,7 +5,7 @@
 // Cloudflare's D1 API, with a token that can read D1:
 //
 //   CLOUDFLARE_ACCOUNT_ID=... CLOUDFLARE_API_TOKEN=... DATABASE_ID=... \
-//     pnpm --filter @civicdata/server run triage
+//     pnpm --filter @openfacts/server run triage
 //
 // DATABASE_ID is the stage's D1 database, under Storage and databases, then
 // D1, in the Cloudflare dashboard. docs/answers.md says how to finish a case.
@@ -13,7 +13,7 @@
 // Or a probe run's folder, once a reviewer has voted on its answers
 // (eval/probes.md):
 //
-//   RUN=eval/runs/<run> pnpm --filter @civicdata/server run triage
+//   RUN=eval/runs/<run> pnpm --filter @openfacts/server run triage
 import { readdir, readFile } from "node:fs/promises"
 import { join, resolve } from "node:path"
 

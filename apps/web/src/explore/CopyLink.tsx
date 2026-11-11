@@ -1,4 +1,4 @@
-import type { Overlay, View } from "@civicdata/domain"
+import type { Overlay, View } from "@openfacts/domain"
 import { Check, Link } from "lucide-react"
 import { use } from "react"
 import { useTranslation } from "react-i18next"

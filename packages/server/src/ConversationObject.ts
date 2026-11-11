@@ -1,5 +1,5 @@
-import { ConversationApi, fromAlpha2 } from "@civicdata/domain"
 import type { DurableObjectState } from "@cloudflare/workers-types"
+import { ConversationApi, fromAlpha2 } from "@openfacts/domain"
 import { Effect, Layer, ManagedRuntime, Option } from "effect"
 import { HttpRouter, HttpServer } from "effect/http"
 import { HttpApiBuilder } from "effect/http-api"

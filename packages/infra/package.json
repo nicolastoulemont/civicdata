@@ -1,5 +1,5 @@
 {
-  "name": "@civicdata/infra",
+  "name": "@openfacts/infra",
   "private": true,
   "type": "module",
   "scripts": {

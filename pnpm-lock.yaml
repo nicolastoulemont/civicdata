@@ -230,18 +230,18 @@ importers:
       '@base-ui/react':
         specifier: ^1.9.0
         version: 1.9.0(@types/react@19.3.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      '@civicdata/domain':
-        specifier: workspace:*
-        version: link:../../packages/domain
-      '@civicdata/machine':
-        specifier: workspace:*
-        version: link:../../packages/machine
-      '@civicdata/server':
-        specifier: workspace:*
-        version: link:../../packages/server
       '@fontsource-variable/geist':
         specifier: ^5.3.0
         version: 5.3.0
+      '@openfacts/domain':
+        specifier: workspace:*
+        version: link:../../packages/domain
+      '@openfacts/machine':
+        specifier: workspace:*
+        version: link:../../packages/machine
+      '@openfacts/server':
+        specifier: workspace:*
+        version: link:../../packages/server
       '@tanstack/query-persist-client-core':
         specifier: ^5.107.1
         version: 5.107.1
@@ -449,18 +449,18 @@ importers:
 
   packages/server:
     dependencies:
-      '@civicdata/domain':
-        specifier: workspace:*
-        version: link:../domain
-      '@civicdata/machine':
-        specifier: workspace:*
-        version: link:../machine
       '@effect/ai-openai':
         specifier: 4.1.2
         version: 4.1.2(effect@4.1.2)
       '@effect/sql-d1':
         specifier: 4.1.2
         version: 4.1.2(effect@4.1.2)
+      '@openfacts/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@openfacts/machine':
+        specifier: workspace:*
+        version: link:../machine
       effect:
         specifier: 'catalog:'
         version: 4.1.2

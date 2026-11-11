@@ -1,4 +1,4 @@
-import { handle } from "@civicdata/server"
+import { handle } from "@openfacts/server"
 import { createFileRoute } from "@tanstack/react-router"
 
 // Every /api request goes to the Effect HttpApi, which owns routing and errors.

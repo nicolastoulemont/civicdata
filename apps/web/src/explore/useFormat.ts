@@ -8,7 +8,7 @@ import {
   type Source,
   transformOf,
   type View,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import { Match } from "effect"
 import type { TFunction } from "i18next"
 import { useMemo } from "react"

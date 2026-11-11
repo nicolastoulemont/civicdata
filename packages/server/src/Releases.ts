@@ -1,5 +1,5 @@
-import { Source, sourceOf, pathOf, SourceUnavailable } from "@civicdata/domain"
 import { D1Client } from "@effect/sql-d1"
+import { Source, sourceOf, pathOf, SourceUnavailable } from "@openfacts/domain"
 import { Context, DateTime, Effect, Layer, Option, Schema } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
@@ -34,7 +34,7 @@ interface Interface {
   readonly activate: (source: Source, manifest: Manifest) => Effect.Effect<void, SourceUnavailable>
 }
 
-export class Releases extends Context.Service<Releases, Interface>()("@civicdata/server/Releases") {
+export class Releases extends Context.Service<Releases, Interface>()("@openfacts/server/Releases") {
   static readonly layer = Layer.effect(
     Releases,
     Effect.gen(function* () {

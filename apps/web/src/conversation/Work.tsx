@@ -1,4 +1,4 @@
-import { Chart, Ending, Rendered, type Step, type View } from "@civicdata/domain"
+import { Chart, Ending, Rendered, type Step, type View } from "@openfacts/domain"
 import { useQuery } from "@tanstack/react-query"
 import { cn } from "cn"
 import { Duration, Schema } from "effect"

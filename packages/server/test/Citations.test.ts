@@ -1,4 +1,4 @@
-import { Cited, Day, End, Politics } from "@civicdata/domain"
+import { Cited, Day, End, Politics } from "@openfacts/domain"
 import { DateTime, Option, Schema } from "effect"
 import { describe, expect, it } from "vitest"
 

@@ -1,5 +1,5 @@
-import { IndicatorId, SourceUnavailable } from "@civicdata/domain"
 import { describe, expect, it } from "@effect/vitest"
+import { IndicatorId, SourceUnavailable } from "@openfacts/domain"
 import { Effect, Fiber, Layer, Schema } from "effect"
 import { TestClock } from "effect/testing"
 

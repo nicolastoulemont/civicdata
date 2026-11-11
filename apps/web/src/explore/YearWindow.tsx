@@ -1,4 +1,4 @@
-import { type Country, type ResolvedView, Year } from "@civicdata/domain"
+import { type Country, type ResolvedView, Year } from "@openfacts/domain"
 import { useTranslation } from "react-i18next"
 
 import { Slider } from "@/components/ui/slider"

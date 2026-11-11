@@ -1,5 +1,5 @@
-import { Year } from "@civicdata/domain"
-import { Machine } from "@civicdata/machine"
+import { Year } from "@openfacts/domain"
+import { Machine } from "@openfacts/machine"
 import { Option } from "effect"
 import { describe, expect, it } from "vitest"
 

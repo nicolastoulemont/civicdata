@@ -1,4 +1,4 @@
-import { Api, type ConversationId } from "@civicdata/domain"
+import { Api, type ConversationId } from "@openfacts/domain"
 import { Effect, Layer } from "effect"
 import { HttpServerRequest, HttpServerResponse } from "effect/http"
 import { HttpApiBuilder } from "effect/http-api"

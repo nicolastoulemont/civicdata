@@ -1,5 +1,5 @@
 {
-  "name": "@civicdata/domain",
+  "name": "@openfacts/domain",
   "private": true,
   "type": "module",
   "exports": {

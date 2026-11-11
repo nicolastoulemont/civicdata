@@ -10,7 +10,7 @@ import {
   type View,
   When,
   yearOf,
-} from "@civicdata/domain"
+} from "@openfacts/domain"
 import { Match } from "effect"
 import type { TFunction } from "i18next"
 import { type ComponentProps, useState } from "react"

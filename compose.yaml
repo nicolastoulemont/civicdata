@@ -1,16 +1,16 @@
 # What `pnpm dev` runs beside the app (docs/traces.md). One project name for
 # every checkout, so worktrees share one Grafana instead of fighting over ports.
-name: civicdata
+name: openfacts
 
 services:
   # Grafana with Tempo, receiving the app's spans over OTLP/HTTP on 4318.
   # Grafana at http://localhost:3000 signs you in on its own, and loads the
-  # civicdata dashboard from grafana/, rereading it when the file changes.
+  # openfacts dashboard from grafana/, rereading it when the file changes.
   grafana:
     image: grafana/otel-lgtm:0.40.0
     ports:
       - "3000:3000"
       - "4318:4318"
     volumes:
-      - ./grafana/dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/civicdata.yaml:ro
-      - ./grafana:/civicdata/dashboards:ro
+      - ./grafana/dashboards.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/openfacts.yaml:ro
+      - ./grafana:/openfacts/dashboards:ro
