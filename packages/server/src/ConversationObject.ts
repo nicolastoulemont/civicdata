@@ -3,7 +3,6 @@ import type { DurableObjectState } from "@cloudflare/workers-types"
 import { Effect, Layer, ManagedRuntime } from "effect"
 import { HttpRouter, HttpServer } from "effect/http"
 import { HttpApiBuilder } from "effect/http-api"
-import type { OtlpExporter } from "effect/observability"
 
 import { Agent } from "./Agent.ts"
 import { AskLimit } from "./AskLimit.ts"
@@ -60,33 +59,26 @@ interface DurableObject {
   readonly alarm: () => Promise<void>
 }
 
-// One conversation's requests and alarm, given an Agent, an AskLimit, a
-// Transcript and the tracer their spans go to. Both reach the same
-// Conversation, so the alarm knows whether an answer is running. It is built
-// on first use. An answer outlives the request that asked it; the exporter
-// sends its spans while the object stays awake for whoever follows it.
+// One conversation's requests and alarm, given an Agent, an AskLimit and a
+// Transcript. Both reach the same Conversation, so the alarm knows whether an
+// answer is running. It is built on first use. Each request and alarm sends
+// its spans to a tracer of its own (Traces.serve); an answer's spans go with
+// the request that asked it, until its reader leaves.
 export const open = (
-  layer: Layer.Layer<Agent | AskLimit | Transcript | OtlpExporter.Flusher>,
+  layer: Layer.Layer<Agent | AskLimit | Transcript>,
+  { tracer = Traces.layer }: Traces.ServeOptions = {},
 ): DurableObject => {
   const runtime = ManagedRuntime.make(Conversation.layer.pipe(Layer.provideMerge(layer)))
 
   const { handler } = HttpRouter.toWebHandler(
-    serve.pipe(Layer.provideMerge(Layer.effectContext(runtime.contextEffect))),
+    serve.pipe(Layer.provide(Layer.effectContext(runtime.contextEffect))),
   )
 
   return {
-    fetch: async (request) => {
-      const response = await handler(request)
-
-      await runtime.runPromise(Traces.settle)
-
-      return response
-    },
+    fetch: Traces.serve(handler, { tracer }),
     alarm: () =>
       runtime.runPromise(
-        Conversation.use((conversation) => conversation.expire).pipe(
-          Effect.ensuring(Traces.settle),
-        ),
+        Conversation.use((conversation) => conversation.expire).pipe(Effect.provide(tracer)),
       ),
   }
 }
@@ -110,7 +102,6 @@ export class ConversationObject implements DurableObject {
         Transcript.durable(this.#state.storage),
         Agent.live.pipe(Layer.provide(Resolver.layer)),
         AskLimit.live,
-        Traces.layer,
       ).pipe(
         Layer.provide(Catalog.live),
         Layer.provide(Politics.live),

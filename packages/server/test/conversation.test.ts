@@ -86,7 +86,6 @@ import {
 import { AiError, LanguageModel, type Response } from "effect/ai"
 import { HttpServer } from "effect/http"
 import { HttpApiTest } from "effect/http-api"
-import { OtlpExporter } from "effect/observability"
 import { TestClock } from "effect/testing"
 import { strToU8, zipSync } from "fflate"
 
@@ -349,7 +348,7 @@ interface ServeOptions {
   // keeps its transcript in memory.
   readonly storage?: Storage
   // Where the conversation's spans go. Without it, they go nowhere.
-  readonly traces?: Layer.Layer<OtlpExporter.Flusher>
+  readonly traces?: Layer.Layer<never>
 }
 
 // The conversation's Durable Object alarm, which Cloudflare fires `keep` after
@@ -376,7 +375,7 @@ const serveApi = (
     politics = Politics.unavailable,
     findings = Findings.holding([]),
     notes = recordedNotes,
-    traces = OtlpExporter.layerFlusher,
+    traces = Layer.empty,
   }: ServeOptions = {},
 ) => {
   const agent = Agent.layer.pipe(
@@ -396,9 +395,10 @@ const serveApi = (
   return Layer.unwrap(
     Effect.clockWith((clock) => {
       const conversation = open(
-        Layer.mergeAll(transcript, agent, limit, traces).pipe(
+        Layer.mergeAll(transcript, agent, limit).pipe(
           Layer.provideMerge(Layer.succeed(Clock.Clock, clock)),
         ),
+        { tracer: traces },
       )
 
       return Effect.succeed(

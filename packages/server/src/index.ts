@@ -1,5 +1,5 @@
 import { Api } from "@civicdata/domain"
-import { Layer, ManagedRuntime } from "effect"
+import { Layer } from "effect"
 import { FetchHttpClient, HttpRouter, HttpServer } from "effect/http"
 import { HttpApiBuilder } from "effect/http-api"
 
@@ -37,27 +37,9 @@ const Live = Layer.merge(
   Layer.provide(HttpServer.layerServices),
 )
 
-// The API and the tracer its requests' spans go to.
-const serve = () => {
-  const runtime = ManagedRuntime.make(Traces.layer)
-
-  const { handler } = HttpRouter.toWebHandler(
-    Live.pipe(Layer.provideMerge(Layer.effectContext(runtime.contextEffect))),
-  )
-
-  return { runtime, handler }
-}
-
-let server: ReturnType<typeof serve> | undefined
+let handler: ((request: Request) => Promise<Response>) | undefined
 
 // Workers forbid timers and random values at global scope, and toWebHandler
 // starts building its layers as soon as it is called. Build on first request.
-export const handle = async (request: Request): Promise<Response> => {
-  server ??= serve()
-
-  const response = await server.handler(request)
-
-  await server.runtime.runPromise(Traces.settle)
-
-  return response
-}
+export const handle = (request: Request): Promise<Response> =>
+  (handler ??= Traces.serve(HttpRouter.toWebHandler(Live).handler))(request)

@@ -1,4 +1,4 @@
-import { Config, ConfigProvider, Context, Effect, Layer, Option, Schema } from "effect"
+import { Config, ConfigProvider, Context, Effect, Exit, Layer, Option, Schema, Scope } from "effect"
 import {
   FetchHttpClient,
   type HttpClient,
@@ -6,7 +6,7 @@ import {
   HttpRouter,
   HttpServerResponse,
 } from "effect/http"
-import { OtlpExporter, OtlpProxy, OtlpSerialization, OtlpTracer } from "effect/observability"
+import { OtlpProxy, OtlpSerialization, OtlpTracer } from "effect/observability"
 
 // Spans go to one OTLP endpoint: Grafana Cloud on deployed stages, a local
 // Grafana in `pnpm dev`, nowhere when the stage has none (docs/traces.md).
@@ -53,13 +53,13 @@ const destination = Effect.gen(function* () {
 
 const url = (endpoint: string) => `${endpoint.replace(/\/$/, "")}/v1/traces`
 
-// The server's spans exported to the destination, or recorded nowhere. The
-// Flusher exports what is buffered; see `settle`.
-export const layer: Layer.Layer<OtlpExporter.Flusher> = Layer.unwrap(
+// The server's spans exported to the destination, or recorded nowhere. Closing
+// its scope exports what is left.
+export const layer: Layer.Layer<never> = Layer.unwrap(
   Effect.map(
     destination,
     Option.match({
-      onNone: () => OtlpExporter.layerFlusher,
+      onNone: () => Layer.empty,
       onSome: ({ destination: { endpoint, headers }, deployment: { stage, version } }) =>
         OtlpTracer.layer({
           url: url(endpoint),
@@ -80,19 +80,43 @@ export const layer: Layer.Layer<OtlpExporter.Flusher> = Layer.unwrap(
 // Outside Workers nothing needs keeping alive after a response.
 const unkept: (promise: Promise<unknown>) => void = () => {}
 
-// Workers may freeze an isolate once it has answered, with spans still
-// buffered. Hands their export to waitUntil, so it finishes after the
-// response; outside Workers the process lives on and exports them anyway.
-export const settle = Effect.gen(function* () {
-  const flusher = yield* OtlpExporter.Flusher
+type Handler = (request: Request, context?: Context.Context<never>) => Promise<Response>
 
-  const later = yield* Effect.tryPromise(() => import("cloudflare:workers")).pipe(
-    Effect.map(({ waitUntil }) => waitUntil),
-    Effect.orElseSucceed(() => unkept),
-  )
+export interface ServeOptions {
+  // Where each request's spans go: `layer` unless a test records them.
+  readonly tracer?: Layer.Layer<never>
+}
 
-  later(Effect.runPromise(flusher.flush))
-})
+// Serves each request with a tracer of its own, closed once the response's
+// body ends, which exports the request's spans after the response through
+// waitUntil. Workers throw when a fiber started in one request resumes in
+// another, and a tracer shared across requests keeps such a fiber: its export
+// loop, which the next request's first span would wake. The spans an answer
+// makes after its reader left go nowhere.
+export const serve =
+  (handler: Handler, { tracer = layer }: ServeOptions = {}) =>
+  async (request: Request): Promise<Response> => {
+    const scope = Scope.makeUnsafe()
+    const close = () => Effect.runPromise(Scope.close(scope, Exit.void))
+
+    const { waitUntil } = await import("cloudflare:workers").catch(() => ({ waitUntil: unkept }))
+
+    const response = await Effect.runPromise(Layer.buildWithScope(tracer, scope)).then((context) =>
+      handler(request, context),
+    )
+
+    if (response.body === null) {
+      waitUntil(close())
+
+      return response
+    }
+
+    const { readable, writable } = new TransformStream()
+
+    waitUntil(response.body.pipeTo(writable).then(close, close))
+
+    return new Response(readable, response)
+  }
 
 interface Limit {
   // Whether a visitor may send one more batch of spans.

@@ -1,6 +1,5 @@
 import { Deferred, Effect, Exit, Layer, Option, Tracer } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
-import { OtlpExporter } from "effect/observability"
 
 import { Cache } from "../src/Cache.ts"
 import { Step, StepFailed } from "../src/CatalogBuild.ts"
@@ -32,7 +31,7 @@ export const recording = () => {
 
   return {
     spans,
-    layer: Layer.merge(OtlpExporter.layerFlusher, Layer.succeed(Tracer.Tracer, tracer)),
+    layer: Layer.succeed(Tracer.Tracer, tracer),
   }
 }
 
