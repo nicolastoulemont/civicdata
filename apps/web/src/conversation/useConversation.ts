@@ -61,7 +61,7 @@ interface Pending {
 
 // The steps of the answer to `pending`, asked or followed. Asking fails with
 // TooManyQuestions or ConversationBusy before the answer starts, and either
-// fails with AgentUnavailable, SourceUnavailable or CatalogUnavailable during
+// fails with AgentUnavailable or CatalogUnavailable during
 // it. Following an answer the server was not giving has no steps. One span
 // runs from the request to the last step; the server's spans of the answer
 // sit inside it.

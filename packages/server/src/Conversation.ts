@@ -12,7 +12,6 @@ import {
   NoChart,
   put,
   Rendered,
-  type SourceUnavailable,
   type Step,
   Stopped,
   type Turn,
@@ -48,7 +47,7 @@ import { Agent, type Changed } from "./Agent.ts"
 import { type Edit, type Saved, Transcript } from "./Transcript.ts"
 
 // Why an answer stopped short.
-type Failure = AgentUnavailable | SourceUnavailable | CatalogUnavailable
+type Failure = AgentUnavailable | CatalogUnavailable
 
 interface Interface {
   // Fails with ConversationNotFound when no question was ever asked here, or

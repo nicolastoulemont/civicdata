@@ -29,6 +29,8 @@ import unemploymentOptions from "./fixtures/eurostat/unemployment-options.csv?ra
 import unemployment from "./fixtures/eurostat/unemployment-total.csv?raw"
 import unknownFlow from "./fixtures/eurostat/unknown-flow.json"
 import oecdFlows from "./fixtures/oecd/dataflows.json"
+import debtFlow from "./fixtures/oecd/debt-flow.json"
+import debtOptions from "./fixtures/oecd/debt-options.csv?raw"
 import oecdNoRecords from "./fixtures/oecd/no-records.txt?raw"
 import oecdFlow from "./fixtures/oecd/unemployment-flow.json"
 import oecdOptions from "./fixtures/oecd/unemployment-options.csv?raw"
@@ -41,6 +43,7 @@ const oecd = "https://sdmx.oecd.org/public/rest"
 const tps00001 = IndicatorId.make("ESTAT,TPS00001,1.0")
 const uneRtA = IndicatorId.make("ESTAT,UNE_RT_A,1.0")
 const lfs = IndicatorId.make("OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M,1.0")
+const naag = IndicatorId.make("OECD.SDD.NAD,DSD_NAAG_VI@DF_NAAG_EXP,1.0")
 
 const picked = Schema.decodeSync(Dimensions)
 
@@ -134,6 +137,15 @@ const recorded = new Map<string, () => Response>([
   [oecdLatest("FRA+DEU........A"), () => new Response(oecdOptions)],
   [oecdData("FRA+DEU....N._T.Y_GE15..A", 2023, 2023), () => new Response(oecdUnemployment)],
   [oecdLatest("SSD........A"), () => new Response(oecdNoRecords, { status: 404 })],
+  // The OECD's general government accounts, recorded on 2026-11-11.
+  [
+    `${oecd}/dataflow/OECD.SDD.NAD/DSD_NAAG_VI@DF_NAAG_EXP/1.0?references=datastructure`,
+    () => Response.json(debtFlow),
+  ],
+  [
+    `${oecd}/data/OECD.SDD.NAD,DSD_NAAG_VI@DF_NAAG_EXP,1.0/A.FRA+USA....?lastNObservations=1`,
+    () => new Response(debtOptions),
+  ],
   [oecdData("SSD........A", 2023, 2023), () => new Response(oecdNoRecords, { status: 404 })],
 ])
 
@@ -561,6 +573,45 @@ describe("Sdmx with the OECD", () => {
       expect((yield* Fiber.join(fiber)).indicator.name).toBe("Monthly unemployment rates")
     }).pipe(Effect.provide(flaky))
   })
+
+  // The OECD's adjusted government debt exists only with EXPENDITURE _Z,
+  // though the dataflow's other measures take _T.
+  it.effect(
+    "leaves open a value no series takes with the earlier picks, with the ones that do",
+    () => {
+      const source = recording()
+
+      return Effect.gen(function* () {
+        const error = yield* (yield* Sdmx)
+          .observations(
+            query({
+              indicator: naag,
+              countries: ["FRA", "USA"],
+              from: Year.make(1996),
+              to: Year.make(2025),
+              dimensions: picked({
+                MEASURE: "LES13_FD3",
+                EXPENDITURE: "_T",
+                UNIT_MEASURE: "PT_B1GQ",
+              }),
+            }),
+          )
+          .pipe(Effect.flip)
+
+        expect(open(error)).toEqual(["EXPENDITURE"])
+        expect(
+          error instanceof DimensionsMissing
+            ? error.dimensions.find(({ id }) => id === "EXPENDITURE")
+            : undefined,
+        ).toEqual({
+          id: "EXPENDITURE",
+          label: "Expenditure",
+          options: [{ code: "_Z", label: "Not applicable" }],
+        })
+        expect(source.asked).not.toContain(expect.stringContaining("startPeriod"))
+      }).pipe(Effect.provide(source.layer))
+    },
+  )
 
   // Retrying a 429 from the Worker's shared IP only extends the block.
   it.effect("reports a refusal over the rate limit once, without retrying", () => {

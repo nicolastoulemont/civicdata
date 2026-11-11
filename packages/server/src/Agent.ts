@@ -108,7 +108,7 @@ import { coverage, Summary, summarize } from "./Summary.ts"
 import { WorldBank } from "./WorldBank.ts"
 
 // Why an answer could not be given at all.
-type Failure = AgentUnavailable | SourceUnavailable | CatalogUnavailable
+type Failure = AgentUnavailable | CatalogUnavailable
 
 // Why a chart could not be explained.
 type Unexplained =
@@ -240,7 +240,7 @@ const SearchIndicators = Tool.make("search_indicators", {
       definition: Schema.String,
     }),
   ),
-  failure: Schema.Union([SourceUnavailable, CatalogUnavailable]),
+  failure: CatalogUnavailable,
   dependencies: [Report],
 })
 
@@ -416,7 +416,6 @@ const DescribeIndicator = Tool.make("describe_indicator", {
     dimensions: subject.dimensions,
   }),
   success: Schema.Union([Defined, Refused]),
-  failure: SourceUnavailable,
   dependencies: [Report],
 })
 
@@ -442,7 +441,6 @@ const FindYears = Tool.make("find_years", {
     }),
   }),
   success: Schema.Union([Years, Refused]),
-  failure: SourceUnavailable,
   dependencies: [Report],
 })
 
@@ -496,7 +494,6 @@ const ShowChart = Tool.make("show_chart", {
     }),
   }),
   success: Schema.Union([Shown, Refused]),
-  failure: SourceUnavailable,
   dependencies: [Report],
 })
 
@@ -735,6 +732,16 @@ const noValues = (source: Source) =>
     ? "The World Bank has no values for these countries and years. Try other years."
     : `${source} has no annual values for these countries and years. Try other years, or another dataflow if this one is quarterly or monthly only.`
 
+// A source that did not answer, or that we stopped asking for now because its
+// request budget is spent (Pace.ts), fails the step but not the answer: the
+// model turns to the other sources, as the person would.
+const unanswered = ({ source }: SourceUnavailable) =>
+  Effect.succeed(
+    rejected(
+      `${source} is not answering now. Use an indicator of another source for the same measure, or answer without this one.`,
+    ),
+  )
+
 // What describe_indicator reads the notes on: the OECD writes some on single
 // countries and series.
 const Described = Schema.Struct({
@@ -965,7 +972,10 @@ const ToolsLayer = Tools.toLayer(
             ),
           )
         }),
-        Effect.catchTag("SchemaError", (error) => Effect.succeed(rejected(error.message))),
+        Effect.catchTags({
+          SchemaError: (error) => Effect.succeed(rejected(error.message)),
+          SourceUnavailable: unanswered,
+        }),
       )
 
     return Tools.of({
@@ -1047,6 +1057,7 @@ const ToolsLayer = Tools.toLayer(
             SchemaError: () => Effect.succeed(rejected(`${indicator} is not an indicator code.`)),
             IndicatorNotFound: () =>
               Effect.succeed(rejected(`There is no indicator ${indicator}. Search for one.`)),
+            SourceUnavailable: unanswered,
           }),
         ),
       find_countries: ({ names }, { toolCallId }) => {
@@ -1202,14 +1213,17 @@ const ToolsLayer = Tools.toLayer(
               }),
             ),
           ),
-          Effect.catchTag("SchemaError", (error) => Effect.succeed(rejected(error.message))),
+          Effect.catchTags({
+            SchemaError: (error) => Effect.succeed(rejected(error.message)),
+            SourceUnavailable: unanswered,
+          }),
         ),
       // The question is shown when the round ends; see `answer`.
       ask_user: () =>
         Effect.succeed("The question is shown to the person. Their reply is the next message."),
       // Accepts only a View that decodes, that people can read, and that
       // resolves to at least one value. Mistakes go back to the model to
-      // fix; an unreachable source fails the question. A View that does not
+      // fix; an unreachable source fails the step. A View that does not
       // decode is the model's mistake, told to it alone; one the data cannot
       // show is reported with why.
       show_chart: (draft, { toolCallId }) => draw(draft, toolCallId),

@@ -2,7 +2,6 @@ import {
   AgentUnavailable,
   CatalogUnavailable,
   ConversationBusy,
-  SourceUnavailable,
   TooManyQuestions,
 } from "@civicdata/domain"
 import { X } from "lucide-react"
@@ -10,7 +9,6 @@ import { useEffect, useState } from "react"
 
 import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { named } from "@/explore/format"
 
 import { AnswerLost, type Failure } from "./useConversation.ts"
 
@@ -19,13 +17,6 @@ export const explain = (error: Error | Failure["error"]) => {
     return {
       title: "The assistant is not available",
       description: "Try again in a moment, or open one of the examples.",
-    }
-  }
-
-  if (error instanceof SourceUnavailable) {
-    return {
-      title: `${named(error.source)} is not responding`,
-      description: "Try again in a moment.",
     }
   }
 

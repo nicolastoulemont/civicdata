@@ -233,17 +233,14 @@ const encodeStep = Schema.encodeSync(Schema.fromJsonString(Schema.toCodecJson(St
 const encodeFailure = Schema.encodeSync(
   Schema.fromJsonString(
     Schema.toCodecJson(
-      Schema.Cause(
-        Schema.Union([AgentUnavailable, SourceUnavailable, CatalogUnavailable]),
-        Schema.Defect(),
-      ),
+      Schema.Cause(Schema.Union([AgentUnavailable, CatalogUnavailable]), Schema.Defect()),
     ),
   ),
 )
 
 const message = (step: Step) => `event: message\ndata: ${encodeStep(step)}\n\n`
 
-const failure = (error: AgentUnavailable | SourceUnavailable | CatalogUnavailable) =>
+const failure = (error: AgentUnavailable | CatalogUnavailable) =>
   `event: effect/http-api/stream/failure\ndata: ${encodeFailure(Cause.fail(error))}\n\n`
 
 const events = (text: string) =>
@@ -877,7 +874,6 @@ describe("Conversation", () => {
         }),
       ),
     )
-    reply.send(failure(new SourceUnavailable({ source: "OECD" })))
     reply.end()
 
     expect(await findStep("Couldn't read the definition: the OECD didn't answer")).toBeDefined()
@@ -2425,7 +2421,6 @@ describe("Conversation", () => {
 
   it.each([
     { error: new AgentUnavailable(), title: "The assistant is not available" },
-    { error: new SourceUnavailable({ source: "Eurostat" }), title: "Eurostat is not responding" },
     { error: new CatalogUnavailable(), title: "Indicator search is not available" },
   ])("keeps $title under its question", async ({ error, title }) => {
     const reply = answer()
