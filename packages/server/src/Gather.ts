@@ -6,7 +6,17 @@ import {
   Source,
   type SourceUnavailable,
 } from "@civicdata/domain"
-import { Array as Arr, Context, Data, DateTime, Effect, Layer, Option, Schema } from "effect"
+import {
+  Array as Arr,
+  Context,
+  Data,
+  DateTime,
+  Effect,
+  Layer,
+  Option,
+  Schema,
+  Stream,
+} from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
 import { Policy } from "./Adapter.ts"
@@ -15,17 +25,7 @@ import { database, Step } from "./CatalogBuild.ts"
 import { Pace } from "./Pace.ts"
 import { Sdmx } from "./Sdmx.ts"
 import { Sources } from "./Sources.ts"
-import {
-  byCountryYear,
-  hashOf,
-  judge,
-  keyOf,
-  objectOf,
-  type Place,
-  type Stored,
-  Store,
-  Verdict,
-} from "./Store.ts"
+import { keyOf, layout, Outcome, type Place, type Stored, Store } from "./Store.ts"
 import { WorldBank } from "./WorldBank.ts"
 
 // Catalog entries per step. The World Bank's bulk download of one is a ZIP
@@ -35,15 +35,10 @@ const perStep = 50
 
 const together = 2
 
-// What happened to each series a step gathered: stored, unchanged (the
-// stored series already holds the same values), held back, or failed (the
-// source or the store did not answer; a failed entry counts once).
-const Outcome = Schema.Literals(["Stored", "Unchanged", "Held", "Failed"])
-
-type Outcome = typeof Outcome.Type
-
 // What a step saves: the last entry it gathered, null once the catalog is
-// done, and how many series had each outcome.
+// done, and how many series were stored, unchanged (the stored series
+// already holds the same values), held back, or failed (the source or the
+// store did not answer; a failed entry counts once).
 type Gathered = {
   readonly after: string | null
   readonly stored: number
@@ -86,6 +81,10 @@ export class GatherFailed extends Schema.TaggedError<
   { readonly brand: unique symbol }
 >()("GatherFailed", { source: Schema.String, failed: Schema.Int }) {}
 
+// A source's scope in series_version, under the store's layout, such as
+// "series/v2/World Bank": a store in a new layout gathers every release again.
+const scopeOf = (source: Source) => `${layout}/${source}`
+
 const PlacesJson = Schema.fromJsonString(
   Schema.Array(Schema.Struct({ country: Schema.String, year: Schema.Int })),
 )
@@ -109,8 +108,9 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
       // made them.
       yield* tables
 
-      // The release each scope was last gathered from in full: a source with
-      // one release for all its data (the World Bank), or one dataset.
+      // The release each scope was last gathered from in full into the
+      // store's layout: a source with one release for all its data (the
+      // World Bank), or one dataset.
       yield* sql`
         CREATE TABLE IF NOT EXISTS series_version (
           scope TEXT PRIMARY KEY,
@@ -162,79 +162,80 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
         execute: (source) => sql`SELECT generation FROM catalog_current WHERE source = ${source}`,
       })
 
+      // The series of an indicator held back, named by `pathOf` their key.
+      const heldIn = SqlSchema.findAll({
+        Request: IndicatorId,
+        Result: Schema.Struct({ series: Schema.String }),
+        execute: (indicator) => sql`
+          SELECT series FROM series_held
+          WHERE series = ${indicator} OR substr(series, 1, ${indicator.length + 1}) = ${`${indicator}/`}
+        `,
+      })
+
       const hold = Effect.fn("Gather.hold")(function* (
         candidate: Stored,
         { reason, lost }: { reason: "Empty" | "Lost"; lost: ReadonlyArray<Place> },
       ) {
         const places = yield* Schema.encodeEffect(PlacesJson)(lost)
         const at = DateTime.formatIso(candidate.retrievedAt)
+        const series = pathOf(keyOf(candidate))
 
-        yield* Effect.logWarning(
-          "Held back a series",
-          pathOf(keyOf(candidate)),
-          reason,
-          lost.length,
-        )
+        yield* Effect.logWarning("Held back a series", series, reason, lost.length)
         yield* sql`
           INSERT INTO series_held (series, reason, lost, version, retrieved_at)
-          VALUES (${objectOf(keyOf(candidate))}, ${reason}, ${places}, ${candidate.version}, ${at})
+          VALUES (${series}, ${reason}, ${places}, ${candidate.version}, ${at})
           ON CONFLICT (series) DO UPDATE SET reason = excluded.reason, lost = excluded.lost,
             version = excluded.version, retrieved_at = excluded.retrieved_at
         `
       })
 
-      // Stores the candidate, its observations sorted by country and year,
-      // unless the stored series holds the same values (compared by hash, so
-      // only a changed series is read) or the hold-back rule keeps the stored
-      // one.
-      const offer = Effect.fn("Gather.offer")(function* (offered: Stored) {
-        const { indicator, dataset, dimensions, version, retrievedAt } = offered
-        const observations = Arr.sort(offered.observations, byCountryYear)
-        const candidate = { indicator, dataset, dimensions, version, retrievedAt, observations }
-        const key = keyOf(candidate)
-
-        const hash = yield* hashOf(candidate)
-
-        if (Option.exists(yield* store.hash(key), (stored) => stored === hash)) {
-          return "Unchanged" satisfies Outcome
-        }
-
-        const stored = yield* store.read(key)
-
-        const verdict = judge(
-          Option.match(stored, { onNone: () => [], onSome: (found) => found.observations }),
-          candidate.observations,
-        )
-
-        if (Verdict.$is("Hold")(verdict)) {
-          yield* hold(candidate, verdict)
-
-          return "Held" satisfies Outcome
-        }
-
-        yield* store.write(candidate)
-
-        return "Stored" satisfies Outcome
-      })
-
-      // Each series of the entry, with what happened to it.
+      // Offers every series of the entry to the store as the source sends
+      // them, records each one held back, and clears the ones stored or
+      // matched again. Answers how many had each outcome.
       const one = Effect.fn("Gather.one")(function* (
         { policy }: Mirror,
         { entry, version }: { entry: CatalogEntry; version: string },
       ) {
-        const candidates = yield* policy.gather(entry, version)
+        const held = new Set((yield* heldIn(entry.indicator)).map(({ series }) => series))
+        const settled: Array<string> = []
+        const counts = { stored: 0, unchanged: 0, held: 0 }
 
-        return yield* Effect.forEach(candidates, (candidate) =>
-          Effect.map(offer(candidate), (outcome) => ({
-            object: objectOf(keyOf(candidate)),
-            outcome,
-          })),
+        // Counts a series stored or matched again, which is no longer held
+        // back.
+        const settle = (candidate: Stored, outcome: "stored" | "unchanged") =>
+          Effect.sync(() => {
+            const series = pathOf(keyOf(candidate))
+
+            counts[outcome] += 1
+
+            if (held.has(series)) settled.push(series)
+          })
+
+        yield* store.write(entry.indicator, policy.gather(entry, version)).pipe(
+          Stream.runForEach(({ candidate, outcome }) =>
+            Outcome.$match(outcome, {
+              Stored: () => settle(candidate, "stored"),
+              Unchanged: () => settle(candidate, "unchanged"),
+              Held: (verdict) =>
+                Effect.sync(() => (counts.held += 1)).pipe(
+                  Effect.andThen(hold(candidate, verdict)),
+                ),
+            }),
+          ),
         )
+
+        if (Arr.isArrayNonEmpty(settled)) {
+          const keys = yield* Schema.encodeEffect(KeysJson)(settled)
+
+          yield* sql`DELETE FROM series_held WHERE series IN (SELECT value FROM json_each(${keys}))`
+        }
+
+        return counts
       })
 
       const check = Effect.fn("Gather.check")(
         function* ({ source, policy }: Mirror) {
-          const last = yield* gathered(source)
+          const last = yield* gathered(scopeOf(source))
           const version = yield* policy.changed(Option.map(last, (found) => found.version))
 
           if (Option.isNone(version)) return null
@@ -254,39 +255,27 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
             entries,
             (entry) =>
               one(mirror, { entry, version }).pipe(
+                Effect.map((counts) => ({ ...counts, failed: 0 })),
                 Effect.tapError((error) =>
                   Effect.logWarning("Could not gather", entry.indicator, error),
                 ),
-                Effect.orElseSucceed(() => [{ object: null, outcome: "Failed" as const }]),
+                Effect.orElseSucceed(() => ({ stored: 0, unchanged: 0, held: 0, failed: 1 })),
               ),
             { concurrency: together },
           )
 
-          const series = results.flat()
-          const outcomes = series.map(({ outcome }) => outcome)
-
-          // A series stored or matched again is no longer held back.
-          const settled = series.flatMap(({ object, outcome }) =>
-            object !== null && (outcome === "Stored" || outcome === "Unchanged") ? [object] : [],
-          )
-
-          if (Arr.isArrayNonEmpty(settled)) {
-            const keys = yield* Schema.encodeEffect(KeysJson)(settled)
-
-            yield* sql`DELETE FROM series_held WHERE series IN (SELECT value FROM json_each(${keys}))`
-          }
-
-          const count = (outcome: Outcome) => outcomes.filter((found) => found === outcome).length
+          const count = (outcome: "stored" | "unchanged" | "held" | "failed") =>
+            results.reduce((total, counts) => total + counts[outcome], 0)
 
           return {
             after:
               Arr.isArrayNonEmpty(entries) && entries.length === perStep
                 ? Arr.lastNonEmpty(entries).indicator
                 : null,
-            stored: count("Stored"),
-            unchanged: count("Unchanged"),
-            held: count("Held"),
-            failed: count("Failed"),
+            stored: count("stored"),
+            unchanged: count("unchanged"),
+            held: count("held"),
+            failed: count("failed"),
           } satisfies Gathered
         },
         Effect.catchTags({ SqlError: Effect.die, SchemaError: Effect.die }),
@@ -295,7 +284,7 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
       const finish = Effect.fn("Gather.finish")(
         function* ({ source }: Mirror, version: string) {
           yield* sql`
-            INSERT INTO series_version (scope, version) VALUES (${source}, ${version})
+            INSERT INTO series_version (scope, version) VALUES (${scopeOf(source)}, ${version})
             ON CONFLICT (scope) DO UPDATE SET version = excluded.version
           `
         },

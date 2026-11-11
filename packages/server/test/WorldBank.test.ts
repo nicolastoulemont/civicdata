@@ -1,6 +1,6 @@
 import { IndicatorId, IndicatorNotFound, SourceUnavailable, Year } from "@civicdata/domain"
 import { describe, expect, it } from "@effect/vitest"
-import { DateTime, Effect, Fiber, Layer, Option } from "effect"
+import { DateTime, Effect, Fiber, Layer, Option, Stream } from "effect"
 import { TestClock } from "effect/testing"
 
 import { Policy } from "../src/Adapter.ts"
@@ -143,7 +143,7 @@ describe("WorldBank", () => {
     })
 
     return Effect.gen(function* () {
-      const [series] = yield* (yield* mirror).gather(total, "2026-10-08")
+      const [series] = yield* Stream.runCollect((yield* mirror).gather(total, "2026-10-08"))
 
       expect(new Set(series?.observations.map(({ country }) => country))).toEqual(
         new Set(["DEU", "ESP", "FRA"]),
@@ -167,7 +167,9 @@ describe("WorldBank", () => {
     })
 
     return Effect.gen(function* () {
-      const fiber = yield* (yield* mirror).gather(total, "2026-10-08").pipe(Effect.forkScoped)
+      const fiber = yield* Stream.runCollect((yield* mirror).gather(total, "2026-10-08")).pipe(
+        Effect.forkScoped,
+      )
 
       yield* TestClock.adjust("1 minute")
 
@@ -182,9 +184,8 @@ describe("WorldBank", () => {
     const source = serving({ version: "2026-10-08", answers: new Map() })
 
     return Effect.gen(function* () {
-      const gathered = yield* (yield* mirror).gather(
-        entry("NOT.A.REAL", "Not a real indicator"),
-        "2026-10-08",
+      const gathered = yield* Stream.runCollect(
+        (yield* mirror).gather(entry("NOT.A.REAL", "Not a real indicator"), "2026-10-08"),
       )
 
       expect(gathered.map(({ observations }) => observations)).toEqual([[]])
@@ -331,13 +332,13 @@ const storedGdp = {
 
 const storing = (store: SeriesBucket) =>
   Effect.gen(function* () {
-    yield* (yield* Store).write(storedGdp)
+    yield* Stream.runDrain((yield* Store).write(gdp.indicator, Stream.make(storedGdp)))
   }).pipe(Effect.provide(Store.r2(store)))
 
 const failing: SeriesBucket = {
   get: () => Promise.reject(new Error("R2 is down")),
-  head: () => Promise.reject(new Error("R2 is down")),
   put: () => Promise.reject(new Error("R2 is down")),
+  delete: () => Promise.reject(new Error("R2 is down")),
 }
 
 describe("Sources.stored with the World Bank", () => {

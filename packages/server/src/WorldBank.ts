@@ -6,7 +6,17 @@ import {
   SourceUnavailable,
   Year,
 } from "@civicdata/domain"
-import { Context, DateTime, Duration, Effect, Layer, Option, Schedule, Schema } from "effect"
+import {
+  Context,
+  DateTime,
+  Duration,
+  Effect,
+  Layer,
+  Option,
+  Schedule,
+  Schema,
+  Stream,
+} from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
 import { unzipSync } from "fflate"
 
@@ -218,26 +228,27 @@ const make = Effect.gen(function* () {
 
   // An indicator is one series. One the World Bank no longer knows is an
   // empty candidate, which the store holds back.
-  const gather = Effect.fn("WorldBank.gather")(function* (entry: CatalogEntry, release: string) {
-    const { indicator, name, definition } = entry
+  const gather = (entry: CatalogEntry, release: string) =>
+    Stream.fromEffect(
+      Effect.gen(function* () {
+        const { indicator, name, definition } = entry
 
-    const answer = yield* bulk(indicator).pipe(
-      Effect.catchTag("IndicatorNotFound", () =>
-        Effect.map(DateTime.now, (retrievedAt) => ({ observations: [], retrievedAt })),
-      ),
+        const answer = yield* bulk(indicator).pipe(
+          Effect.catchTag("IndicatorNotFound", () =>
+            Effect.map(DateTime.now, (retrievedAt) => ({ observations: [], retrievedAt })),
+          ),
+        )
+
+        return {
+          indicator: { id: indicator, name, definition },
+          dataset: datasetOf(indicator, "World Development Indicators"),
+          dimensions: {},
+          version: release,
+          retrievedAt: answer.retrievedAt,
+          observations: answer.observations,
+        }
+      }).pipe(Effect.withSpan("WorldBank.gather")),
     )
-
-    return [
-      {
-        indicator: { id: indicator, name, definition },
-        dataset: datasetOf(indicator, "World Development Indicators"),
-        dimensions: {},
-        version: release,
-        retrievedAt: answer.retrievedAt,
-        observations: answer.observations,
-      },
-    ]
-  })
 
   const parts: Parts = {
     describe,

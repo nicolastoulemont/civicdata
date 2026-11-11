@@ -177,7 +177,7 @@ describe("Gather", () => {
         expect(store.puts()).toBe(2)
         expect(yield* held()).toEqual([
           {
-            series: `series/v1/world-bank/${codes.population}`,
+            series: codes.population,
             reason: "Lost",
             lost: JSON.stringify([
               { country: "ESP", year: 2024 },
@@ -210,9 +210,7 @@ describe("Gather", () => {
       const series = yield* spain(codes).pipe(Effect.provide(charts(source.layer, store.bucket)))
 
       expect(series.observations).toHaveLength(6)
-      expect(yield* held()).toMatchObject([
-        { series: `series/v1/world-bank/${codes.population}`, reason: "Empty" },
-      ])
+      expect(yield* held()).toMatchObject([{ series: codes.population, reason: "Empty" }])
     })
   })
 
