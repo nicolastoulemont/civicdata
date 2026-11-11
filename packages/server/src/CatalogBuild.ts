@@ -17,9 +17,8 @@ import { SqlClient, SqlSchema } from "effect/sql"
 import { tables } from "./Catalog.ts"
 import { Classifier, Classifying } from "./Classifier.ts"
 import { fingerprint } from "./fingerprint.ts"
-import { Sdmx } from "./Sdmx.ts"
+import { Sources } from "./Sources.ts"
 import { Vectors, type VectorsUnavailable } from "./Vectors.ts"
-import { WorldBank } from "./WorldBank.ts"
 
 // The catalog's D1 inside Workers, where the Workflows that build the
 // catalog, store the political records and gather the series run: the one
@@ -204,8 +203,7 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
     CatalogBuild,
     Effect.gen(function* () {
       const sql = yield* SqlClient.SqlClient
-      const worldBank = yield* WorldBank
-      const sdmx = yield* Sdmx
+      const sources = yield* Sources
       const vectors = yield* Vectors
       const classifier = yield* Classifier
 
@@ -324,8 +322,7 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
         `,
       })
 
-      const list = (source: Source) =>
-        source === "World Bank" ? worldBank.indicators : sdmx.indicators(source)
+      const list = (source: Source) => sources[source].list
 
       const take = Effect.fn("CatalogBuild.take")(
         function* (holder: string) {
@@ -514,8 +511,7 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
   static readonly live = CatalogBuild.layer.pipe(
     Layer.provide(database),
     Layer.provide(Vectors.live),
-    Layer.provide(WorldBank.live),
-    Layer.provide(Sdmx.live),
+    Layer.provide(Sources.live),
   )
 
   // One generation of every source, numbered by the build's start time, so

@@ -10,33 +10,13 @@ import { Context, DateTime, Duration, Effect, Layer, Option, Schedule, Schema } 
 import { HttpClient, HttpClientResponse } from "effect/http"
 import { unzipSync } from "fflate"
 
+import { type Adapter, Policy } from "./Adapter.ts"
 import { Cache } from "./Cache.ts"
 import { records } from "./Csv.ts"
-import { Pace } from "./Pace.ts"
 import { Described, type Query, Series, widen } from "./Series.ts"
-import { Store } from "./Store.ts"
 import { plain } from "./text.ts"
 
 const base = "https://api.worldbank.org/v2"
-
-interface Interface {
-  readonly describe: (
-    indicator: IndicatorId,
-  ) => Effect.Effect<Described, IndicatorNotFound | SourceUnavailable>
-  readonly observations: (
-    query: Query,
-  ) => Effect.Effect<Series, IndicatorNotFound | SourceUnavailable>
-  // Every World Development Indicators indicator, in one request.
-  readonly indicators: Effect.Effect<ReadonlyArray<CatalogEntry>, SourceUnavailable>
-  // The day the World Development Indicators last changed, such as
-  // "2026-10-08". The World Bank publishes one for the whole dataset.
-  readonly version: Effect.Effect<string, SourceUnavailable>
-  // Every value of the indicator in every country we chart, from its bulk
-  // download.
-  readonly series: (
-    indicator: IndicatorId,
-  ) => Effect.Effect<Series, IndicatorNotFound | SourceUnavailable>
-}
 
 // The World Bank reports request errors with HTTP 200 and this body.
 // Message "120" ("Invalid value") is what an unknown indicator returns.
@@ -113,7 +93,7 @@ const valuesOf = (header: string) =>
 // The World Development Indicators republish the estimate and score of the
 // six Worldwide Governance Indicators under GOV_WGI_ codes. Their charts
 // credit WGI, the dataset the World Bank asks users to cite for them.
-export const datasetOf = (indicator: IndicatorId, listed: string) =>
+const datasetOf = (indicator: IndicatorId, listed: string) =>
   indicator.startsWith("GOV_WGI_") ? "Worldwide Governance Indicators" : listed
 
 const make = Effect.gen(function* () {
@@ -133,7 +113,7 @@ const make = Effect.gen(function* () {
   // Fetches a World Bank URL and decodes its body. Every transport, status
   // and shape failure becomes SourceUnavailable; the cause is logged, not
   // sent to clients.
-  const fetch = <A, I>(url: string, body: Schema.Codec<A, I>) =>
+  const get = <A, I>(url: string, body: Schema.Codec<A, I>) =>
     client.get(url).pipe(
       Effect.flatMap(HttpClientResponse.schemaBodyJson(body)),
       Effect.timeout("15 seconds"),
@@ -144,7 +124,7 @@ const make = Effect.gen(function* () {
   const describe = Effect.fn("WorldBank.describe")(function* (indicator: IndicatorId) {
     const url = `${base}/indicator/${indicator}?format=json`
 
-    const [, rows] = yield* fetch(url, DescribeBody).pipe(
+    const [, rows] = yield* get(url, DescribeBody).pipe(
       Effect.filterOrFail(
         (decoded) => decoded.length === 2,
         () => new IndicatorNotFound({ indicator }),
@@ -162,7 +142,7 @@ const make = Effect.gen(function* () {
 
   const observations = Effect.fn("WorldBank.observations")(function* (query: Query) {
     const url = urlOf(query)
-    const decoded = yield* fetch(url, ObservationsBody)
+    const decoded = yield* get(url, ObservationsBody)
 
     if (decoded.length === 1) {
       return yield* new IndicatorNotFound({ indicator: query.indicator })
@@ -181,17 +161,17 @@ const make = Effect.gen(function* () {
     }
   })
 
-  const indicators = fetch(
-    `${base}/indicator?format=json&source=2&per_page=20000`,
-    IndicatorsBody,
-  ).pipe(
+  // Every World Development Indicators indicator, in one request.
+  const list = get(`${base}/indicator?format=json&source=2&per_page=20000`, IndicatorsBody).pipe(
     Effect.map(([, rows]) =>
       rows.map((row) => ({ indicator: row.id, name: row.name, definition: plain(row.sourceNote) })),
     ),
-    Effect.withSpan("WorldBank.indicators"),
+    Effect.withSpan("WorldBank.list"),
   )
 
-  const series = Effect.fn("WorldBank.series")(function* (indicator: IndicatorId) {
+  // Every value of the indicator in every country we chart, from its bulk
+  // download.
+  const bulk = Effect.fn("WorldBank.bulk")(function* (indicator: IndicatorId) {
     const url = bulkOf(indicator)
 
     const buffer = yield* patient.get(url).pipe(
@@ -225,13 +205,64 @@ const make = Effect.gen(function* () {
     return { observations: valuesOf(text.slice(header)), url, retrievedAt: yield* DateTime.now }
   })
 
-  const version = fetch(`${base}/sources/2?format=json`, VersionBody).pipe(
-    Effect.map(([, [source]]) => source.lastupdated),
-    Effect.withSpan("WorldBank.version"),
-  )
+  // The day the World Development Indicators last changed, such as
+  // "2026-10-08". The World Bank publishes one date for the whole dataset,
+  // so every indicator changed or none did.
+  const changed = Effect.fn("WorldBank.changed")(function* (gathered: Option.Option<string>) {
+    const [, [source]] = yield* get(`${base}/sources/2?format=json`, VersionBody)
 
-  return WorldBank.of({ describe, observations, indicators, version, series })
+    return Option.exists(gathered, (version) => version === source.lastupdated)
+      ? Option.none()
+      : Option.some(source.lastupdated)
+  })
+
+  // An indicator is one series. One the World Bank no longer knows is an
+  // empty candidate, which the store holds back.
+  const gather = Effect.fn("WorldBank.gather")(function* (entry: CatalogEntry, release: string) {
+    const { indicator, name, definition } = entry
+
+    const answer = yield* bulk(indicator).pipe(
+      Effect.catchTag("IndicatorNotFound", () =>
+        Effect.map(DateTime.now, (retrievedAt) => ({ observations: [], retrievedAt })),
+      ),
+    )
+
+    return [
+      {
+        indicator: { id: indicator, name, definition },
+        dataset: datasetOf(indicator, "World Development Indicators"),
+        dimensions: {},
+        version: release,
+        retrievedAt: answer.retrievedAt,
+        observations: answer.observations,
+      },
+    ]
+  })
+
+  const parts: Parts = {
+    describe,
+    observations,
+    list,
+    policy: Policy.Full({ changed, gather, url: urlOf }),
+  }
+
+  return parts
 })
+
+// The adapter's parts, with the API's values before they name the
+// dimensions an indicator has: none.
+interface Parts extends Omit<Adapter, "fetch"> {
+  readonly observations: (
+    query: Query,
+  ) => Effect.Effect<Series, IndicatorNotFound | SourceUnavailable>
+}
+
+// The adapter over the World Bank's API. An indicator has no dimensions.
+const adapterOf = ({ observations, ...parts }: Parts) =>
+  WorldBank.of({
+    ...parts,
+    fetch: (query) => Effect.map(observations(query), (found) => ({ ...found, dimensions: [] })),
+  })
 
 // World Bank indicators change a few times a year at most.
 const lifetime = Duration.days(1)
@@ -250,10 +281,13 @@ const keys = {
     `worldbank/v1/series/${query.indicator}/${query.countries.toSorted().join(",")}/${query.from}-${query.to}`,
 }
 
-export class WorldBank extends Context.Service<WorldBank, Interface>()(
+// World Bank data: the World Development Indicators, gathered in full into
+// the store from their bulk downloads, and read through the API for a series
+// not stored yet.
+export class WorldBank extends Context.Service<WorldBank, Adapter>()(
   "@civicdata/server/WorldBank",
 ) {
-  static readonly layer = Layer.effect(WorldBank, make)
+  static readonly layer = Layer.effect(WorldBank, Effect.map(make, adapterOf))
 
   // Serves a stored result younger than `lifetime`, otherwise asks the World
   // Bank and stores the answer. Asks for the recent years at once (`widen`).
@@ -263,7 +297,8 @@ export class WorldBank extends Context.Service<WorldBank, Interface>()(
       const live = yield* make
       const remember = yield* Cache.remember
 
-      return WorldBank.of({
+      return adapterOf({
+        ...live,
         describe: (indicator) =>
           remember(keys.described(indicator), {
             json: DescribedJson,
@@ -277,72 +312,7 @@ export class WorldBank extends Context.Service<WorldBank, Interface>()(
             fetch: live.observations(query),
           }),
         ),
-        // The catalog keeps its own copy in D1.
-        indicators: live.indicators,
-        version: live.version,
-        series: live.series,
       })
     }),
-  )
-
-  // Answers an indicator's description and values from its stored series,
-  // filtered to the query, without asking the World Bank. The answer links
-  // the World Bank request that returns the same values and reports when the
-  // stored series was fetched. An indicator with no stored series, or a
-  // store that fails, is asked of the adapter it wraps.
-  static readonly stored = Layer.effect(
-    WorldBank,
-    Effect.gen(function* () {
-      const fallback = yield* WorldBank
-      const store = yield* Store
-
-      const read = (indicator: IndicatorId) =>
-        store
-          .read(indicator)
-          .pipe(
-            Effect.catchTag("StoreUnavailable", (error) =>
-              Effect.logWarning("Store unavailable, asking the World Bank", indicator, error).pipe(
-                Effect.as(Option.none()),
-              ),
-            ),
-          )
-
-      return WorldBank.of({
-        describe: Effect.fn("WorldBank.stored.describe")(function* (indicator) {
-          const stored = yield* read(indicator)
-
-          if (Option.isNone(stored)) return yield* fallback.describe(indicator)
-
-          const { dataset, retrievedAt } = stored.value
-
-          return { indicator: stored.value.indicator, dataset, retrievedAt }
-        }),
-        observations: Effect.fn("WorldBank.stored.observations")(function* (query) {
-          const stored = yield* read(query.indicator)
-
-          if (Option.isNone(stored)) return yield* fallback.observations(query)
-
-          const countries = new Set(query.countries)
-
-          return {
-            observations: stored.value.observations.filter(
-              ({ country, year }) =>
-                countries.has(country) && year >= query.from && year <= query.to,
-            ),
-            url: urlOf(query),
-            retrievedAt: stored.value.retrievedAt,
-          }
-        }),
-        indicators: fallback.indicators,
-        version: fallback.version,
-        series: fallback.series,
-      })
-    }),
-  ).pipe(Layer.provide(WorldBank.cached))
-
-  static readonly live = WorldBank.stored.pipe(
-    Layer.provide(Store.layer),
-    Layer.provide(Pace.http),
-    Layer.provide(Cache.layer),
   )
 }

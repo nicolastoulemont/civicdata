@@ -18,11 +18,10 @@ import { Array as Arr, Context, Effect, Layer, Match, Option } from "effect"
 
 import { counterparts, disagreeing } from "./Counterparts.ts"
 import { Directions } from "./Directions.ts"
-import { Sdmx } from "./Sdmx.ts"
 import type { Query } from "./Series.ts"
+import { Sources } from "./Sources.ts"
 import { titleOf } from "./Titles.ts"
 import { divide, growth, indexed } from "./transforms.ts"
-import { WorldBank } from "./WorldBank.ts"
 
 interface Interface {
   readonly resolve: (
@@ -32,6 +31,10 @@ interface Interface {
     IndicatorNotFound | SourceUnavailable | TransformNotApplicable | DimensionsMissing
   >
 }
+
+// What a View asks of one series. A View leaves out the dimensions of an
+// indicator that has none.
+type Asked = Omit<Query, "dimensions"> & { readonly dimensions?: Dimensions | undefined }
 
 // "Per person" divides by this World Bank series.
 const population = IndicatorId.make("SP.POP.TOTL")
@@ -47,29 +50,18 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
   static readonly layer = Layer.effect(
     Resolver,
     Effect.gen(function* () {
-      const worldBank = yield* WorldBank
-      const sdmx = yield* Sdmx
+      const adapters = yield* Sources
       const directions = yield* Directions
 
-      const series = Effect.fn("Resolver.series")(function* (
-        query: Query & { readonly dimensions?: Dimensions | undefined },
-      ) {
+      const series = Effect.fn("Resolver.series")(function* (query: Asked) {
         const source = sourceOf(query.indicator)
+        const adapter = adapters[source]
 
-        // Eurostat and OECD both publish SDMX; their series pick a value of
-        // each dimension. World Bank indicators have none.
         const [described, fetched] = yield* Effect.all(
-          source === "World Bank"
-            ? [
-                worldBank.describe(query.indicator),
-                worldBank
-                  .observations(query)
-                  .pipe(Effect.map((found) => ({ ...found, dimensions: [] }))),
-              ]
-            : [
-                sdmx.describe(query.indicator),
-                sdmx.observations({ ...query, dimensions: query.dimensions ?? {} }),
-              ],
+          [
+            adapter.describe(query.indicator),
+            adapter.fetch({ ...query, dimensions: query.dimensions ?? {} }),
+          ],
           { concurrency: 2 },
         )
 
@@ -91,10 +83,7 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
       // One indicator's values from `from` to `to`, after the transform, with
       // every series they were computed from.
       const values = Effect.fn("Resolver.values")(function* (
-        query: Query & {
-          readonly transform?: Transform
-          readonly dimensions?: Dimensions | undefined
-        },
+        query: Asked & { readonly transform?: Transform },
       ) {
         const { from, transform } = query
 
@@ -111,7 +100,13 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
             Effect.forEach(
               counterparts(query),
               (other) =>
-                series({ ...other, countries: query.countries, from, to: query.to }).pipe(
+                series({
+                  indicator: other.indicator,
+                  dimensions: other.dimensions,
+                  countries: query.countries,
+                  from,
+                  to: query.to,
+                }).pipe(
                   Effect.asSome,
                   Effect.tapError((error) =>
                     Effect.logWarning("Counterpart left out", other.indicator, error),

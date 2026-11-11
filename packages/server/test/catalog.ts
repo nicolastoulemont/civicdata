@@ -3,13 +3,13 @@ import { D1Client } from "@effect/sql-d1"
 import { env } from "cloudflare:workers"
 import { Effect, Layer } from "effect"
 
+import { type Adapter, Policy } from "../src/Adapter.ts"
 import { Catalog } from "../src/Catalog.ts"
 import { CatalogBuild, Step } from "../src/CatalogBuild.ts"
 import { Classifier } from "../src/Classifier.ts"
 import { Directions } from "../src/Directions.ts"
-import { Sdmx } from "../src/Sdmx.ts"
+import { Sources } from "../src/Sources.ts"
 import { type Ai, type Index, Vectors } from "../src/Vectors.ts"
-import { WorldBank } from "../src/WorldBank.ts"
 
 export const entry = (indicator: string, name: string, definition = ""): CatalogEntry => ({
   indicator: IndicatorId.make(indicator),
@@ -78,27 +78,23 @@ const list = (lists: Listings, source: Source) =>
       : Effect.succeed(listed)
   })
 
-// The World Bank and the SDMX sources, answering only their indicator lists.
+// A source answering only its catalog entries.
+const listing = (lists: Listings, source: Source): Adapter => ({
+  policy: Policy.None(),
+  list: list(lists, source),
+  describe: () => Effect.die("not used by the catalog"),
+  fetch: () => Effect.die("not used by the catalog"),
+})
+
+// Every source, answering only its catalog entries.
 const sources = (lists: Listings) =>
-  Layer.mergeAll(
-    Layer.succeed(
-      WorldBank,
-      WorldBank.of({
-        describe: () => Effect.die("not used by the catalog"),
-        observations: () => Effect.die("not used by the catalog"),
-        indicators: list(lists, "World Bank"),
-        version: Effect.die("not used by the catalog"),
-        series: () => Effect.die("not used by the catalog"),
-      }),
-    ),
-    Layer.succeed(
-      Sdmx,
-      Sdmx.of({
-        describe: () => Effect.die("not used by the catalog"),
-        observations: () => Effect.die("not used by the catalog"),
-        indicators: (source) => list(lists, source),
-      }),
-    ),
+  Layer.succeed(
+    Sources,
+    Sources.of({
+      "World Bank": listing(lists, "World Bank"),
+      Eurostat: listing(lists, "Eurostat"),
+      OECD: listing(lists, "OECD"),
+    }),
   )
 
 // Workers AI as a dictionary: a text's vector marks the topics it mentions,

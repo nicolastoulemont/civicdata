@@ -15,6 +15,7 @@ import { Cache } from "../src/Cache.ts"
 import { Notes } from "../src/Notes.ts"
 import { hosts, Pace } from "../src/Pace.ts"
 import { Sdmx } from "../src/Sdmx.ts"
+import { Sources } from "../src/Sources.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 import { Tally } from "./Tally.ts"
 
@@ -173,10 +174,13 @@ const counted = Layer.effect(
   }),
 ).pipe(Layer.provide(FetchHttpClient.layer))
 
-// The World Bank and SDMX adapters and the sources' notes as deployed, cached
-// and paced, with each source's answers replayed from eval/recordings above
-// the pacer: a replayed answer spends none of a source's request budget.
-export const Sources = Layer.mergeAll(Sdmx.cached, WorldBank.cached, Notes.layer).pipe(
+// Every source's adapter and notes as deployed, cached and paced, with each
+// source's answers replayed from eval/recordings above the pacer: a replayed
+// answer spends none of a source's request budget. Nothing is stored.
+export const Replayed = Layer.mergeAll(
+  Sources.layer.pipe(Layer.provide(Layer.merge(Sdmx.cached, WorldBank.cached))),
+  Notes.layer,
+).pipe(
   Layer.provide(recorded),
   Layer.provide(Pace.client),
   Layer.provide(counted),

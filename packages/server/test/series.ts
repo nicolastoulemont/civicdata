@@ -5,6 +5,8 @@ import { Effect, Layer } from "effect"
 import { strToU8, zipSync } from "fflate"
 
 import { Gather } from "../src/Gather.ts"
+import { Sdmx } from "../src/Sdmx.ts"
+import { Sources } from "../src/Sources.ts"
 import { type SeriesBucket, Store } from "../src/Store.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 import { build, catalogOver, entry, listings } from "./catalog.ts"
@@ -154,15 +156,18 @@ export const catalogue = (entries: ReadonlyArray<CatalogEntry>) =>
 export const gatherOver = (client: ReturnType<typeof serving>["layer"], store: SeriesBucket) =>
   Gather.layer.pipe(
     Layer.provide(Store.r2(store)),
-    Layer.provide(WorldBank.layer.pipe(Layer.provide(client))),
+    Layer.provide(Sources.layer),
+    Layer.provide(Layer.merge(WorldBank.layer, Sdmx.layer).pipe(Layer.provide(client))),
     Layer.provide(D1Client.layer({ db }).pipe(Layer.orDie)),
   )
 
-// The World Bank adapter charts read through: stored series first, the
-// cached live query for the rest.
+// The sources charts read through: stored series first, the cached live
+// query for the rest.
 export const charts = (client: ReturnType<typeof serving>["layer"], store: SeriesBucket) =>
-  WorldBank.stored.pipe(
+  Sources.stored.pipe(
+    Layer.provide(Sources.layer),
     Layer.provide(Store.r2(store)),
+    Layer.provide(Layer.merge(WorldBank.cached, Sdmx.cached)),
     Layer.provide(client),
     Layer.provide(memory().layer),
   )

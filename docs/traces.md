@@ -20,7 +20,7 @@ question.ask                              browser: from the request to the answe
                 LanguageModel.generateText    the model request: model, tokens, what it wrote
                   execute_tool show_chart     a tool call: arguments, result, rejection
                     Resolver.resolve          the data behind it
-                      WorldBank.observations  ...
+                      Resolver.series         ...
 ```
 
 | Part         | File                                        | Records                                                                                                                                                                 |

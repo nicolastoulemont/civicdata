@@ -201,7 +201,7 @@ const unemploymentIn2022 = query({
 describe("Sdmx with Eurostat", () => {
   it.effect("lists Eurostat's datasets, without the saved views of them", () =>
     Effect.gen(function* () {
-      const listed = yield* (yield* Sdmx).indicators("Eurostat")
+      const listed = yield* (yield* Sdmx).Eurostat.list
 
       expect(listed).toEqual([
         {
@@ -221,7 +221,7 @@ describe("Sdmx with Eurostat", () => {
 
   it.effect("describes a dataflow by its label and description", () =>
     Effect.gen(function* () {
-      const described = yield* (yield* Sdmx).describe(tps00001)
+      const described = yield* (yield* Sdmx).Eurostat.describe(tps00001)
 
       expect(described.indicator).toEqual({
         id: tps00001,
@@ -234,7 +234,9 @@ describe("Sdmx with Eurostat", () => {
 
   it.effect("describes a dataflow in plain text when Eurostat writes HTML", () =>
     Effect.gen(function* () {
-      const described = yield* (yield* Sdmx).describe(IndicatorId.make("ESTAT,TEC00115,1.0"))
+      const described = yield* (yield* Sdmx).Eurostat.describe(
+        IndicatorId.make("ESTAT,TEC00115,1.0"),
+      )
 
       expect(described.indicator.definition).toMatch(/^Gross domestic product \(GDP\) is defined/)
       expect(described.indicator.definition).toMatch(/per capita\.$/)
@@ -243,7 +245,7 @@ describe("Sdmx with Eurostat", () => {
 
   it.effect("reads one value per country and year, from Eurostat's own country codes", () =>
     Effect.gen(function* () {
-      const series = yield* (yield* Sdmx).observations(query())
+      const series = yield* (yield* Sdmx).Eurostat.fetch(query())
 
       expect(series.observations).toEqual([
         { country: "GRC", year: 2019, value: 10635213 },
@@ -260,7 +262,7 @@ describe("Sdmx with Eurostat", () => {
 
   it.effect("keeps Eurostat's flags on each value", () =>
     Effect.gen(function* () {
-      const series = yield* (yield* Sdmx).observations(
+      const series = yield* (yield* Sdmx).Eurostat.fetch(
         query({ from: Year.make(2024), to: Year.make(2026) }),
       )
 
@@ -280,7 +282,7 @@ describe("Sdmx with Eurostat", () => {
     const source = recording()
 
     return Effect.gen(function* () {
-      const series = yield* (yield* Sdmx).observations(query({ countries: ["FRA", "USA"] }))
+      const series = yield* (yield* Sdmx).Eurostat.fetch(query({ countries: ["FRA", "USA"] }))
 
       expect(series.observations.map((observation) => observation.country)).toEqual([
         "FRA",
@@ -296,7 +298,7 @@ describe("Sdmx with Eurostat", () => {
   // Without the cache, which asks for the recent years too.
   it.effect("finds no values for years the dataflow does not have", () =>
     Effect.gen(function* () {
-      const series = yield* (yield* Sdmx).observations(
+      const series = yield* (yield* Sdmx).Eurostat.fetch(
         query({ countries: ["FRA"], from: Year.make(1960), to: Year.make(1961) }),
       )
 
@@ -310,7 +312,7 @@ describe("Sdmx with Eurostat", () => {
       const source = recording()
 
       return Effect.gen(function* () {
-        const error = yield* (yield* Sdmx).observations(unemploymentIn2022).pipe(Effect.flip)
+        const error = yield* (yield* Sdmx).Eurostat.fetch(unemploymentIn2022).pipe(Effect.flip)
 
         expect(error).toBeInstanceOf(DimensionsMissing)
         expect(open(error)).toEqual(["age", "unit", "sex"])
@@ -334,7 +336,7 @@ describe("Sdmx with Eurostat", () => {
 
   it.effect("reads the series a View picks and lists the values it could pick instead", () =>
     Effect.gen(function* () {
-      const series = yield* (yield* Sdmx).observations({
+      const series = yield* (yield* Sdmx).Eurostat.fetch({
         ...unemploymentIn2022,
         dimensions: picked({ age: "Y15-74", unit: "PC_ACT", sex: "T" }),
       })
@@ -354,12 +356,10 @@ describe("Sdmx with Eurostat", () => {
 
   it.effect("treats a value a dimension does not take as left open", () =>
     Effect.gen(function* () {
-      const error = yield* (yield* Sdmx)
-        .observations({
-          ...unemploymentIn2022,
-          dimensions: picked({ age: "Y15-74", unit: "PC_ACT", sex: "X" }),
-        })
-        .pipe(Effect.flip)
+      const error = yield* (yield* Sdmx).Eurostat.fetch({
+        ...unemploymentIn2022,
+        dimensions: picked({ age: "Y15-74", unit: "PC_ACT", sex: "X" }),
+      }).pipe(Effect.flip)
 
       expect(open(error)).toEqual(["sex"])
     }).pipe(Effect.provide(recording().layer)),
@@ -367,9 +367,9 @@ describe("Sdmx with Eurostat", () => {
 
   it.effect("reports an unknown dataflow", () =>
     Effect.gen(function* () {
-      const error = yield* (yield* Sdmx)
-        .describe(IndicatorId.make("ESTAT,NOPE,1.0"))
-        .pipe(Effect.flip)
+      const error = yield* (yield* Sdmx).Eurostat.describe(IndicatorId.make("ESTAT,NOPE,1.0")).pipe(
+        Effect.flip,
+      )
 
       expect(error).toBeInstanceOf(IndicatorNotFound)
     }).pipe(Effect.provide(recording().layer)),
@@ -379,11 +379,11 @@ describe("Sdmx with Eurostat", () => {
     const source = recording()
 
     return Effect.gen(function* () {
-      const sdmx = yield* Sdmx
+      const sdmx = (yield* Sdmx).Eurostat
 
       yield* TestClock.setTime(DateTime.toEpochMillis(DateTime.makeUnsafe("2026-11-09T09:00:00Z")))
-      yield* sdmx.observations(query())
-      const later = yield* sdmx.observations(query({ from: Year.make(2020), to: Year.make(2021) }))
+      yield* sdmx.fetch(query())
+      const later = yield* sdmx.fetch(query({ from: Year.make(2020), to: Year.make(2021) }))
 
       // Its options and its data, once.
       expect(source.asked).toEqual([
@@ -406,11 +406,11 @@ describe("Sdmx with Eurostat", () => {
     const source = recording()
 
     return Effect.gen(function* () {
-      const sdmx = yield* Sdmx
+      const sdmx = (yield* Sdmx).Eurostat
 
       yield* TestClock.setTime(DateTime.toEpochMillis(DateTime.makeUnsafe("2026-11-09T09:00:00Z")))
-      yield* sdmx.observations(query({ from: Year.make(1990), to: Year.make(2026) }))
-      const later = yield* sdmx.observations(query({ from: Year.make(1990), to: Year.make(2020) }))
+      yield* sdmx.fetch(query({ from: Year.make(1990), to: Year.make(2026) }))
+      const later = yield* sdmx.fetch(query({ from: Year.make(1990), to: Year.make(2020) }))
 
       expect(source.asked).toEqual([
         eurostatOptions("TPS00001", "FR,EL"),
@@ -429,20 +429,20 @@ describe("Sdmx with Eurostat", () => {
     const source = recording()
 
     return Effect.gen(function* () {
-      const sdmx = yield* Sdmx
+      const sdmx = (yield* Sdmx).Eurostat
 
       // 10:00 in Luxembourg, which is on CET in November.
       yield* TestClock.setTime(DateTime.toEpochMillis(DateTime.makeUnsafe("2026-11-09T09:00:00Z")))
-      yield* sdmx.observations(query())
+      yield* sdmx.fetch(query())
 
       yield* TestClock.setTime(DateTime.toEpochMillis(DateTime.makeUnsafe("2026-11-09T09:59:00Z")))
-      yield* sdmx.observations(query())
+      yield* sdmx.fetch(query())
 
       // Its options and its data.
       expect(source.asked).toHaveLength(2)
 
       yield* TestClock.setTime(DateTime.toEpochMillis(DateTime.makeUnsafe("2026-11-09T10:01:00Z")))
-      const after = yield* sdmx.observations(query())
+      const after = yield* sdmx.fetch(query())
 
       expect(source.asked).toHaveLength(4)
       expect(DateTime.formatIso(after.retrievedAt)).toBe("2026-11-09T10:01:00.000Z")
@@ -453,7 +453,7 @@ describe("Sdmx with Eurostat", () => {
 describe("Sdmx with the OECD", () => {
   it.effect("lists the OECD's own dataflows, with plain-text descriptions", () =>
     Effect.gen(function* () {
-      const listed = yield* (yield* Sdmx).indicators("OECD")
+      const listed = yield* (yield* Sdmx).OECD.list
 
       // ESTAT and IAEG-SDGs dataflows that the OECD also lists are dropped.
       expect(listed.map((entry) => entry.indicator)).toEqual([
@@ -468,7 +468,7 @@ describe("Sdmx with the OECD", () => {
 
   it.effect("describes a dataflow by its name and plain-text description", () =>
     Effect.gen(function* () {
-      const described = yield* (yield* Sdmx).describe(lfs)
+      const described = yield* (yield* Sdmx).OECD.describe(lfs)
 
       expect(described.indicator.name).toBe("Monthly unemployment rates")
       expect(described.indicator.definition).toMatch(/^The infra-annual dataflow on the monthly/)
@@ -481,7 +481,7 @@ describe("Sdmx with the OECD", () => {
     const source = recording()
 
     return Effect.gen(function* () {
-      const sdmx = yield* Sdmx
+      const sdmx = (yield* Sdmx).OECD
 
       const asked = query({
         indicator: lfs,
@@ -490,11 +490,11 @@ describe("Sdmx with the OECD", () => {
         to: Year.make(2023),
       })
 
-      const error = yield* sdmx.observations(asked).pipe(Effect.flip)
+      const error = yield* sdmx.fetch(asked).pipe(Effect.flip)
 
       expect(open(error)).toEqual(["ADJUSTMENT", "SEX", "AGE"])
 
-      const series = yield* sdmx.observations({
+      const series = yield* sdmx.fetch({
         ...asked,
         dimensions: picked({ ADJUSTMENT: "N", SEX: "_T", AGE: "Y_GE15" }),
       })
@@ -509,7 +509,7 @@ describe("Sdmx with the OECD", () => {
 
   it.effect("finds no values when the OECD has no records for the countries", () =>
     Effect.gen(function* () {
-      const series = yield* (yield* Sdmx).observations(
+      const series = yield* (yield* Sdmx).OECD.fetch(
         query({ indicator: lfs, countries: ["SSD"], from: Year.make(2023), to: Year.make(2023) }),
       )
 
@@ -519,9 +519,9 @@ describe("Sdmx with the OECD", () => {
 
   it.effect("reports an unknown dataflow", () =>
     Effect.gen(function* () {
-      const error = yield* (yield* Sdmx)
-        .describe(IndicatorId.make("OECD.SDD.TPS,DSD_NOPE@DF_NOPE,1.0"))
-        .pipe(Effect.flip)
+      const error = yield* (yield* Sdmx).OECD.describe(
+        IndicatorId.make("OECD.SDD.TPS,DSD_NOPE@DF_NOPE,1.0"),
+      ).pipe(Effect.flip)
 
       expect(error).toBeInstanceOf(IndicatorNotFound)
     }).pipe(Effect.provide(recording().layer)),
@@ -544,7 +544,7 @@ describe("Sdmx with the OECD", () => {
     )
 
     return Effect.gen(function* () {
-      yield* (yield* Sdmx).describe(lfs)
+      yield* (yield* Sdmx).OECD.describe(lfs)
 
       expect(languages).toEqual(["en"])
     }).pipe(Effect.provide(layer))
@@ -566,7 +566,7 @@ describe("Sdmx with the OECD", () => {
     )
 
     return Effect.gen(function* () {
-      const fiber = yield* (yield* Sdmx).describe(lfs).pipe(Effect.forkScoped)
+      const fiber = yield* (yield* Sdmx).OECD.describe(lfs).pipe(Effect.forkScoped)
 
       yield* TestClock.adjust("3 seconds")
 
@@ -582,21 +582,19 @@ describe("Sdmx with the OECD", () => {
       const source = recording()
 
       return Effect.gen(function* () {
-        const error = yield* (yield* Sdmx)
-          .observations(
-            query({
-              indicator: naag,
-              countries: ["FRA", "USA"],
-              from: Year.make(1996),
-              to: Year.make(2025),
-              dimensions: picked({
-                MEASURE: "LES13_FD3",
-                EXPENDITURE: "_T",
-                UNIT_MEASURE: "PT_B1GQ",
-              }),
+        const error = yield* (yield* Sdmx).OECD.fetch(
+          query({
+            indicator: naag,
+            countries: ["FRA", "USA"],
+            from: Year.make(1996),
+            to: Year.make(2025),
+            dimensions: picked({
+              MEASURE: "LES13_FD3",
+              EXPENDITURE: "_T",
+              UNIT_MEASURE: "PT_B1GQ",
             }),
-          )
-          .pipe(Effect.flip)
+          }),
+        ).pipe(Effect.flip)
 
         expect(open(error)).toEqual(["EXPENDITURE"])
         expect(
@@ -631,7 +629,7 @@ describe("Sdmx with the OECD", () => {
     )
 
     return Effect.gen(function* () {
-      const error = yield* (yield* Sdmx).describe(lfs).pipe(Effect.flip)
+      const error = yield* (yield* Sdmx).OECD.describe(lfs).pipe(Effect.flip)
 
       expect(error).toEqual(new SourceUnavailable({ source: "OECD" }))
       expect(asked).toHaveLength(1)
@@ -644,7 +642,7 @@ describe("Sdmx with the OECD", () => {
     )
 
     return Effect.gen(function* () {
-      const error = yield* (yield* Sdmx).indicators("OECD").pipe(Effect.flip)
+      const error = yield* (yield* Sdmx).OECD.list.pipe(Effect.flip)
 
       expect(error).toEqual(new SourceUnavailable({ source: "OECD" }))
     }).pipe(Effect.provide(limited))

@@ -12,9 +12,8 @@ import { Handlers } from "./Handlers.ts"
 import { Notes } from "./Notes.ts"
 import { Politics } from "./Politics.ts"
 import { Resolver } from "./Resolver.ts"
-import { Sdmx } from "./Sdmx.ts"
+import { Sources } from "./Sources.ts"
 import * as Traces from "./Traces.ts"
-import { WorldBank } from "./WorldBank.ts"
 
 export { ConversationObject } from "./ConversationObject.ts"
 
@@ -31,8 +30,7 @@ const Live = Layer.merge(
   Layer.provide(Catalog.live),
   Layer.provide(Politics.live),
   Layer.provide(Notes.live),
-  Layer.provide(WorldBank.live),
-  Layer.provide(Sdmx.live),
+  Layer.provide(Sources.live),
   Layer.provide(Directions.live),
   Layer.provide(HttpServer.layerServices),
 )
