@@ -34,15 +34,23 @@ interface AnswerProps {
   agent: Chart
   // The chart a person changed the agent's to, once saved.
   shown: View | undefined
+  // Whether the conversation keeps the answer yet. It keeps it only when the
+  // answer ends.
+  kept: boolean
 }
 
 // One chart that answered a question, in the explorer card so it can be
-// changed where it is. The conversation keeps the change, and the next
-// question builds on it. A change shows at once; one the server refuses
-// returns to the chart kept before, with why.
-export const Answer = ({ id, turn, chart, agent, shown }: AnswerProps) => {
+// changed where it is. Once the answer is kept, the conversation keeps the
+// change, and the next question builds on it: a change shows at once, and one
+// the server refuses returns to the chart kept before, with why. A change made
+// while the answer runs shows here and is not kept. The chart stays the same
+// card from the moment the agent draws it, so it does not redraw when the
+// answer is kept.
+export const Answer = ({ id, turn, chart, agent, shown, kept }: AnswerProps) => {
   const showing = useShow(id, { turn, chart })
-  const view = showing.isPending ? showing.variables : (shown ?? agent.view)
+  const [drawn, setDrawn] = useState(agent.view)
+  const saved = showing.isPending ? showing.variables : (shown ?? agent.view)
+  const view = kept ? saved : drawn
   // Open as the agent drew the chart. A person's changes are not kept with
   // the conversation: a copied link carries them instead.
   const [overlays, setOverlays] = useState<ReadonlyArray<Overlay>>(agent.overlays ?? [])
@@ -51,7 +59,7 @@ export const Answer = ({ id, turn, chart, agent, shown }: AnswerProps) => {
     <>
       <Explore
         view={view}
-        onChange={(next) => showing.mutate(next)}
+        onChange={(next) => (kept ? showing.mutate(next) : setDrawn(next))}
         overlays={overlays}
         onOverlays={setOverlays}
         heading="h3"

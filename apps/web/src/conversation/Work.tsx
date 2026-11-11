@@ -142,44 +142,63 @@ interface WorkingProps {
   started: number
 }
 
-// The agent at work on the question being answered: how long it has worked,
-// what it has done, and what it is doing now. While no step runs, the model
-// is deciding what to do next, so the log never sits still. Screen readers
-// hear each step once, when it ends, and not each change on the way, and
-// each chart once, when it is drawn.
-export const Working = ({ steps, started }: WorkingProps) => {
-  const lines = steps.map(lineOf)
+// How long the agent has worked on the question being answered. Screen
+// readers hear each step once, when it ends, and not each change on the way,
+// and each chart once, when it is drawn.
+export const Working = ({ steps, started }: WorkingProps) => (
+  <>
+    <p className="text-sm text-muted-foreground tabular-nums">
+      Working for <Since started={started} />
+    </p>
+    <div role="log" aria-label="Finished steps" className="sr-only">
+      {steps.map((step, index) => {
+        const line = lineOf(step)
+
+        return line === undefined || line.status === "Running" ? null : (
+          // oxlint-disable-next-line react/no-array-index-key -- a step keeps its place as it changes
+          <p key={index}>{line.text}</p>
+        )
+      })}
+      {steps
+        .flatMap((step) => (isRendered(step) && isChart(step.block) ? [step.block] : []))
+        .map(({ view }, place) => (
+          // oxlint-disable-next-line react/no-array-index-key -- a chart keeps its place in its answer
+          <Heard key={place} view={view} place={place} />
+        ))}
+    </div>
+  </>
+)
+
+// What the agent did while it answers, cut at each block it sent: the steps
+// before each block, then those since the last, where it is at work now.
+// While no step runs, the model is deciding what to do next, so the last
+// steps never sit still.
+export const runs = (steps: ReadonlyArray<Step>): ReadonlyArray<ReactNode> => {
+  const cut: Array<Array<Step>> = [[]]
+
+  for (const step of steps) {
+    if (isRendered(step)) cut.push([])
+    else cut[cut.length - 1]?.push(step)
+  }
+
   const last = steps.at(-1)
 
   const deciding =
-    (last === undefined || !isEnding(last)) && lines.every((line) => line?.status !== "Running")
+    (last === undefined || !isEnding(last)) &&
+    steps.every((step) => lineOf(step)?.status !== "Running")
 
-  return (
-    <div className="flex flex-col gap-2">
-      <p className="text-sm text-muted-foreground tabular-nums">
-        Working for <Since started={started} />
-      </p>
-      <Steps steps={steps}>
-        {deciding ? (
+  return cut.map((run, index) => {
+    const now = index === cut.length - 1 && deciding
+
+    return run.length === 0 && !now ? null : (
+      // oxlint-disable-next-line react/no-array-index-key -- a run keeps its place in its answer
+      <Steps key={index} steps={run}>
+        {now ? (
           <Row line={{ status: "Running", icon: Brain, text: "Thinking…", more: [] }} />
         ) : null}
       </Steps>
-      <div role="log" aria-label="Finished steps" className="sr-only">
-        {lines.map((line, index) =>
-          line === undefined || line.status === "Running" ? null : (
-            // oxlint-disable-next-line react/no-array-index-key -- a step keeps its place as it changes
-            <p key={index}>{line.text}</p>
-          ),
-        )}
-        {steps
-          .flatMap((step) => (isRendered(step) && isChart(step.block) ? [step.block] : []))
-          .map(({ view }, place) => (
-            // oxlint-disable-next-line react/no-array-index-key -- a chart keeps its place in its answer
-            <Heard key={place} view={view} place={place} />
-          ))}
-      </div>
-    </div>
-  )
+    )
+  })
 }
 
 interface WorkedProps {
