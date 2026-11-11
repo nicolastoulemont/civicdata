@@ -150,7 +150,10 @@ export interface SeriesBucket {
   readonly put: (
     key: string,
     value: string,
-    options: { readonly customMetadata: Record<string, string> },
+    options: {
+      readonly customMetadata: Record<string, string>
+      readonly onlyIf?: { readonly etagDoesNotMatch: string }
+    },
   ) => Promise<{ readonly key: string } | null>
   readonly delete: (keys: Array<string>) => Promise<void>
 }
@@ -180,7 +183,7 @@ const Verdict = Data.taggedEnum<Verdict>()
 
 const placeOf = ({ country, year }: Place) => `${country}:${year}`
 
-const judge = (
+export const judge = (
   stored: ReadonlyArray<Observation>,
   candidate: ReadonlyArray<Observation>,
 ): Verdict => {
@@ -213,6 +216,7 @@ export interface Offer {
 }
 
 interface Interface {
+  readonly namespace: (name: string) => Interface
   // The stored series of the key, if one is stored. An object that no longer
   // decodes counts as none.
   readonly read: (key: SeriesKey) => Effect.Effect<Option.Option<Stored>, StoreUnavailable>
@@ -248,7 +252,37 @@ interface Current {
 // its failures are errors: a gathering run must never mistake a bucket that
 // failed for an empty one.
 export class Store extends Context.Service<Store, Interface>()("@civicdata/server/Store") {
-  static readonly r2 = (bucket: SeriesBucket) => {
+  static readonly r2 = (bucket: SeriesBucket) => Layer.succeed(Store, Store.make(bucket))
+
+  private static readonly make = (bucket: SeriesBucket): Interface => {
+    const namespace = (name: string): Interface => {
+      const prefix = `releases/${name}/`
+
+      const scoped = {
+        get: (key: string) => bucket.get(prefix + key),
+        put: async (
+          key: string,
+          value: string,
+          options: { readonly customMetadata: Record<string, string> },
+        ) => {
+          const written = await bucket.put(prefix + key, value, {
+            ...options,
+            onlyIf: { etagDoesNotMatch: "*" },
+          })
+
+          if (written !== null) return written
+          const kept = await bucket.get(prefix + key)
+
+          if (kept !== null && (await kept.text()) === value) return { key: prefix + key }
+          throw new Error("Release objects are immutable")
+        },
+        // Failed attempts and old pinned releases retain their packs.
+        delete: () => Promise.resolve(),
+      }
+
+      return Store.make(scoped)
+    }
+
     const get = (object: string) =>
       attempt(() => bucket.get(object)).pipe(
         Effect.flatMap((found) =>
@@ -261,7 +295,13 @@ export class Store extends Context.Service<Store, Interface>()("@civicdata/serve
       )
 
     const put = (object: string, { text, hash }: { text: string; hash: string }) =>
-      attempt(() => bucket.put(object, text, { customMetadata: { hash } }))
+      attempt(async () => {
+        const result = await bucket.put(object, text, { customMetadata: { hash } })
+
+        if (result === null) throw new Error("The bucket did not store the object")
+
+        return result
+      })
 
     // The pack of an indexed entry, or none when it is gone or no longer
     // decodes.
@@ -641,17 +681,17 @@ export class Store extends Context.Service<Store, Interface>()("@civicdata/serve
       return { offer, finish, discard }
     }
 
-    return Layer.succeed(Store, Store.of({ read, write }))
+    return Store.of({ read, write, namespace })
   }
 
   // Outside Workers nothing is stored, so every chart asks its source.
-  static readonly none = Layer.succeed(
-    Store,
-    Store.of({
-      read: () => Effect.succeedNone,
-      write: () => Stream.fail(new StoreUnavailable({ cause: "No SERIES bucket" })),
-    }),
-  )
+  private static readonly empty: Interface = Store.of({
+    namespace: () => Store.empty,
+    read: () => Effect.succeedNone,
+    write: () => Stream.fail(new StoreUnavailable({ cause: "No SERIES bucket" })),
+  })
+
+  static readonly none = Layer.succeed(Store, Store.empty)
 
   // The SERIES bucket inside Workers (deployed, or under `alchemy dev`).
   static readonly layer = Layer.unwrap(

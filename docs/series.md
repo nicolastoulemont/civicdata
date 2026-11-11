@@ -93,4 +93,74 @@ Run the `Gather series` GitHub workflow with the stage, `prod` or `pr-<number>`,
 
 ## Identity compatibility
 
-Adding explicit publisher ids does not change `series/v2`, the three deployed publishers' names, `pathOf`, pack prefixes or gather ledger scopes. Existing World Bank packs and `series/v2/World Bank` ledger decisions are reused, without a full refetch. New publishers' indicator keys include their name (`Publisher:native-code`), so identical native codes cannot collide across publishers. Gather discovers only registered adapters with a `bulk` capability; accepting an id never creates coverage or starts a gather for an unregistered publisher. An unregistered indicator answers `IndicatorNotFound` at chart resolution. Publisher discovery is an optional adapter capability (see [catalog.md](catalog.md#publisher-discovery)); real source adapters, release activation, forecast/uncertainty/quality schemas and production fills remain separate work.
+Adding explicit publisher ids does not change `series/v2`, the three deployed publishers' names, `pathOf`, pack prefixes or gather ledger scopes. Existing World Bank packs and `series/v2/World Bank` ledger decisions are reused, without a full refetch. New publishers' indicator keys include their name (`Publisher:native-code`), so identical native codes cannot collide across publishers. Gather discovers only registered adapters with a `bulk` capability; accepting an id never creates coverage or starts a gather for an unregistered publisher. An unregistered indicator answers `IndicatorNotFound` at chart resolution. Publisher discovery is an optional adapter capability (see [catalog.md](catalog.md#publisher-discovery)); coherent observation publication is described below; real source adapters, forecast/uncertainty/quality schemas and production fills remain separate work.
+
+## Coherent releases
+
+A source that re-estimates history across indicators can opt in with
+`bulk.release(entries)`. It returns a decoded `Release`: a source version, a
+nonnegative integer `order` assigned from the publisher's release chronology,
+and every required asset with its complete list of series keys (indicator and
+dimensions). Version strings are opaque. An order must identify one immutable
+release; corrections require a higher order. Coherent sources use `StoredOnly`.
+`changed` remains the incremental contract and is not called for these sources.
+No deployed adapter opts in in this PR.
+
+`Gather.run` uses the same publication path with `Step.workflow` and
+`Step.immediate`. Each asset streams through the existing Store packer into a
+release namespace. Candidates must match the declared version, source and exact
+membership. Empty streams, omitted or extra keys, duplicate keys, held candidates
+and failed writes cannot complete an asset. Completion is recorded in
+`asset_gathered` under a namespace-specific scope after the whole asset persists.
+A retry skips those completed assets; if only activation failed, it downloads
+nothing. A failed asset may leave staged packs, but no chart reads them.
+Failed assets retain their reason and failure count in the same ledger. After
+three failed runs, that asset waits seven days; a new release bypasses the wait.
+Other eligible assets still stage, until five consecutive attempts fail. A
+backed-off or failed required asset prevents activation without discarding the
+other assets' completed progress.
+
+Hold-back compares every candidate against the previous active release, including
+its country-years. Empty or lossy candidates still enter `series_held` and reject
+the release. An omitted series or dimension is rejected too. There is currently
+no removal override. A source wishing to remove data needs a separate reviewed
+policy, rather than treating omission or hold-back as a coherent new release.
+Staging never copies a held old series beside accepted new members.
+
+After all required asset completion records exist, a single conditional SQL write
+publishes the decoded manifest in `series_release`. It requires a higher order
+and the same base release used for hold-back checks. Concurrent activation of a
+different release rejects the stale attempt; a later run stages against the new
+base. Older and equal orders do not replace an active release. SQL failure leaves
+the old pointer readable. First fill answers `NotStored` until activation.
+
+The manifest points to immutable R2 objects under `releases/<fingerprint>/`.
+Writes use R2 create-only conditions; conflicting content fails instead of
+rewriting an active or pinned release. Retried writes with identical content are
+idempotent. This transport contract also applies to later local bucket adapters.
+There is no retention job: previous releases and abandoned packs remain stored.
+Any future cleanup must account for active and pinned reads.
+
+`Sources.stored` exposes a snapshot for coherent sources. `Resolver.resolve`
+pins snapshots before reading metadata, relation operands, transforms or
+counterparts. All entries from one publisher in that operation use one manifest,
+even when the pointer changes. Independent fetch calls are separate operations;
+other multi-entry consumers must use `Sources.pin` once for their operation.
+Stored URLs use each value's stored version and retrieval time. A missing table
+or first release does not download an archive; malformed manifests and store
+failures produce typed `SourceUnavailable` outcomes. Readers never create tables.
+
+The writer creates one new pointer table when a coherent gather runs. Existing
+`series/v2` paths, hashes, World Bank progress/migration/backoff and API caches
+are unchanged. Incremental sources still commit entries as they arrive. There
+is no production migration, fill or gather required by this change. Its preview
+requires `own-catalog` and uses isolated resources.
+
+For V-Dem, register a stored-only adapter whose release metadata declares the
+full indicator/dimension membership and chronological release order, and whose
+asset streams yield complete series with that version and real retrieval times.
+Catalog discovery stays separate. This foundation supplies no downloader or
+local bucket/database transport. WID country files still need explicit assembly
+into whole country-year series and per-input provenance before ingestion. This
+PR does not solve WID assembly or forecast, uncertainty and quality semantics,
+and adds none of the seven planned source adapters or changes to their terms.

@@ -22,7 +22,7 @@ const base = "https://api.worldbank.org/v2"
 
 // The World Bank's gather, as its policy stores every indicator.
 const mirror = Effect.flatMap(WorldBank, ({ bulk: units }) =>
-  units === undefined
+  units === undefined || units.changed === undefined
     ? Effect.die("The World Bank stores nothing")
     : Effect.succeed({
         changed: units.changed,
