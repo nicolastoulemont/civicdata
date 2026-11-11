@@ -1,5 +1,6 @@
 import {
   CatalogEntry,
+  codesOf,
   type Country,
   Dimension,
   type Dimensions,
@@ -24,25 +25,12 @@ import {
 } from "effect"
 import { HttpClient, HttpClientRequest } from "effect/http"
 
+import { type Adapter, Policy } from "./Adapter.ts"
 import { Cache } from "./Cache.ts"
 import * as Csv from "./Csv.ts"
 import { geo } from "./geo.ts"
-import { Pace } from "./Pace.ts"
-import type { Described, Query } from "./Series.ts"
-import { Series, widen } from "./Series.ts"
+import { Answer, type Query, widen } from "./Series.ts"
 import { plain } from "./text.ts"
-
-// A query for an SDMX dataflow also says which value of each dimension to
-// show, such as { sex: "T" }.
-interface SdmxQuery extends Query {
-  readonly dimensions: Dimensions
-}
-
-// A series also lists what else the dataflow's series differ by, with the
-// values each dimension takes, so the page can offer the others.
-const SdmxSeries = Schema.Struct({ ...Series.fields, dimensions: Schema.Array(Dimension) })
-
-type SdmxSeries = typeof SdmxSeries.Type
 
 // A dataflow's name and description, and for the OECD the order of its
 // dimensions, which its data URLs spell out key by key.
@@ -66,18 +54,8 @@ type Options = typeof Options.Type
 // The sources that publish through SDMX.
 type SdmxSource = Exclude<Source, "World Bank">
 
-interface Interface {
-  readonly describe: (
-    indicator: IndicatorId,
-  ) => Effect.Effect<Described, IndicatorNotFound | SourceUnavailable>
-  readonly observations: (
-    query: SdmxQuery,
-  ) => Effect.Effect<SdmxSeries, IndicatorNotFound | SourceUnavailable | DimensionsMissing>
-  // Every dataflow the source publishes, in one request.
-  readonly indicators: (
-    source: SdmxSource,
-  ) => Effect.Effect<ReadonlyArray<CatalogEntry>, SourceUnavailable>
-}
+// Each SDMX source's adapter. Nothing of theirs is stored yet.
+type Interface = { readonly [source in SdmxSource]: Adapter }
 
 export const eurostat = "https://ec.europa.eu/eurostat/api/dissemination"
 export const oecd = "https://sdmx.oecd.org/public/rest"
@@ -148,14 +126,14 @@ const OecdFlows = Schema.Struct({
 
 const toEntry = Schema.decodeUnknownOption(CatalogEntry)
 
-interface Answer {
+interface Reply {
   readonly status: number
   readonly body: string
 }
 
 // An answer the adapter does not expect, such as OECD's 429 once the Worker's
 // shared IP is over its limit, is the source being unavailable.
-const refuse = (source: Source, { url, answer }: { url: string; answer: Answer }) =>
+const refuse = (source: Source, { url, answer }: { url: string; answer: Reply }) =>
   Effect.logWarning("SDMX source refused", url, answer.status, answer.body.slice(0, 300)).pipe(
     Effect.andThen(Effect.fail(new SourceUnavailable({ source }))),
   )
@@ -170,7 +148,7 @@ const decode = <A>(
   )
 
 // A data answer's CSV body, when its status is 200.
-const accepted = (indicator: IndicatorId, asked: { url: string; answer: Answer }) =>
+const accepted = (indicator: IndicatorId, asked: { url: string; answer: Reply }) =>
   asked.answer.status === 200
     ? Effect.succeed({ url: asked.url, csv: asked.answer.body })
     : refuse(sourceOf(indicator), asked)
@@ -343,7 +321,7 @@ const make = (remember: Remember) =>
     // source's own: Eurostat also lists saved views of its datasets, such as
     // "LFSQ_EGAN21$DV_3701", and the OECD lists dataflows that ESTAT and
     // IAEG-SDGs maintain.
-    const indicators = Effect.fn("Sdmx.indicators")(function* (source: SdmxSource) {
+    const list = Effect.fn("Sdmx.list")(function* (source: SdmxSource) {
       const [url, accept] =
         source === "Eurostat"
           ? [
@@ -505,7 +483,7 @@ const make = (remember: Remember) =>
 
     // Lists the dataflow's dimensions first, so a View that leaves one open
     // fails before its data is asked for, with the values it could pick.
-    const observations = Effect.fn("Sdmx.observations")(function* (query: SdmxQuery) {
+    const observations = Effect.fn("Sdmx.observations")(function* (query: Query) {
       const { listed, filters, open } = choose(yield* cachedOptions(query), query.dimensions)
 
       if (Arr.isArrayNonEmpty(open))
@@ -538,17 +516,20 @@ const make = (remember: Remember) =>
       return { observations: parsed.observations, url, retrievedAt, dimensions: listed }
     })
 
-    return Sdmx.of({
-      describe,
+    const adapter = (source: SdmxSource): Adapter => ({
+      policy: Policy.None(),
       // The catalog keeps its own copy in D1.
-      indicators,
-      observations: (query) =>
+      list: list(source),
+      describe,
+      fetch: (query) =>
         remember(keys.series(query), {
           json: SeriesJson,
           fresh: freshness(query.indicator),
           fetch: observations(query),
         }),
     })
+
+    return Sdmx.of({ Eurostat: adapter("Eurostat"), OECD: adapter("OECD") })
   })
 
 type Remember = Effect.Success<typeof Cache.remember>
@@ -584,7 +565,7 @@ const freshness = (indicator: IndicatorId) => (retrievedAt: DateTime.Utc, now: D
 
 const FlowJson = Schema.fromJsonString(Schema.toCodecJson(Flow))
 const OptionsJson = Schema.fromJsonString(Schema.toCodecJson(Options))
-const SeriesJson = Schema.fromJsonString(Schema.toCodecJson(SdmxSeries))
+const SeriesJson = Schema.fromJsonString(Schema.toCodecJson(Answer))
 
 const countriesKey = (countries: ReadonlyArray<Country>) => countries.toSorted().join(",")
 
@@ -592,13 +573,8 @@ const countriesKey = (countries: ReadonlyArray<Country>) => countries.toSorted()
 // ignored.
 const keys = {
   options: (query: Query) => `sdmx/v2/options/${query.indicator}/${countriesKey(query.countries)}`,
-  series: (query: SdmxQuery) =>
-    `sdmx/v1/series/${query.indicator}/${countriesKey(query.countries)}/${query.from}-${query.to}/${Object.entries(
-      query.dimensions,
-    )
-      .toSorted(([a], [b]) => a.localeCompare(b))
-      .map(([dimension, code]) => `${dimension}=${code}`)
-      .join(",")}`,
+  series: (query: Query) =>
+    `sdmx/v1/series/${query.indicator}/${countriesKey(query.countries)}/${query.from}-${query.to}/${codesOf(query.dimensions)}`,
 }
 
 // Eurostat and OECD data, read through their SDMX REST APIs as SDMX-CSV.
@@ -611,9 +587,12 @@ export class Sdmx extends Context.Service<Sdmx, Interface>()("@civicdata/server/
   static readonly cached = Layer.effect(
     Sdmx,
     Effect.flatMap(Cache.remember, make).pipe(
-      Effect.map((sdmx) => Sdmx.of({ ...sdmx, observations: widen(sdmx.observations) })),
+      Effect.map(({ Eurostat, OECD }) =>
+        Sdmx.of({
+          Eurostat: { ...Eurostat, fetch: widen(Eurostat.fetch) },
+          OECD: { ...OECD, fetch: widen(OECD.fetch) },
+        }),
+      ),
     ),
   )
-
-  static readonly live = Sdmx.cached.pipe(Layer.provide(Pace.http), Layer.provide(Cache.layer))
 }

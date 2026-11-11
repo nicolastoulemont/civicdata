@@ -21,6 +21,7 @@ import { DateTime, Effect, Layer, Schema } from "effect"
 import { HttpServer } from "effect/http"
 import { HttpApiTest } from "effect/http-api"
 
+import { Policy } from "../src/Adapter.ts"
 import { Agent } from "../src/Agent.ts"
 import { AskLimit } from "../src/AskLimit.ts"
 import { Catalog } from "../src/Catalog.ts"
@@ -30,6 +31,7 @@ import { Handlers } from "../src/Handlers.ts"
 import { Notes } from "../src/Notes.ts"
 import { Politics } from "../src/Politics.ts"
 import { Sdmx } from "../src/Sdmx.ts"
+import { Sources } from "../src/Sources.ts"
 import { titles } from "../src/titles.gen.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 import { build, catalogOver, entry, listings, stored } from "./catalog.ts"
@@ -114,7 +116,7 @@ const worldBankNoting = (asked: Array<string> = []) =>
               retrievedAt,
             })
       },
-      observations: (query) =>
+      fetch: (query) =>
         Effect.sync(() => {
           asked.push(`${query.indicator} ${query.from}-${query.to}`)
         }).pipe(
@@ -127,11 +129,11 @@ const worldBankNoting = (asked: Array<string> = []) =>
             ),
             url: `https://api.worldbank.org/v2/indicator/${query.indicator}`,
             retrievedAt,
+            dimensions: [],
           }),
         ),
-      indicators: Effect.succeed([]),
-      version: Effect.die("not used by charts"),
-      series: () => Effect.die("not used by charts"),
+      policy: Policy.None(),
+      list: Effect.succeed([]),
     }),
   )
 
@@ -141,10 +143,9 @@ const down = Layer.succeed(
   WorldBank,
   WorldBank.of({
     describe: () => Effect.fail(new SourceUnavailable({ source: "World Bank" })),
-    observations: () => Effect.fail(new SourceUnavailable({ source: "World Bank" })),
-    indicators: Effect.fail(new SourceUnavailable({ source: "World Bank" })),
-    version: Effect.fail(new SourceUnavailable({ source: "World Bank" })),
-    series: () => Effect.fail(new SourceUnavailable({ source: "World Bank" })),
+    fetch: () => Effect.fail(new SourceUnavailable({ source: "World Bank" })),
+    policy: Policy.None(),
+    list: Effect.fail(new SourceUnavailable({ source: "World Bank" })),
   }),
 )
 
@@ -233,6 +234,7 @@ const serve = (
       Layer.provide(AskLimit.none),
       Layer.provide(Catalog.unavailable),
       Layer.provide(Politics.unavailable),
+      Layer.provide(Sources.layer),
       Layer.provide(source),
       Layer.provide(sdmx),
       Layer.provide(directions),

@@ -1,15 +1,16 @@
-import { Dimensions, IndicatorId, type ResolvedView, type Transform } from "@civicdata/domain"
+import {
+  Dimensions,
+  IndicatorId,
+  pathOf,
+  type ResolvedView,
+  type SeriesKey,
+  type Transform,
+} from "@civicdata/domain"
 import { Schema } from "effect"
-
-// One series: an indicator and, for SDMX, the value of each dimension.
-interface Counterpart {
-  readonly indicator: IndicatorId
-  readonly dimensions: Dimensions
-}
 
 const pick = Schema.decodeSync(Dimensions)
 
-const series = (indicator: string, dimensions: Record<string, string> = {}): Counterpart => ({
+const series = (indicator: string, dimensions: Record<string, string> = {}): SeriesKey => ({
   indicator: IndicatorId.make(indicator),
   dimensions: pick(dimensions),
 })
@@ -17,7 +18,7 @@ const series = (indicator: string, dimensions: Record<string, string> = {}): Cou
 // Series from different sources that measure the same figure, so their values
 // for a country and year should agree. Each says what it measures in its own
 // way, which is why they sometimes do not.
-const groups: ReadonlyArray<ReadonlyArray<Counterpart>> = [
+const groups: ReadonlyArray<ReadonlyArray<SeriesKey>> = [
   // Population: the World Bank's at mid-year, Eurostat's on 1 January.
   [series("SP.POP.TOTL"), series("ESTAT,TPS00001,1.0")],
   // Unemployment as a share of the labour force: the World Bank's ILO
@@ -34,15 +35,6 @@ const groups: ReadonlyArray<ReadonlyArray<Counterpart>> = [
   ],
 ]
 
-const same = (left: Dimensions, right: Dimensions) => {
-  const theirs = new Map<string, string>(Object.entries(right))
-
-  return (
-    Object.keys(left).length === theirs.size &&
-    Object.entries(left).every(([id, code]) => theirs.get(id) === code)
-  )
-}
-
 // The other sources' series for what a View shows of `shown`, when it shows
 // one of the grouped series as published. A transformed value has no
 // counterpart.
@@ -50,15 +42,11 @@ export const counterparts = (shown: {
   readonly indicator: IndicatorId
   readonly dimensions?: Dimensions | undefined
   readonly transform?: Transform | undefined
-}): ReadonlyArray<Counterpart> => {
+}): ReadonlyArray<SeriesKey> => {
   if (shown.transform !== undefined) return []
 
-  const group = groups.find((members) =>
-    members.some(
-      (member) =>
-        member.indicator === shown.indicator && same(member.dimensions, shown.dimensions ?? {}),
-    ),
-  )
+  const path = pathOf({ indicator: shown.indicator, dimensions: shown.dimensions ?? {} })
+  const group = groups.find((members) => members.some((member) => pathOf(member) === path))
 
   return (group ?? []).filter((member) => member.indicator !== shown.indicator)
 }

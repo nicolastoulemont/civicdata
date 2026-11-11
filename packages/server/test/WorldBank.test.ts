@@ -1,10 +1,13 @@
 import { IndicatorId, IndicatorNotFound, SourceUnavailable, Year } from "@civicdata/domain"
 import { describe, expect, it } from "@effect/vitest"
-import { DateTime, Effect, Fiber, Layer } from "effect"
+import { DateTime, Effect, Fiber, Layer, Option } from "effect"
 import { TestClock } from "effect/testing"
 
+import { Policy } from "../src/Adapter.ts"
+import { Sources } from "../src/Sources.ts"
 import { type SeriesBucket, Store } from "../src/Store.ts"
 import { WorldBank } from "../src/WorldBank.ts"
+import { entry } from "./catalog.ts"
 import { http, memory } from "./fakes.ts"
 import catalog from "./fixtures/worldbank/catalog.json"
 import gaps from "./fixtures/worldbank/gaps.json"
@@ -16,6 +19,13 @@ import corruption from "./fixtures/worldbank/wgi-indicator.json"
 import { bucket, bulk, charts, recorded as bulks, serving } from "./series.ts"
 
 const base = "https://api.worldbank.org/v2"
+
+// The World Bank's gather, as its policy stores every indicator.
+const mirror = Effect.flatMap(WorldBank, ({ policy }) =>
+  Policy.$is("Full")(policy) ? Effect.succeed(policy) : Effect.die("The World Bank stores nothing"),
+)
+
+const total = entry("SP.POP.TOTL", "Population, total")
 
 // Recorded World Bank responses, served by URL.
 const recorded = [
@@ -49,6 +59,7 @@ const recording = replay((url) => {
 
 const gdp = {
   indicator: IndicatorId.make("NY.GDP.PCAP.CD"),
+  dimensions: {},
   countries: ["FRA", "SSD"] as const,
   from: Year.make(2015),
   to: Year.make(2016),
@@ -77,7 +88,7 @@ describe("WorldBank", () => {
 
   it.effect("drops the years a country has no value for", () =>
     Effect.gen(function* () {
-      const series = yield* (yield* WorldBank).observations(gdp)
+      const series = yield* (yield* WorldBank).fetch(gdp)
 
       expect(series.observations).toEqual([
         { country: "FRA", year: 2016, value: 37024.2157133669 },
@@ -101,8 +112,9 @@ describe("WorldBank", () => {
 
   it.effect("leaves out the years the Worldwide Governance Indicators skip", () =>
     Effect.gen(function* () {
-      const series = yield* (yield* WorldBank).observations({
+      const series = yield* (yield* WorldBank).fetch({
         indicator: IndicatorId.make("GOV_WGI_CC_EST"),
+        dimensions: {},
         countries: ["HUN"],
         from: Year.make(1996),
         to: Year.make(2002),
@@ -114,27 +126,33 @@ describe("WorldBank", () => {
 
   it.effect("reads the day the World Development Indicators last changed", () =>
     Effect.gen(function* () {
-      expect(yield* (yield* WorldBank).version).toBe("2026-10-08")
+      const { changed } = yield* mirror
+
+      expect(yield* changed(Option.none())).toEqual(Option.some("2026-10-08"))
+      expect(yield* changed(Option.some("2026-10-08"))).toEqual(Option.none())
     }).pipe(Effect.provide(recording)),
   )
 
   it.effect("reads every country's values from the bulk download, leaving out regions", () => {
-    const source = serving({
-      version: "2026-10-08",
-      answers: new Map([["SP.POP.TOTL", bulk(bulks.population)]]),
+    const asked: Array<string> = []
+
+    const source = http((url) => {
+      asked.push(url)
+
+      return new Response(bulk(bulks.population))
     })
 
     return Effect.gen(function* () {
-      const series = yield* (yield* WorldBank).series(IndicatorId.make("SP.POP.TOTL"))
+      const [series] = yield* (yield* mirror).gather(total, "2026-10-08")
 
-      expect(new Set(series.observations.map(({ country }) => country))).toEqual(
+      expect(new Set(series?.observations.map(({ country }) => country))).toEqual(
         new Set(["DEU", "ESP", "FRA"]),
       )
       expect(
-        series.observations.find(({ country, year }) => country === "FRA" && year === 1960)?.value,
+        series?.observations.find(({ country, year }) => country === "FRA" && year === 1960)?.value,
       ).toBe(47412964)
-      expect(series.url).toBe(`${base}/en/indicator/SP.POP.TOTL?downloadformat=csv`)
-    }).pipe(Effect.provide(WorldBank.layer.pipe(Layer.provide(source.layer))))
+      expect(asked).toEqual([`${base}/en/indicator/SP.POP.TOTL?downloadformat=csv`])
+    }).pipe(Effect.provide(WorldBank.layer.pipe(Layer.provide(source))))
   })
 
   it.effect("retries a bulk download for longer than a visitor's request", () => {
@@ -149,34 +167,33 @@ describe("WorldBank", () => {
     })
 
     return Effect.gen(function* () {
-      const fiber = yield* (yield* WorldBank)
-        .series(IndicatorId.make("SP.POP.TOTL"))
-        .pipe(Effect.forkScoped)
+      const fiber = yield* (yield* mirror).gather(total, "2026-10-08").pipe(Effect.forkScoped)
 
       yield* TestClock.adjust("1 minute")
 
-      const series = yield* Fiber.join(fiber)
+      const [series] = yield* Fiber.join(fiber)
 
       expect(attempts).toBe(4)
-      expect(series.observations.length).toBeGreaterThan(0)
+      expect(series?.observations.length).toBeGreaterThan(0)
     }).pipe(Effect.provide(WorldBank.layer.pipe(Layer.provide(flaky))))
   })
 
-  it.effect("reports an indicator the bulk download does not know", () => {
+  it.effect("gathers an indicator the bulk download does not know as an empty series", () => {
     const source = serving({ version: "2026-10-08", answers: new Map() })
 
     return Effect.gen(function* () {
-      const error = yield* (yield* WorldBank)
-        .series(IndicatorId.make("NOT.A.REAL"))
-        .pipe(Effect.flip)
+      const gathered = yield* (yield* mirror).gather(
+        entry("NOT.A.REAL", "Not a real indicator"),
+        "2026-10-08",
+      )
 
-      expect(error).toBeInstanceOf(IndicatorNotFound)
+      expect(gathered.map(({ observations }) => observations)).toEqual([[]])
     }).pipe(Effect.provide(WorldBank.layer.pipe(Layer.provide(source.layer))))
   })
 
   it.effect("lists the World Development Indicators with their definitions", () =>
     Effect.gen(function* () {
-      const indicators = yield* (yield* WorldBank).indicators
+      const indicators = yield* (yield* WorldBank).list
 
       expect(indicators).toHaveLength(6)
       expect(indicators.find((indicator) => indicator.indicator === "SP.POP.TOTL")?.name).toBe(
@@ -196,7 +213,7 @@ describe("WorldBank", () => {
     })
 
     return Effect.gen(function* () {
-      const fiber = yield* (yield* WorldBank).observations(gdp).pipe(Effect.flip, Effect.forkScoped)
+      const fiber = yield* (yield* WorldBank).fetch(gdp).pipe(Effect.flip, Effect.forkScoped)
 
       yield* TestClock.adjust("1 minute")
 
@@ -209,7 +226,7 @@ describe("WorldBank", () => {
 
   it.effect("reports a response it does not recognize as unavailable", () =>
     Effect.gen(function* () {
-      const error = yield* (yield* WorldBank).observations(gdp).pipe(Effect.flip)
+      const error = yield* (yield* WorldBank).fetch(gdp).pipe(Effect.flip)
 
       expect(error).toBeInstanceOf(SourceUnavailable)
     }).pipe(Effect.provide(replay(() => Response.json({ unexpected: true })))),
@@ -242,11 +259,11 @@ describe("WorldBank.cached", () => {
 
     return Effect.gen(function* () {
       const worldBank = yield* WorldBank
-      const first = yield* worldBank.observations(gdp)
+      const first = yield* worldBank.fetch(gdp)
 
       yield* TestClock.adjust("1 hour")
 
-      const second = yield* worldBank.observations({ ...gdp, countries: ["SSD", "FRA"] })
+      const second = yield* worldBank.fetch({ ...gdp, countries: ["SSD", "FRA"] })
 
       expect(world.requests()).toBe(1)
       expect(second.observations).toEqual(first.observations)
@@ -261,11 +278,11 @@ describe("WorldBank.cached", () => {
 
     return Effect.gen(function* () {
       const worldBank = yield* WorldBank
-      const first = yield* worldBank.observations(gdp)
+      const first = yield* worldBank.fetch(gdp)
 
       yield* TestClock.adjust("25 hours")
 
-      const second = yield* worldBank.observations(gdp)
+      const second = yield* worldBank.fetch(gdp)
 
       expect(world.requests()).toBe(2)
       expect(DateTime.toEpochMillis(second.retrievedAt)).toBeGreaterThan(
@@ -301,6 +318,7 @@ const storedGdp = {
     definition: "GDP divided by population.",
   },
   dataset: "World Development Indicators",
+  dimensions: {},
   version: "2026-10-08",
   retrievedAt: DateTime.makeUnsafe("2026-10-09T05:00:00Z"),
   observations: [
@@ -322,7 +340,7 @@ const failing: SeriesBucket = {
   put: () => Promise.reject(new Error("R2 is down")),
 }
 
-describe("WorldBank.stored", () => {
+describe("Sources.stored with the World Bank", () => {
   it.effect("draws a stored series without asking the World Bank", () => {
     const store = bucket()
     // A World Bank with nothing published: any request it gets is counted.
@@ -331,8 +349,8 @@ describe("WorldBank.stored", () => {
     return Effect.gen(function* () {
       yield* storing(store.bucket)
 
-      const worldBank = yield* WorldBank
-      const series = yield* worldBank.observations(gdp)
+      const worldBank = (yield* Sources)["World Bank"]
+      const series = yield* worldBank.fetch(gdp)
       const described = yield* worldBank.describe(gdp.indicator)
 
       expect(source.requests()).toBe(0)
@@ -361,8 +379,9 @@ describe("WorldBank.stored", () => {
     })
 
     return Effect.gen(function* () {
-      const series = yield* (yield* WorldBank).observations({
+      const series = yield* (yield* Sources)["World Bank"].fetch({
         indicator: IndicatorId.make("GOV_WGI_CC_EST"),
+        dimensions: {},
         countries: ["HUN"],
         from: Year.make(1996),
         to: Year.make(2002),
@@ -383,7 +402,7 @@ describe("WorldBank.stored", () => {
     })
 
     return Effect.gen(function* () {
-      const series = yield* (yield* WorldBank).observations(gdp)
+      const series = yield* (yield* Sources)["World Bank"].fetch(gdp)
 
       expect(requests).toBe(1)
       expect(series.observations).toHaveLength(3)

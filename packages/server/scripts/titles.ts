@@ -63,7 +63,7 @@ const titleAll = (entries: ReadonlyArray<CatalogEntry>) =>
   )
 
 const program = Effect.gen(function* () {
-  const entries = yield* (yield* WorldBank).indicators
+  const entries = yield* (yield* WorldBank).list
   const first = yield* titleAll(entries)
   const done = new Set(first.map(([indicator]) => indicator))
   const second = yield* titleAll(entries.filter(({ indicator }) => !done.has(indicator)))
