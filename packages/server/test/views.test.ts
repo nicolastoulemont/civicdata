@@ -27,6 +27,7 @@ import { AskLimit } from "../src/AskLimit.ts"
 import { Catalog } from "../src/Catalog.ts"
 import { Conversations } from "../src/Conversations.ts"
 import { Directions } from "../src/Directions.ts"
+import { Faostat } from "../src/Faostat.ts"
 import { Handlers } from "../src/Handlers.ts"
 import { Ilostat } from "../src/Ilostat.ts"
 import { Insee } from "../src/Insee.ts"
@@ -241,6 +242,7 @@ const serve = (
       Layer.provide(Sources.layer),
       Layer.provide(Insee.layer.pipe(Layer.provide(offline))),
       Layer.provide(Ilostat.layer.pipe(Layer.provide(offline))),
+      Layer.provide(Faostat.layer.pipe(Layer.provide(offline))),
       Layer.provide(source),
       Layer.provide(sdmx),
       Layer.provide(directions),

@@ -107,6 +107,7 @@ import { Catalog, type Labelled } from "../src/Catalog.ts"
 import { open } from "../src/ConversationObject.ts"
 import { Conversations } from "../src/Conversations.ts"
 import { Directions } from "../src/Directions.ts"
+import { Faostat } from "../src/Faostat.ts"
 import { Findings } from "../src/Findings.ts"
 import { Handlers } from "../src/Handlers.ts"
 import { Ilostat } from "../src/Ilostat.ts"
@@ -494,6 +495,7 @@ const serveApi = (
     Layer.provide(Sources.layer),
     Layer.provide(insee),
     Layer.provide(Ilostat.layer.pipe(Layer.provide(offline))),
+    Layer.provide(Faostat.layer.pipe(Layer.provide(offline))),
     Layer.provide(worldBank),
     Layer.provide(sdmx),
   )
@@ -524,6 +526,7 @@ const serveApi = (
             Layer.provide(Sources.layer),
             Layer.provide(Insee.layer.pipe(Layer.provide(offline))),
             Layer.provide(Ilostat.layer.pipe(Layer.provide(offline))),
+            Layer.provide(Faostat.layer.pipe(Layer.provide(offline))),
             Layer.provide(worldBank),
             Layer.provide(sdmx),
             Layer.provide(Directions.listed),

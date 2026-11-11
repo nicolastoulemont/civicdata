@@ -4,6 +4,7 @@ import { env } from "cloudflare:workers"
 import { Effect, Layer } from "effect"
 import { strToU8, zipSync } from "fflate"
 
+import { Faostat } from "../src/Faostat.ts"
 import { Gather } from "../src/Gather.ts"
 import { Ilostat } from "../src/Ilostat.ts"
 import { Insee } from "../src/Insee.ts"
@@ -166,6 +167,7 @@ export const gatherOver = (client: ReturnType<typeof serving>["layer"], store: S
     Layer.provide(Sources.layer),
     Layer.provide(Insee.layer.pipe(Layer.provide(offline))),
     Layer.provide(Ilostat.layer.pipe(Layer.provide(offline))),
+    Layer.provide(Faostat.layer.pipe(Layer.provide(offline))),
     Layer.provide(Layer.merge(WorldBank.layer, Sdmx.layer).pipe(Layer.provide(client))),
     Layer.provide(D1Client.layer({ db }).pipe(Layer.orDie)),
   )
@@ -177,6 +179,7 @@ export const charts = (client: ReturnType<typeof serving>["layer"], store: Serie
     Layer.provide(Sources.layer),
     Layer.provide(Insee.layer.pipe(Layer.provide(offline))),
     Layer.provide(Ilostat.layer.pipe(Layer.provide(offline))),
+    Layer.provide(Faostat.layer.pipe(Layer.provide(offline))),
     Layer.provide(Store.r2(store)),
     Layer.provide(Layer.merge(WorldBank.cached, Sdmx.cached)),
     Layer.provide(client),

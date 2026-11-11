@@ -51,7 +51,9 @@ const credit = (dataset: string, fetched: import("./Series.ts").Answer) => {
   const versions = fetched.version === undefined ? [] : [`version ${fetched.version}`]
 
   const surveys = new Set(
-    (fetched.qualifications ?? []).map(({ survey }) => `${survey.code}: ${survey.label}`),
+    (fetched.qualifications ?? []).flatMap((item) =>
+      item.source === "ILOSTAT" ? [`${item.survey.code}: ${item.survey.label}`] : [],
+    ),
   )
 
   return [dataset, ...versions, ...surveys].join("; ")

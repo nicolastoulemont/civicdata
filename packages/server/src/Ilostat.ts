@@ -144,7 +144,9 @@ export const record = Effect.fn("Ilostat.record")(function* (raw: Record<string,
     }
 
   const evidence: {
-    -readonly [K in keyof Omit<Qualification, "country" | "year" | "notes">]: Qualification[K]
+    -readonly [
+      K in keyof Omit<Extract<Qualification, { source: "ILOSTAT" }>, "country" | "year" | "notes">
+    ]: Extract<Qualification, { source: "ILOSTAT" }>[K]
   } & {
     country: string
     year: number

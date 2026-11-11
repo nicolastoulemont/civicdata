@@ -12,6 +12,7 @@ import { Context, Effect, Layer, Option, Record } from "effect"
 
 import { type Adapter, Policy } from "./Adapter.ts"
 import { Cache } from "./Cache.ts"
+import { Faostat } from "./Faostat.ts"
 import { Ilostat } from "./Ilostat.ts"
 import { Insee } from "./Insee.ts"
 import { Pace } from "./Pace.ts"
@@ -89,8 +90,15 @@ export class Sources extends Context.Service<Sources, Interface>()("@openfacts/s
       const sdmx = yield* Sdmx
       const insee = yield* Insee
       const ilostat = yield* Ilostat
+      const faostat = yield* Faostat
 
-      return Sources.of({ "World Bank": worldBank, ...sdmx, INSEE: insee, ILOSTAT: ilostat })
+      return Sources.of({
+        "World Bank": worldBank,
+        ...sdmx,
+        INSEE: insee,
+        ILOSTAT: ilostat,
+        FAOSTAT: faostat,
+      })
     }),
   )
 
@@ -223,6 +231,7 @@ export class Sources extends Context.Service<Sources, Interface>()("@openfacts/s
     Layer.provide(Sources.layer),
     Layer.provide(Insee.cached),
     Layer.provide(Ilostat.layer),
+    Layer.provide(Faostat.layer),
     Layer.provide(Store.layer),
     Layer.provide(Releases.live),
     Layer.provide(WorldBank.cached),

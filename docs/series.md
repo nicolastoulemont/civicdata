@@ -229,3 +229,20 @@ canonical order. A note-only revision replaces the stored series. Unqualified
 hashes retain their deployed bytes, so this reader change does not refill the World
 Bank or change its progress scope. Store filters qualification places together with
 numeric observations on reads; resolver/tool results retain both collections.
+
+## FAOSTAT ASTI expenditures
+
+Only `FAOSTAT:AE` measure 8006 (agricultural R&D expenditure as a percentage of
+agricultural value added) is registered. Measure, cost category and institution
+are explicit dimensions; the other four measures and all other domains remain
+unlisted. Discovery uses the official bulk manifest and reviewed local labels,
+independently of stored availability. Chart requests use StoredOnly. Only the
+manual Node command enrolls the AE archive with shared Gather/Store and real
+D1/R2 transport, disk sorting, complete series and manifest rechecking. FAO's
+raw flags, notes and missing numbers use a source-specific qualification variant
+without an ILO survey. Existing ILO payloads remain valid.
+
+This change requires `own-catalog`. No manual production/preview fill or catalog
+build is part of delivery. Stored data needs an explained, owner-approved fill.
+[Coverage, exclusions, terms, evidence and operator prerequisites](research/faostat/README.md)
+record the exact limits and annual financial-year convention.

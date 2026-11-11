@@ -1,0 +1,20 @@
+{
+  "retrievedAt": "2026-11-11",
+  "archiveUrl": "https://bulks-faostat.fao.org/production/ASTI_Expenditures_E_All_Data_(Normalized).zip",
+  "manifestUrl": "https://bulks-faostat.fao.org/production/datasets_E.json",
+  "manifestSelection": "AE record only, unchanged publisher fields",
+  "files": {
+    "AE.zip": {
+      "bytes": 78271,
+      "sha256": "217ba6335bec22f7786d5a9ed76d2973670bc0913e6e4b40881c97cc0a68074c"
+    },
+    "manifest.json": {
+      "bytes": 1992,
+      "sha256": "6fcbcbf03b39e907b0ea4fc1ed909ab71af9c867cb6960b419faaae9a49792ff"
+    },
+    "record.json": {
+      "bytes": 484,
+      "sha256": "ffc9a2335478e8bcb02c7d8a33bc62a9badb9e01064eded280f55530d9d6c3c8"
+    }
+  }
+}
