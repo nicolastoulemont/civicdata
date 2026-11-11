@@ -5,6 +5,7 @@ import { useEffect } from "react"
 
 import { Conversation } from "@/conversation/Conversation"
 import { preload } from "@/conversation/preload"
+import { createI18n } from "@/locale"
 
 const decodeId = Schema.decodeUnknownOption(ConversationId)
 
@@ -44,6 +45,15 @@ export const Route = createFileRoute("/_chat/c/$id")({
     }),
   // Runs on hover or focus of a link here, and on arrival.
   loader: ({ context: { queryClient, id } }) => preload({ queryClient, id }),
-  head: () => ({ meta: [{ title: "Conversation · civicdata" }] }),
+  head: () => ({
+    meta: [
+      {
+        title: createI18n().getFixedT(
+          "en-US",
+          "conversation",
+        )(($) => $["Conversation · civicdata"]),
+      },
+    ],
+  }),
   component: ConversationPage,
 })

@@ -1,14 +1,13 @@
 import type { Overlay, View } from "@civicdata/domain"
 import { Check, Link } from "lucide-react"
 import { use } from "react"
+import { useTranslation } from "react-i18next"
 
 import { Act } from "@/act"
 import { useCopy } from "@/clipboard"
 import { Button } from "@/components/ui/button"
 
 import { toQuery } from "./search.ts"
-
-const labels = { copied: "Link copied", failed: "Could not copy" } as const
 
 interface CopyLinkProps {
   view: View
@@ -19,6 +18,13 @@ interface CopyLinkProps {
 // the link opens the chart as it is shown. The outcome shows until either
 // changes.
 export const CopyLink = ({ view, overlays }: CopyLinkProps) => {
+  const { t } = useTranslation("explore")
+
+  const labels = {
+    copied: t(($) => $["Link copied"]),
+    failed: t(($) => $["Could not copy"]),
+  } as const
+
   const query = toQuery(view, overlays)
   const { outcome, copy } = useCopy(query)
   const act = use(Act)
@@ -33,7 +39,7 @@ export const CopyLink = ({ view, overlays }: CopyLinkProps) => {
       }}
     >
       {outcome === "copied" ? <Check aria-hidden /> : <Link aria-hidden />}
-      {outcome === undefined ? "Copy link" : labels[outcome]}
+      {outcome === undefined ? t(($) => $["Copy link"]) : labels[outcome]}
     </Button>
   )
 }

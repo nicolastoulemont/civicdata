@@ -1,7 +1,11 @@
 import { cleanup } from "@testing-library/react"
-import { afterAll, afterEach, beforeAll } from "vitest"
+import { setI18n } from "react-i18next"
+import { afterAll, afterEach, beforeAll, beforeEach } from "vitest"
 
+import { createI18n } from "../src/locale.tsx"
 import { drainUnhandled, network } from "./network.ts"
+
+beforeEach(() => setI18n(createI18n()))
 
 // HTTP requests fall through to the recording fallback in network.ts; this
 // catches anything else, such as WebSocket connections.

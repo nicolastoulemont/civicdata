@@ -1,4 +1,5 @@
 import type { Country } from "@civicdata/domain"
+import { useTranslation } from "react-i18next"
 import { CartesianGrid, LabelList, Scatter, ScatterChart, XAxis, YAxis } from "recharts"
 
 import {
@@ -8,10 +9,10 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart"
 
-import { countryName, formatCompact } from "./format.ts"
 import { color, fill } from "./palette.ts"
 import { type Paired, pairs } from "./points.ts"
 import { around } from "./scale.ts"
+import { useFormat } from "./useFormat.ts"
 
 // Where a country's dot has been, oldest first.
 interface Path {
@@ -35,6 +36,10 @@ interface RelationChartProps {
 // along the bottom. A paused relation over time draws faintly, in each
 // country's colour, the path its dot took to the year shown.
 export const RelationChart = ({ resolved, covers, paths = still }: RelationChartProps) => {
+  const { t } = useTranslation("explore")
+
+  const { countryName, formatCompact } = useFormat()
+
   const points = pairs(resolved).map(({ country, x, y }) => ({
     country,
     x,
@@ -54,7 +59,12 @@ export const RelationChart = ({ resolved, covers, paths = still }: RelationChart
 
   return (
     <figure>
-      <figcaption className="sr-only">{`Scatter plot of ${resolved.title} against ${resolved.against.title}, by country`}</figcaption>
+      <figcaption className="sr-only">
+        {t(($) => $["Scatter plot of {{value1}} against {{value2}}, by country"], {
+          value1: resolved.title,
+          value2: resolved.against.title,
+        })}
+      </figcaption>
       <ChartContainer config={config} className="aspect-auto h-96 w-full">
         <ScatterChart margin={{ top: 16, right: 16, bottom: 24, left: 16 }} accessibilityLayer>
           <CartesianGrid />

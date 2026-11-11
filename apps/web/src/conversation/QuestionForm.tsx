@@ -10,9 +10,10 @@ import { Paragraph } from "@tiptap/extension-paragraph"
 import { Text } from "@tiptap/extension-text"
 import { UndoRedo } from "@tiptap/extensions"
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react"
-import { Schema } from "effect"
+import { Match, Schema } from "effect"
 import { ArrowUp, Square } from "lucide-react"
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 
 import { InputGroup, InputGroupAddon, InputGroupButton } from "@/components/ui/input-group"
 import { Kbd } from "@/components/ui/kbd"
@@ -29,13 +30,6 @@ export interface Answering {
   readonly stop: () => void
   readonly stopping: boolean
 }
-
-const reasons = {
-  empty: "Type a question to send",
-  short: "Type a longer question to send",
-  long: `Shorten the question to ${maxQuestion} characters to send`,
-  answering: "Wait for the answer to send another question",
-} as const
 
 const isQuestion = Schema.is(Question)
 
@@ -101,34 +95,47 @@ interface SendProps {
 
 // The round send button. While it cannot send, its name and tooltip say why,
 // and it stays focusable so keyboard users can read that tooltip too.
-const Send = ({ state }: SendProps) => (
-  <Tooltip>
-    <TooltipTrigger
-      render={
-        <InputGroupButton
-          type="submit"
-          variant="default"
-          size="icon-sm"
-          className="rounded-full aria-disabled:bg-muted aria-disabled:text-muted-foreground"
-          aria-label={state === "ready" ? "Send" : reasons[state]}
-          disabled={state !== "ready"}
-          focusableWhenDisabled
-        />
-      }
-    >
-      <ArrowUp aria-hidden />
-    </TooltipTrigger>
-    <TooltipContent>
-      {state === "ready" ? (
-        <>
-          Send <Kbd>Enter</Kbd>
-        </>
-      ) : (
-        reasons[state]
-      )}
-    </TooltipContent>
-  </Tooltip>
-)
+const Send = ({ state }: SendProps) => {
+  const { t } = useTranslation("conversation")
+
+  const message = Match.value(state).pipe(
+    Match.when("ready", () => t(($) => $.send)),
+    Match.when("long", () => t(($) => $.long, { maxQuestion })),
+    Match.when("empty", () => t(($) => $.empty)),
+    Match.when("short", () => t(($) => $.short)),
+    Match.when("answering", () => t(($) => $.answering)),
+    Match.exhaustive,
+  )
+
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <InputGroupButton
+            type="submit"
+            variant="default"
+            size="icon-sm"
+            className="rounded-full aria-disabled:bg-muted aria-disabled:text-muted-foreground"
+            aria-label={message}
+            disabled={state !== "ready"}
+            focusableWhenDisabled
+          />
+        }
+      >
+        <ArrowUp aria-hidden />
+      </TooltipTrigger>
+      <TooltipContent>
+        {state === "ready" ? (
+          <>
+            {t(($) => $.send)} <Kbd>{t(($) => $["Enter"])}</Kbd>
+          </>
+        ) : (
+          message
+        )}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
 
 interface StopProps {
   answering: Answering
@@ -138,28 +145,32 @@ interface StopProps {
 // The round stop button that takes the send button's place while the agent
 // answers and the box is empty. Stopping moves focus to the box, ready for the
 // next question, since the button goes away once the answer stops.
-const Stop = ({ answering, editor }: StopProps) => (
-  <Tooltip>
-    <TooltipTrigger
-      render={
-        <InputGroupButton
-          variant="destructive"
-          size="icon-sm"
-          className="rounded-full"
-          aria-label="Stop"
-          disabled={answering.stopping}
-          onClick={() => {
-            answering.stop()
-            editor?.commands.focus()
-          }}
-        />
-      }
-    >
-      <Square aria-hidden className="size-3 fill-current" />
-    </TooltipTrigger>
-    <TooltipContent>Stop the answer</TooltipContent>
-  </Tooltip>
-)
+const Stop = ({ answering, editor }: StopProps) => {
+  const { t } = useTranslation("conversation")
+
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <InputGroupButton
+            variant="destructive"
+            size="icon-sm"
+            className="rounded-full"
+            aria-label={t(($) => $.stop)}
+            disabled={answering.stopping}
+            onClick={() => {
+              answering.stop()
+              editor?.commands.focus()
+            }}
+          />
+        }
+      >
+        <Square aria-hidden className="size-3 fill-current" />
+      </TooltipTrigger>
+      <TooltipContent>{t(($) => $.stopAnswer)}</TooltipContent>
+    </Tooltip>
+  )
+}
 
 interface QuestionFormProps {
   label: string

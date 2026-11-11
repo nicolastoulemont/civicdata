@@ -105,3 +105,30 @@ Read [docs/evals.md](docs/evals.md) to run, retry, review, archive or restore re
 - [docs/series.md](docs/series.md): how the daily Workflow stores every World Bank indicator, holds back an answer that drops values, and how charts read the store.
 - [docs/deploys.md](docs/deploys.md): stages per pull request and for `main`, the one-time setup, deploying your own stage, and upgrading Alchemy.
 - [docs/traces.md](docs/traces.md): the OpenTelemetry traces each question, request and Workflow run records, from the browser through the agent's tool calls to the sources, and how to read them in a local Grafana or Grafana Cloud.
+
+## Frontend languages
+
+The interface uses react-i18next with JSON catalogs in `apps/web/src/locales/<locale>/`.
+English (`en-US`) is the source and fallback. French, Spanish, Brazilian and European
+Portuguese, Italian, German and Simplified Chinese have separate catalogs. Catalogs
+are bundled with the app; no translation service or external catalog host is used.
+
+Settings → Language changes the interface immediately. Detection checks `i18nextLng`
+in localStorage, then the browser's language preferences, then English. Unsupported
+regional variants use the supported variant of their language (`pt` uses `pt-BR`).
+Shared chart URLs contain no locale. Each server render and client hydration starts
+in English; the browser activates its preference after hydration. A blocked storage
+API leaves language switching available for the current page.
+
+Components use `useTranslation` and typed selectors. Translate whole messages with
+named interpolation placeholders and plural forms, including accessible names.
+Keep source-provided text, user questions and existing assistant responses as they
+are. Formatting may change with locale, but the underlying observations, units and
+provenance do not. API requests send `X-User-Locale` for tracing ([traces](docs/traces.md)).
+
+`i18n/no-raw-text` in `tools/oxlint/i18n/plugin.mjs` checks app JSX, accessible
+names, placeholders and display-label properties, including local constants and
+object members. Brand and source names, punctuation, fetched content and technical
+attributes are allowed. Tests and stories are outside the rule. `pnpm test:lint`
+tests the rule against the installed Oxlint binary and runs in `pnpm check`.
+Catalog tests check message coverage and interpolation placeholders for every locale.

@@ -7,7 +7,9 @@ import {
 } from "@civicdata/domain"
 import { useMutation } from "@tanstack/react-query"
 import { Data, Match } from "effect"
+import type { TFunction } from "i18next"
 import { use } from "react"
+import { useTranslation } from "react-i18next"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -15,18 +17,18 @@ import { Spinner } from "@/components/ui/spinner"
 import { Hold } from "@/hold"
 
 import { explain } from "./api.ts"
-import { named } from "./format.ts"
+import { named as englishNamed } from "./format.ts"
 import { Prose } from "./Prose.tsx"
 import { toQuery } from "./search.ts"
 
-const problemOf = (error: Error) =>
+const problemOf = (error: Error, t: TFunction<"explore">) =>
   error instanceof AgentUnavailable
-    ? "The assistant is not available"
+    ? t(($) => $["The assistant is not available"])
     : error instanceof TooManyQuestions
-      ? "Too many questions in a minute"
+      ? t(($) => $["Too many questions in a minute"])
       : error instanceof SourceUnavailable
-        ? `${named(error.source)} is not responding`
-        : "The chart could not be explained"
+        ? t(($) => $["{{value1}} is not responding"], { value1: englishNamed(error.source) })
+        : t(($) => $["The chart could not be explained"])
 
 // What the agent said about the chart on screen when asked: nothing yet, an
 // explanation of it, or one of the chart before the person's changes.
@@ -50,19 +52,22 @@ interface TextProps {
   said: Said
 }
 
-const Text = ({ said }: TextProps) =>
-  Match.valueTags(said, {
+const Text = ({ said }: TextProps) => {
+  const { t } = useTranslation("explore")
+
+  return Match.valueTags(said, {
     Nothing: () => null,
     Current: ({ text }) => <Prose text={text} />,
     Earlier: ({ text }) => (
       <>
         <Prose text={text} className="text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
-          This describes the chart before your changes.
+          {t(($) => $["This describes the chart before your changes."])}
         </p>
       </>
     ),
   })
+}
 
 interface TakeawayProps {
   view: View
@@ -78,6 +83,8 @@ interface TakeawayProps {
 // the agent's own chart needs none: its answer says what the chart shows. A
 // chart changed from it can go back to it.
 export const Takeaway = ({ view, agent, onChange }: TakeawayProps) => {
+  const { t } = useTranslation("explore")
+
   const hold = use(Hold)
   const explaining = useMutation({ mutationFn: explain })
 
@@ -89,7 +96,7 @@ export const Takeaway = ({ view, agent, onChange }: TakeawayProps) => {
   const failed = explaining.isError && toQuery(explaining.variables) === toQuery(view)
 
   return (
-    <section aria-label="Takeaway" className="flex flex-col items-start gap-2">
+    <section aria-label={t(($) => $["Takeaway"])} className="flex flex-col items-start gap-2">
       <Text said={said} />
       <div className="flex flex-wrap gap-2 empty:hidden">
         {Said.$is("Current")(said) ? null : (
@@ -102,20 +109,21 @@ export const Takeaway = ({ view, agent, onChange }: TakeawayProps) => {
               explaining.mutate(view)
             }}
           >
-            {explaining.isPending ? <Spinner aria-hidden /> : null}
-            Explain this chart
+            {t(($) => $["{{value}} Explain this chart"], {
+              value: explaining.isPending ? <Spinner aria-hidden /> : null,
+            })}
           </Button>
         )}
         {agent === undefined ? null : (
           <Button variant="outline" size="sm" onClick={() => onChange(agent)}>
-            Back to the agent's chart
+            {t(($) => $["Back to the agent's chart"])}
           </Button>
         )}
       </div>
       {failed ? (
         <Alert variant="destructive">
-          <AlertTitle>{problemOf(explaining.error)}</AlertTitle>
-          <AlertDescription>Try again in a moment.</AlertDescription>
+          <AlertTitle>{problemOf(explaining.error, t)}</AlertTitle>
+          <AlertDescription>{t(($) => $["Try again in a moment."])}</AlertDescription>
         </Alert>
       ) : null}
     </section>

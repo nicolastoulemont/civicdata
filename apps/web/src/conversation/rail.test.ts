@@ -14,8 +14,12 @@ import {
 } from "@civicdata/domain"
 import { describe, expect, it } from "vitest"
 
-import { inView, preview } from "./rail.ts"
+import { createI18n } from "../locale.tsx"
+import { inView, preview as describeEntry } from "./rail.ts"
 import { Entry } from "./timeline.ts"
+
+const preview = (entry: Entry) =>
+  describeEntry(entry, createI18n().getFixedT("en-US", "conversation"))
 
 const question = "Life expectancy in Brazil"
 

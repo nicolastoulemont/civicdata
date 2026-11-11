@@ -1,5 +1,13 @@
 import { ChevronDown } from "lucide-react"
-import { type ReactNode, useCallback, useLayoutEffect, useRef, useState } from "react"
+import {
+  type ReactNode,
+  type RefObject,
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react"
+import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
 import { Hold } from "@/hold"
@@ -7,6 +15,59 @@ import { Hold } from "@/hold"
 import { inView, type Preview, type Seen } from "./rail.ts"
 import { Rail } from "./Rail.tsx"
 import { type Follow, followScroll } from "./scroll.ts"
+
+const same = (left: Seen, right: Seen) => left.first === right.first && left.last === right.last
+
+const useSeen = (
+  viewport: RefObject<HTMLElement | null>,
+  dock: RefObject<HTMLDivElement | null>,
+) => {
+  const [seen, setSeen] = useState<Seen>({ first: 0, last: 0 })
+
+  // Which questions are in view, measured above the composer. A scroll that
+  // keeps the same questions in view keeps the state, so the rail does not
+  // render again.
+  const locate = useCallback(() => {
+    const node = viewport.current
+    const below = dock.current
+
+    if (node === null || below === null) return
+
+    const top = node.getBoundingClientRect().top
+
+    const tops = [...node.querySelectorAll("[data-question]")].map(
+      (question) => question.getBoundingClientRect().top - top,
+    )
+
+    const next = inView(tops, node.clientHeight - below.offsetHeight)
+
+    setSeen((was) => (same(was, next) ? was : next))
+  }, [viewport, dock])
+
+  return { seen, locate }
+}
+
+interface EndProps {
+  onClick: () => void
+}
+
+const End = ({ onClick }: EndProps) => {
+  const { t } = useTranslation("conversation")
+
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-full mb-1.5 flex justify-center">
+      <Button
+        variant="outline"
+        size="xs"
+        className="pointer-events-auto rounded-full bg-card/80 shadow-sm backdrop-blur-md motion-reduce:transition-none dark:bg-card/80"
+        onClick={onClick}
+      >
+        <ChevronDown aria-hidden="true" data-icon="inline-start" />
+        {t(($) => $["Scroll to end"])}
+      </Button>
+    </div>
+  )
+}
 
 interface ScrollProps {
   children: ReactNode
@@ -44,6 +105,9 @@ const refit = (viewport: HTMLElement, content: HTMLElement) => {
 // The rail beside it jumps between the rows marked as questions. `asked`
 // changes each time a question is asked here, and is undefined otherwise.
 export const Scroll = ({ children, composer, previews, asked }: ScrollProps) => {
+  const { t } = useTranslation("conversation")
+  const label = t(($) => $["Conversation"])
+
   const viewport = useRef<HTMLElement>(null)
   const content = useRef<HTMLDivElement>(null)
   const dock = useRef<HTMLDivElement>(null)
@@ -53,7 +117,7 @@ export const Scroll = ({ children, composer, previews, asked }: ScrollProps) => 
   // left to finish.
   const bottom = useRef(0)
   const [mode, setMode] = useState<Follow>("following")
-  const [seen, setSeen] = useState<Seen>({ first: 0, last: 0 })
+  const { seen, locate } = useSeen(viewport, dock)
 
   const change = useCallback((next: Follow) => {
     follow.current = next
@@ -61,26 +125,6 @@ export const Scroll = ({ children, composer, previews, asked }: ScrollProps) => 
   }, [])
 
   const hold = useCallback(() => change("stopped"), [change])
-
-  // Which questions are in view, measured above the composer. A scroll that
-  // keeps the same questions in view keeps the state, so the rail does not
-  // render again.
-  const locate = useCallback(() => {
-    const node = viewport.current
-    const below = dock.current
-
-    if (node === null || below === null) return
-
-    const top = node.getBoundingClientRect().top
-
-    const tops = [...node.querySelectorAll("[data-question]")].map(
-      (question) => question.getBoundingClientRect().top - top,
-    )
-
-    const next = inView(tops, node.clientHeight - below.offsetHeight)
-
-    setSeen((was) => (was.first === next.first && was.last === next.last ? was : next))
-  }, [])
 
   // Puts a question 24px from the top and holds it there, as scrolling up does.
   const jump = (index: number) => {
@@ -119,14 +163,12 @@ export const Scroll = ({ children, composer, previews, asked }: ScrollProps) => 
       refit(node, rows)
       locate()
 
+      const following = follow.current === "following"
+
+      if (following && node.scrollHeight - node.clientHeight !== bottom.current) end("instant")
+
       // With nothing to scroll, there is no end to return to.
-      if (follow.current !== "following") {
-        if (node.scrollHeight <= node.clientHeight) change("following")
-
-        return
-      }
-
-      if (node.scrollHeight - node.clientHeight !== bottom.current) end("instant")
+      if (!following && node.scrollHeight <= node.clientHeight) change("following")
     }
 
     const observer = new ResizeObserver(followEnd)
@@ -154,7 +196,7 @@ export const Scroll = ({ children, composer, previews, asked }: ScrollProps) => 
       <Rail previews={previews} seen={seen} jump={jump} />
       <section
         ref={viewport}
-        aria-label="Conversation"
+        aria-label={label}
         // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- keyboard readers must be able to focus and scroll the viewport
         tabIndex={0}
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain [overflow-anchor:none]"
@@ -183,21 +225,13 @@ export const Scroll = ({ children, composer, previews, asked }: ScrollProps) => 
           </div>
           <div ref={dock} className="sticky bottom-0 z-10 mt-auto">
             {mode === "stopped" ? (
-              <div className="pointer-events-none absolute inset-x-0 bottom-full mb-1.5 flex justify-center">
-                <Button
-                  variant="outline"
-                  size="xs"
-                  className="pointer-events-auto rounded-full bg-card/80 shadow-sm backdrop-blur-md motion-reduce:transition-none dark:bg-card/80"
-                  onClick={() => {
-                    change("following")
-                    end(reduced() ? "instant" : "smooth")
-                    viewport.current?.focus({ preventScroll: true })
-                  }}
-                >
-                  <ChevronDown aria-hidden="true" data-icon="inline-start" />
-                  Scroll to end
-                </Button>
-              </div>
+              <End
+                onClick={() => {
+                  change("following")
+                  end(reduced() ? "instant" : "smooth")
+                  viewport.current?.focus({ preventScroll: true })
+                }}
+              />
             ) : null}
             {composer}
           </div>

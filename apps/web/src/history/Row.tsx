@@ -3,7 +3,9 @@ import { useIsMutating, useQuery } from "@tanstack/react-query"
 import { Link } from "@tanstack/react-router"
 import { cn } from "cn"
 import { Data, DateTime, Match } from "effect"
+import type { TFunction } from "i18next"
 import { useEffect } from "react"
+import { useTranslation } from "react-i18next"
 
 import { Badge } from "@/components/ui/badge"
 import { SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar"
@@ -61,25 +63,28 @@ const idle = "bg-status-idle/10 text-status-idle"
 
 // How an answer ended. The match is exhaustive, so a new ending fails the
 // typecheck until it gets a badge.
-const ended = (answer: Ending): Badged =>
+const ended = (answer: Ending, t: TFunction<"home">): Badged =>
   Match.valueTags(answer, {
     Answered: () => ({
-      label: "Answered",
+      label: t(($) => $.answered),
       className: "bg-status-answered/10 text-status-answered",
     }),
-    Asked: () => ({ label: "Your reply", className: "bg-status-reply/10 text-status-reply" }),
-    Unanswered: () => ({ label: "No data", className: idle }),
-    Exhausted: () => ({ label: "Cut short", className: idle }),
-    Stopped: () => ({ label: "Stopped", className: idle }),
+    Asked: () => ({ label: t(($) => $.reply), className: "bg-status-reply/10 text-status-reply" }),
+    Unanswered: () => ({ label: t(($) => $.noData), className: idle }),
+    Exhausted: () => ({ label: t(($) => $.cutShort), className: idle }),
+    Stopped: () => ({ label: t(($) => $.stopped), className: idle }),
   })
 
 // No badge while the turns load, or once the conversation is gone.
-const badged = (status: Status): Badged | undefined =>
+const badged = (status: Status, t: TFunction<"home">): Badged | undefined =>
   Match.valueTags(status, {
     Loading: () => undefined,
-    Working: () => ({ label: "Working", className: "bg-status-working/10 text-status-working" }),
-    Ended: ({ answer }) => ended(answer),
-    Unanswered: () => ({ label: "Not answered", className: idle }),
+    Working: () => ({
+      label: t(($) => $.working),
+      className: "bg-status-working/10 text-status-working",
+    }),
+    Ended: ({ answer }) => ended(answer, t),
+    Unanswered: () => ({ label: t(($) => $.notAnswered), className: idle }),
     Gone: () => undefined,
   })
 
@@ -94,6 +99,7 @@ interface RowProps {
 // keeps answering after the page leaves, so a conversation it reports
 // answering is checked again until it is done.
 export const Row = ({ entry: { id, title, askedAt }, current, now }: RowProps) => {
+  const { t } = useTranslation("home")
   const { setOpenMobile } = useSidebar()
   const asking = useIsMutating({ mutationKey: answerKey(id) }) > 0
 
@@ -104,7 +110,7 @@ export const Row = ({ entry: { id, title, askedAt }, current, now }: RowProps) =
   })
 
   const status = statusOf({ asking, data, error })
-  const badge = badged(status)
+  const badge = badged(status, t)
   // The server deletes a conversation 30 days after its last question.
   const gone = isGone(status)
 
@@ -139,7 +145,7 @@ export const Row = ({ entry: { id, title, askedAt }, current, now }: RowProps) =
               </Badge>
             )}
             <time className="ml-auto" dateTime={DateTime.formatIso(askedAt)}>
-              {ago(askedAt, now)}
+              {ago(askedAt, { now, t })}
             </time>
           </div>
         </SidebarMenuButton>

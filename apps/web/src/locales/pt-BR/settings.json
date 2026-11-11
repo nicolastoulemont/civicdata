@@ -1,0 +1,11 @@
+{
+  "title": "Configurações",
+  "sections": "Seções das configurações",
+  "appearance": "Aparência",
+  "appearanceDescription": "A aparência do civicdata neste navegador. Sistema segue as configurações do seu dispositivo.",
+  "system": "Sistema",
+  "light": "Claro",
+  "dark": "Escuro",
+  "language": "Idioma",
+  "languageDescription": "O idioma usado pelo civicdata neste navegador. O texto das fontes e as respostas existentes mantêm o idioma original."
+}

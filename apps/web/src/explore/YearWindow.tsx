@@ -1,4 +1,5 @@
 import { type Country, type ResolvedView, Year } from "@civicdata/domain"
+import { useTranslation } from "react-i18next"
 
 import { Slider } from "@/components/ui/slider"
 
@@ -40,6 +41,8 @@ interface YearWindowProps {
 // the chart shows. Dragging an end resizes the window; dragging the window
 // moves it. Each gesture goes to the chart's drag.
 export const YearWindow = ({ history, countries, years, onGesture }: YearWindowProps) => {
+  const { t } = useTranslation("explore")
+
   const all = history.map((observation) => observation.year)
   const first = Math.min(...all)
   const last = Math.max(...all)
@@ -60,7 +63,7 @@ export const YearWindow = ({ history, countries, years, onGesture }: YearWindowP
       max={last}
       minStepsBetweenValues={1}
       thumbAlignment="center"
-      labels={["First year", "Last year"]}
+      labels={[t(($) => $["First year"]), t(($) => $["Last year"])]}
       onValueChange={(value) => onGesture(Gesture.Slide({ years: yearsOf(value) }))}
       onValueCommitted={(value) => onGesture(Gesture.Settle({ years: yearsOf(value) }))}
       trackClassName="rounded-md border bg-transparent data-horizontal:h-12"

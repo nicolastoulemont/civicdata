@@ -1,6 +1,7 @@
 import { cn } from "cn"
 import { Schema } from "effect"
 import { useId } from "react"
+import { useTranslation } from "react-i18next"
 
 import { Field, FieldLabel, FieldTitle } from "@/components/ui/field"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
@@ -60,16 +61,12 @@ const Drawing = ({ mode }: DrawingProps) => (
   </span>
 )
 
-const modes: ReadonlyArray<{ mode: Mode; title: string }> = [
-  { mode: "system", title: "System" },
-  { mode: "light", title: "Light" },
-  { mode: "dark", title: "Dark" },
-]
-
 const isMode = Schema.is(Mode)
 
 // System, Light or Dark, applied as soon as it is picked.
 export const Appearance = () => {
+  const { t } = useTranslation("settings")
+  const titles = { system: t(($) => $.system), light: t(($) => $.light), dark: t(($) => $.dark) }
   const mode = useMode()
   const id = useId()
 
@@ -77,11 +74,9 @@ export const Appearance = () => {
     <section aria-labelledby={`${id}-heading`} className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
         <h2 id={`${id}-heading`} className="font-heading text-base font-medium">
-          Appearance
+          {t(($) => $.appearance)}
         </h2>
-        <p className="text-sm text-muted-foreground">
-          How civicdata looks in this browser. System follows your device.
-        </p>
+        <p className="text-sm text-muted-foreground">{t(($) => $.appearanceDescription)}</p>
       </div>
       <RadioGroup
         aria-labelledby={`${id}-heading`}
@@ -91,17 +86,17 @@ export const Appearance = () => {
           if (isMode(value)) choose(value)
         }}
       >
-        {modes.map((choice) => (
+        {Mode.literals.map((choice) => (
           <FieldLabel
-            key={choice.mode}
-            htmlFor={`${id}-${choice.mode}`}
+            key={choice}
+            htmlFor={`${id}-${choice}`}
             className="has-data-checked:ring-2 has-data-checked:ring-primary"
           >
             <Field>
-              <Drawing mode={choice.mode} />
+              <Drawing mode={choice} />
               <span className="flex items-center justify-center gap-2">
-                <RadioGroupItem value={choice.mode} id={`${id}-${choice.mode}`} />
-                <FieldTitle>{choice.title}</FieldTitle>
+                <RadioGroupItem value={choice} id={`${id}-${choice}`} />
+                <FieldTitle>{titles[choice]}</FieldTitle>
               </span>
             </Field>
           </FieldLabel>

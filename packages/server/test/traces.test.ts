@@ -1,8 +1,15 @@
 import { describe, expect, it } from "@effect/vitest"
 import { ConfigProvider, Effect, Layer } from "effect"
-import { HttpBody, HttpClient, HttpClientResponse, HttpRouter } from "effect/http"
+import {
+  HttpBody,
+  HttpClient,
+  HttpClientResponse,
+  HttpRouter,
+  HttpServerResponse,
+} from "effect/http"
 
 import * as Traces from "../src/Traces.ts"
+import { recording } from "./fakes.ts"
 
 // A batch of spans as the browser's exporter sends it: OTLP protobuf bytes.
 const batch = new Uint8Array([10, 3, 18, 1, 0])
@@ -125,5 +132,48 @@ describe("the browser's spans", () => {
       expect(response.status).toBe(429)
       expect(upstream.received).toEqual([])
     })
+  })
+})
+
+describe("the UI locale header", () => {
+  it.effect("records supported locales and ignores missing or arbitrary values", () => {
+    const recorded = recording()
+
+    return Effect.acquireUseRelease(
+      Effect.sync(() =>
+        HttpRouter.toWebHandler(
+          Layer.mergeAll(
+            HttpRouter.add("GET", "/locale", HttpServerResponse.empty()),
+            Traces.locale,
+          ),
+          { disableLogger: true },
+        ),
+      ),
+      ({ handler }) =>
+        Effect.gen(function* () {
+          const context = yield* Effect.context()
+
+          for (const locale of ["pt-PT", "zh-CN", "not-a-supported-locale", undefined]) {
+            const response = yield* Effect.promise(() =>
+              handler(
+                new Request("http://localhost/locale", {
+                  headers: locale === undefined ? {} : { "X-User-Locale": locale },
+                }),
+                context,
+              ),
+            )
+
+            expect(response.status).toBe(204)
+          }
+
+          expect(recorded.spans.map((span) => span.attributes.get("civicdata.locale"))).toEqual([
+            "pt-PT",
+            "zh-CN",
+            undefined,
+            undefined,
+          ])
+        }).pipe(Effect.provide(recorded.layer)),
+      ({ dispose }) => Effect.promise(dispose),
+    )
   })
 })

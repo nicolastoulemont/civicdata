@@ -1,5 +1,6 @@
 import { type Country, countries, type View } from "@civicdata/domain"
 import { useId, useState } from "react"
+import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -16,7 +17,7 @@ import {
 } from "@/components/ui/combobox"
 import { Field, FieldLabel } from "@/components/ui/field"
 
-import { countryName } from "./format.ts"
+import { useFormat } from "./useFormat.ts"
 
 const codes = countries.map((country) => country.code)
 
@@ -33,6 +34,10 @@ interface CountriesProps {
 
 // A View always has at least one country, so the last chip has no remove button.
 export const Countries = ({ selected, onChange }: CountriesProps) => {
+  const { countryName } = useFormat()
+
+  const { t } = useTranslation("explore")
+
   const anchor = useComboboxAnchor()
   const id = useId()
   // The countries the field was expanded for. Countries changed from outside
@@ -44,7 +49,7 @@ export const Countries = ({ selected, onChange }: CountriesProps) => {
 
   return (
     <Field>
-      <FieldLabel htmlFor={id}>Countries</FieldLabel>
+      <FieldLabel htmlFor={id}>{t(($) => $["Countries"])}</FieldLabel>
       <Combobox
         items={codes}
         multiple
@@ -72,7 +77,7 @@ export const Countries = ({ selected, onChange }: CountriesProps) => {
                   <ComboboxChip
                     key={country}
                     showRemove={chosen.length > 1}
-                    removeLabel={`Remove ${countryName(country)}`}
+                    removeLabel={t(($) => $["Remove {{value1}}"], { value1: countryName(country) })}
                     className="min-w-0"
                   >
                     <span className="truncate">{countryName(country)}</span>
@@ -85,11 +90,15 @@ export const Countries = ({ selected, onChange }: CountriesProps) => {
                     size="xs"
                     className="h-[calc(--spacing(5.25))] shrink-0 rounded-sm px-1.5 text-muted-foreground"
                     aria-label={
-                      collapsed ? `Show all ${chosen.length} countries` : "Show fewer countries"
+                      collapsed
+                        ? t(($) => $["Show all {{value1}} countries"], { value1: chosen.length })
+                        : t(($) => $["Show fewer countries"])
                     }
                     onClick={() => setExpandedFor(collapsed ? selected.join() : undefined)}
                   >
-                    {collapsed ? `+${chosen.length - first} more` : "Show less"}
+                    {collapsed
+                      ? t(($) => $["+{{value1}} more"], { value1: chosen.length - first })
+                      : t(($) => $["Show less"])}
                   </Button>
                 ) : null}
                 {/* The label names the input either way; the hint shows only with no chip. */}
@@ -98,7 +107,7 @@ export const Countries = ({ selected, onChange }: CountriesProps) => {
                   // Without text, the input drops the gap before it, so it never
                   // shortens the chips beside it.
                   className={collapsed ? "-ml-1 min-w-0 focus:ml-0 focus:min-w-16" : undefined}
-                  placeholder={chosen.length === 0 ? "Add a country" : undefined}
+                  placeholder={chosen.length === 0 ? t(($) => $["Add a country"]) : undefined}
                   // Base UI's Backspace removes the last chip shown. Collapsed,
                   // that is the third country, not the last one, so it removes none.
                   onKeyDown={(event) => {
@@ -111,7 +120,7 @@ export const Countries = ({ selected, onChange }: CountriesProps) => {
           </ComboboxValue>
         </ComboboxChips>
         <ComboboxContent anchor={anchor}>
-          <ComboboxEmpty>No country matches.</ComboboxEmpty>
+          <ComboboxEmpty>{t(($) => $["No country matches."])}</ComboboxEmpty>
           <ComboboxList>
             {(country: Country) => (
               <ComboboxItem key={country} value={country}>

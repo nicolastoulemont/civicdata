@@ -1,19 +1,12 @@
 import { applies, kindOf, type Transform, transformOf, type View } from "@civicdata/domain"
 import { Match } from "effect"
+import { useTranslation } from "react-i18next"
 
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 
 import { ratioFor, withTransform } from "./edits.ts"
 
-const choices = [
-  { value: "Values", label: "Values" },
-  { value: "PerPerson", label: "Per person" },
-  { value: "Growth", label: "Growth" },
-  { value: "Index", label: "Index" },
-  { value: "Ratio", label: "Ratio" },
-] as const
-
-type Choice = (typeof choices)[number]["value"]
+type Choice = "Values" | "PerPerson" | "Growth" | "Index" | "Ratio"
 
 // The transform a choice stands for. A ratio first divides by GDP.
 const transformFor = (choice: Choice, view: View): Transform | undefined =>
@@ -34,6 +27,16 @@ interface ShowAsProps {
 // transform the indicator cannot take is disabled. A chart type offers only
 // the transforms it takes, and a relation none, so it shows no choice.
 export const ShowAs = ({ view, name, onChange }: ShowAsProps) => {
+  const { t } = useTranslation("explore")
+
+  const choices = [
+    { value: "Values", label: t(($) => $["Values"]) },
+    { value: "PerPerson", label: t(($) => $["Per person"]) },
+    { value: "Growth", label: t(($) => $["Growth"]) },
+    { value: "Index", label: t(($) => $["Index"]) },
+    { value: "Ratio", label: t(($) => $["Ratio"]) },
+  ] as const
+
   const offered = Match.valueTags(view, {
     Trend: () => choices,
     Ranking: () => choices.filter((choice) => choice.value !== "Index"),
@@ -48,7 +51,7 @@ export const ShowAs = ({ view, name, onChange }: ShowAsProps) => {
 
   return (
     <ToggleGroup
-      aria-label="Show as"
+      aria-label={t(($) => $["Show as"])}
       className="flex-wrap"
       variant="outline"
       value={[transform === undefined ? "Values" : kindOf(transform)]}

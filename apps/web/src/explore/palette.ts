@@ -41,13 +41,3 @@ export const shading = (direction: Direction) => (shade: number) =>
     Match.when("Lower", () => diverge(4 - shade)),
     Match.exhaustive,
   )
-
-// What a chart's key says of its direction, so colour is never the only
-// sign; nothing for a neutral one.
-export const phrase = (direction: Direction) =>
-  Match.value(direction).pipe(
-    Match.when("Higher", () => "Higher is better"),
-    Match.when("Lower", () => "Lower is better"),
-    Match.when("Neutral", () => undefined),
-    Match.exhaustive,
-  )

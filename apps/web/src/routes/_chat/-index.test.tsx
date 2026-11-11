@@ -14,6 +14,8 @@ import { Schema } from "effect"
 import { http, HttpResponse } from "msw/http"
 import { expect, it } from "vitest"
 
+import { createI18n, LocaleProvider } from "@/locale"
+
 import { line, typed } from "../../../test/composer.ts"
 import { network } from "../../../test/network.ts"
 import { Route as ChatRoute } from "../_chat"
@@ -65,6 +67,7 @@ const open = (path = "/") => {
     id: "_chat",
     getParentRoute: () => root,
     component: Chat,
+    validateSearch: ChatRoute.options.validateSearch,
   })
 
   const home = createRoute({
@@ -86,9 +89,11 @@ const open = (path = "/") => {
   })
 
   render(
-    <QueryClientProvider client={new QueryClient()}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>,
+    <LocaleProvider instance={createI18n()}>
+      <QueryClientProvider client={new QueryClient()}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </LocaleProvider>,
   )
 
   return router
@@ -187,4 +192,29 @@ it("says how long questions are kept before the visitor asks one", async () => {
   open()
 
   expect(await screen.findByText(/Questions and answers are kept for a year/)).toBeDefined()
+})
+
+it("changes the home and sidebar language from Settings without changing chart links", async () => {
+  const router = open()
+  const example = await screen.findByRole("link", { name: "GDP per person in the G7, 2023" })
+  const href = example.getAttribute("href")
+
+  await userEvent.click(screen.getByRole("link", { name: "Settings" }))
+  await userEvent.click(await screen.findByRole("link", { name: "Language" }))
+  await userEvent.click(screen.getByRole("combobox", { name: "Language" }))
+  await userEvent.click(await screen.findByRole("option", { name: /🇫🇷\s+Français/u }))
+
+  expect(await screen.findByRole("dialog", { name: "Paramètres" })).toBeDefined()
+  await userEvent.keyboard("{Escape}")
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+
+  expect(
+    await screen.findByRole("textbox", { name: "Poser une question sur un pays" }),
+  ).toBeDefined()
+  expect(screen.getByRole("link", { name: "Nouvelle conversation" })).toBeDefined()
+  expect(
+    screen.getByRole("link", { name: "PIB par habitant dans le G7, 2023" }).getAttribute("href"),
+  ).toBe(href)
+  expect(router.state.location.pathname).toBe("/")
+  expect(localStorage.getItem("i18nextLng")).toBe("fr-FR")
 })

@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router"
+import { useTranslation } from "react-i18next"
 
 import { buttonVariants } from "@/components/ui/button"
 import { Lane } from "@/conversation/Lane"
@@ -6,9 +7,9 @@ import { QuestionForm } from "@/conversation/QuestionForm"
 import type { Search } from "@/explore/search"
 import { Toggle } from "@/history/Toggle"
 
-const examples: ReadonlyArray<{ title: string; search: Search }> = [
+const examples: ReadonlyArray<{ key: "population" | "gdp" | "life"; search: Search }> = [
   {
-    title: "Population of the four largest EU economies since 2000",
+    key: "population",
     search: {
       chart: "trend",
       indicator: "SP.POP.TOTL",
@@ -18,7 +19,7 @@ const examples: ReadonlyArray<{ title: string; search: Search }> = [
     },
   },
   {
-    title: "GDP per person in the G7, 2023",
+    key: "gdp",
     search: {
       chart: "ranking",
       indicator: "NY.GDP.PCAP.CD",
@@ -27,7 +28,7 @@ const examples: ReadonlyArray<{ title: string; search: Search }> = [
     },
   },
   {
-    title: "Life expectancy in the Nordic countries since 1990",
+    key: "life",
     search: {
       chart: "trend",
       indicator: "SP.DYN.LE00.IN",
@@ -41,6 +42,7 @@ const examples: ReadonlyArray<{ title: string; search: Search }> = [
 // The composer in the middle of the page, in the lane a conversation uses, with
 // the examples under it, then what happens to the questions asked.
 const Home = () => {
+  const { t } = useTranslation("home")
   const navigate = useNavigate()
 
   return (
@@ -49,13 +51,11 @@ const Home = () => {
       <Lane>
         <div className="mb-6 flex flex-col items-center gap-2 text-center">
           <h1 className="text-3xl font-medium tracking-tight">civicdata</h1>
-          <p className="text-sm text-muted-foreground">
-            Ask about the state of a country and get a sourced chart, or open an example.
-          </p>
+          <p className="text-sm text-muted-foreground">{t(($) => $.intro)}</p>
         </div>
         <QuestionForm
-          label="Ask about a country"
-          placeholder="How has life expectancy changed in Brazil?"
+          label={t(($) => $.question)}
+          placeholder={t(($) => $.placeholder)}
           draft="home"
           onAsk={(question) =>
             void navigate({
@@ -68,7 +68,7 @@ const Home = () => {
         />
         <ul className="mt-2 flex flex-wrap gap-1">
           {examples.map((example) => (
-            <li key={example.title}>
+            <li key={example.key}>
               <Link
                 className={buttonVariants({
                   variant: "ghost",
@@ -78,15 +78,12 @@ const Home = () => {
                 to="/explore"
                 search={example.search}
               >
-                {example.title}
+                {t(($) => $[example.key])}
               </Link>
             </li>
           ))}
         </ul>
-        <p className="mt-6 text-center text-xs text-muted-foreground">
-          Questions and answers are kept for a year to improve the assistant, with email addresses
-          and phone numbers removed. Don't include anything personal.
-        </p>
+        <p className="mt-6 text-center text-xs text-muted-foreground">{t(($) => $.privacy)}</p>
       </Lane>
     </main>
   )

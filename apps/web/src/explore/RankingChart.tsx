@@ -1,4 +1,5 @@
 import type { ResolvedView } from "@civicdata/domain"
+import { useTranslation } from "react-i18next"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
 
 import {
@@ -8,11 +9,9 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart"
 
-import { countryName, formatCompact } from "./format.ts"
 import { fill } from "./palette.ts"
 import { ShowAll } from "./ShowAll.tsx"
-
-const config = { value: { label: "Value", color: fill(1) } } satisfies ChartConfig
+import { useFormat } from "./useFormat.ts"
 
 interface RankingChartProps {
   // One year's values.
@@ -24,13 +23,20 @@ interface RankingChartProps {
 // One bar per country, highest first; past 25 countries, a button shows the
 // rest.
 export const RankingChart = ({ resolved, domain }: RankingChartProps) => {
+  const { t } = useTranslation("explore")
+  const config = { value: { label: t(($) => $["Value"]), color: fill(1) } } satisfies ChartConfig
+
+  const { countryName, formatCompact } = useFormat()
+
   const ranked = resolved.observations
     .map((observation) => ({ name: countryName(observation.country), value: observation.value }))
     .toSorted((left, right) => right.value - left.value)
 
   return (
     <figure>
-      <figcaption className="sr-only">{`Bar chart ranking countries by ${resolved.title}`}</figcaption>
+      <figcaption className="sr-only">
+        {t(($) => $["Bar chart ranking countries by {{value1}}"], { value1: resolved.title })}
+      </figcaption>
       <ShowAll rows={ranked}>
         {(shown) => (
           <ChartContainer

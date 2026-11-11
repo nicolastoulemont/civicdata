@@ -1,3 +1,4 @@
+import { Toolbar } from "@base-ui/react/toolbar"
 /*
  * The tick styling and the tick widths by distance from the pointed tick are
  * copied from T3 Code's TimelineMinimap.tsx (https://github.com/pingdotgg/t3code).
@@ -24,11 +25,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
-
-import { Toolbar } from "@base-ui/react/toolbar"
 import { cn } from "cn"
 import { ChevronDown, ChevronUp } from "lucide-react"
 import { type ReactNode, useState } from "react"
+import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -83,6 +83,8 @@ interface RailProps {
 // there. The rail takes one Tab stop. It shows from two questions, where the
 // lane leaves room beside it.
 export const Rail = ({ previews, seen, jump }: RailProps) => {
+  const { t } = useTranslation("conversation")
+
   const [pointed, setPointed] = useState<number>()
   const current = seen.first
 
@@ -92,14 +94,18 @@ export const Rail = ({ previews, seen, jump }: RailProps) => {
     <TooltipProvider>
       <Toolbar.Root
         orientation="vertical"
-        aria-label="Questions"
+        aria-label={t(($) => $["Questions"])}
         className="group/rail absolute top-1/2 left-3 z-20 hidden -translate-y-1/2 flex-col items-center @min-[52rem]:flex"
         onMouseLeave={() => setPointed(undefined)}
         onBlur={(event) => {
           if (!event.currentTarget.contains(event.relatedTarget)) setPointed(undefined)
         }}
       >
-        <Step label="Previous question" to={current > 0 ? current - 1 : undefined} jump={jump}>
+        <Step
+          label={t(($) => $["Previous question"])}
+          to={current > 0 ? current - 1 : undefined}
+          jump={jump}
+        >
           <ChevronUp aria-hidden />
         </Step>
         <div className="flex max-h-[calc(100svh-18rem)] flex-col py-1">
@@ -113,7 +119,9 @@ export const Rail = ({ previews, seen, jump }: RailProps) => {
                       <Button
                         variant="ghost"
                         className="h-2 min-h-0 w-8 shrink justify-start rounded-none border-0 px-1 hover:bg-transparent focus-visible:ring-2 aria-expanded:bg-transparent dark:hover:bg-transparent"
-                        aria-label={`Jump to question: ${question}`}
+                        aria-label={t(($) => $["Jump to question: {{question}}"], {
+                          question: question,
+                        })}
                         aria-current={index === current ? "location" : undefined}
                         onMouseEnter={() => setPointed(index)}
                         onFocus={() => setPointed(index)}
@@ -150,7 +158,7 @@ export const Rail = ({ previews, seen, jump }: RailProps) => {
           ))}
         </div>
         <Step
-          label="Next question"
+          label={t(($) => $["Next question"])}
           to={current < previews.length - 1 ? current + 1 : undefined}
           jump={jump}
         >

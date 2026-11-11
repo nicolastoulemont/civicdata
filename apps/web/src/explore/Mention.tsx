@@ -2,7 +2,7 @@ import { type Cited, type Country, nameOf } from "@civicdata/domain"
 
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 
-import { card } from "./politics.ts"
+import { usePolitics } from "./politics.ts"
 
 interface MentionProps {
   record: Cited
@@ -13,6 +13,7 @@ interface MentionProps {
 // A record the agent's words cite, by its name: a link to the page that
 // establishes it, whose card shows what the chart's tooltip says of it.
 export const Mention = ({ record, countries }: MentionProps) => {
+  const { card } = usePolitics()
   const { lines, pages, link } = card(record, countries)
 
   return (

@@ -160,7 +160,7 @@ const event = (fields: Partial<Event> = {}): Event => ({
   sources: [
     {
       publisher: "EUR-Lex",
-      title: "Treaty on European Union, Official Journal C 191, 29 July 1992",
+      title: "Treaty on European Union, Official Journal C 191, July 29, 1992",
       url: "https://eur-lex.europa.eu/legal-content/EN/TXT/?uri=CELEX:11992M/TXT",
     },
   ],
@@ -448,12 +448,12 @@ describe("Elections and governments on a trend", () => {
     await hover2011(user, figure)
 
     expect(
-      await within(figure).findByText("Spain: General election · 20 November 2011"),
+      await within(figure).findByText("Spain: General election · November 20, 2011"),
     ).toBeDefined()
     expect(
-      within(figure).getByText("Portugal: Presidential election · 23 January 2011"),
+      within(figure).getByText("Portugal: Presidential election · January 23, 2011"),
     ).toBeDefined()
-    expect(within(figure).getByText("Portugal: General election · 5 June 2011")).toBeDefined()
+    expect(within(figure).getByText("Portugal: General election · June 5, 2011")).toBeDefined()
     // Governments stay off.
     expect(within(figure).queryByText(/Mariano Rajoy/)).toBeNull()
   })
@@ -463,7 +463,9 @@ describe("Elections and governments on a trend", () => {
 
     show(["ESP", "BRA"], { overlays: ["elections", "governments"] })
 
-    expect(await screen.findByText("No election or government records for Brazil")).toBeDefined()
+    expect(
+      await screen.findByText("No election records or government records for Brazil"),
+    ).toBeDefined()
   })
 
   it("names no country as unrecorded while the records of a country just added load", async () => {
@@ -570,13 +572,13 @@ describe("Events and reforms on a trend", () => {
     await user.keyboard("{ArrowRight}".repeat(18))
 
     expect(
-      await within(figure).findByText(/^Maastricht Treaty: signature · 7 February 1992 · /),
+      await within(figure).findByText(/^Maastricht Treaty: signature · February 7, 1992 · /),
     ).toBeDefined()
 
     await user.keyboard("{ArrowRight}")
 
     expect(
-      await within(figure).findByText(/^Maastricht Treaty: entry into force · 1 November 1993 · /),
+      await within(figure).findByText(/^Maastricht Treaty: entry into force · November 1, 1993 · /),
     ).toBeDefined()
     expect(within(figure).getByText(/with events marked/)).toBeDefined()
     // The source line links each source the tooltip numbers.
@@ -625,7 +627,7 @@ describe("Events and reforms on a trend", () => {
     await hover(user, { figure, country: "France", after: 0 })
 
     expect(
-      await within(figure).findByText(/^German reunification · 3 October 1990 · Germany · /),
+      await within(figure).findByText(/^German reunification · October 3, 1990 · Germany · /),
     ).toBeDefined()
   })
 
@@ -641,7 +643,7 @@ describe("Events and reforms on a trend", () => {
 
     expect(
       await within(figure).findByText(
-        "Woerth reform · Adopted 9 November 2010 · The minimum pension age rose from 60 to 62 by four months per birth cohort. · Source 1 below",
+        "Woerth reform · Adopted November 9, 2010 · The minimum pension age rose from 60 to 62 by four months per birth cohort. · Source 1 below",
       ),
     ).toBeDefined()
 

@@ -9,11 +9,12 @@
     "storybook": "pnpm --filter @civicdata/web run storybook",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "test:lint": "node --test tools/oxlint/i18n/plugin.test.mjs",
     "lint": "oxlint --deny-warnings",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "fallow": "fallow",
-    "check": "pnpm format:check && pnpm lint && pnpm fallow && turbo run typecheck test build",
+    "check": "pnpm format:check && pnpm lint && pnpm test:lint && pnpm fallow && turbo run typecheck test build",
     "prepare": "effect-tsgo patch --typescript",
     "evals": "node packages/server/scripts/evals.ts"
   },

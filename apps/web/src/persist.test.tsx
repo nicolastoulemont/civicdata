@@ -205,7 +205,7 @@ describe("persist", () => {
     expect(screen.getByRole("button", { name: "Worked for 8s · 1 search" })).toBeDefined()
     expect(
       screen.getByText(
-        "Source: World Bank, World Development Indicators. Retrieved 8 November 2026.",
+        "Source: World Bank, World Development Indicators. Retrieved November 8, 2026.",
       ),
     ).toBeDefined()
     await waitFor(() => expect(reload.sent.turns).toBe(true))

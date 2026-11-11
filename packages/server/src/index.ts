@@ -19,8 +19,9 @@ export { ConversationObject } from "./ConversationObject.ts"
 
 export { PaceObject } from "./PaceObject.ts"
 
-const Live = Layer.merge(
+const Live = Layer.mergeAll(
   HttpApiBuilder.layer(Api),
+  Traces.locale,
   Traces.proxy.pipe(Layer.provide(Traces.TraceLimit.live), Layer.provide(FetchHttpClient.layer)),
 ).pipe(
   Layer.provide(Handlers),

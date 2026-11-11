@@ -132,3 +132,5 @@ export { Source, sourceOf, NativeId, nativeId, identify } from "./Source.ts"
 export { applies, kindOf, Ratio, Transform } from "./Transform.ts"
 
 export { Change, Ranking, Relation, type Span, transformOf, Trend, View, Year } from "./View.ts"
+
+export { Locale } from "./Locale.ts"

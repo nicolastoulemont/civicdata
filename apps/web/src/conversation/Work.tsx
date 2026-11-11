@@ -4,6 +4,7 @@ import { cn } from "cn"
 import { Duration, Schema } from "effect"
 import { Brain, ChevronRight, CircleAlert } from "lucide-react"
 import { type ReactNode, use, useEffect, useState } from "react"
+import { Trans, useTranslation } from "react-i18next"
 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { resolveQuery } from "@/explore/api"
@@ -11,7 +12,7 @@ import { indicatorNames, subject } from "@/explore/format"
 import { Hold } from "@/hold"
 
 import { elapsed } from "./elapsed.ts"
-import { type Line, lineOf, type Saved, tally } from "./lines.ts"
+import { type Line, useLines, type Saved } from "./lines.ts"
 
 const isEnding = Schema.is(Ending)
 
@@ -89,19 +90,27 @@ interface StepsProps {
 }
 
 // One row per step the agent took, oldest first, each as it last was.
-export const Steps = ({ steps, children }: StepsProps) => (
-  <ol aria-label="Steps" className="flex flex-col gap-1 text-sm text-muted-foreground">
-    {steps.map((step, index) => {
-      const line = lineOf(step)
+export const Steps = ({ steps, children }: StepsProps) => {
+  const { t } = useTranslation("conversation")
+  const { lineOf } = useLines()
 
-      return line === undefined ? null : (
-        // oxlint-disable-next-line react/no-array-index-key -- a step keeps its place as it changes
-        <Row key={index} line={line} />
-      )
-    })}
-    {children}
-  </ol>
-)
+  return (
+    <ol
+      aria-label={t(($) => $["Steps"])}
+      className="flex flex-col gap-1 text-sm text-muted-foreground"
+    >
+      {steps.map((step, index) => {
+        const line = lineOf(step)
+
+        return line === undefined ? null : (
+          // oxlint-disable-next-line react/no-array-index-key -- a step keeps its place as it changes
+          <Row key={index} line={line} />
+        )
+      })}
+      {children}
+    </ol>
+  )
+}
 
 interface SinceProps {
   started: number
@@ -109,6 +118,7 @@ interface SinceProps {
 
 // How long ago `started` was, in epoch milliseconds, moving on every second.
 const Since = ({ started }: SinceProps) => {
+  const { t } = useTranslation("conversation")
   const [now, setNow] = useState(Date.now)
 
   useEffect(() => {
@@ -117,7 +127,7 @@ const Since = ({ started }: SinceProps) => {
     return () => window.clearInterval(timer)
   }, [])
 
-  return elapsed(Duration.millis(now - started))
+  return elapsed(Duration.millis(now - started), t)
 }
 
 interface HeardProps {
@@ -128,13 +138,21 @@ interface HeardProps {
 // "Chart 1 of the answer: Life expectancy at birth", once the chart's data
 // has loaded and named its indicator, so screen readers hear it once.
 const Heard = ({ view, place }: HeardProps) => {
+  const { t } = useTranslation("conversation")
   const query = useQuery(resolveQuery(view))
 
   if (query.isPending) return null
 
   const known = indicatorNames(query.data === undefined ? [] : [query.data])
 
-  return <p>{`Chart ${place + 1} of the answer: ${subject(view, known)}`}</p>
+  return (
+    <p>
+      {t(($) => $["Chart {{place}} of the answer: {{subject}}"], {
+        place: place + 1,
+        subject: subject(view, known),
+      })}
+    </p>
+  )
 }
 
 interface WorkingProps {
@@ -145,60 +163,76 @@ interface WorkingProps {
 // How long the agent has worked on the question being answered. Screen
 // readers hear each step once, when it ends, and not each change on the way,
 // and each chart once, when it is drawn.
-export const Working = ({ steps, started }: WorkingProps) => (
-  <>
-    <p className="text-sm text-muted-foreground tabular-nums">
-      Working for <Since started={started} />
-    </p>
-    <div role="log" aria-label="Finished steps" className="sr-only">
-      {steps.map((step, index) => {
-        const line = lineOf(step)
+export const Working = ({ steps, started }: WorkingProps) => {
+  const { lineOf } = useLines()
+  const { t } = useTranslation("conversation")
 
-        return line === undefined || line.status === "Running" ? null : (
-          // oxlint-disable-next-line react/no-array-index-key -- a step keeps its place as it changes
-          <p key={index}>{line.text}</p>
-        )
-      })}
-      {steps
-        .flatMap((step) => (isRendered(step) && isChart(step.block) ? [step.block] : []))
-        .map(({ view }, place) => (
-          // oxlint-disable-next-line react/no-array-index-key -- a chart keeps its place in its answer
-          <Heard key={place} view={view} place={place} />
-        ))}
-    </div>
-  </>
-)
+  return (
+    <>
+      <p className="text-sm text-muted-foreground tabular-nums">
+        <Trans
+          t={t}
+          i18nKey={($) => $["Working for <time/>"]}
+          components={{ time: <Since started={started} /> }}
+        />
+      </p>
+      <div role="log" aria-label={t(($) => $["Finished steps"])} className="sr-only">
+        {steps.map((step, index) => {
+          const line = lineOf(step)
+
+          return line === undefined || line.status === "Running" ? null : (
+            // oxlint-disable-next-line react/no-array-index-key -- a step keeps its place as it changes
+            <p key={index}>{line.text}</p>
+          )
+        })}
+        {steps
+          .flatMap((step) => (isRendered(step) && isChart(step.block) ? [step.block] : []))
+          .map(({ view }, place) => (
+            // oxlint-disable-next-line react/no-array-index-key -- a chart keeps its place in its answer
+            <Heard key={place} view={view} place={place} />
+          ))}
+      </div>
+    </>
+  )
+}
 
 // What the agent did while it answers, cut at each block it sent: the steps
 // before each block, then those since the last, where it is at work now.
 // While no step runs, the model is deciding what to do next, so the last
 // steps never sit still.
-export const runs = (steps: ReadonlyArray<Step>): ReadonlyArray<ReactNode> => {
-  const cut: Array<Array<Step>> = [[]]
+export const useRuns = () => {
+  const { lineOf } = useLines()
+  const { t } = useTranslation("conversation")
 
-  for (const step of steps) {
-    if (isRendered(step)) cut.push([])
-    else cut[cut.length - 1]?.push(step)
+  return (steps: ReadonlyArray<Step>): ReadonlyArray<ReactNode> => {
+    const cut: Array<Array<Step>> = [[]]
+
+    for (const step of steps) {
+      if (isRendered(step)) cut.push([])
+      else cut[cut.length - 1]?.push(step)
+    }
+
+    const last = steps.at(-1)
+
+    const deciding =
+      (last === undefined || !isEnding(last)) &&
+      steps.every((step) => lineOf(step)?.status !== "Running")
+
+    return cut.map((run, index) => {
+      const now = index === cut.length - 1 && deciding
+
+      return run.length === 0 && !now ? null : (
+        // oxlint-disable-next-line react/no-array-index-key -- a run keeps its place in its answer
+        <Steps key={index} steps={run}>
+          {now ? (
+            <Row
+              line={{ status: "Running", icon: Brain, text: t(($) => $["Thinking…"]), more: [] }}
+            />
+          ) : null}
+        </Steps>
+      )
+    })
   }
-
-  const last = steps.at(-1)
-
-  const deciding =
-    (last === undefined || !isEnding(last)) &&
-    steps.every((step) => lineOf(step)?.status !== "Running")
-
-  return cut.map((run, index) => {
-    const now = index === cut.length - 1 && deciding
-
-    return run.length === 0 && !now ? null : (
-      // oxlint-disable-next-line react/no-array-index-key -- a run keeps its place in its answer
-      <Steps key={index} steps={run}>
-        {now ? (
-          <Row line={{ status: "Running", icon: Brain, text: "Thinking…", more: [] }} />
-        ) : null}
-      </Steps>
-    )
-  })
 }
 
 interface WorkedProps {
@@ -209,8 +243,14 @@ interface WorkedProps {
 // The steps of an answered question, folded under one line that says how long
 // the agent worked and what it did most. The line opens them.
 export const Worked = ({ steps, took }: WorkedProps) => {
+  const { t } = useTranslation("conversation")
+  const { tally } = useLines()
   const hold = use(Hold)
-  const time = took === undefined ? "Worked" : `Worked for ${elapsed(took)}`
+
+  const time =
+    took === undefined
+      ? t(($) => $["Worked"])
+      : t(($) => $["Worked for {{time}}"], { time: elapsed(took, t) })
 
   if (steps.length === 0) {
     return <p className="text-sm text-muted-foreground tabular-nums">{time}</p>

@@ -11,6 +11,7 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event"
 import { beforeEach, expect, it } from "vitest"
 
+import { createI18n, LocaleProvider } from "@/locale"
 import { Route as ChatRoute } from "@/routes/_chat"
 
 // Where the choice is kept. Its format outlives deploys: changing it resets
@@ -41,14 +42,16 @@ const show = (path = "/") => {
   })
 
   render(
-    <QueryClientProvider client={new QueryClient()}>
-      <RouterProvider
-        router={createRouter({
-          routeTree: root.addChildren([chat.addChildren([home])]),
-          history: createMemoryHistory({ initialEntries: [path] }),
-        })}
-      />
-    </QueryClientProvider>,
+    <LocaleProvider instance={createI18n()}>
+      <QueryClientProvider client={new QueryClient()}>
+        <RouterProvider
+          router={createRouter({
+            routeTree: root.addChildren([chat.addChildren([home])]),
+            history: createMemoryHistory({ initialEntries: [path] }),
+          })}
+        />
+      </QueryClientProvider>
+    </LocaleProvider>,
   )
 }
 
@@ -135,4 +138,17 @@ it("stays closed for a section that does not exist", async () => {
 
   expect(await screen.findByText("Home")).toBeDefined()
   expect(screen.queryByRole("dialog")).toBeNull()
+})
+
+it("opens the language section and lets the user pick among eight locales", async () => {
+  show("/?settings=language")
+
+  const settings = within(await screen.findByRole("dialog", { name: "Settings" }))
+
+  await userEvent.click(settings.getByRole("combobox", { name: "Language" }))
+  expect(screen.getAllByRole("option")).toHaveLength(8)
+  await userEvent.click(screen.getByRole("option", { name: /🇨🇳\s+简体中文/u }))
+
+  expect(localStorage.getItem("i18nextLng")).toBe("zh-CN")
+  expect(screen.getByRole("dialog")).toBeDefined()
 })

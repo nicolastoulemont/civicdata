@@ -1,6 +1,8 @@
 import { Effect, Layer, ManagedRuntime } from "effect"
-import { FetchHttpClient, HttpClient } from "effect/http"
+import { FetchHttpClient, HttpClient, HttpClientRequest } from "effect/http"
 import { OtlpExporter, OtlpSerialization, OtlpTracer } from "effect/observability"
+
+import { requestLocale } from "./locale.tsx"
 
 // The browser's spans: each question from the moment it is asked to its last
 // step, each API request, which the server's spans continue, and each error
@@ -11,10 +13,14 @@ import { OtlpExporter, OtlpSerialization, OtlpTracer } from "effect/observabilit
 // Sends with keepalive, so a batch sent as the page goes away still arrives.
 const keepalive = Layer.effect(
   HttpClient.HttpClient,
-  Effect.map(
-    HttpClient.HttpClient,
-    HttpClient.transformResponse(
-      Effect.provideService(FetchHttpClient.RequestInit, { keepalive: true }),
+  Effect.map(HttpClient.HttpClient, (client) =>
+    client.pipe(
+      HttpClient.transformResponse(
+        Effect.provideService(FetchHttpClient.RequestInit, { keepalive: true }),
+      ),
+      HttpClient.mapRequest((outgoing) =>
+        HttpClientRequest.setHeader(outgoing, "X-User-Locale", requestLocale()),
+      ),
     ),
   ),
 ).pipe(Layer.provide(FetchHttpClient.layer))

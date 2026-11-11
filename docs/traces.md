@@ -47,6 +47,8 @@ The agent's spans record:
 |                              | `parameters`, `civicdata.tool.result`                                             | what the model passed (Effect's Toolkit writes it) and what the tool answered    |
 |                              | `civicdata.tool.rejection`                                                        | why the tool sent the call back for the model to fix                             |
 
+The browser sends its resolved UI locale in `X-User-Locale` on API requests. The Worker records it as `civicdata.locale` on the HTTP span only when it is one of the eight supported locales. Missing or unsupported values add no attribute. This header is for logging; it does not change the assistant or source data.
+
 Text attributes stop at 8,192 characters.
 
 Grafana Cloud drops the GenAI conventions' content attributes on ingest: `gen_ai.input.messages`, `gen_ai.output.messages`, `gen_ai.tool.call.arguments` and `gen_ai.tool.call.result` never reach Tempo, while `gen_ai.tool.name` and every `civicdata.` attribute do. The agent writes its content under the names above instead.

@@ -1,4 +1,4 @@
-import { isRefusal } from "@civicdata/domain"
+import { isRefusal, Locale } from "@civicdata/domain"
 import {
   Cause,
   Config,
@@ -18,6 +18,7 @@ import {
   type HttpClient,
   HttpMiddleware,
   HttpRouter,
+  HttpServerRequest,
   HttpServerResponse,
 } from "effect/http"
 import { OtlpProxy, OtlpSerialization, OtlpTracer } from "effect/observability"
@@ -26,6 +27,22 @@ import { OtlpProxy, OtlpSerialization, OtlpTracer } from "effect/observability"
 // Grafana in `pnpm dev`, nowhere when the stage has none (docs/traces.md).
 // Only traces are exported. Effect writes each log inside a span as an event
 // of that span, so the warnings travel with the trace that raised them.
+
+// Only the supported UI locale is recorded, never arbitrary header text.
+const decodeLocale = Schema.decodeUnknownOption(Locale)
+
+export const locale = HttpRouter.middleware(
+  (handler) =>
+    Effect.gen(function* () {
+      const request = yield* HttpServerRequest.HttpServerRequest
+      const found = decodeLocale(request.headers["x-user-locale"])
+
+      if (Option.isSome(found)) yield* Effect.annotateCurrentSpan("civicdata.locale", found.value)
+
+      return yield* handler
+    }),
+  { global: true },
+)
 
 // The OTLP endpoint and the headers it needs, in the form Grafana Cloud's
 // OTLP page prints them: `Authorization=Basic%20...`.

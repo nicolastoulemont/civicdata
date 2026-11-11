@@ -35,6 +35,7 @@ jobs:
           require-lockfile: true
       - run: pnpm format:check
       - run: pnpm lint
+      - run: pnpm test:lint
       - run: pnpm fallow
       - run: pnpm turbo run typecheck test build
 

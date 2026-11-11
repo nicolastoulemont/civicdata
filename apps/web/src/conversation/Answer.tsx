@@ -9,7 +9,9 @@ import {
   TurnNotFound,
   type View,
 } from "@civicdata/domain"
+import type { TFunction } from "i18next"
 import { useState } from "react"
+import { useTranslation } from "react-i18next"
 
 import { Act } from "@/act"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -18,14 +20,14 @@ import { Explore } from "@/explore/Explore"
 import { useAct, useShow } from "./useConversation.ts"
 
 // Why a changed chart could not be kept, in plain words.
-const problemOf = (error: Error) =>
+const problemOf = (error: Error, t: TFunction<"conversation">) =>
   error instanceof TurnNotFound
-    ? "This conversation no longer has this answer."
+    ? t(($) => $["This conversation no longer has this answer."])
     : error instanceof NoChart
-      ? "This answer has no chart to change."
+      ? t(($) => $["This answer has no chart to change."])
       : error instanceof AgentUnavailable
-        ? "Conversations cannot be reached. Try again in a moment."
-        : "Try again in a moment."
+        ? t(($) => $["Conversations cannot be reached. Try again in a moment."])
+        : t(($) => $["Try again in a moment."])
 
 interface AnswerProps {
   id: ConversationId
@@ -49,6 +51,8 @@ interface AnswerProps {
 // answer is kept. Once kept, a download of its data or a copy of its link is
 // counted on the answer.
 export const Answer = ({ id, turn, chart, agent, shown, kept }: AnswerProps) => {
+  const { t } = useTranslation("conversation")
+
   const showing = useShow(id, { turn, chart })
   const acting = useAct(id, turn)
   const [drawn, setDrawn] = useState(agent.view)
@@ -70,8 +74,8 @@ export const Answer = ({ id, turn, chart, agent, shown, kept }: AnswerProps) => 
       />
       {showing.isError ? (
         <Alert variant="destructive">
-          <AlertTitle>Your change could not be kept</AlertTitle>
-          <AlertDescription>{problemOf(showing.error)}</AlertDescription>
+          <AlertTitle>{t(($) => $["Your change could not be kept"])}</AlertTitle>
+          <AlertDescription>{problemOf(showing.error, t)}</AlertDescription>
         </Alert>
       ) : null}
     </Act>

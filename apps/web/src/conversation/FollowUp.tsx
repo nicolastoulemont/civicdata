@@ -1,22 +1,29 @@
 import type { ConversationId, Ending } from "@civicdata/domain"
 import { Match } from "effect"
+import type { TFunction } from "i18next"
+import { useTranslation } from "react-i18next"
 
 import { Choices } from "./Choices.tsx"
 import { Lane } from "./Lane.tsx"
 import { type Answering, QuestionForm } from "./QuestionForm.tsx"
 
 // What to suggest next, from how the agent last answered.
-const suggest = (last: Ending | undefined, answering: Answering | undefined) =>
+interface SuggestOptions {
+  answering: Answering | undefined
+  t: TFunction<"conversation">
+}
+
+const suggest = (last: Ending | undefined, { answering, t }: SuggestOptions) =>
   answering !== undefined
-    ? "Write your next question while civicdata answers"
+    ? t(($) => $["Write your next question while civicdata answers"])
     : last === undefined
-      ? "How has life expectancy changed in Brazil?"
+      ? t(($) => $["How has life expectancy changed in Brazil?"])
       : Match.valueTags(last, {
-          Answered: () => "Add Mexico, or show it per person",
-          Asked: () => "Pick a choice above, or say what you mean",
-          Unanswered: () => "Name what to measure and where",
-          Exhausted: () => "Ask again, or ask a narrower question",
-          Stopped: () => "Ask again, or ask something else",
+          Answered: () => t(($) => $["Add Mexico, or show it per person"]),
+          Asked: () => t(($) => $["Pick a choice above, or say what you mean"]),
+          Unanswered: () => t(($) => $["Name what to measure and where"]),
+          Exhausted: () => t(($) => $["Ask again, or ask a narrower question"]),
+          Stopped: () => t(($) => $["Ask again, or ask something else"]),
         })
 
 interface FollowUpProps {
@@ -29,6 +36,8 @@ interface FollowUpProps {
 // The composer at the bottom of the lane, docked by the conversation's Scroll.
 // Panels about the next question go above the composer.
 export const FollowUp = ({ id, last, answering, ask }: FollowUpProps) => {
+  const { t } = useTranslation("conversation")
+
   const question =
     answering === undefined && last !== undefined && "choices" in last ? last : undefined
 
@@ -44,8 +53,8 @@ export const FollowUp = ({ id, last, answering, ask }: FollowUpProps) => {
             <Choices question={question.question} choices={question.choices} choose={ask} />
           )}
           <QuestionForm
-            label="Ask a follow-up"
-            placeholder={suggest(last, answering)}
+            label={t(($) => $["Ask a follow-up"])}
+            placeholder={suggest(last, { answering, t })}
             draft={id}
             answering={answering}
             onAsk={ask}

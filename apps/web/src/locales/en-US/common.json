@@ -1,0 +1,10 @@
+{
+  "close": "Close",
+  "toggleSidebar": "Toggle sidebar",
+  "breadcrumb": "breadcrumb",
+  "more": "More",
+  "loading": "Loading",
+  "conversations": "Conversations",
+  "conversationDescription": "The conversations started in this browser.",
+  "siteDescription": "Charts of public data about countries, with the source of every number."
+}

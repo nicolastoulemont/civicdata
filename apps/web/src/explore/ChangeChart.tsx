@@ -1,4 +1,5 @@
 import type { Change, ResolvedView } from "@civicdata/domain"
+import { useTranslation } from "react-i18next"
 import { Bar, CartesianGrid, ComposedChart, Scatter, XAxis, YAxis } from "recharts"
 
 import {
@@ -10,11 +11,11 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart"
 
-import { countryName, formatCompact } from "./format.ts"
-import { fill, phrase } from "./palette.ts"
+import { fill } from "./palette.ts"
 import { changes, moved } from "./points.ts"
 import { around } from "./scale.ts"
 import { ShowAll } from "./ShowAll.tsx"
+import { useFormat } from "./useFormat.ts"
 
 const row = 36
 
@@ -34,14 +35,20 @@ interface ChangeChartProps {
 // better. The scale fits every row; past 25 countries, a button shows the
 // rest.
 export const ChangeChart = ({ resolved, change }: ChangeChartProps) => {
+  const { phrase } = useFormat()
+
+  const { t } = useTranslation("explore")
+
+  const { countryName, formatCompact } = useFormat()
+
   const { direction } = resolved
   const better = phrase(direction)
 
   const labels: Record<Mark, ChartConfig[string]> = {
     to: { label: `${change.to}`, color: fill(1) },
-    better: { label: `${change.to}, better`, color: fill("better") },
-    worse: { label: `${change.to}, worse`, color: fill("worse") },
-    same: { label: `${change.to}, unchanged`, color: fill("even") },
+    better: { label: t(($) => $["{{year}}, better"], { year: change.to }), color: fill("better") },
+    worse: { label: t(($) => $["{{year}}, worse"], { year: change.to }), color: fill("worse") },
+    same: { label: t(($) => $["{{year}}, unchanged"], { year: change.to }), color: fill("even") },
   }
 
   // A directed row holds its second value under the way it moved too, so
@@ -78,7 +85,17 @@ export const ChangeChart = ({ resolved, change }: ChangeChartProps) => {
 
   return (
     <figure>
-      <figcaption className="sr-only">{`Change in ${resolved.title} between ${change.from} and ${change.to}, by country${better === undefined ? "" : `, ${better.toLowerCase()}`}`}</figcaption>
+      <figcaption className="sr-only">
+        {t(
+          ($) => $["Change in {{value1}} between {{value2}} and {{value3}}, by country{{value4}}"],
+          {
+            value1: resolved.title,
+            value2: change.from,
+            value3: change.to,
+            value4: better === undefined ? "" : `, ${better.toLowerCase()}`,
+          },
+        )}
+      </figcaption>
       {better === undefined ? null : <p className="mb-2 text-sm">{better}</p>}
       <ShowAll rows={rows}>
         {(shown) => (

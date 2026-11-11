@@ -2,6 +2,7 @@ import type { ResolvedView, View } from "@civicdata/domain"
 import type { QueryClient } from "@tanstack/react-query"
 import { createFileRoute, Link, notFound } from "@tanstack/react-router"
 import { createIsomorphicFn } from "@tanstack/react-start"
+import { useTranslation } from "react-i18next"
 
 import { buttonVariants } from "@/components/ui/button"
 import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,25 +14,27 @@ import { preview } from "@/explore/preview"
 import { type Search, toOverlays, toQuery, toSearch, toView } from "@/explore/search"
 import { origin } from "@/origin"
 
-const BrokenLink = () => (
-  <main className="flex min-h-svh items-center justify-center p-6">
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle>
-          <h1>This link does not describe a chart</h1>
-        </CardTitle>
-        <CardDescription>
-          A country code, indicator or year in the address is invalid, or the years run backwards.
-        </CardDescription>
-      </CardHeader>
-      <CardFooter>
-        <Link className={buttonVariants({ variant: "outline" })} to="/">
-          Back to the examples
-        </Link>
-      </CardFooter>
-    </Card>
-  </main>
-)
+const BrokenLink = () => {
+  const { t } = useTranslation("home")
+
+  return (
+    <main className="flex min-h-svh items-center justify-center p-6">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>
+            <h1>{t(($) => $.brokenTitle)}</h1>
+          </CardTitle>
+          <CardDescription>{t(($) => $.brokenDescription)}</CardDescription>
+        </CardHeader>
+        <CardFooter>
+          <Link className={buttonVariants({ variant: "outline" })} to="/">
+            {t(($) => $.backExamples)}
+          </Link>
+        </CardFooter>
+      </Card>
+    </main>
+  )
+}
 
 // The names of the indicators the page title needs, by code; a name not
 // known is left out. The server resolves the View, so link previews name the
