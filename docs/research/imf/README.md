@@ -60,7 +60,9 @@ Inputs.collect, D1 and signed conditional R2 storage. It assembles both countrie
 as one complete series before staging, verifies exact input bytes again immediately
 before conditional activation, and retains the previous active release on failure.
 Selected normalized fragments and successful-input ledger entries survive sibling,
-assembly and activation failures. Verification intentionally reads the two bounded
+assembly and activation failures. Each input checkpoint uses its own response hash,
+so reviewing a changed sibling does not invalidate an unchanged country's fragment.
+Verification intentionally reads the two bounded
 responses again; it is not an archive re-download. Publisher changes after the
 last verification remain possible: the remote service offers no transaction across
 requests. Hash identity makes the selected snapshot explicit.

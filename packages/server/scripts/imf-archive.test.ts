@@ -160,6 +160,14 @@ it("persists successful inputs across sibling failures and retains exact values,
         ).toMatchObject({ status: { code: "EstimateProjection" } })
         expect(stored?.inputs).toHaveLength(2)
         expect(stored?.inputs?.[0]).not.toHaveProperty("etag")
+        expect(
+          test.db.prepare("SELECT asset, version FROM source_input ORDER BY asset").all(),
+        ).toEqual(
+          (stored.inputs ?? []).map((input, at) => ({
+            asset: at === 0 ? "FRA" : "SWE",
+            version: input.sha256,
+          })),
+        )
         expect(test.gets.filter((file) => file === "FRA.csv")).toHaveLength(1)
         expect(test.gets.filter((file) => file === "SWE.csv")).toHaveLength(2)
         yield* archive.verify(release.version)

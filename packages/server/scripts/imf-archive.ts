@@ -54,7 +54,7 @@ export const imfArchive = Layer.effect(
         const { observations, qualifications } = yield* record(text, { country, vintage })
 
         return yield* Schema.encodeEffect(Fragment)({
-          input: { url, sha256, version, retrievedAt: yield* DateTime.now },
+          input: { url, sha256, version: sha256, retrievedAt: yield* DateTime.now },
           observations,
           qualifications,
         })
@@ -68,7 +68,7 @@ export const imfArchive = Layer.effect(
         "IMF",
         units.map((country, at) => ({
           asset: AssetId.make(country),
-          version,
+          version: hashes[at] ?? "",
           fetch: fetch(country, hashes[at] ?? ""),
         })),
       ).pipe(Effect.provideService(SqlClient.SqlClient, sql))
