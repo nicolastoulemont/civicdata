@@ -1,6 +1,8 @@
 import {
   type Country,
   Dimension,
+  DimensionId,
+  DimensionsMissing,
   Indicator,
   Qualification,
   Observation,
@@ -96,3 +98,28 @@ export const widen =
         ),
       }
     })
+
+// Every choice, including a singleton, remains available when discovery was truncated.
+export const choose = Effect.fn("Series.choose")(function* (
+  key: SeriesKey,
+  dimensions: ReadonlyArray<Dimension>,
+) {
+  const open = dimensions.flatMap(({ id, options }) =>
+    options.some(({ code }) => code === key.dimensions[id]) ? [] : [id],
+  )
+
+  const extra = Object.keys(key.dimensions).flatMap((id) =>
+    dimensions.some((dimension) => dimension.id === id) ? [] : [DimensionId.make(id)],
+  )
+
+  const [first, ...rest] = [...open, ...extra]
+
+  if (first !== undefined)
+    return yield* new DimensionsMissing({
+      indicator: key.indicator,
+      dimensions,
+      open: [first, ...rest],
+    })
+
+  return undefined
+})

@@ -1,0 +1,40 @@
+[
+  {
+    "file": "directory.json",
+    "url": "https://xmart-api-public.who.int/DATA_/IND_DIRECTORY?%24filter=IND_CODE_GHO+eq+%27WHOSIS_000001%27&%24orderby=IND_ID&%24top=1000&%24skip=0&%24count=true",
+    "retrievedAt": "2026-11-11",
+    "headers": {
+      "Date": "Wed, 11 Nov 2026 21:44:44 GMT",
+      "Content-Type": "application/json; charset=utf-8"
+    }
+  },
+  {
+    "file": "countries.json",
+    "url": "https://xmart-api-public.who.int/REFMART/REF_COUNTRY?%24filter=WHO_LEGAL_STATUS+eq+%27M%27&%24orderby=GEO_M49_CODE&%24top=1000&%24skip=0&%24count=true",
+    "retrievedAt": "2026-11-11",
+    "headers": {
+      "Date": "Wed, 11 Nov 2026 21:44:45 GMT",
+      "Content-Type": "application/json; charset=utf-8"
+    }
+  },
+  {
+    "file": "series.json",
+    "url": "https://xmart-api-public.who.int/DATA_/RELAY_MAY2023?%24filter=IND_CODE+eq+%27WHOSIS_000001%27+and+DIM_GEO_CODE_TYPE+eq+%27COUNTRY%27+and+%28DIM_GEO_CODE_M49+eq+%27250%27%29+and+DIM_MEMBER_1_CODE+eq+%27TOTAL%27+and+DIM_TIME+ge+%272022%27+and+DIM_TIME+le+%272023%27&%24orderby=DIM_GEO_CODE_M49%2CDIM_TIME%2CSys_ID&%24top=1000&%24skip=0&%24count=true",
+    "retrievedAt": "2026-11-11",
+    "headers": {
+      "Date": "Wed, 11 Nov 2026 21:44:46 GMT",
+      "Content-Type": "application/json; charset=utf-8"
+    }
+  },
+  {
+    "document": "WHO methods and data sources for life tables 2000-2023",
+    "url": "https://cdn.who.int/media/docs/default-source/gho-documents/global-health-estimates/ghe2023_lifetable_methods.pdf?sfvrsn=d5132ed3_2",
+    "reviewedAt": "2026-11-11",
+    "publication": "September 2026, WHO/DDI/DNA/GHE/2026.1",
+    "reviewedSections": [
+      "5.2: Monte Carlo simulation and 95% uncertainty bounds",
+      "3.1, page 3: territorial and resident-population exclusions"
+    ],
+    "access": "Read through public web PDF extraction; direct Python download returned HTTP 403. Document is linked, not redistributed."
+  }
+]

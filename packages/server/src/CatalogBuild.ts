@@ -28,6 +28,7 @@ import { Sdmx } from "./Sdmx.ts"
 import { Sources } from "./Sources.ts"
 import { Vdem } from "./Vdem.ts"
 import { Vectors, type VectorsUnavailable } from "./Vectors.ts"
+import { Who } from "./Who.ts"
 import { WorldBank } from "./WorldBank.ts"
 
 // The catalog's D1 inside Workers, where the Workflows that build the
@@ -646,6 +647,7 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
     Layer.provide(Vectors.live),
     Layer.provide(Sources.layer),
     Layer.provide(Insee.cached),
+    Layer.provide(Who.cached),
     Layer.provide(Ilostat.layer),
     Layer.provide(Vdem.layer),
     Layer.provide(Faostat.layer),

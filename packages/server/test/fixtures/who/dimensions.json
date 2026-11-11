@@ -1,0 +1,29 @@
+{
+  "@odata.context": "https://xmart-api-public.who.int/DATA_/$metadata#RELAY_MAY2023",
+  "value": [
+    {
+      "DIM_TIME_TYPE": "YEAR",
+      "DIM_1_CODE": "DIM_SEX",
+      "DIM_MEMBER_1_CODE": "FEMALE",
+      "DIM_2_CODE": null,
+      "DIM_3_CODE": null,
+      "DIM_VALUE_TYPE": "AMOUNT"
+    },
+    {
+      "DIM_TIME_TYPE": "YEAR",
+      "DIM_1_CODE": "DIM_SEX",
+      "DIM_MEMBER_1_CODE": "MALE",
+      "DIM_2_CODE": null,
+      "DIM_3_CODE": null,
+      "DIM_VALUE_TYPE": "AMOUNT"
+    },
+    {
+      "DIM_TIME_TYPE": "YEAR",
+      "DIM_1_CODE": "DIM_SEX",
+      "DIM_MEMBER_1_CODE": "TOTAL",
+      "DIM_2_CODE": null,
+      "DIM_3_CODE": null,
+      "DIM_VALUE_TYPE": "AMOUNT"
+    }
+  ]
+}

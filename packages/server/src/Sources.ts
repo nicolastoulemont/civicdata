@@ -1,6 +1,4 @@
 import {
-  DimensionId,
-  DimensionsMissing,
   type IndicatorId,
   IndicatorNotFound,
   type SeriesKey,
@@ -18,9 +16,10 @@ import { Insee } from "./Insee.ts"
 import { Pace } from "./Pace.ts"
 import { Releases } from "./Releases.ts"
 import { Sdmx } from "./Sdmx.ts"
-import type { Query } from "./Series.ts"
+import { choose, type Query } from "./Series.ts"
 import { Store } from "./Store.ts"
 import { Vdem } from "./Vdem.ts"
+import { Who } from "./Who.ts"
 import { WorldBank } from "./WorldBank.ts"
 
 // Every source's adapter, by name. A caller picks one with `sourceOf`.
@@ -93,6 +92,7 @@ export class Sources extends Context.Service<Sources, Interface>()("@openfacts/s
       const ilostat = yield* Ilostat
       const faostat = yield* Faostat
       const vdem = yield* Vdem
+      const who = yield* Who
 
       return Sources.of({
         "World Bank": worldBank,
@@ -101,6 +101,7 @@ export class Sources extends Context.Service<Sources, Interface>()("@openfacts/s
         ILOSTAT: ilostat,
         FAOSTAT: faostat,
         "V-Dem": vdem,
+        WHO: who,
       })
     }),
   )
@@ -141,26 +142,7 @@ export class Sources extends Context.Service<Sources, Interface>()("@openfacts/s
             if (Policy.$is("StoredOnly")(policy)) {
               const { dimensions } = yield* adapter.describe(query.indicator)
 
-              if (dimensions !== undefined) {
-                const open = dimensions
-                  .filter(
-                    ({ id, options }) => !options.some(({ code }) => code === query.dimensions[id]),
-                  )
-                  .map(({ id }) => id)
-
-                const extra = Object.keys(query.dimensions)
-                  .filter((id) => !dimensions.some((dimension) => dimension.id === id))
-                  .map((id) => DimensionId.make(id))
-
-                const [first, ...rest] = [...open, ...extra]
-
-                if (first !== undefined)
-                  return yield* new DimensionsMissing({
-                    indicator: query.indicator,
-                    dimensions,
-                    open: [first, ...rest],
-                  })
-              }
+              if (dimensions !== undefined) yield* choose(query, dimensions)
             }
 
             const found = yield* read(query, { policy, target })
@@ -233,6 +215,7 @@ export class Sources extends Context.Service<Sources, Interface>()("@openfacts/s
   static readonly live = Sources.stored.pipe(
     Layer.provide(Sources.layer),
     Layer.provide(Insee.cached),
+    Layer.provide(Who.cached),
     Layer.provide(Ilostat.layer),
     Layer.provide(Vdem.layer),
     Layer.provide(Faostat.layer),

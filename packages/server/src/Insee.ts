@@ -1,7 +1,6 @@
 import {
   Dimension,
   DimensionId,
-  DimensionsMissing,
   IndicatorId,
   IndicatorNotFound,
   SourceUnavailable,
@@ -23,9 +22,9 @@ import {
 import { HttpClient, HttpClientResponse } from "effect/http"
 
 import { type Adapter, Policy } from "./Adapter.ts"
-import { Cache } from "./Cache.ts"
+import { cached } from "./Api.ts"
 import { Outline } from "./Outlines.ts"
-import { Answer, Described, type Query, widen } from "./Series.ts"
+import { type Query, choose } from "./Series.ts"
 
 const base = "https://api.insee.fr/melodi"
 const dataset = "DD_CNA_AGREGATS"
@@ -98,9 +97,6 @@ const attributes = new Set([
   "FREQ",
 ])
 
-const fresh = (at: DateTime.Utc, now: DateTime.Utc) =>
-  Duration.isLessThan(DateTime.distance(at, now), Duration.days(1))
-
 const missing = new Set(["L", "M"])
 
 const yearOf = (row: typeof Row.Type) => {
@@ -128,26 +124,6 @@ const matches = (
       .every(({ id }) => row.dimensions[id] === query.dimensions[id])
   )
 }
-
-const choose = Effect.fn("Insee.choose")(function* (
-  query: Query,
-  dimensions: ReadonlyArray<Dimension>,
-) {
-  const open = dimensions.flatMap(({ id, options }) =>
-    options.some(({ code }) => code === query.dimensions[id]) ? [] : [id],
-  )
-
-  const extra = Object.keys(query.dimensions).filter(
-    (id) => !dimensions.some((dimension) => dimension.id === id),
-  )
-
-  const [first, ...rest] = [...open, ...extra.map((id) => DimensionId.make(id))]
-
-  if (first !== undefined)
-    return yield* new DimensionsMissing({ indicator, dimensions, open: [first, ...rest] })
-
-  return undefined
-})
 
 const wanted = (year: Year, query: Query) =>
   year >= query.from && year <= query.to && query.countries.includes("FRA")
@@ -347,29 +323,6 @@ export class Insee extends Context.Service<Insee, Adapter>()("@openfacts/server/
   static readonly layer = Layer.effect(Insee, make)
   static readonly cached = Layer.effect(
     Insee,
-    Effect.gen(function* () {
-      const live = yield* make
-      const remember = yield* Cache.remember
-
-      return Insee.of({
-        ...live,
-        describe: (id) =>
-          remember(`insee/v1/describe/${id}`, {
-            json: Schema.fromJsonString(Schema.toCodecJson(Described)),
-            fresh,
-            fetch: live.describe(id),
-          }),
-        fetch: widen((query) =>
-          remember(
-            `insee/v1/series/${JSON.stringify({ ...query, dimensions: Object.entries(query.dimensions).toSorted(([left], [right]) => left.localeCompare(right)) })}`,
-            {
-              json: Schema.fromJsonString(Schema.toCodecJson(Answer)),
-              fresh,
-              fetch: live.fetch(query),
-            },
-          ),
-        ),
-      })
-    }),
+    make.pipe(Effect.flatMap((adapter) => cached(adapter, "insee/v1"))),
   )
 }

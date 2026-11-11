@@ -35,6 +35,7 @@ import { Sdmx } from "./Sdmx.ts"
 import { Sources } from "./Sources.ts"
 import { judge, keyOf, Outcome, type Place, Stored, Store } from "./Store.ts"
 import { Vdem } from "./Vdem.ts"
+import { Who } from "./Who.ts"
 import { WorldBank } from "./WorldBank.ts"
 
 // Assets per step. The World Bank's bulk download of one is a ZIP
@@ -540,6 +541,7 @@ export class Gather extends Context.Service<Gather, Interface>()("@openfacts/ser
     Layer.provide(Insee.layer.pipe(Layer.provide(Pace.gathering))),
     Layer.provide(Ilostat.layer.pipe(Layer.provide(Pace.gathering))),
     Layer.provide(Vdem.layer),
+    Layer.provide(Who.layer.pipe(Layer.provide(Pace.gathering))),
     Layer.provide(Faostat.layer.pipe(Layer.provide(Pace.gathering))),
     Layer.provide(Layer.merge(WorldBank.layer, Sdmx.layer).pipe(Layer.provide(Pace.gathering))),
   )

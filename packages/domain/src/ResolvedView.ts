@@ -141,7 +141,59 @@ const VdemQualification = Schema.Struct({
   ),
 )
 
-export const Qualification = Schema.Union([IloQualification, FaoQualification, VdemQualification])
+// WHO life-table methods (2026), section 5.2; distinct from V-Dem HPD intervals.
+const WhoQualification = Schema.Struct({
+  level: Schema.Literal(0.95),
+  method: Schema.Literal("MonteCarloQuantiles"),
+  methodUrl: Schema.Literal(
+    "https://cdn.who.int/media/docs/default-source/gho-documents/global-health-estimates/ghe2023_lifetable_methods.pdf?sfvrsn=d5132ed3_2",
+  ),
+  source: Schema.Literal("WHO"),
+  series: SeriesKey,
+  ...place,
+  status: Schema.optionalKey(
+    Schema.Struct({ code: Schema.NonEmptyString, label: Schema.NonEmptyString }),
+  ),
+  notes: Schema.Array(
+    Schema.Struct({
+      category: Schema.Literal("Publisher"),
+      code: Schema.NonEmptyString,
+      label: Schema.NonEmptyString,
+    }),
+  ),
+  version: Schema.NonEmptyString,
+  estimate: Schema.NullOr(Schema.Finite),
+  lower: Schema.NullOr(Schema.Finite),
+  upper: Schema.NullOr(Schema.Finite),
+})
+  .check(
+    Schema.makeFilter(
+      (item) =>
+        item.series.indicator === "WHO:WHOSIS_000001" && item.missing === (item.estimate === null),
+    ),
+  )
+  .check(
+    Schema.makeFilter(
+      (item) => item.lower === null || item.upper === null || item.lower <= item.upper,
+    ),
+  )
+  .check(
+    Schema.makeFilter(
+      (item) => item.estimate === null || item.lower === null || item.lower <= item.estimate,
+    ),
+  )
+  .check(
+    Schema.makeFilter(
+      (item) => item.estimate === null || item.upper === null || item.estimate <= item.upper,
+    ),
+  )
+
+export const Qualification = Schema.Union([
+  IloQualification,
+  FaoQualification,
+  VdemQualification,
+  WhoQualification,
+])
 
 export type Qualification = typeof Qualification.Type
 

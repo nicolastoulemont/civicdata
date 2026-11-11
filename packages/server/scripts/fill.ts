@@ -12,6 +12,7 @@ import { Sdmx } from "../src/Sdmx.ts"
 import { Sources } from "../src/Sources.ts"
 import { Store } from "../src/Store.ts"
 import { Vdem } from "../src/Vdem.ts"
+import { Who } from "../src/Who.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 import { d1 } from "./d1.ts"
 import { faoArchive } from "./faostat-archive.ts"
@@ -32,6 +33,7 @@ export const fill = (source: "FAOSTAT" | "ILOSTAT" | "V-Dem") =>
     const gather = Gather.layer.pipe(
       Layer.provide(Sources.layer),
       Layer.provide(Insee.layer),
+      Layer.provide(Who.layer),
       Layer.provide(source === "V-Dem" ? Vdem.layer.pipe(Layer.provide(vdemArchive)) : Vdem.layer),
       Layer.provide(Faostat.layer.pipe(Layer.provide(faoArchive))),
       Layer.provide(Ilostat.layer.pipe(Layer.provide(iloArchive))),

@@ -186,5 +186,6 @@
   "Missing value": "Valeur manquante",
   "Excluded reference period": "Période de référence exclue",
   "Excluded geography": "Couverture géographique exclue",
-  "Estimate {{estimate}}; 68% HPD interval {{lower}}–{{upper}} ({{version}})": "Estimation {{estimate}} ; intervalle HPD à 68 % {{lower}}–{{upper}} ({{version}})"
+  "Estimate {{estimate}}; 68% HPD interval {{lower}}–{{upper}} ({{version}})": "Estimation {{estimate}} ; intervalle HPD à 68 % {{lower}}–{{upper}} ({{version}})",
+  "WHO estimate {{estimate}}; 95% uncertainty bounds {{lower}}–{{upper}} ({{version}}).": "Estimation OMS {{estimate}} ; bornes d’incertitude à 95 % {{lower}}–{{upper}} ({{version}})."
 }
