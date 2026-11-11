@@ -1,0 +1,51 @@
+# Answers
+
+A conversation deletes itself 30 days after its last question, and Grafana Cloud keeps its traces 14 days. To find answers that went wrong after both are gone, and to turn real questions into eval cases, each stage keeps a log of the answers it gave in the `answers` table of its D1 database.
+
+## What a row holds
+
+The conversation writes a row each time it keeps a turn: answered, asked back, unanswered, cut short after 18 rounds, or stopped. An answer that fails, such as when the model is unavailable, keeps no turn and writes no row.
+
+| Column      | Holds                                                                                      |
+| ----------- | ------------------------------------------------------------------------------------------ |
+| `id`        | a random id of the row's own                                                               |
+| `asked`     | when the question came, as ISO 8601 UTC                                                    |
+| `questions` | the conversation's questions up to this one, oldest first, scrubbed, as a JSON array       |
+| `changed`   | the charts the person changed before asking, each with its turn and place, as JSON         |
+| `ending`    | how the answer ended, with its charts and text, as the domain's `Ending` in JSON           |
+| `steps`     | what the agent did: searches, fetches and the calls the server sent back, as JSON          |
+| `took`      | milliseconds from the question to the ending                                               |
+| `model`     | the model that answered: `OPENAI_MODEL`, or the default in `packages/server/src/OpenAi.ts` |
+| `version`   | the commit deployed, when CI set it                                                        |
+| `trace`     | the trace id, to open the full trace in Grafana while it is kept                           |
+
+A row never holds the conversation's id, since whoever has it can read the conversation, nor an IP address, user agent or referrer. Its trace id does lead to the conversation id for the 14 days Grafana keeps the trace.
+
+The conversation writes the row after the answer's last step goes out, so the page shows the ending before the write starts; it takes the next question once the write ends and the answer's stream closes. A write that fails or takes over 5 seconds is logged as a warning on the `Answers.log` span and dropped. The answer is kept either way.
+
+## Scrubbing
+
+`scrub` in `packages/server/src/Answers.ts` replaces, in each question:
+
+- an email address with `[email]`
+- a run of nine or more digits with `[number]`, such as a phone, card or account number. Up to two spaces, dots, dashes or brackets may sit between digits. A run whose digits end in 000 is a round figure, such as "1 000 000 000 people", and stays.
+
+It does not catch a name or an address written in words, so the log is pseudonymous, not anonymous. The home page tells visitors that questions are kept for a year and asks them not to include anything personal. The assistant's own text is not scrubbed.
+
+## Retention
+
+Each write deletes the rows asked more than 365 days ago. A stage that stops answering keeps its last rows until its D1 database is destroyed; `prod`'s survives `alchemy destroy` ([deploys.md](deploys.md)).
+
+## Reading the log
+
+Run SQL against a stage's database in the Cloudflare dashboard (Storage and databases, then D1, then the stage's database, then Console). For example, the answers of the last week that did not answer:
+
+```sql
+SELECT asked, questions, json_extract(ending, '$._tag') AS ending
+FROM answers
+WHERE asked >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-7 days')
+  AND json_extract(ending, '$._tag') IN ('Unanswered', 'Exhausted')
+ORDER BY asked DESC
+```
+
+`asked` compares as text, so write the bound in the same ISO 8601 form, as `strftime` does here.

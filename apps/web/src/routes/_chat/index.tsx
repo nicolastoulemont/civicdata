@@ -39,7 +39,7 @@ const examples: ReadonlyArray<{ title: string; search: Search }> = [
 ]
 
 // The composer in the middle of the page, in the lane a conversation uses, with
-// the examples under it.
+// the examples under it, then what happens to the questions asked.
 const Home = () => {
   const navigate = useNavigate()
 
@@ -83,6 +83,10 @@ const Home = () => {
             </li>
           ))}
         </ul>
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          Questions and answers are kept for a year to improve the assistant, with email addresses
+          and phone numbers removed. Don't include anything personal.
+        </p>
       </Lane>
     </main>
   )

@@ -44,6 +44,7 @@ import {
 import { Chat } from "effect/ai"
 
 import { Agent, type Changed } from "./Agent.ts"
+import { Answers } from "./Answers.ts"
 import { type Edit, type Saved, Transcript } from "./Transcript.ts"
 
 // Why an answer stopped short.
@@ -258,12 +259,13 @@ const isExpiring = Phase.$is("Expiring")
 export class Conversation extends Context.Service<Conversation, Interface>()(
   "@civicdata/server/Conversation",
 ) {
-  // Needs an Agent and a Transcript.
+  // Needs an Agent, a Transcript and Answers.
   static readonly layer = Layer.effect(
     Conversation,
     Effect.gen(function* () {
       const agent = yield* Agent
       const transcript = yield* Transcript
+      const answers = yield* Answers
       // Answers run in the conversation's scope, not the request's, so a
       // visitor leaving does not stop them.
       const scope = yield* Effect.scope
@@ -336,9 +338,12 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
       // keeps the turn as Stopped with the chat as it was before the
       // question: the agent never finished its answer, so the next question
       // does not build on it. The steps still running then end as stopped.
+      // A kept turn goes to Answers once its last step is out, so the write
+      // never holds up the ending.
       const answer = Effect.fn("Conversation.answer")(
         function* ({ question, started, steps, stop }: Answer) {
           const work = yield* Ref.make<ReadonlyArray<Work>>([])
+          const logged = yield* Ref.make(Option.none<{ turn: Turn; earlier: Array<string> }>())
           const { chat, changed, asked } = yield* begin({ question, started })
 
           // A turn keeps the steps the agent ended and how long it took,
@@ -359,12 +364,15 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
                   ? latest.edits
                   : unheardOf(latest, changed)
 
-            const next: Saved = {
-              chat: json,
-              turns: [...(latest?.turns ?? []), { question, answer: ending, steps: kept, took }],
-            }
+            const earlier = latest?.turns ?? []
+            const turn = { question, answer: ending, steps: kept, took }
+            const next: Saved = { chat: json, turns: [...earlier, turn] }
 
             yield* transcript.save(unheard === undefined ? next : { ...next, edits: unheard })
+            yield* Ref.set(
+              logged,
+              Option.some({ turn, earlier: earlier.map((each) => each.question) }),
+            )
             yield* phase.send(PhaseEvent.Saved())
           })
 
@@ -402,6 +410,16 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
 
             yield* save(stopped, asked).pipe(Semaphore.withPermit(lock))
             yield* PubSub.publish(steps, Arr.append(cut, stopped))
+          }
+
+          const kept = yield* Ref.get(logged)
+
+          if (Option.isSome(kept)) {
+            yield* answers.log(kept.value.turn, {
+              asked: started,
+              earlier: kept.value.earlier,
+              changed: changed.map(({ turn, chart, view }) => ({ turn, chart, view })),
+            })
           }
         },
         // An answer that kept no turn drops its question before it lets the

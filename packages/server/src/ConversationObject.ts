@@ -5,6 +5,7 @@ import { HttpRouter, HttpServer } from "effect/http"
 import { HttpApiBuilder } from "effect/http-api"
 
 import { Agent } from "./Agent.ts"
+import { Answers } from "./Answers.ts"
 import { AskLimit } from "./AskLimit.ts"
 import { Catalog } from "./Catalog.ts"
 import { Conversation } from "./Conversation.ts"
@@ -59,13 +60,13 @@ interface DurableObject {
   readonly alarm: () => Promise<void>
 }
 
-// One conversation's requests and alarm, given an Agent, an AskLimit and a
-// Transcript. Both reach the same Conversation, so the alarm knows whether an
-// answer is running. It is built on first use. Each request and alarm sends
-// its spans to a tracer of its own (Traces.serve); an answer's spans go with
-// the request that asked it, until its reader leaves.
+// One conversation's requests and alarm, given an Agent, an AskLimit, a
+// Transcript and Answers. Both reach the same Conversation, so the alarm
+// knows whether an answer is running. It is built on first use. Each request
+// and alarm sends its spans to a tracer of its own (Traces.serve); an
+// answer's spans go with the request that asked it, until its reader leaves.
 export const open = (
-  layer: Layer.Layer<Agent | AskLimit | Transcript>,
+  layer: Layer.Layer<Agent | AskLimit | Transcript | Answers>,
   { tracer = Traces.layer }: Traces.ServeOptions = {},
 ): DurableObject => {
   const runtime = ManagedRuntime.make(Conversation.layer.pipe(Layer.provideMerge(layer)))
@@ -102,6 +103,7 @@ export class ConversationObject implements DurableObject {
         Transcript.durable(this.#state.storage),
         Agent.live.pipe(Layer.provide(Resolver.layer)),
         AskLimit.live,
+        Answers.live,
       ).pipe(
         Layer.provide(Catalog.live),
         Layer.provide(Politics.live),

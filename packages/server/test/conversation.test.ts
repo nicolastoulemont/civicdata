@@ -16,6 +16,8 @@ import {
   Covered,
   Definition,
   DimensionId,
+  Ended,
+  Ending,
   Evidence,
   Exhausted,
   Finding,
@@ -64,8 +66,10 @@ import {
   View,
   Year,
 } from "@civicdata/domain"
+import { D1Client } from "@effect/sql-d1"
 import { beforeEach, describe, expect, it } from "@effect/vitest"
 import { reset } from "cloudflare:test"
+import { env } from "cloudflare:workers"
 import {
   Array as Arr,
   Clock,
@@ -90,6 +94,7 @@ import { TestClock } from "effect/testing"
 import { strToU8, zipSync } from "fflate"
 
 import { Agent } from "../src/Agent.ts"
+import { Answers } from "../src/Answers.ts"
 import { AskLimit } from "../src/AskLimit.ts"
 import { Catalog } from "../src/Catalog.ts"
 import { open } from "../src/ConversationObject.ts"
@@ -349,6 +354,8 @@ interface ServeOptions {
   readonly storage?: Storage
   // Where the conversation's spans go. Without it, they go nowhere.
   readonly traces?: Layer.Layer<never>
+  // Where answers are logged. Without it, nowhere.
+  readonly answers?: Layer.Layer<Answers>
 }
 
 // The conversation's Durable Object alarm, which Cloudflare fires `keep` after
@@ -376,6 +383,7 @@ const serveApi = (
     findings = Findings.holding([]),
     notes = recordedNotes,
     traces = Layer.empty,
+    answers = Answers.none,
   }: ServeOptions = {},
 ) => {
   const agent = Agent.layer.pipe(
@@ -395,7 +403,7 @@ const serveApi = (
   return Layer.unwrap(
     Effect.clockWith((clock) => {
       const conversation = open(
-        Layer.mergeAll(transcript, agent, limit).pipe(
+        Layer.mergeAll(transcript, agent, limit, answers).pipe(
           Layer.provideMerge(Layer.succeed(Clock.Clock, clock)),
         ),
         { tracer: traces },
@@ -3303,4 +3311,153 @@ describe("traces", () => {
       }).pipe(Effect.provide(serveApi(model.layer, { traces: traces.layer })))
     },
   )
+})
+
+const db = env.DB
+
+if (db === undefined) throw new Error("vitest.config.ts must bind a D1 database as DB")
+
+// Answers logged to the test Worker's D1 database.
+const logged = Answers.layer({ model: "gpt-test", version: "abc123" }).pipe(
+  Layer.provide(D1Client.layer({ db }).pipe(Layer.orDie)),
+)
+
+// A row of the answer log.
+const Logged = Schema.Struct({
+  asked: Schema.String,
+  questions: Schema.fromJsonString(Schema.Array(Schema.String)),
+  changed: Schema.fromJsonString(
+    Schema.Array(Schema.Struct({ turn: TurnIndex, chart: ChartIndex, view: View })),
+  ),
+  ending: Schema.fromJsonString(Ending),
+  steps: Schema.fromJsonString(Schema.Array(Ended)),
+  took: Schema.NullOr(Schema.Number),
+  model: Schema.String,
+  version: Schema.NullOr(Schema.String),
+  trace: Schema.NullOr(Schema.String),
+})
+
+// Every row of the answer log, oldest first.
+const rows = Effect.promise(() => db.prepare("SELECT * FROM answers ORDER BY asked").all()).pipe(
+  Effect.flatMap(({ results }) => Schema.decodeUnknownEffect(Schema.Array(Logged))(results)),
+  Effect.orDie,
+)
+
+describe("answer log", () => {
+  beforeEach(() => reset())
+
+  it.effect(
+    "logs each answer with the questions so far, scrubbed, and nothing naming the conversation",
+    () => {
+      const model = scripted([
+        Effect.succeed(call("show_chart", brazil)),
+        Effect.succeed(words(takeaway)),
+        Effect.succeed(call("show_chart", { ...brazil, countries: ["BRA", "MEX"] })),
+      ])
+
+      return Effect.gen(function* () {
+        yield* answer("Life expectancy in Brazil")
+        yield* TestClock.adjust("1 minute")
+        yield* answer("Add Mexico and mail it to ana.r@example.org or +33 6 12 34 56 78")
+
+        const kept = yield* rows
+
+        expect(kept).toEqual([
+          {
+            asked: "1970-01-01T00:00:00.000Z",
+            questions: ["Life expectancy in Brazil"],
+            changed: [],
+            ending: charted(chart(brazilTrend), said()),
+            steps: [fetched()],
+            took: 0,
+            model: "gpt-test",
+            version: "abc123",
+            trace: expect.any(String),
+          },
+          expect.objectContaining({
+            asked: "1970-01-01T00:01:00.000Z",
+            questions: [
+              "Life expectancy in Brazil",
+              "Add Mexico and mail it to [email] or [number]",
+            ],
+          }),
+        ])
+        expect(JSON.stringify(kept)).not.toContain(id)
+      }).pipe(Effect.provide(serveApi(model.layer, { answers: logged })))
+    },
+  )
+
+  it.effect("logs the chart a person changed before asking", () => {
+    const model = scripted([
+      Effect.succeed(call("show_chart", brazil)),
+      Effect.succeed(words(takeaway)),
+      Effect.succeed(words("Mexico is not shown.")),
+    ])
+
+    const mexico = Trend.make({ ...brazilTrend, countries: ["MEX"] })
+
+    return Effect.gen(function* () {
+      yield* answer("Life expectancy in Brazil")
+      yield* show(0, mexico)
+      yield* answer("Why did it fall?")
+
+      const [, second] = yield* rows
+
+      expect(second?.changed).toEqual([
+        { turn: TurnIndex.make(0), chart: ChartIndex.make(0), view: mexico },
+      ])
+    }).pipe(Effect.provide(serveApi(model.layer, { answers: logged })))
+  })
+
+  it.effect("logs an answer the person stopped", () =>
+    Effect.gen(function* () {
+      const waiting = yield* Deferred.make<void>()
+
+      const model = scripted([
+        Deferred.succeed(waiting, undefined).pipe(Effect.andThen(Effect.never)),
+      ])
+
+      return yield* Effect.gen(function* () {
+        const steps = yield* ask("Life expectancy in Brazil").pipe(
+          Effect.flatMap(Stream.runCollect),
+          Effect.forkChild,
+        )
+
+        yield* Deferred.await(waiting)
+        yield* stop
+        yield* Fiber.join(steps)
+
+        const [only] = yield* rows
+
+        expect(only?.ending).toEqual(Stopped.make({}))
+      }).pipe(Effect.provide(serveApi(model.layer, { answers: logged })))
+    }),
+  )
+
+  it.effect("drops answers asked over a year ago", () => {
+    const model = scripted([Effect.succeed(words(takeaway)), Effect.succeed(words(takeaway))])
+
+    return Effect.gen(function* () {
+      yield* answer("Life expectancy in Brazil")
+      yield* TestClock.adjust("366 days")
+      yield* answer("Life expectancy in Mexico")
+
+      expect((yield* rows).map((row) => row.questions)).toEqual([
+        ["Life expectancy in Brazil", "Life expectancy in Mexico"],
+      ])
+    }).pipe(Effect.provide(serveApi(model.layer, { answers: logged })))
+  })
+
+  it.effect("answers as usual when the log cannot be written", () => {
+    const model = scripted([Effect.succeed(call("show_chart", brazil))])
+
+    return Effect.gen(function* () {
+      yield* Effect.promise(() => db.exec("CREATE TABLE answers (id INTEGER PRIMARY KEY)"))
+
+      expect((yield* answer("Life expectancy in Brazil")).at(-1)).toEqual(
+        charted(chart(brazilTrend), said()),
+      )
+      expect((yield* turns).answered).toHaveLength(1)
+    }).pipe(Effect.provide(serveApi(model.layer, { answers: logged })))
+  })
 })
