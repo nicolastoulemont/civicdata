@@ -125,10 +125,11 @@ export interface Changed {
   readonly view: View
 }
 
-// A question, and the charts a person changed since the model last heard of
-// them.
+// A question, the country it was asked from when Cloudflare could place the
+// person, and the charts they changed since the model last heard of them.
 interface Asking {
   readonly question: string
+  readonly country: Option.Option<Country>
   readonly changed: ReadonlyArray<Changed>
 }
 
@@ -649,21 +650,33 @@ const draftOf = (view: View): Draft => {
   })
 }
 
-// The question as the model reads it. The charts the person changed since the
-// model last heard lead the question, each with the question its answer
-// answered, its place in that answer and as show_chart's arguments, so a
-// follow-up changes what it asks for and keeps the rest. They travel in the
-// question's own message: `forget` cuts the chat at questions, and a note of
-// its own would count as one.
-const prompted = ({ question, changed }: Asking) =>
-  changed.length === 0
-    ? question
-    : `The person changed charts on screen since your last answer. ${changed
-        .map(
-          (each) =>
-            `Chart ${each.chart + 1} of your answer to ${JSON.stringify(each.question)} is now show_chart ${JSON.stringify(draftOf(each.view))}.`,
-        )
-        .join(" ")}\n\n${question}`
+// The question as the model reads it. The country the person asks from, and
+// the charts they changed since the model last heard, lead the question: each
+// chart with the question its answer answered, its place in that answer and
+// as show_chart's arguments, so a follow-up changes what it asks for and
+// keeps the rest. They travel in the question's own message: `forget` cuts
+// the chat at questions, and a note of its own would count as one.
+const prompted = ({ question, country, changed }: Asking) =>
+  [
+    ...Option.toArray(
+      Option.map(
+        country,
+        (code) =>
+          `The person is asking from ${locate(code)[0]?.name ?? code} (${code}), going by their connection.`,
+      ),
+    ),
+    ...(changed.length === 0
+      ? []
+      : [
+          `The person changed charts on screen since your last answer. ${changed
+            .map(
+              (each) =>
+                `Chart ${each.chart + 1} of your answer to ${JSON.stringify(each.question)} is now show_chart ${JSON.stringify(draftOf(each.view))}.`,
+            )
+            .join(" ")}`,
+        ]),
+    question,
+  ].join("\n\n")
 
 const rejected = (problem: string) => Refused.make({ problem })
 
@@ -1378,6 +1391,7 @@ A measure only one source publishes comes from that source.
 1. Call search_indicators to find the indicator that measures what the question asks. Use only codes it returns; never write a code from memory. Pass a source to look in that source only, e.g. when its first results are another source's. When two results are close, call describe_indicator to read their definitions.
 2. Pick the chart type as the section on chart types below says, and the countries.
    - Countries are ISO 3166-1 alpha-3 codes for every source. When a place name is not plainly one country, call find_countries. List the members of a group yourself, e.g. the G7 or the Nordic countries.
+   - A question can start by saying which country the person is asking from. When the question needs a country and neither it nor an earlier question names one, e.g. "Why is everything so expensive now?", chart that country, and name it in your first sentence, e.g. "In France, prices...", so a wrong guess shows. Never call ask_user only to learn the country.
    - A Eurostat or OECD dataflow holds several series, e.g. by sex or age. find_years' and show_chart's rejections list its dimensions and their codes: pick the series the question asks for, else the total.
    - Charts show annual values. Prefer a Eurostat or OECD dataflow whose name does not say quarterly or monthly.
 3. Call find_years with the indicator, the countries and the series before show_chart, and pick the years from what it returns. When the question names a first year, pass it as from, e.g. ${year - 50} for "the last 50 years"; else pass null. For a relation, call it for both indicators.
@@ -1455,6 +1469,7 @@ export class Agent extends Context.Service<Agent, Interface>()("@civicdata/serve
           "gen_ai.operation.name": "invoke_agent",
           "gen_ai.agent.name": "civicdata",
           "civicdata.question": clip(asked.question),
+          "civicdata.country": Option.getOrElse(asked.country, () => "unknown"),
           "civicdata.charts.changed": asked.changed.length,
         })
 
