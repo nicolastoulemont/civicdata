@@ -38,6 +38,7 @@ const Handlers = HttpApiBuilder.group(
       .handle("show", ({ params, payload }) =>
         conversation.show(params.turn, { chart: params.chart, view: payload }),
       )
+      .handle("vote", ({ params, payload }) => conversation.vote(params.turn, payload))
       .handle("ask", ({ params, payload, request }) =>
         conversation.open.pipe(
           Effect.andThen(limit.count(request.headers["cf-connecting-ip"] ?? "unknown")),
@@ -103,7 +104,7 @@ export class ConversationObject implements DurableObject {
         Transcript.durable(this.#state.storage),
         Agent.live.pipe(Layer.provide(Resolver.layer)),
         AskLimit.live,
-        Answers.live,
+        Answers.live(this.#state.id.toString()),
       ).pipe(
         Layer.provide(Catalog.live),
         Layer.provide(Politics.live),

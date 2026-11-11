@@ -17,6 +17,7 @@ export {
   Coverage,
   Covered,
   Definition,
+  Down,
   Ended,
   Ending,
   Exhausted,
@@ -31,6 +32,7 @@ export {
   put,
   Question,
   Read,
+  Reason,
   Recorded,
   Records,
   Rejected,
@@ -52,6 +54,8 @@ export {
   Turns,
   Unanswered,
   Unresolved,
+  Up,
+  Vote,
   type Work,
 } from "./Conversation.ts"
 

@@ -1,4 +1,13 @@
-import { ChartIndex, Ended, Ending, type Turn, TurnIndex, View } from "@civicdata/domain"
+import {
+  ChartIndex,
+  Down,
+  Ended,
+  Ending,
+  type Turn,
+  TurnIndex,
+  View,
+  Vote,
+} from "@civicdata/domain"
 import { D1Client } from "@effect/sql-d1"
 import { Context, DateTime, Duration, Effect, Exit, Layer, Option, Schema } from "effect"
 import { SqlClient } from "effect/sql"
@@ -22,8 +31,11 @@ interface Asked {
 
 interface Interface {
   // Keeps an answer once its turn is saved. Never fails: a write that fails
-  // or takes over 5 seconds is logged on the span and dropped.
+  // or takes over 5 seconds is logged on the span and dropped, as for vote.
   readonly log: (turn: Turn, asked: Asked) => Effect.Effect<void>
+  // Keeps what the person thought of the answer at `turn`, replacing their
+  // earlier vote. An answer that was never logged keeps no vote.
+  readonly vote: (turn: TurnIndex, vote: Vote) => Effect.Effect<void>
 }
 
 // How long a row is kept.
@@ -55,9 +67,15 @@ const Row = Schema.Struct({
   steps: Schema.fromJsonString(Schema.Array(Ended)),
 })
 
+const VoteJson = Schema.fromJsonString(Vote)
+
+const isDown = Schema.is(Down)
+
 // One row per answer kept: its questions scrubbed, how it ended and what the
-// agent did, the model and version that answered, and its trace. Nothing in a
-// row names the conversation: its id lets anyone read it.
+// agent did, the model and version that answered, its trace, and the
+// person's vote. Nothing in a row names the conversation: its id lets anyone
+// read it. A row's id is a hash of the conversation's object and the turn's
+// place (see idOf).
 const tables = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient
 
@@ -72,14 +90,45 @@ const tables = Effect.gen(function* () {
       took INTEGER,
       model TEXT NOT NULL,
       version TEXT,
-      trace TEXT
+      trace TEXT,
+      vote TEXT
     )
   `
   yield* sql`CREATE INDEX IF NOT EXISTS answers_asked ON answers (asked)`
+
+  // Tables made before votes were kept have no column for them.
+  const columns = yield* sql<{ readonly name: string }>`PRAGMA table_info(answers)`
+
+  if (!columns.some((column) => column.name === "vote")) {
+    yield* sql`ALTER TABLE answers ADD COLUMN vote TEXT`
+  }
 })
 
-// The deployment that answers: the model, and the commit deployed, if known.
-interface Deployment {
+// The id of the row for the answer at `turn`: a SHA-256 hash of the
+// conversation's Durable Object id and the turn's place, so a vote finds its
+// row with nothing more stored. Only this Worker can compute an object's id
+// from a conversation's link, and the hash cannot be turned back into it. A
+// conversation deleted and then asked again from the same link reuses its
+// object, so its new turns replace the old rows at the same places.
+const idOf = Effect.fnUntraced(function* (conversation: string, turn: number) {
+  const digest = yield* Effect.promise(() =>
+    crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${conversation}/${turn}`)),
+  )
+
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")
+})
+
+// Logs and drops a write that fails or takes too long.
+const kept = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+  effect.pipe(
+    Effect.timeout(writeLimit),
+    Effect.catchCause((cause) => Effect.logWarning("Answer not logged", cause)),
+  )
+
+// Where answers come from: the conversation's Durable Object id, the model,
+// and the commit deployed, if known.
+interface Source {
+  readonly conversation: string
   readonly model: string
   readonly version: string | undefined
 }
@@ -88,7 +137,7 @@ interface Deployment {
 // into eval cases after their conversation is gone (docs/answers.md).
 export class Answers extends Context.Service<Answers, Interface>()("@civicdata/server/Answers") {
   // Needs a SqlClient.
-  static readonly layer = ({ model, version }: Deployment) =>
+  static readonly layer = ({ conversation, model, version }: Source) =>
     Layer.effect(
       Answers,
       Effect.gen(function* () {
@@ -101,27 +150,31 @@ export class Answers extends Context.Service<Answers, Interface>()("@civicdata/s
           (exit) => (Exit.isSuccess(exit) ? Duration.infinity : Duration.zero),
         )
 
-        const log = Effect.fn("Answers.log")(
-          function* (turn: Turn, { asked, earlier, changed }: Asked) {
-            const trace = yield* Effect.currentSpan.pipe(
-              Effect.map((span) => span.traceId),
-              Effect.option,
-            )
+        const log = Effect.fn("Answers.log")(function* (
+          turn: Turn,
+          { asked, earlier, changed }: Asked,
+        ) {
+          const trace = yield* Effect.currentSpan.pipe(
+            Effect.map((span) => span.traceId),
+            Effect.option,
+          )
 
-            const row = yield* Schema.encodeEffect(Row)({
-              questions: [...earlier, turn.question].map(scrub),
-              changed,
-              ending: turn.answer,
-              steps: turn.steps ?? [],
-            })
+          const row = yield* Schema.encodeEffect(Row)({
+            questions: [...earlier, turn.question].map(scrub),
+            changed,
+            ending: turn.answer,
+            steps: turn.steps ?? [],
+          })
 
-            const now = yield* DateTime.now
+          const now = yield* DateTime.now
 
-            yield* ready
-            yield* sql`
-              INSERT INTO answers (id, asked, questions, changed, ending, steps, took, model, version, trace)
+          const id = yield* idOf(conversation, earlier.length)
+
+          yield* ready
+          yield* sql`
+              INSERT OR REPLACE INTO answers (id, asked, questions, changed, ending, steps, took, model, version, trace)
               VALUES (
-                ${crypto.randomUUID()},
+                ${id},
                 ${DateTime.formatIso(asked)},
                 ${row.questions},
                 ${row.changed},
@@ -133,38 +186,52 @@ export class Answers extends Context.Service<Answers, Interface>()("@civicdata/s
                 ${Option.getOrNull(trace)}
               )
             `
-            yield* sql`
+          yield* sql`
               DELETE FROM answers
               WHERE asked < ${DateTime.formatIso(DateTime.subtractDuration(now, keep))}
             `
-          },
-          (effect) =>
-            effect.pipe(
-              Effect.timeout(writeLimit),
-              Effect.catchCause((cause) => Effect.logWarning("Answer not logged", cause)),
-            ),
-        )
+        }, kept)
 
-        return Answers.of({ log })
+        const vote = Effect.fn("Answers.vote")(function* (turn: TurnIndex, choice: Vote) {
+          yield* Effect.annotateCurrentSpan("civicdata.vote", isDown(choice) ? "down" : "up")
+
+          if (isDown(choice) && choice.reason !== undefined) {
+            yield* Effect.annotateCurrentSpan("civicdata.vote.reason", choice.reason)
+          }
+
+          const id = yield* idOf(conversation, turn)
+          const json = yield* Schema.encodeEffect(VoteJson)(choice)
+
+          yield* ready
+          yield* sql`UPDATE answers SET vote = ${json} WHERE id = ${id}`
+        }, kept)
+
+        return Answers.of({ log, vote })
       }),
     )
 
   // Keeps nothing: outside Workers, and in the eval.
-  static readonly none = Layer.succeed(Answers, Answers.of({ log: () => Effect.void }))
-
-  // D1 inside Workers (deployed, or under `alchemy dev`). Plain `pnpm dev:web`
-  // runs in Node, where `cloudflare:workers` does not exist.
-  static readonly live = Layer.unwrap(
-    Effect.tryPromise(() => import("cloudflare:workers")).pipe(
-      Effect.map(({ env }) =>
-        env.DB === undefined
-          ? Answers.none
-          : Answers.layer({
-              model: env.OPENAI_MODEL ?? defaultModel,
-              version: env.VERSION,
-            }).pipe(Layer.provide(D1Client.layer({ db: env.DB }).pipe(Layer.orDie))),
-      ),
-      Effect.orElseSucceed(() => Answers.none),
-    ),
+  static readonly none = Layer.succeed(
+    Answers,
+    Answers.of({ log: () => Effect.void, vote: () => Effect.void }),
   )
+
+  // The answers of the conversation whose Durable Object has this id, in D1
+  // inside Workers (deployed, or under `alchemy dev`). Plain `pnpm dev:web`
+  // runs in Node, where `cloudflare:workers` does not exist.
+  static readonly live = (conversation: string) =>
+    Layer.unwrap(
+      Effect.tryPromise(() => import("cloudflare:workers")).pipe(
+        Effect.map(({ env }) =>
+          env.DB === undefined
+            ? Answers.none
+            : Answers.layer({
+                conversation,
+                model: env.OPENAI_MODEL ?? defaultModel,
+                version: env.VERSION,
+              }).pipe(Layer.provide(D1Client.layer({ db: env.DB }).pipe(Layer.orDie))),
+        ),
+        Effect.orElseSucceed(() => Answers.none),
+      ),
+    )
 }

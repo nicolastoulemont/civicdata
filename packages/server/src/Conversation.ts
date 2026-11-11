@@ -19,6 +19,7 @@ import {
   TurnNotFound,
   type Turns,
   type View,
+  type Vote,
   type Work,
 } from "@civicdata/domain"
 import { Machine } from "@civicdata/machine"
@@ -73,6 +74,9 @@ interface Interface {
     turn: TurnIndex,
     options: { readonly chart: ChartIndex; readonly view: View },
   ) => Effect.Effect<void, TurnNotFound | NoChart>
+  // Keeps what the person thought of a turn's answer, replacing their earlier
+  // vote, and logs it with the answer. Fails with TurnNotFound.
+  readonly vote: (turn: TurnIndex, vote: Vote) => Effect.Effect<void, TurnNotFound>
   // Deletes the conversation once no answer is running: now, or when the
   // answer in progress fails. An answer that keeps its turn keeps the
   // conversation too, as saving it moves the alarm on, even when this alarm
@@ -504,6 +508,24 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
         })
       }, Semaphore.withPermit(lock))
 
+      const vote = Effect.fn("Conversation.vote")(function* (turn: TurnIndex, choice: Vote) {
+        yield* Effect.gen(function* () {
+          const saved = yield* transcript.load
+          const found = Option.flatMap(saved, ({ turns: all }) => Arr.get(all, turn))
+
+          if (Option.isNone(saved) || Option.isNone(found)) {
+            return yield* new TurnNotFound({ turn })
+          }
+
+          return yield* transcript.save({
+            ...saved.value,
+            turns: saved.value.turns.with(turn, Struct.assign(found.value, { vote: choice })),
+          })
+        }).pipe(Semaphore.withPermit(lock))
+
+        yield* answers.vote(turn, choice)
+      })
+
       // Waits out a deletion the alarm started. An answer running is not
       // waited for.
       const expire = phase
@@ -516,7 +538,7 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
           Effect.withSpan("Conversation.expire"),
         )
 
-      return Conversation.of({ turns, open, ask, follow, stop, show, expire })
+      return Conversation.of({ turns, open, ask, follow, stop, show, vote, expire })
     }),
   )
 }

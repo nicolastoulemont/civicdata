@@ -16,6 +16,7 @@ import {
   Covered,
   Definition,
   DimensionId,
+  Down,
   Ended,
   Ending,
   Evidence,
@@ -63,7 +64,9 @@ import {
   TurnNotFound,
   Unanswered,
   Unresolved,
+  Up,
   View,
+  Vote,
   Year,
 } from "@civicdata/domain"
 import { D1Client } from "@effect/sql-d1"
@@ -466,6 +469,12 @@ const show = (turn: number, view: View, { chart = 0 }: { chart?: number } = {}) 
       params: { id, turn: TurnIndex.make(turn), chart: ChartIndex.make(chart) },
       payload: view,
     }),
+  )
+
+// Votes on the answer of the turn at `turn`.
+const vote = (turn: number, choice: Vote) =>
+  Effect.flatMap(client, (api) =>
+    api.conversation.vote({ params: { id, turn: TurnIndex.make(turn) }, payload: choice }),
   )
 
 // An answer of these blocks, in order.
@@ -3318,9 +3327,11 @@ const db = env.DB
 if (db === undefined) throw new Error("vitest.config.ts must bind a D1 database as DB")
 
 // Answers logged to the test Worker's D1 database.
-const logged = Answers.layer({ model: "gpt-test", version: "abc123" }).pipe(
-  Layer.provide(D1Client.layer({ db }).pipe(Layer.orDie)),
-)
+const logged = Answers.layer({
+  conversation: "conversation-object",
+  model: "gpt-test",
+  version: "abc123",
+}).pipe(Layer.provide(D1Client.layer({ db }).pipe(Layer.orDie)))
 
 // A row of the answer log.
 const Logged = Schema.Struct({
@@ -3335,6 +3346,7 @@ const Logged = Schema.Struct({
   model: Schema.String,
   version: Schema.NullOr(Schema.String),
   trace: Schema.NullOr(Schema.String),
+  vote: Schema.NullOr(Schema.fromJsonString(Vote)),
 })
 
 // Every row of the answer log, oldest first.
@@ -3373,6 +3385,7 @@ describe("answer log", () => {
             model: "gpt-test",
             version: "abc123",
             trace: expect.any(String),
+            vote: null,
           },
           expect.objectContaining({
             asked: "1970-01-01T00:01:00.000Z",
@@ -3445,6 +3458,52 @@ describe("answer log", () => {
       expect((yield* rows).map((row) => row.questions)).toEqual([
         ["Life expectancy in Brazil", "Life expectancy in Mexico"],
       ])
+    }).pipe(Effect.provide(serveApi(model.layer, { answers: logged })))
+  })
+
+  it.effect("keeps the person's last vote on the turn and its logged answer", () => {
+    const model = scripted([Effect.succeed(call("show_chart", brazil))])
+
+    return Effect.gen(function* () {
+      yield* answer("Life expectancy in Brazil")
+      yield* vote(0, Down.make({ reason: "countries" }))
+
+      expect((yield* turns).answered[0]?.vote).toEqual(Down.make({ reason: "countries" }))
+      expect((yield* rows)[0]?.vote).toEqual(Down.make({ reason: "countries" }))
+
+      yield* vote(0, Up.make({}))
+
+      expect((yield* turns).answered[0]?.vote).toEqual(Up.make({}))
+      expect((yield* rows)[0]?.vote).toEqual(Up.make({}))
+    }).pipe(Effect.provide(serveApi(model.layer, { answers: logged })))
+  })
+
+  it.effect("keeps votes in a log made before votes were kept", () => {
+    const model = scripted([Effect.succeed(call("show_chart", brazil))])
+
+    return Effect.gen(function* () {
+      yield* Effect.promise(() =>
+        db.exec(
+          "CREATE TABLE answers (id TEXT PRIMARY KEY, asked TEXT NOT NULL, questions TEXT NOT NULL, changed TEXT NOT NULL, ending TEXT NOT NULL, steps TEXT NOT NULL, took INTEGER, model TEXT NOT NULL, version TEXT, trace TEXT)",
+        ),
+      )
+
+      yield* answer("Life expectancy in Brazil")
+      yield* vote(0, Up.make({}))
+
+      expect((yield* rows)[0]?.vote).toEqual(Up.make({}))
+    }).pipe(Effect.provide(serveApi(model.layer, { answers: logged })))
+  })
+
+  it.effect("refuses a vote on a turn the conversation does not have", () => {
+    const model = scripted([Effect.succeed(call("show_chart", brazil))])
+
+    return Effect.gen(function* () {
+      yield* answer("Life expectancy in Brazil")
+
+      expect(yield* Effect.flip(vote(1, Up.make({})))).toEqual(
+        new TurnNotFound({ turn: TurnIndex.make(1) }),
+      )
     }).pipe(Effect.provide(serveApi(model.layer, { answers: logged })))
   })
 
