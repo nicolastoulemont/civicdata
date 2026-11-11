@@ -27,12 +27,18 @@ export const Observation = Schema.Struct({
 export interface Observation extends Schema.Schema.Type<typeof Observation> {}
 
 // Publisher evidence belongs to a series and country-year, even without a number.
-export const Qualification = Schema.Struct({
+const place = {
+  country: Country,
+  year: Year,
+  missing: Schema.Boolean,
+  exclusion: Schema.optionalKey(Schema.Literals(["ReferencePeriod", "Geography"])),
+}
+
+const IloQualification = Schema.Struct({
   source: Schema.Literal("ILOSTAT"),
   survey: Schema.Struct({ code: Schema.NonEmptyString, label: Schema.NonEmptyString }),
   series: SeriesKey,
-  country: Country,
-  year: Year,
+  ...place,
   status: Schema.optionalKey(
     Schema.Struct({
       code: Schema.Literals(["B", "U"]),
@@ -51,8 +57,6 @@ export const Qualification = Schema.Struct({
       label: Schema.NonEmptyString,
     }),
   ),
-  missing: Schema.Boolean,
-  exclusion: Schema.optionalKey(Schema.Literals(["ReferencePeriod", "Geography"])),
 }).check(
   Schema.makeFilter(
     (item) =>
@@ -73,7 +77,26 @@ export const Qualification = Schema.Struct({
   ),
 )
 
-export interface Qualification extends Schema.Schema.Type<typeof Qualification> {}
+// FAO's archive has flags and free-text notes, but no ILO survey identity.
+const FaoQualification = Schema.Struct({
+  source: Schema.Literal("FAOSTAT"),
+  series: SeriesKey,
+  ...place,
+  status: Schema.optionalKey(
+    Schema.Struct({ code: Schema.NonEmptyString, label: Schema.NonEmptyString }),
+  ),
+  notes: Schema.Array(
+    Schema.Struct({
+      category: Schema.Literal("Note"),
+      code: Schema.Literal("Note"),
+      label: Schema.NonEmptyString,
+    }),
+  ),
+}).check(Schema.makeFilter((item) => item.series.indicator === "FAOSTAT:AE"))
+
+export const Qualification = Schema.Union([IloQualification, FaoQualification])
+
+export type Qualification = typeof Qualification.Type
 
 // A country's first value after a break in series.
 const Break = Schema.Struct({ country: Country, year: Year })

@@ -12,6 +12,7 @@ import {
 } from "effect/http"
 
 import { Cache } from "../src/Cache.ts"
+import { Faostat } from "../src/Faostat.ts"
 import { Ilostat } from "../src/Ilostat.ts"
 import { Insee } from "../src/Insee.ts"
 import { Notes } from "../src/Notes.ts"
@@ -181,7 +182,9 @@ const counted = Layer.effect(
 // answer spends none of a source's request budget. Nothing is stored.
 export const Replayed = Layer.mergeAll(
   Sources.layer.pipe(
-    Layer.provide(Layer.mergeAll(Ilostat.layer, Sdmx.cached, WorldBank.cached, Insee.cached)),
+    Layer.provide(
+      Layer.mergeAll(Faostat.layer, Ilostat.layer, Sdmx.cached, WorldBank.cached, Insee.cached),
+    ),
   ),
   Notes.layer,
 ).pipe(

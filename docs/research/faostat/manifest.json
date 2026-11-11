@@ -1,0 +1,20 @@
+{
+  "Datasets": {
+    "Dataset": [
+      {
+        "DatasetCode": "AE",
+        "DatasetName": "Agricultural Science and Technology: ASTI - Expenditures",
+        "Topic": "Data are available for 124 countries and territories and cover the government, higher education and private non-profit sector.",
+        "DatasetDescription": "The dataset contains a set of financial indicators describing national expenditures on agricultural research and development (R&D). The indicators are derived primarily from responses to the financial resources section of the ASTI questionnaire, complemented with selected external macroeconomic indicators required to ensure comparability across countries and over time.The dataset includes both directly reported financial aggregates and derived indicators, reflecting different dimensions of agricultural R&D investment. Reported expenditure data are collected in current local currency units (LCU) and refer to total institutional expenditures, as provided by national respondents. Coverage of the private for-profit sector remains limited and is therefore excluded from the dataset. To support temporal analysis and international comparability, expenditure indicators are also expressed in constant local currency units, using country-specific GDP deflators sourced from FAOSTAT. In addition, selected indicators relate agricultural R&D expenditures to key structural variables, such as agricultural value added, allowing for meaningful cross-country comparisons of research intensity and resource allocation.",
+        "Contact": "Food and Agriculture Organization of the United Nations (FAO): Statistics Division (ESS)",
+        "Email": "faostat@fao.org",
+        "DateUpdate": "2026-04-30T00:00:00",
+        "CompressionFormat": "zip",
+        "FileType": "csv",
+        "FileSize": "77KB",
+        "FileRows": 7789,
+        "FileLocation": "https://bulks-faostat.fao.org/production/ASTI_Expenditures_E_All_Data_(Normalized).zip"
+      }
+    ]
+  }
+}

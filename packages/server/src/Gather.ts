@@ -25,6 +25,7 @@ import { SqlClient, SqlSchema } from "effect/sql"
 import { AssetId, type Bulk, Release, Versions } from "./Adapter.ts"
 import { tables } from "./Catalog.ts"
 import { database, Step } from "./CatalogBuild.ts"
+import { Faostat } from "./Faostat.ts"
 import { ledger } from "./GatherLedger.ts"
 import { Ilostat } from "./Ilostat.ts"
 import { Insee } from "./Insee.ts"
@@ -537,6 +538,7 @@ export class Gather extends Context.Service<Gather, Interface>()("@openfacts/ser
     Layer.provide(Sources.layer),
     Layer.provide(Insee.layer.pipe(Layer.provide(Pace.gathering))),
     Layer.provide(Ilostat.layer.pipe(Layer.provide(Pace.gathering))),
+    Layer.provide(Faostat.layer.pipe(Layer.provide(Pace.gathering))),
     Layer.provide(Layer.merge(WorldBank.layer, Sdmx.layer).pipe(Layer.provide(Pace.gathering))),
   )
 

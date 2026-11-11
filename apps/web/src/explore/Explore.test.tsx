@@ -1020,6 +1020,66 @@ describe("Explore", () => {
     expect(warnings.getByText(/Data reference period: First quarter/)).toBeDefined()
   })
 
+  it("shows FAO flags and credit without an ILO survey after resolving a saved chart", async () => {
+    const saved = Trend.make({
+      indicator: IndicatorId.make("FAOSTAT:AE"),
+      dimensions: Schema.decodeUnknownSync(Dimensions)({
+        measure: "8006",
+        cost: "300",
+        institution: "200",
+      }),
+      countries: ["AFG"],
+      from: Year.make(2021),
+      to: Year.make(2021),
+    })
+
+    network.use(
+      http.post("/api/views/resolve", async ({ request }) => {
+        const view = Schema.decodeUnknownSync(Trend)(await request.json())
+
+        return HttpResponse.json(
+          Schema.encodeSync(ResolvedViewSchema)({
+            ...resolvedFor(view),
+            sources: [
+              {
+                ...source(view.indicator),
+                source: "FAOSTAT",
+                dataset: "FAO. 2026. FAOSTAT: ASTI - Expenditures (AE); Licence: CC-BY-4.0",
+                url: "https://bulks-faostat.fao.org/production/ASTI_Expenditures_E_All_Data_(Normalized).zip",
+              },
+            ],
+            qualifications: [
+              {
+                source: "FAOSTAT",
+                series: {
+                  indicator: view.indicator,
+                  dimensions: view.dimensions ?? {},
+                },
+                country: "AFG",
+                year: Year.make(2021),
+                missing: true,
+                status: { code: "I", label: "Value imputed by a receiving agency" },
+                notes: [
+                  {
+                    category: "Note",
+                    code: "Note",
+                    label: "Publisher caveat",
+                  },
+                ],
+              },
+            ],
+          }),
+        )
+      }),
+    )
+    show(saved)
+    const warnings = within(await screen.findByRole("list", { name: "Flagged values" }))
+    expect(warnings.getByText(/I: Value imputed by a receiving agency/)).toBeDefined()
+    expect(warnings.getByText("Missing value")).toBeDefined()
+    expect(warnings.getByText(/Publisher caveat/)).toBeDefined()
+    expect(screen.getAllByText(/FAO. 2026. FAOSTAT/).length).toBeGreaterThan(0)
+  })
+
   it("lists the values a source flags under the chart and in the data table", async () => {
     network.use(
       http.post("/api/views/resolve", async ({ request }) => {

@@ -1,7 +1,14 @@
-import type { Country, Flag, ResolvedView } from "@openfacts/domain"
+import type { Country, Flag, Qualification, ResolvedView } from "@openfacts/domain"
 import { useTranslation } from "react-i18next"
 
 import { useFormat } from "./useFormat.ts"
+
+const unreliable = (item: Qualification) => item.source === "ILOSTAT" && item.status?.code === "U"
+
+const publisher = (item: Qualification) =>
+  item.source === "ILOSTAT"
+    ? `${item.source}, ${item.survey.code}: ${item.survey.label}`
+    : item.source
 
 const order: ReadonlyArray<Flag> = ["Provisional", "Estimated", "Break", "Unreliable"]
 
@@ -54,9 +61,11 @@ export const Flags = ({ resolved }: FlagsProps) => {
     >
       {qualifications.map((item) => (
         <li key={`${JSON.stringify(item.series)}:${item.country}:${item.year}`}>
-          {countryName(item.country)} {item.year} ({item.source}, {item.survey.code}:{" "}
-          {item.survey.label}):{" "}
-          {item.status?.code === "U" ? flagLabels.Unreliable : item.status?.label}
+          {countryName(item.country)} {item.year} ({publisher(item)}
+          ):{" "}
+          {unreliable(item)
+            ? flagLabels.Unreliable
+            : item.status !== undefined && `${item.status.code}: ${item.status.label}`}
           {item.missing && <span>{t(($) => $["Missing value"])}</span>}
           {item.exclusion !== undefined && <span>{exclusionLabels[item.exclusion]}</span>}
           {item.notes.map((note) => ` · ${note.category} ${note.code}: ${note.label}`).join("")}

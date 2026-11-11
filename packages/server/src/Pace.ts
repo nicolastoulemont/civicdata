@@ -118,6 +118,7 @@ const SlotJson = Schema.fromJsonString(Slot)
 
 // The hosts each adapter asks, so one HttpClient paces them all.
 export const hosts = new Map<string, Source>([
+  ["bulks-faostat.fao.org", "FAOSTAT"],
   ["api.insee.fr", "INSEE"],
   ["rplumber.ilo.org", "ILOSTAT"],
   ["api.worldbank.org", "World Bank"],

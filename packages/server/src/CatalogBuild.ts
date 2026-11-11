@@ -18,6 +18,7 @@ import { SqlClient, SqlSchema } from "effect/sql"
 import { Cache } from "./Cache.ts"
 import { tables } from "./Catalog.ts"
 import { Classifier, Classifying } from "./Classifier.ts"
+import { Faostat } from "./Faostat.ts"
 import { fingerprint } from "./fingerprint.ts"
 import { Ilostat } from "./Ilostat.ts"
 import { Insee } from "./Insee.ts"
@@ -645,6 +646,7 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
     Layer.provide(Sources.layer),
     Layer.provide(Insee.cached),
     Layer.provide(Ilostat.layer),
+    Layer.provide(Faostat.layer),
     Layer.provide(WorldBank.cached),
     Layer.provide(Sdmx.cached),
     Layer.provide(Pace.gathering),

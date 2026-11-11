@@ -105,3 +105,20 @@ To deploy your own stage from your machine, connect Cloudflare once with `pnpm -
 Alchemy is a beta that breaks things between releases. Upgrade it on a branch and let that branch's preview stage deploy before you merge. Every machine and CI job must run the same Alchemy version against the state store.
 
 Gather changes use `own-catalog` too: the asset progress schema initializes on the preview’s own database when a gather starts. Deploying does not migrate or fill production. Workflow and local ingestion share `Gather.layer` and its progress logic; local transports remain separate work; coherent source opt-in publication stages immutable packs and conditionally updates its own pointer table ([series.md](series.md#coherent-releases)).
+
+## FAOSTAT ASTI expenditures
+
+Only `FAOSTAT:AE` measure 8006 (agricultural R&D expenditure as a percentage of
+agricultural value added) is registered. Measure, cost category and institution
+are explicit dimensions; the other four measures and all other domains remain
+unlisted. Discovery uses the official bulk manifest and reviewed local labels,
+independently of stored availability. Chart requests use StoredOnly. Only the
+manual Node command enrolls the AE archive with shared Gather/Store and real
+D1/R2 transport, disk sorting, complete series and manifest rechecking. FAO's
+raw flags, notes and missing numbers use a source-specific qualification variant
+without an ILO survey. Existing ILO payloads remain valid.
+
+This change requires `own-catalog`. No manual production/preview fill or catalog
+build is part of delivery. Stored data needs an explained, owner-approved fill.
+[Coverage, exclusions, terms, evidence and operator prerequisites](research/faostat/README.md)
+record the exact limits and annual financial-year convention.
