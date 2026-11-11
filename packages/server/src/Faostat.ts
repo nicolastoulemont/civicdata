@@ -254,9 +254,8 @@ export class Faostat extends Context.Service<Faostat, Adapter>()("@openfacts/ser
                 Schema.decodeUnknownEffect(Outline)({
                   indicator,
                   annual: true,
-                  countries: Object.values(areas)
-                    .map((area) => area.country)
-                    .filter(Schema.is(Country)),
+                  // The area's dictionary is a code map, not measure coverage.
+                  countries: null,
                   years: null,
                   dimensions: dimensions.map((dimension) => ({
                     id: dimension.id,

@@ -62,7 +62,10 @@ export const Flags = ({ resolved }: FlagsProps) => {
       {qualifications.map((item) => (
         <li key={`${JSON.stringify(item.series)}:${item.country}:${item.year}`}>
           {countryName(item.country)} {item.year} ({publisher(item)}
-          ): {unreliable(item) ? flagLabels.Unreliable : item.status?.label}
+          ):{" "}
+          {unreliable(item)
+            ? flagLabels.Unreliable
+            : item.status !== undefined && `${item.status.code}: ${item.status.label}`}
           {item.missing && <span>{t(($) => $["Missing value"])}</span>}
           {item.exclusion !== undefined && <span>{exclusionLabels[item.exclusion]}</span>}
           {item.notes.map((note) => ` · ${note.category} ${note.code}: ${note.label}`).join("")}

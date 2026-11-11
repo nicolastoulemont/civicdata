@@ -74,7 +74,7 @@ it.effect(
         "cost",
         "institution",
       ])
-      expect(outlines[0]?.countries).not.toContain("X01")
+      expect(outlines[0]?.countries).toBeNull()
 
       const registered = Sources.of({
         "World Bank": source,

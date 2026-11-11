@@ -1074,7 +1074,7 @@ describe("Explore", () => {
     )
     show(saved)
     const warnings = within(await screen.findByRole("list", { name: "Flagged values" }))
-    expect(warnings.getByText(/Value imputed by a receiving agency/)).toBeDefined()
+    expect(warnings.getByText(/I: Value imputed by a receiving agency/)).toBeDefined()
     expect(warnings.getByText("Missing value")).toBeDefined()
     expect(warnings.getByText(/Publisher caveat/)).toBeDefined()
     expect(screen.getAllByText(/FAO. 2026. FAOSTAT/).length).toBeGreaterThan(0)

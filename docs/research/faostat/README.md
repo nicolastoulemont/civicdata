@@ -81,9 +81,11 @@ Do not represent the data as live before an approved fill.
 
 ## Local operation
 
-Discovery reads only the public manifest and local reviewed dimensions, labels
-and geography membership. Search coverage is independent of filled observations;
-year bounds stay unknown until the selected stored series is read. Describe
+Discovery reads only the public manifest and local reviewed dimensions and labels.
+The geography dictionary validates codes, but does not establish measure coverage:
+it includes Zimbabwe, which has no measure-8006 rows in the recorded archive.
+Search leaves country coverage and year bounds unknown; `find_years` reports
+availability for the selected stored series. Describe
 returns every required dimension, including singletons. Chart reads are
 StoredOnly, with typed NotStored and no archive or observation request on a miss.
 The Worker has no archive transport and no FAO gather enrollment.
