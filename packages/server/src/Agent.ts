@@ -518,12 +518,38 @@ const RatioFields = Ratio.mapFields(Struct.omit(["_tag"]))
 const checked = <A>(made: Effect.Effect<A, SchemaIssue.Issue>) =>
   Effect.mapError(made, (issue) => new Schema.SchemaError(issue))
 
-// The View the model described. Decodes the fields the chart type takes, then
-// builds the View, which checks it, e.g. that the years run forwards. A
-// transform or a span the chart type does not take is an error, not dropped.
-const toView = Effect.fnUntraced(function* (draft: Draft) {
-  const { indicator, against, countries, from, to, year } = draft
+// The years and second indicator each chart type takes. show_chart takes
+// them all, flat, as the model's tool format needs.
+const placed = {
+  trend: ["from", "to"],
+  change: ["from", "to"],
+  ranking: ["year"],
+  map: ["year"],
+  relation: ["against", "year"],
+} as const
 
+// The draft's indicators, countries and years to decode. The chart's own are
+// there even when null, which the decode names as missing; any other is
+// there only when set, which the decode names as extra. So is per without a
+// ratio, which carries it.
+const placedOf = (draft: Draft) => {
+  const own = new Set<keyof Draft>(["indicator", "countries", ...placed[draft.chart]])
+
+  const fields = Object.fromEntries(
+    (["indicator", "countries", "against", "from", "to", "year"] as const).flatMap((key) =>
+      own.has(key) || draft[key] !== null ? [[key, draft[key]]] : [],
+    ),
+  )
+
+  return draft.transform !== "Ratio" && draft.per !== null ? { ...fields, per: draft.per } : fields
+}
+
+// The View the model described. Decodes the fields the chart type takes, then
+// builds the View, which checks it, e.g. that the years run forwards. Any
+// argument the model set that the chart type does not take is an error that
+// names it, not dropped: years or an indicator against on the wrong chart, a
+// span, a transform, or per without a ratio.
+const toView = Effect.fnUntraced(function* (draft: Draft) {
   // A ratio carries the indicator it divides by.
   const transform =
     draft.transform === "Ratio"
@@ -536,13 +562,9 @@ const toView = Effect.fnUntraced(function* (draft: Draft) {
     | Ratio
     | Readonly<Record<string, string>>
     | { readonly from: number | null; readonly to: number | null }
-  > = Match.value(draft.chart).pipe(
-    Match.whenOr("trend", "change", () => ({ indicator, countries, from, to })),
-    Match.when("ranking", () => ({ indicator, countries, year })),
-    Match.when("map", () => ({ indicator, countries, year, as: "Map" })),
-    Match.when("relation", () => ({ indicator, against, countries, year })),
-    Match.exhaustive,
-  )
+  > = placedOf(draft)
+
+  if (draft.chart === "map") fields["as"] = "Map"
 
   if (transform !== null) fields["transform"] = transform
 
