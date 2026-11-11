@@ -16,5 +16,10 @@ export const runtime = {
 
 export default defineConfig({
   plugins: [cloudflareTest({ miniflare: runtime })],
-  test: { include: ["test/**/*.test.ts"] },
+  test: {
+    include: ["test/**/*.test.ts"],
+    // Cloudflare inlines Vitest's cached module graph into one WebSocket
+    // message, which can exceed workerd's message limit. Fetch modules alone.
+    fsModuleCache: false,
+  },
 })

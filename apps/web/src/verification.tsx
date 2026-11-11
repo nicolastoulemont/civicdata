@@ -1,6 +1,6 @@
+import { DEFAULT_SCRIPT_ID, Turnstile } from "@marsidev/react-turnstile"
 import { verificationAction, VerificationRequired, VerificationToken } from "@openfacts/domain"
 import { Machine } from "@openfacts/machine"
-import { DEFAULT_SCRIPT_ID, Turnstile } from "@marsidev/react-turnstile"
 import { Data, Effect, Option, Result, Schema } from "effect"
 import { createRoot } from "react-dom/client"
 import { I18nextProvider, useTranslation } from "react-i18next"
