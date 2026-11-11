@@ -269,3 +269,14 @@ no ingestion capability. V-Dem uses this in Workers and supplies `Bulk.release`
 only when the Node archive layer is present, so daily Worker gathers do not
 enroll an unavailable RData parser. Existing coherent bulk adapters still pin
 without this explicit opt-in.
+
+## WHO annual API slice
+
+Only `WHO:WHOSIS_000001` (life expectancy at birth) is registered. Discovery
+requires the reviewed live publication route and describes explicit sex, age and
+unit choices. Countries and years remain unknown until series reads establish
+coverage. `Api` uses filtered, ordered, count-checked pagination and the shared
+cache/widen path; it has no bulk capability or manual fill. Raw publisher notes,
+missing records, per-row versions and 95% uncertainty bounds survive resolver
+and chart output. [Evidence, terms and limits](research/who/README.md) document
+the bounded scope. NTO-219 and wider WHO coverage remain unfinished.

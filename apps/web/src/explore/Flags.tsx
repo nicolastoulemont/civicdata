@@ -6,6 +6,9 @@ import { useFormat } from "./useFormat.ts"
 const estimated = (item: Qualification): item is Extract<Qualification, { source: "V-Dem" }> =>
   item.source === "V-Dem"
 
+const who = (item: Qualification): item is Extract<Qualification, { source: "WHO" }> =>
+  item.source === "WHO"
+
 const unreliable = (item: Qualification) => item.source === "ILOSTAT" && item.status?.code === "U"
 
 const publisher = (item: Qualification) =>
@@ -29,6 +32,31 @@ const spans = (years: ReadonlyArray<number>) =>
     }, [])
     .map(([from, to]) => (from === to ? `${from}` : `${from}–${to}`))
     .join(", ")
+
+interface WhoBoundsProps {
+  item: Extract<Qualification, { source: "WHO" }>
+}
+
+const WhoBounds = ({ item }: WhoBoundsProps) => {
+  const { t, i18n } = useTranslation("explore")
+  const number = new Intl.NumberFormat(i18n.language, { maximumFractionDigits: 3 })
+
+  return (
+    <span>
+      {t(
+        ($) =>
+          $["WHO estimate {{estimate}}; 95% uncertainty bounds {{lower}}–{{upper}} ({{version}})."],
+        {
+          estimate:
+            item.estimate === null ? t(($) => $["Missing value"]) : number.format(item.estimate),
+          lower: item.lower === null ? t(($) => $["Missing value"]) : number.format(item.lower),
+          upper: item.upper === null ? t(($) => $["Missing value"]) : number.format(item.upper),
+          version: item.version,
+        },
+      )}
+    </span>
+  )
+}
 
 interface FlagsProps {
   resolved: ResolvedView
@@ -84,6 +112,7 @@ export const Flags = ({ resolved }: FlagsProps) => {
               )}
             </span>
           )}
+          {who(item) && <WhoBounds item={item} />}
           {item.missing && <span>{t(($) => $["Missing value"])}</span>}
           {item.exclusion !== undefined && <span>{exclusionLabels[item.exclusion]}</span>}
           {item.notes.map((note) => ` · ${note.category} ${note.code}: ${note.label}`).join("")}

@@ -195,3 +195,14 @@ The preview requires `own-catalog`. No manual production/preview fill, gather or
 catalog build ran; each operation needs an explained, owner-approved target.
 [Evidence, exclusions, terms and the operational first-fill path](research/vdem/README.md)
 state the narrow scope. NTO-219 remains in progress for the remaining sources.
+
+## WHO annual API slice
+
+Only `WHO:WHOSIS_000001` (life expectancy at birth) is registered. Discovery
+requires the reviewed live publication route and describes explicit sex, age and
+unit choices. Countries and years remain unknown until series reads establish
+coverage. `Api` uses filtered, ordered, count-checked pagination and the shared
+cache/widen path; it has no bulk capability or manual fill. Raw publisher notes,
+missing records, per-row versions and 95% uncertainty bounds survive resolver
+and chart output. [Evidence, terms and limits](research/who/README.md) document
+the bounded scope. NTO-219 and wider WHO coverage remain unfinished.

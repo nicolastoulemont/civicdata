@@ -186,5 +186,6 @@
   "Missing value": "Fehlender Wert",
   "Excluded reference period": "Ausgeschlossener Bezugszeitraum",
   "Excluded geography": "Ausgeschlossene geografische Abdeckung",
-  "Estimate {{estimate}}; 68% HPD interval {{lower}}–{{upper}} ({{version}})": "Schätzwert {{estimate}}; 68-%-HPD-Intervall {{lower}}–{{upper}} ({{version}})"
+  "Estimate {{estimate}}; 68% HPD interval {{lower}}–{{upper}} ({{version}})": "Schätzwert {{estimate}}; 68-%-HPD-Intervall {{lower}}–{{upper}} ({{version}})",
+  "WHO estimate {{estimate}}; 95% uncertainty bounds {{lower}}–{{upper}} ({{version}}).": "WHO-Schätzung {{estimate}}; 95%-Unsicherheitsgrenzen {{lower}}–{{upper}} ({{version}})."
 }

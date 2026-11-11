@@ -16,6 +16,8 @@ interface Budget {
 // Workers send from one IP shared with every other Worker (NTO-89), so these
 // budgets leave room for traffic that is not ours.
 const budgets = {
+  // No request quota is documented for public xMart. This is our budget, not a WHO limit.
+  WHO: { windows: [{ count: 10, period: minute }], cooldown: minute },
   ILOSTAT: { windows: [{ count: 10, period: minute }], cooldown: minute },
   // Melodi documents 30 anonymous requests/minute. Leave headroom.
   INSEE: { windows: [{ count: 25, period: minute }], cooldown: minute },
@@ -118,6 +120,7 @@ const SlotJson = Schema.fromJsonString(Slot)
 
 // The hosts each adapter asks, so one HttpClient paces them all.
 export const hosts = new Map<string, Source>([
+  ["xmart-api-public.who.int", "WHO"],
   ["bulks-faostat.fao.org", "FAOSTAT"],
   ["api.insee.fr", "INSEE"],
   ["rplumber.ilo.org", "ILOSTAT"],

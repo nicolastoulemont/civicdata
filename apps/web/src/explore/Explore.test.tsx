@@ -1145,6 +1145,68 @@ describe("Explore", () => {
     expect(evidence.getByText("Estimate 0.865; 68% HPD interval 0.828–0.914 (V16)")).toBeDefined()
   })
 
+  it("shows the published estimate, interval and attribution after restoring a WHO chart", async () => {
+    const saved = Trend.make({
+      indicator: IndicatorId.make("WHO:WHOSIS_000001"),
+      countries: ["FRA"],
+      from: Year.make(2025),
+      to: Year.make(2025),
+    })
+
+    network.use(
+      http.post("/api/views/resolve", async ({ request }) => {
+        const view = Schema.decodeUnknownSync(Trend)(await request.json())
+
+        return HttpResponse.json(
+          Schema.encodeSync(ResolvedViewSchema)({
+            ...resolvedFor(view),
+            observations: [
+              { country: "FRA", year: Year.make(2025), value: 81.9, flags: ["Estimated"] },
+            ],
+            sources: [
+              {
+                ...source(view.indicator),
+                source: "WHO",
+                dataset:
+                  "World Health Organization; Global Health Estimates; CC BY 4.0 with WHO additional terms",
+                url: "https://xmart-api-public.who.int/DATA_/RELAY_MAY2023",
+              },
+            ],
+            qualifications: [
+              {
+                source: "WHO",
+                series: { indicator: view.indicator, dimensions: {} },
+                country: "FRA",
+                year: Year.make(2025),
+                missing: false,
+                notes: [],
+                level: 0.95,
+                method: "MonteCarloQuantiles",
+                methodUrl:
+                  "https://cdn.who.int/media/docs/default-source/gho-documents/global-health-estimates/ghe2023_lifetable_methods.pdf?sfvrsn=d5132ed3_2",
+                version: "WHO-row.1",
+                estimate: 81.9,
+                lower: 81.7,
+                upper: 82.1,
+              },
+            ],
+          }),
+        )
+      }),
+    )
+    show(saved)
+    const warnings = within(await screen.findByRole("list", { name: "Flagged values" }))
+    expect(
+      warnings.getByText("WHO estimate 81.9; 95% uncertainty bounds 81.7–82.1 (WHO-row.1)."),
+    ).toBeDefined()
+    expect(screen.getAllByText(/World Health Organization.*CC BY 4.0/).length).toBeGreaterThan(0)
+    await userEvent.setup().click(screen.getByRole("tab", { name: "Data" }))
+    const evidence = within(await screen.findByRole("list", { name: "Flagged values" }))
+    expect(
+      evidence.getByText("WHO estimate 81.9; 95% uncertainty bounds 81.7–82.1 (WHO-row.1)."),
+    ).toBeDefined()
+  })
+
   it("lists the values a source flags under the chart and in the data table", async () => {
     network.use(
       http.post("/api/views/resolve", async ({ request }) => {
