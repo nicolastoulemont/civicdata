@@ -39,6 +39,7 @@ import { titles } from "../src/titles.gen.ts"
 import { Vdem } from "../src/Vdem.ts"
 import { Verification } from "../src/Verification.ts"
 import { Who } from "../src/Who.ts"
+import { Wid } from "../src/Wid.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 import { build, catalogOver, entry, listings, stored } from "./catalog.ts"
 import { chose, decisions } from "./decisions.ts"
@@ -245,6 +246,7 @@ const serve = (
       Layer.provide(Insee.layer.pipe(Layer.provide(offline))),
       Layer.provide(Ilostat.layer.pipe(Layer.provide(offline))),
       Layer.provide(Vdem.layer),
+      Layer.provide(Wid.layer),
       Layer.provide(Who.layer.pipe(Layer.provide(offline))),
       Layer.provide(Faostat.layer.pipe(Layer.provide(offline))),
       Layer.provide(source),

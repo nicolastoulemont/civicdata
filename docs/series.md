@@ -27,7 +27,7 @@ World Bank uses its existing indicator string as the asset ID. A future V-Dem re
 
 Entries strictly increase by indicator ID using plain string comparison. Each entry belongs to the current source and published catalog, and has at least one series. Each inner stream is consumed completely before the next entry is pulled. Its series strictly increase by `codesOf(dimensions)` with no duplicate key, match the entry and wanted version, and decode as `Stored`. Empty assets, empty entry streams, malformed candidates, wrong versions, foreign entries and out-of-order output fail the asset. The store retains its hashing and hold-back rules.
 
-Each candidate is a complete replacement for its series' country-year observations, not a patch of selected countries or years. WID's country files therefore cannot feed the store directly as independent replacements for one cross-country series: the hold-back rule would treat the other countries as lost. Before that integration, partitioned ingestion must assemble complete series while retaining each input's version and retrieval provenance. Asset download checkpoints and coherent publication of assembled series remain separate requirements; this PR does not implement that assembly.
+Each candidate is a complete replacement for its series' country-year observations, not a patch of selected countries or years. WID's country files therefore cannot feed the store directly as independent replacements for one cross-country series: the hold-back rule would treat the other countries as lost. The WID integration below assembles complete series while retaining each input's version and retrieval provenance. Input download checkpoints and coherent publication remain separate boundaries.
 
 Producers must use backpressure and bounded chunks. They may share one file cursor between the outer and inner streams, since the consumer does not pull them concurrently. A source whose file interleaves entries must sort on disk in a local runner before streaming, rather than collect the archive or an entry in Worker memory. The store holds one existing pack and one pack under construction, plus pack manifests; one complete series' observations and manifest size remain memory limits. This contract does not make arbitrary archives safe to parse inside Workers.
 
@@ -160,10 +160,8 @@ For V-Dem, register a stored-only adapter whose release metadata declares the
 full indicator/dimension membership and chronological release order, and whose
 asset streams yield complete series with that version and real retrieval times.
 Catalog discovery stays separate. This foundation supplies no downloader or
-local bucket/database transport. WID country files still need explicit assembly
-into whole country-year series and per-input provenance before ingestion. This
-PR does not solve WID assembly or forecast, uncertainty and quality semantics,
-and adds none of the seven planned source adapters or changes to their terms.
+local bucket/database transport. The WID section below extends that foundation
+with country-file assembly and per-input provenance. Forecasts remain separate.
 
 ## INSEE API reads
 
@@ -280,3 +278,22 @@ cache/widen path; it has no bulk capability or manual fill. Raw publisher notes,
 missing records, per-row versions and 95% uncertainty bounds survive resolver
 and chart output. [Evidence, terms and limits](research/who/README.md) document
 the bounded scope. NTO-219 and wider WHO coverage remain unfinished.
+
+## WID country-file assembly
+
+`Inputs.collect` persists bounded normalized fragments in D1, each keyed by
+publisher, input and independently verified version. It uses the shared asset
+ledger and backoff, and marks completion only after persistence. Persisted work
+survives sibling, assembly and activation failures; full source archives are not
+retained. WID assembles exactly both countries into each complete percentile
+series before Store writes. `Bulk.verify`, when supplied, rechecks mutable inputs
+immediately before conditional activation. Shared release membership, hold-back,
+immutable staging and pinned reads still own publication.
+
+Optional typed `inputs` travel through packs, hashes, stored reads, resolver/tools
+and common chart/share/embed attribution. Each names its own URL, retrieval time,
+ETag, Last-Modified, version and full-response SHA-256. Existing inputs-free data
+keep their deployed hashes. WID's source-specific qualifications preserve yearly
+quality, missing values and full country source/method notes. No quality grade is
+an uncertainty interval. [Operational details and snapshot limits](research/wid/README.md)
+explain the bounded manual command and non-atomic publisher snapshots.

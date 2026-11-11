@@ -4,6 +4,7 @@ import {
   DimensionId,
   DimensionsMissing,
   Indicator,
+  Input,
   Qualification,
   Observation,
   type SeriesKey,
@@ -31,6 +32,7 @@ export const Described = Schema.Struct({
 export type Described = typeof Described.Type
 
 export const Series = Schema.Struct({
+  inputs: Schema.optionalKey(Schema.UndefinedOr(Schema.NonEmptyArray(Input))),
   version: Schema.optionalKey(Schema.NonEmptyString),
   observations: Schema.Array(Observation),
   qualifications: Schema.optionalKey(Schema.Array(Qualification)),

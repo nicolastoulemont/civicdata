@@ -21,6 +21,7 @@ import { Store } from "../src/Store.ts"
 import { summarize } from "../src/Summary.ts"
 import { Vdem } from "../src/Vdem.ts"
 import { Who } from "../src/Who.ts"
+import { Wid } from "../src/Wid.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 import { http } from "./fakes.ts"
 import { seriesDb, bucket } from "./series.ts"
@@ -37,6 +38,7 @@ it.effect("registers FAOSTAT in the real all-publisher registry", () =>
           Layer.provide(
             Layer.mergeAll(
               Vdem.layer,
+              Wid.layer,
               Who.layer,
               WorldBank.layer,
               Sdmx.layer,

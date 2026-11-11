@@ -9,6 +9,7 @@ import {
   Dimensions,
   Indicator,
   type IndicatorId,
+  Input,
   Qualification,
   Observation,
   type SeriesKey,
@@ -62,6 +63,7 @@ export const Stored = Schema.Struct({
   dimensions: Dimensions,
   version: Schema.NonEmptyString,
   observations: Schema.Array(Observation),
+  inputs: Schema.optionalKey(Schema.UndefinedOr(Schema.NonEmptyArray(Input))),
   qualifications: Schema.optionalKey(Schema.Array(Qualification)),
 }).check(Schema.makeFilter(coherent))
 
@@ -86,6 +88,7 @@ const Part = Schema.Struct({
   version: Schema.NonEmptyString,
   retrievedAt: Schema.DateTimeUtc,
   observations: Schema.Array(Observation),
+  inputs: Schema.optionalKey(Schema.UndefinedOr(Schema.NonEmptyArray(Input))),
   qualifications: Schema.optionalKey(Schema.Array(Qualification)),
 }).check(Schema.makeFilter(coherent))
 
@@ -696,9 +699,16 @@ export class Store extends Context.Service<Store, Interface>()("@openfacts/serve
           retrievedAt,
           observations,
           qualifications,
+          inputs: offered.inputs,
         }
 
-        const hash = yield* hashOf(observations, qualifications)
+        const valuesHash = yield* hashOf(observations, qualifications)
+
+        const hash =
+          offered.inputs === undefined
+            ? valuesHash
+            : yield* fingerprint(JSON.stringify([valuesHash, offered.inputs]))
+
         const kept = Option.map(stored, (element) => JSON.stringify(element))
 
         if (Option.isSome(kept) && Option.exists(stored, ([, held]) => held === hash)) {
@@ -723,6 +733,7 @@ export class Store extends Context.Service<Store, Interface>()("@openfacts/serve
           retrievedAt,
           observations,
           qualifications,
+          inputs: offered.inputs,
         }).pipe(Effect.orDie)
 
         yield* add(codes, JSON.stringify([codes, hash, part]))

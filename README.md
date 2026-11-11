@@ -148,3 +148,11 @@ Catalog tests check message coverage and interpolation placeholders for every lo
 ILOSTAT: the reviewed annual senior and middle management table uses explicit
 survey/source choices and stored-only reads. Publisher warnings also survive
 missing numbers. See [the scope and manual first-fill runbook](docs/research/ilostat/README.md#implemented-first-slice).
+
+WID's first stored-only slice covers pre-tax national-income shares for France
+and Sweden, 1991–2024, with explicit percentile, age, equal-split population and
+fraction units. Its manual `pnpm --filter @openfacts/server wid` command stages
+reusable country inputs before complete-series release activation. Every input's
+provenance and publisher quality notes remain attached. See
+[WID evidence and operations](docs/research/wid/README.md). The project uses WID
+on the owner's confirmed noncommercial, open-source basis; no first fill ran.

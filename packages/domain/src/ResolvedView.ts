@@ -188,7 +188,24 @@ const WhoQualification = Schema.Struct({
     ),
   )
 
+const WidQualification = Schema.Struct({
+  source: Schema.Literal("WID"),
+  series: SeriesKey,
+  ...place,
+  status: Schema.optionalKey(
+    Schema.Struct({ code: Schema.NonEmptyString, label: Schema.NonEmptyString }),
+  ),
+  notes: Schema.Array(
+    Schema.Struct({
+      category: Schema.Literals(["Source", "Method", "Quality"]),
+      code: Schema.NonEmptyString,
+      label: Schema.NonEmptyString,
+    }),
+  ),
+}).check(Schema.makeFilter((item) => item.series.indicator === "WID:sptinc992j"))
+
 export const Qualification = Schema.Union([
+  WidQualification,
   IloQualification,
   FaoQualification,
   VdemQualification,
@@ -204,7 +221,19 @@ export type Break = typeof Break.Type
 
 // One series fetched to draw the chart, shown next to it. A transformed chart
 // lists every series it was computed from, e.g. GDP and population.
+export const Input = Schema.Struct({
+  url: Schema.NonEmptyString,
+  retrievedAt: Schema.DateTimeUtc,
+  version: Schema.NonEmptyString,
+  etag: Schema.NonEmptyString,
+  lastModified: Schema.NonEmptyString,
+  sha256: Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/)),
+})
+
+export interface Input extends Schema.Schema.Type<typeof Input> {}
+
 const Provenance = Schema.Struct({
+  inputs: Schema.optionalKey(Schema.UndefinedOr(Schema.NonEmptyArray(Input))),
   indicator: IndicatorId,
   name: Schema.NonEmptyString,
   source: Source,
