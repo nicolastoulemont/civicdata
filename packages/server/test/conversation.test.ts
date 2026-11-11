@@ -60,6 +60,7 @@ import {
   Thinking,
   Thought,
   TooManyQuestions,
+  VerificationRequired,
   Trend,
   TurnIndex,
   TurnNotFound,
@@ -85,6 +86,7 @@ import {
   Layer,
   Match,
   Option,
+  Redacted,
   Schema,
   Stream,
   Struct,
@@ -114,8 +116,9 @@ import { Resolver } from "../src/Resolver.ts"
 import { Sdmx } from "../src/Sdmx.ts"
 import { Sources } from "../src/Sources.ts"
 import { keep, type Storage, Transcript } from "../src/Transcript.ts"
+import { Verification } from "../src/Verification.ts"
 import { WorldBank } from "../src/WorldBank.ts"
-import { http, memory, memoryStorage, recording, offline } from "./fakes.ts"
+import { http, memory, memoryStorage, offline, recording } from "./fakes.ts"
 import participationFlow from "./fixtures/eurostat/participation-flow.json"
 import participationOptions from "./fixtures/eurostat/participation-options.csv?raw"
 import participation from "./fixtures/eurostat/participation.csv?raw"
@@ -426,6 +429,7 @@ const recordedNotes = Notes.layer.pipe(
 
 interface ServeOptions {
   readonly limit?: Layer.Layer<AskLimit>
+  readonly verification?: Layer.Layer<Verification>
   // The sources, when a test needs one to fail.
   readonly worldBank?: Layer.Layer<WorldBank>
   readonly sdmx?: Layer.Layer<Sdmx>
@@ -465,6 +469,7 @@ const serveApi = (
   model: Layer.Layer<LanguageModel.LanguageModel>,
   {
     limit = AskLimit.none,
+    verification = Verification.none,
     storage,
     insee = Insee.layer.pipe(Layer.provide(offline)),
     worldBank = recordedWorldBank,
@@ -505,6 +510,7 @@ const serveApi = (
       return Effect.succeed(
         Layer.mergeAll(
           Handlers.pipe(
+            Layer.provide(verification),
             Layer.provide(
               Conversations.local(() => (request) => conversation.fetch(placed(request, country))),
             ),
@@ -706,6 +712,40 @@ const log = (steps: ReadonlyArray<Step>) =>
   steps.reduce(put<Step>, []).filter((step) => !isThinking(step) && !isRendered(step))
 
 describe("conversations", () => {
+  it.effect("rejects an unchecked question before opening a conversation", () =>
+    Effect.gen(function* () {
+      expect(yield* ask("Life expectancy in Brazil").pipe(Effect.flip)).toBeInstanceOf(
+        VerificationRequired,
+      )
+      expect(yield* turns.pipe(Effect.flip)).toBeInstanceOf(ConversationNotFound)
+    }).pipe(
+      Effect.provide(
+        serveApi(scripted([]).layer, {
+          verification: Verification.layer(Redacted.make("test-secret")).pipe(
+            Layer.provide(offline),
+          ),
+        }),
+      ),
+    ),
+  )
+
+  it.effect("rejects an unchecked chart explanation", () =>
+    Effect.gen(function* () {
+      const api = yield* HttpApiTest.groups(Api, ["views"])
+      expect(yield* api.views.explain({ payload: brazilTrend }).pipe(Effect.flip)).toBeInstanceOf(
+        VerificationRequired,
+      )
+    }).pipe(
+      Effect.provide(
+        serveApi(scripted([]).layer, {
+          verification: Verification.layer(Redacted.make("test-secret")).pipe(
+            Layer.provide(offline),
+          ),
+        }),
+      ),
+    ),
+  )
+
   it.effect("streams the steps of an answer and keeps the question with its chart", () => {
     const model = scripted([
       Effect.succeed(call("search_indicators", { text: "life expectancy", source: null })),

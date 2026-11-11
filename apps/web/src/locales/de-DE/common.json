@@ -6,5 +6,9 @@
   "loading": "Wird geladen",
   "conversations": "Unterhaltungen",
   "conversationDescription": "Die in diesem Browser begonnenen Unterhaltungen.",
-  "siteDescription": "Fakten finden und verstehen, ohne Meinungen: amtliche Zahlen mit ihren Quellen und der Stand der Forschung zu einem Thema."
+  "siteDescription": "Fakten finden und verstehen, ohne Meinungen: amtliche Zahlen mit ihren Quellen und der Stand der Forschung zu einem Thema.",
+  "verificationTitle": "Browser wird überprüft",
+  "verificationDescription": "Schließen Sie die Überprüfung ab, um Ihre Anfrage zu senden.",
+  "verificationFailed": "Die Browserüberprüfung ist fehlgeschlagen. Versuchen Sie es erneut.",
+  "tryAgain": "Erneut versuchen"
 }

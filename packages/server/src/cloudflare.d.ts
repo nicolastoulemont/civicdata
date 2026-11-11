@@ -53,6 +53,7 @@ declare module "cloudflare:workers" {
     // disk, through vitest.eval.config.ts. Only the eval has it.
     readonly RUNS?: { readonly fetch: (request: Request) => Promise<Response> }
     readonly OPENAI_API_KEY?: string
+    readonly TURNSTILE_SECRET_KEY?: string
     // "on" where the catalog Workflow classifies directions, production
     // only; "off" elsewhere (packages/infra/alchemy.run.ts).
     readonly CLASSIFY_DIRECTIONS?: string

@@ -21,6 +21,17 @@ export default Alchemy.Stack(
 
     const domain = hostname(stage)
 
+    const verification = yield* Option.match(Option.fromUndefinedOr(domain), {
+      onNone: () => Effect.succeedNone,
+      onSome: () =>
+        Effect.gen(function* () {
+          return Option.some({
+            sitekey: yield* Config.String("TURNSTILE_SITE_KEY"),
+            secret: yield* Config.Redacted("TURNSTILE_SECRET_KEY"),
+          })
+        }),
+    })
+
     // A pull request's preview reads production's catalog (its D1 tables and
     // vector index) and stored series, so it answers searches and draws
     // stored charts on its first request with no build of its own. A pull
@@ -199,6 +210,13 @@ export default Alchemy.Stack(
           simple: { limit: 30, period: 60 },
         }),
         STAGE: stage,
+        ...Option.match(verification, {
+          onNone: () => ({}),
+          onSome: ({ sitekey, secret }) => ({
+            VITE_TURNSTILE_SITE_KEY: sitekey,
+            TURNSTILE_SECRET_KEY: secret,
+          }),
+        }),
         ...Option.match(version, {
           onNone: () => ({}),
           onSome: (sha) => ({ VERSION: sha }),

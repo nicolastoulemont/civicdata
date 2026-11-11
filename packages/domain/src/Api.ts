@@ -32,6 +32,7 @@ import {
 import { IndicatorId, IndicatorNotes } from "./Indicator.ts"
 import { Politics as PoliticalRecords, PoliticsQuery } from "./Politics.ts"
 import { ResolvedView } from "./ResolvedView.ts"
+import { VerificationRequired, VerificationUnavailable } from "./Verification.ts"
 import { View } from "./View.ts"
 
 class System extends HttpApiGroup.make("system", { topLevel: true }).add(
@@ -56,6 +57,8 @@ class Views extends HttpApiGroup.make("views")
       error: [
         AgentUnavailable,
         TooManyQuestions,
+        VerificationRequired,
+        VerificationUnavailable,
         IndicatorNotFound,
         SourceUnavailable,
         TransformNotApplicable,
@@ -134,7 +137,13 @@ class Conversation extends HttpApiGroup.make("conversation")
       params: { id: ConversationId },
       payload: Schema.Struct({ question: Question }),
       success: Steps,
-      error: [AgentUnavailable, TooManyQuestions, ConversationBusy],
+      error: [
+        AgentUnavailable,
+        TooManyQuestions,
+        ConversationBusy,
+        VerificationRequired,
+        VerificationUnavailable,
+      ],
     }),
   )
   .add(

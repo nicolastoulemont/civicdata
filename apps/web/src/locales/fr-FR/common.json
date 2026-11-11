@@ -6,5 +6,9 @@
   "loading": "Chargement",
   "conversations": "Conversations",
   "conversationDescription": "Les conversations démarrées dans ce navigateur.",
-  "siteDescription": "Trouvez et comprenez les faits, sans les opinions : les chiffres officiels avec leurs sources, et l’état de la recherche sur un sujet."
+  "siteDescription": "Trouvez et comprenez les faits, sans les opinions : les chiffres officiels avec leurs sources, et l’état de la recherche sur un sujet.",
+  "verificationTitle": "Vérification de votre navigateur",
+  "verificationDescription": "Veuillez terminer la vérification pour envoyer votre demande.",
+  "verificationFailed": "La vérification du navigateur a échoué. Réessayez.",
+  "tryAgain": "Réessayer"
 }
