@@ -14,32 +14,33 @@ import {
   Effect,
   Layer,
   Option,
+  Result,
   Schema,
   Stream,
 } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
-import { Policy } from "./Adapter.ts"
+import { Policy, Versions } from "./Adapter.ts"
 import { tables } from "./Catalog.ts"
 import { database, Step } from "./CatalogBuild.ts"
+import { ledger } from "./GatherLedger.ts"
 import { Pace } from "./Pace.ts"
 import { Sdmx } from "./Sdmx.ts"
 import { Sources } from "./Sources.ts"
-import { keyOf, layout, Outcome, type Place, type Stored, Store } from "./Store.ts"
+import { keyOf, Outcome, type Place, type Stored, Store } from "./Store.ts"
 import { WorldBank } from "./WorldBank.ts"
 
 // Catalog entries per step. The World Bank's bulk download of one is a ZIP
-// of about 50 KB, served in a tenth of a second, so 50 asked two at a time
-// take the half minute the 120-a-minute budget allows.
+// of about 50 KB, served in a tenth of a second. Pace keeps requests within
+// the source's budget.
 const perStep = 50
 
-const together = 2
-
 // What a step saves: the last entry it gathered, null once the catalog is
-// done, and how many series were stored, unchanged (the stored series
+// done, and how many entries were stored, unchanged (the stored series
 // already holds the same values), held back, or failed (the source or the
 // store did not answer; a failed entry counts once).
-type Gathered = {
+type Batch = {
+  readonly streak: number
   readonly after: string | null
   readonly stored: number
   readonly unchanged: number
@@ -56,34 +57,20 @@ interface Mirror {
 interface Interface {
   // The sources the gather stores, in the order a run gathers them.
   readonly mirrors: ReadonlyArray<Mirror>
-  // The source's release to gather, or null when the last complete run
-  // gathered it. It fails while the catalog has no entries of the source,
-  // since a run gathers what the catalog lists: recording the release then
-  // would store nothing until the next one.
   readonly check: (
     mirror: Mirror,
-  ) => Effect.Effect<string | null, SourceUnavailable | CatalogUnavailable>
-  // Gathers the series of the source's catalog entries after `after`, in
-  // code order, and answers what it did.
+  ) => Effect.Effect<Versions, SourceUnavailable | CatalogUnavailable>
   readonly gather: (
     mirror: Mirror,
-    options: { version: string; after: string },
-  ) => Effect.Effect<Gathered>
-  // Records the release as gathered, so the next run with the same one stops
-  // after its check.
-  readonly finish: (mirror: Mirror, version: string) => Effect.Effect<void>
+    options: { versions: Versions; after: string; streak: number },
+  ) => Effect.Effect<Batch>
 }
 
-// A run that could not gather some series: the release is not recorded, so
-// the next run asks for every indicator again.
+// Five consecutive entry failures stop a source while keeping its ledger.
 export class GatherFailed extends Schema.TaggedError<
   GatherFailed,
   { readonly brand: unique symbol }
 >()("GatherFailed", { source: Schema.String, failed: Schema.Int }) {}
-
-// A source's scope in series_version, under the store's layout, such as
-// "series/v2/World Bank": a store in a new layout gathers every release again.
-const scopeOf = (source: Source) => `${layout}/${source}`
 
 const PlacesJson = Schema.fromJsonString(
   Schema.Array(Schema.Struct({ country: Schema.String, year: Schema.Int })),
@@ -108,15 +95,8 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
       // made them.
       yield* tables
 
-      // The release each scope was last gathered from in full into the
-      // store's layout: a source with one release for all its data (the
-      // World Bank), or one dataset.
-      yield* sql`
-        CREATE TABLE IF NOT EXISTS series_version (
-          scope TEXT PRIMARY KEY,
-          version TEXT NOT NULL
-        )
-      `
+      const records = yield* ledger
+
       // The candidates held back, one per series: the latest, why, and the
       // country-years it lost. A series' row goes once a candidate replaces
       // it or matches it again.
@@ -130,30 +110,18 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
         )
       `
 
-      const gathered = SqlSchema.findOneOption({
-        Request: Schema.String,
-        Result: Schema.Struct({ version: Schema.String }),
-        execute: (scope) => sql`SELECT version FROM series_version WHERE scope = ${scope}`,
-      })
-
-      // The catalog's published entries of a source after `after`, in code
-      // order. The catalog is an FTS5 table, so the order is a sort of the
-      // source's rows: for the World Bank's 1,500, cheap next to one request.
       const listed = SqlSchema.findAll({
-        Request: Schema.Struct({ source: Source, after: Schema.String }),
+        Request: Source,
         Result: Schema.Struct({
           indicator: IndicatorId,
           name: Schema.NonEmptyString,
           definition: Schema.String,
         }),
-        execute: ({ source, after }) => sql`
+        execute: (source) => sql`
           SELECT catalog.indicator, catalog.name, catalog.definition FROM catalog
           JOIN catalog_current AS current
             ON current.source = catalog.source AND current.generation = catalog.generation
-          WHERE catalog.source = ${source} AND catalog.indicator > ${after}
-          ORDER BY catalog.indicator
-          LIMIT ${perStep}
-        `,
+          WHERE catalog.source = ${source} ORDER BY catalog.indicator`,
       })
 
       const published = SqlSchema.findOneOption({
@@ -235,60 +203,78 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
 
       const check = Effect.fn("Gather.check")(
         function* ({ source, policy }: Mirror) {
-          const last = yield* gathered(scopeOf(source))
-          const version = yield* policy.changed(Option.map(last, (found) => found.version))
-
-          if (Option.isNone(version)) return null
-
           if (Option.isNone(yield* published(source))) return yield* new CatalogUnavailable()
 
-          return version.value
+          const versions = yield* policy.changed(yield* listed(source))
+
+          const counts = yield* records.summary({
+            source,
+            versions,
+            now: DateTime.formatIso(yield* DateTime.now),
+          })
+
+          yield* Effect.logInfo(`Checked ${source}`, counts)
+
+          return versions
         },
-        Effect.catchTags({ SqlError: Effect.die, SchemaError: Effect.die }),
+        Effect.catchTags({
+          SqlError: Effect.die,
+          SchemaError: Effect.die,
+          NoSuchElementError: Effect.die,
+        }),
       )
 
       const gather = Effect.fn("Gather.gather")(
-        function* (mirror: Mirror, { version, after }: { version: string; after: string }) {
-          const entries = yield* listed({ source: mirror.source, after })
+        function* (
+          mirror: Mirror,
+          { versions, after, streak }: { versions: Versions; after: string; streak: number },
+        ) {
+          const entries = yield* records.work({
+            source: mirror.source,
+            versions,
+            after,
+            now: DateTime.formatIso(yield* DateTime.now),
+          })
 
-          const results = yield* Effect.forEach(
-            entries,
-            (entry) =>
-              one(mirror, { entry, version }).pipe(
-                Effect.map((counts) => ({ ...counts, failed: 0 })),
-                Effect.tapError((error) =>
-                  Effect.logWarning("Could not gather", entry.indicator, error),
-                ),
-                Effect.orElseSucceed(() => ({ stored: 0, unchanged: 0, held: 0, failed: 1 })),
-              ),
-            { concurrency: together },
-          )
+          const totals = { stored: 0, unchanged: 0, held: 0, failed: 0 }
+          let consecutive = streak
+          let cursor: string | null = null
 
-          const count = (outcome: "stored" | "unchanged" | "held" | "failed") =>
-            results.reduce((total, counts) => total + counts[outcome], 0)
+          // Sequential requests stop exactly at the fifth failure. A cursor
+          // prevents an isolated failure from reappearing in this run.
+          for (const { version, state, ...entry } of entries) {
+            const result = yield* one(mirror, { entry, version }).pipe(Effect.result)
+
+            if (Result.isSuccess(result)) {
+              yield* records.stored(entry.indicator, { source: mirror.source, version })
+
+              if (result.success.held > 0) totals.held += 1
+              else if (result.success.stored > 0) totals.stored += 1
+              else totals.unchanged += 1
+              consecutive = 0
+            } else {
+              yield* records.failed(entry.indicator, {
+                source: mirror.source,
+                version,
+                previous: state,
+                reason: String(result.failure),
+              })
+              totals.failed += 1
+              consecutive += 1
+            }
+
+            cursor = entry.indicator
+
+            if (consecutive === 5) break
+          }
 
           return {
-            after:
-              Arr.isArrayNonEmpty(entries) && entries.length === perStep
-                ? Arr.lastNonEmpty(entries).indicator
-                : null,
-            stored: count("stored"),
-            unchanged: count("unchanged"),
-            held: count("held"),
-            failed: count("failed"),
-          } satisfies Gathered
+            ...totals,
+            streak: consecutive,
+            after: entries.length === perStep || consecutive === 5 ? cursor : null,
+          } satisfies Batch
         },
         Effect.catchTags({ SqlError: Effect.die, SchemaError: Effect.die }),
-      )
-
-      const finish = Effect.fn("Gather.finish")(
-        function* ({ source }: Mirror, version: string) {
-          yield* sql`
-            INSERT INTO series_version (scope, version) VALUES (${scopeOf(source)}, ${version})
-            ON CONFLICT (scope) DO UPDATE SET version = excluded.version
-          `
-        },
-        Effect.catchTag("SqlError", Effect.die),
       )
 
       const mirrors = Source.literals.flatMap((source): ReadonlyArray<Mirror> => {
@@ -297,7 +283,7 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
         return Policy.$is("Full")(policy) ? [{ source, policy }] : []
       })
 
-      return Gather.of({ mirrors, check, gather, finish })
+      return Gather.of({ mirrors, check, gather })
     }).pipe(Effect.orDie),
   )
 
@@ -311,11 +297,7 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
     Layer.provide(Layer.merge(WorldBank.layer, Sdmx.layer).pipe(Layer.provide(Pace.gathering))),
   )
 
-  // Gathers each mirrored source in turn: checks its release, then gathers
-  // its catalog entries 50 a step, each step resuming after the last entry
-  // the previous one gathered, and records the release once every series is
-  // gathered or held back. A run that resumes after a failure replays the
-  // steps that completed. A source with series that failed fails the run.
+  // Workflow steps save cursors and failure streaks; the ledger survives runs.
   static readonly run = Effect.fn("Gather.run")(function* () {
     const gather = yield* Gather
 
@@ -328,17 +310,23 @@ const mirrorOne = Effect.fn("Gather.mirror")(function* (mirror: Mirror) {
   const gather = yield* Gather
   const { source } = mirror
 
-  const version = yield* step.run(`check ${source}`, gather.check(mirror))
+  const saved = yield* step.run(
+    `check ${source}`,
+    gather.check(mirror).pipe(Effect.flatMap(Schema.encodeEffect(Schema.fromJsonString(Versions)))),
+  )
 
-  if (version === null) return yield* Effect.logInfo(`No new ${source} release`)
+  const versions = yield* Schema.decodeEffect(Schema.fromJsonString(Versions))(saved).pipe(
+    Effect.orDie,
+  )
 
   const totals = { stored: 0, unchanged: 0, held: 0, failed: 0 }
   let after: string | null = ""
+  let streak = 0
 
   while (after !== null) {
-    const batch: Gathered = yield* step.run(
-      `gather ${source} ${version} after ${after}`,
-      gather.gather(mirror, { version, after }),
+    const batch: Batch = yield* step.run(
+      `gather ${source} after ${after}`,
+      gather.gather(mirror, { versions, after, streak }),
     )
 
     totals.stored += batch.stored
@@ -346,11 +334,14 @@ const mirrorOne = Effect.fn("Gather.mirror")(function* (mirror: Mirror) {
     totals.held += batch.held
     totals.failed += batch.failed
     after = batch.after
+    streak = batch.streak
+
+    if (streak === 5) break
   }
 
-  yield* Effect.logInfo(`Gathered ${source}`, version, totals)
+  yield* Effect.logInfo(`Gathered ${source}`, totals)
 
-  if (totals.failed > 0) return yield* new GatherFailed({ source, failed: totals.failed })
+  if (streak === 5) return yield* new GatherFailed({ source, failed: totals.failed })
 
-  return yield* step.run(`finish ${source} ${version}`, gather.finish(mirror, version))
+  return undefined
 })

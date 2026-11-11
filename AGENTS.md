@@ -9,6 +9,8 @@ civicdata charts public data about countries from the World Bank, Eurostat and t
 - A finding holds our own wording and each study's bibliographic data, never a paper's text, and links each study to an open-access copy that someone read before adding it. Read `packages/server/src/research/README.md` before adding or editing a finding.
 - Source attribution stays visible on every chart, including shared and embedded ones: the World Bank, Eurostat and the OECD all require it.
 
+- A gather records what it stored per unit it fetched. A run asks only for units whose version differs. A failure never causes another unit to be fetched again.
+
 ## Effect
 
 - Before writing or reviewing Effect code, read `.agents/skills/effect/SKILL.md` and the references its branch chooser names. This file wins where they disagree.

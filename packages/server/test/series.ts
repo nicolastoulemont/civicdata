@@ -183,9 +183,18 @@ export const held = () =>
     Effect.map(({ results }) => results),
   )
 
-// The release the last complete run gathered.
+// A stored entry's release, or null when no entry was recorded yet.
 export const gathered = Effect.promise(() =>
   db
-    .prepare("SELECT version FROM series_version WHERE scope = 'series/v2/World Bank'")
-    .first("version"),
+    .prepare(
+      "SELECT json_extract(state, '$.version') FROM series_gathered WHERE json_extract(state, '$._tag') = 'Stored' LIMIT 1",
+    )
+    .first("json_extract(state, '$.version')"),
 )
+
+export const ledgerRows = () =>
+  db
+    .prepare("SELECT scope, indicator, state FROM series_gathered ORDER BY indicator")
+    .all<{ scope: string; indicator: string; state: string }>()
+
+export const seriesDb = db

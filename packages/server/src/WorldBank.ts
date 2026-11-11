@@ -6,17 +6,7 @@ import {
   SourceUnavailable,
   Year,
 } from "@civicdata/domain"
-import {
-  Context,
-  DateTime,
-  Duration,
-  Effect,
-  Layer,
-  Option,
-  Schedule,
-  Schema,
-  Stream,
-} from "effect"
+import { Context, DateTime, Duration, Effect, Layer, Schedule, Schema, Stream } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
 import { unzipSync } from "fflate"
 
@@ -218,12 +208,10 @@ const make = Effect.gen(function* () {
   // The day the World Development Indicators last changed, such as
   // "2026-10-08". The World Bank publishes one date for the whole dataset,
   // so every indicator changed or none did.
-  const changed = Effect.fn("WorldBank.changed")(function* (gathered: Option.Option<string>) {
+  const changed = Effect.fn("WorldBank.changed")(function* (entries: ReadonlyArray<CatalogEntry>) {
     const [, [source]] = yield* get(`${base}/sources/2?format=json`, VersionBody)
 
-    return Option.exists(gathered, (version) => version === source.lastupdated)
-      ? Option.none()
-      : Option.some(source.lastupdated)
+    return entries.map(({ indicator }) => ({ indicator, version: source.lastupdated }))
   })
 
   // An indicator is one series. One the World Bank no longer knows is an

@@ -1,25 +1,30 @@
-import type {
-  CatalogEntry,
-  DimensionsMissing,
+import {
+  type CatalogEntry,
+  type DimensionsMissing,
   IndicatorId,
-  IndicatorNotFound,
-  SourceUnavailable,
+  type IndicatorNotFound,
+  type SourceUnavailable,
 } from "@civicdata/domain"
-import { Data, type Effect, type Option, type Stream } from "effect"
+import { Data, type Effect, Schema, type Stream } from "effect"
 
 import type { Answer, Described, Query } from "./Series.ts"
 import type { Stored } from "./Store.ts"
+
+export const Versions = Schema.Array(
+  Schema.Struct({ indicator: IndicatorId, version: Schema.String }),
+)
+
+export type Versions = typeof Versions.Type
 
 // What we keep of a source's data.
 export type Policy = Data.TaggedEnum<{
   // The gather stores the series of every catalog entry the source lists,
   // and charts read them; a series not stored yet is asked of the source.
   Full: {
-    // The release to gather, or none when `gathered`, the release the last
-    // complete gather recorded, is still the source's latest.
+    // The current version of each requested catalog entry, in one source request.
     readonly changed: (
-      gathered: Option.Option<string>,
-    ) => Effect.Effect<Option.Option<string>, SourceUnavailable>
+      entries: ReadonlyArray<CatalogEntry>,
+    ) => Effect.Effect<Versions, SourceUnavailable>
     // The series of one catalog entry, in bulk, as candidates for the store,
     // dated with `release`: sorted by their dimensions' codes (`codesOf`),
     // each once, so the store packs them as they arrive and never holds the

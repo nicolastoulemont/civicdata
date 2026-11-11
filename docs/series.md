@@ -15,13 +15,13 @@ Each source implements one contract, `Adapter` in `packages/server/src/Adapter.t
 
 A `Full` policy carries the gather's part of the contract:
 
-| Member    | Answers                                                                                            |
-| --------- | -------------------------------------------------------------------------------------------------- |
-| `changed` | the release to gather, or none when the release the last complete run recorded is still the latest |
-| `gather`  | the series of one catalog entry, in bulk, as a stream of candidates for the store sorted by key    |
-| `url`     | the API request that answers a query with the values a stored series holds, which a chart links    |
+| Member    | Answers                                                                                         |
+| --------- | ----------------------------------------------------------------------------------------------- |
+| `changed` | the current version of every requested catalog entry in one request                             |
+| `gather`  | the series of one catalog entry, in bulk, as a stream of candidates for the store sorted by key |
+| `url`     | the API request that answers a query with the values a stored series holds, which a chart links |
 
-`None` means nothing is stored and every chart asks the source. The World Bank is `Full`. Eurostat and the OECD are `None`: they implement `list`, `describe` and `fetch` from their SDMX APIs (`Sdmx.ts`), and their `changed` and `gather` come when they are mirrored. The World Bank dates one release for every indicator, so its `changed` answers for all of them or none.
+`None` means nothing is stored and every chart asks the source. The World Bank is `Full`. Eurostat and the OECD are `None`: they implement `list`, `describe` and `fetch` from their SDMX APIs (`Sdmx.ts`), and their `changed` and `gather` come when they are mirrored. The World Bank dates one release for every indicator, so its `changed(entries)` answers an array of `{ indicator, version }` with that date for each entry. Other sources can answer a different version per entry.
 
 `gather` answers a stream, sorted by the series' codes (`codesOf` their dimensions, compared as plain strings) with each series once, so the store packs series as they arrive and never holds an entry: the OECD's largest answer is 10 GB of CSV, and a Worker has 128 MB. The source does the sorting; SDMX-CSV answers are not grouped by series, so a source that streams one sorts it first, on disk if it must. A store that receives a series out of order fails the write. The World Bank's stream is its indicator's one series.
 
@@ -33,11 +33,16 @@ Adding a source is one adapter and its entry in `Sources`; the type of `Sources`
 
 A run gathers each source whose policy is `Full`, one after the other; today that is the World Bank alone.
 
-1. It asks the source's `changed` what to gather. The World Bank answers when the World Development Indicators last changed (`/v2/sources/2`). When that date equals the one the last complete run recorded, the run stops there: one request, no writes.
-2. Otherwise it takes the source's entries in the published catalog, 50 a step in code order, and downloads each one's bulk file (`/v2/en/indicator/<indicator>?downloadformat=csv`), two at a time, through `Pace`. The file is a ZIP of about 50 KB whose CSV holds every economy and year since 1960, and the World Bank serves it in about a tenth of a second. The API's own query for every country and year answers about 3 MB and, for an indicator nobody asked for lately, takes from seconds to several minutes: in the first preview run 8% of those queries timed out. The CSV holds the same values as the API. The run keeps the 217 economies the app charts, so the World Bank's regions and income groups never reach the store; no chart showed them before either.
-3. It streams each answer into the store (below), then records the date once every indicator is stored, unchanged or held back. If an indicator failed, the date stays unrecorded and the run fails, so the next run asks for every indicator again; the ones that did not change write nothing.
+1. It asks the source's `changed(entries)` for each published catalog entry's current version. The World Bank answers when the World Development Indicators last changed (`/v2/sources/2`), in one request.
+2. SQL compares those versions with `series_gathered`, the per-entry ledger in `CATALOG_DB`. Only entries whose stored version differs enter the worklist. An unchanged run makes the versions request and no bulk requests.
+3. It takes up to 50 entries a step in code order and downloads each one's bulk file (`/v2/en/indicator/<indicator>?downloadformat=csv`) through `Pace`. Requests run one at a time so the source stops exactly at its failure limit. The CSV holds the same values as the API. The run keeps the 217 economies the app charts, leaving out regions and income groups.
+4. It streams each answer into the store, then records that entry's version immediately, including when values were unchanged or held back. An entry that fails keeps its previous stored version, wanted version, reason, failure count and attempt time. Other entries continue and their records stay saved.
 
-A step saves the last indicator it gathered and its counts. A run that stops part way resumes after the last step that completed. A run that finds no World Bank entries in the catalog fails its first step and retries for about half an hour, in case a catalog build is still publishing them.
+Five consecutive entry failures stop the source and fail the run. A success resets this streak, which steps pass along with their cursor. An isolated entry failure succeeds at the run level. If the versions request fails, the source's check fails through the Workflow step.
+
+After three failed attempts in separate runs, an entry backs off until seven days after its last attempt. A changed wanted version bypasses that wait. Success clears the entry's failure history. A step's cursor prevents an entry that failed from being picked again in the same pass. A stopped run, including one that lost a step's result after writing, never asks again for entries the ledger already records at the wanted version. A crash between an R2 write and its ledger write can repeat that entry's fetch; the ledger cannot record a success before the store commits it.
+
+The log counts stored, unchanged, held-back and failed entries, and reports unchanged versions and entries in backoff at the check. Each failure logs its indicator, reason and failure count. A catalog that has not published the source fails the first step and retries for about half an hour.
 
 ## The store
 
@@ -72,7 +77,26 @@ The hold-back rule applies per series, inside the pack. When a candidate's hash 
 
 A held-back series' row goes once a later answer replaces the stored series or matches it again. The World Bank answering that it no longer knows an indicator counts as an empty answer.
 
-D1's `series_version` holds the release each scope was last gathered from in full, under the store's layout: `series/v2/World Bank` for now, one row per Eurostat dataset later. A bump of the layout's version therefore gathers every series again on the next run, whether or not the source published a new release.
+D1's `series_gathered` has primary key `(scope, indicator)`, where scope is the store layout and source, for example `series/v2/World Bank`. Its `state` is Schema-decoded JSON, a tagged union:
+
+- `Stored`: `version` and `at` (UTC time).
+- `Failed`: `wanted`, `stored` (a version or null), `failures`, `reason` and `at` (the last attempt's UTC time).
+
+A new store layout has no ledger rows, so it gathers every entry again. Only Gather creates or changes this table. On its first build after the upgrade, it seeds every published entry covered by a legacy `series_version` row as `Stored` at that row's release, then drops `series_version`. The seed is idempotent and never overwrites a ledger decision. Legacy rows for an older layout do not seed the current layout. Entries with no legacy success row must be gathered once to establish their ledger records.
+
+List failures with one query against the stage's catalog database:
+
+```sql
+SELECT scope, indicator,
+  json_extract(state, '$.wanted') AS wanted,
+  json_extract(state, '$.stored') AS stored,
+  json_extract(state, '$.failures') AS failures,
+  json_extract(state, '$.reason') AS reason,
+  json_extract(state, '$.at') AS attempted_at
+FROM series_gathered
+WHERE json_extract(state, '$._tag') = 'Failed'
+ORDER BY scope, indicator;
+```
 
 ## Reading
 
@@ -82,4 +106,4 @@ One read path serves every source, `Sources.stored`. For a source whose policy i
 
 ## Start a run by hand
 
-Run the `Gather series` GitHub workflow with the stage, `prod` or `pr-<number>`, from the Actions tab or with `gh workflow run gather.yml -f stage=pr-123`. It refuses a pull request without the `own-catalog` label, whose preview reads production's store. It starts one instance of `civicdata-<stage>-gather`, the same as the schedule does. The Cloudflare dashboard (Workers & Pages, Workflows) starts one too. To gather again although the date has not moved, delete the `series/v2/World Bank` row of `series_version` first.
+Run the `Gather series` GitHub workflow with the stage, `prod` or `pr-<number>`, from the Actions tab or with `gh workflow run gather.yml -f stage=pr-123`. It refuses a pull request without the `own-catalog` label, whose preview reads production's store. It starts one instance of `civicdata-<stage>-gather`, the same as the schedule does. The Cloudflare dashboard (Workers & Pages, Workflows) starts one too. To gather again although the date has not moved, delete the relevant entries from `series_gathered` under scope `series/v2/World Bank` first.
