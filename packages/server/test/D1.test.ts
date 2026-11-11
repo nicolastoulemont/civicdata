@@ -18,14 +18,19 @@ it.effect("reads D1 rows and counts the API's usage", () => {
     const sql = yield* SqlClient.SqlClient
 
     expect(yield* sql`SELECT 7 AS value`).toEqual([{ value: 7 }])
-    expect(usage).toEqual({ read: 1, written: 0 })
+    expect(usage).toEqual({ read: 1, written: 0, size: 4096 })
   }).pipe(
     Effect.provide(
       layer.pipe(
         Layer.provide(
           http(() =>
             Response.json({
-              result: [{ results: [{ value: 7 }], meta: { rows_read: 1, rows_written: 0 } }],
+              result: [
+                {
+                  results: [{ value: 7 }],
+                  meta: { rows_read: 1, rows_written: 0, size_after: 4096 },
+                },
+              ],
             }),
           ),
         ),

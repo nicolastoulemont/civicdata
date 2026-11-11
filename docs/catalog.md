@@ -40,7 +40,7 @@ Both sources publish all of it in bulk. Measured on 2026-11-11:
 | OECD `codelist/all/all/latest`                                    | 33 MB                  | 848 codelists, 133,920 labels                                                   |
 | OECD `datastructure/all/all/latest?detail=full&references=none`   | 2 MB                   | each structure's dimensions and the codelist of each                            |
 
-The metabase names no frequency: a period of four digits is a year. A dataset has annual values when one of its periods is a year, and its years are those periods. An OECD dataflow has annual values when its frequency dimension lists `A`, or when it has no frequency dimension, as the data requests in `Sdmx` read it; its years are its constraint's time range. 32 OECD dataflows have no constraint, and 50 name a structure the file lacks. The first have no outline and the second no labels; both keep learning their dimensions from `find_years`' rejection.
+The metabase names no frequency: a period of four digits is a year. A dataset has annual values when one of its periods is a year, and its years are those periods. An OECD dataflow has annual values when its frequency dimension lists `A`, or when it has no frequency dimension, as the data requests in `Sdmx` read it; its years are its constraint's time range. The baseline listing had 32 OECD dataflows with no constraint; empty constraints also yield no outline, and 50 dataflows name a structure the file lacks. Several Actual constraints can name the same dataflow: their regions are combined before fingerprinting, so a weekly refresh writes one stable outline per dataflow. The first have no outline and the second no labels; both keep learning their dimensions from `find_years`' rejection.
 
 ### What a Worker can read
 
@@ -54,7 +54,7 @@ Decoded, the two codelist files outgrow a Worker's 128 MB: in separate Node proc
 STAGE=prod pnpm --filter @civicdata/server run outlines
 ```
 
-It writes to the database named `civicdata-Database-<STAGE>-*`, creates the catalog's tables if no build has, and logs what it wrote, the rows D1 counted, how long it took and the database's size before and after. It writes only what changed, so running it again is safe. Run the fill while no catalog build is active: the script does not take the Workflow lease. Then start a catalog build ([Rebuild by hand](#rebuild-by-hand)): it leaves the datasets no chart can show out of search and embeds the labels. The script and the Workflow share the parsing and writing code in `Outlines.ts` and `Structures.ts`; only where the labels come from differs.
+It writes to the database named `civicdata-Database-<STAGE>-*`, creates the catalog's tables if no build has, and logs what it wrote, the rows D1 counted, how long it took and the database's size before and after, from statement metadata rather than the database listing's stale size. It writes only what changed, so running it again is safe. Run the fill while no catalog build is active: the script does not take the Workflow lease. Then start a catalog build ([Rebuild by hand](#rebuild-by-hand)): it leaves the datasets no chart can show out of search and embeds the labels. The script and the Workflow share the parsing and writing code in `Outlines.ts` and `Structures.ts`; only where the labels come from differs.
 
 ### The weekly refresh
 
@@ -68,7 +68,15 @@ After the first fill, a build where nothing changed writes nothing to either tab
 
 ### What search and the agent read
 
-Search leaves out datasets with no annual values or none of our countries: no chart can show them. On 2026-11-11 that was 1,282 of Eurostat's 7,610 datasets and 250 of the OECD's 1,514 dataflows with a constraint. `search_indicators` returns each match's dimensions that take more than one code, with up to 8 codes and their labels, a total first, and how many more there are. It returns `null` for a dataset without an outline, and no dimensions for a World Bank indicator. The catalog stores every code; only the tool cuts the list.
+Search leaves out datasets with no annual values or none of our countries: no chart can show them. On 2026-11-11 that was 1,282 of Eurostat's 7,610 datasets and 244 of the OECD's 1,507 distinct dataflows with a usable constraint. `search_indicators` returns each match's dimensions that take more than one code, with up to 8 codes and their labels, a total first, and how many more there are. It returns `null` for a dataset without an outline, and no dimensions for a World Bank indicator. The catalog stores every code; only the tool cuts the list.
+
+### Preview measurement, 2026-11-11
+
+The first fill wrote to `pr-154` through D1's HTTP API, replaying the five complete files downloaded that day. No measurement wrote to production. The preview holds 7,610 Eurostat outlines, 1,507 distinct OECD outlines and 81,077 labels (39,410 Eurostat, 41,667 OECD). Its D1 size after filling was 33,415,168 bytes, from statement metadata.
+
+A transient HTTP 500 interrupted the first pass. The successful resumed pass took 3m 24.465s and D1 counted 167,772 writes; this excludes the failed pass's partial writes. Combining duplicate OECD constraints then changed six outlines and one embedded text in 28.643s. A subsequent full repeat took 31.069s, read 236,600 rows and wrote zero rows, with no change in size. Repeating the script after a failed pass resumes from the stored fingerprints.
+
+Labels are allocated to the codes used by searchable datasets; excluded outlines still keep all their dimension codes. A missing codelist or a code with no source label remains readable as its code. The bulk constraints describe dataset-wide coverage, not which country has which years for a chosen series.
 
 ## Political records
 

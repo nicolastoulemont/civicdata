@@ -16,6 +16,7 @@ import { join } from "node:path"
 
 import { Config, Duration, Effect, Layer, Redacted, Schema } from "effect"
 import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
+import { SqlClient } from "effect/sql"
 
 import { tables } from "../src/Catalog.ts"
 import { Outlines } from "../src/Outlines.ts"
@@ -33,9 +34,7 @@ const Profile = Schema.fromJsonString(
 )
 
 const Databases = Schema.Struct({
-  result: Schema.Array(
-    Schema.Struct({ uuid: Schema.String, name: Schema.String, file_size: Schema.Finite }),
-  ),
+  result: Schema.Array(Schema.Struct({ uuid: Schema.String, name: Schema.String })),
 })
 
 // Alchemy's login, read here and never printed.
@@ -57,7 +56,7 @@ const login = Effect.gen(function* () {
   return { account: values.accountId, token: Redacted.make(values.access) }
 })
 
-// The stage's database, and its size in bytes.
+// The stage's database. D1 statement metadata gives its current size.
 const find = Effect.fn("outlines.find")(function* ({
   account,
   token,
@@ -94,28 +93,32 @@ const program = Effect.gen(function* () {
   const { layer, usage } = d1({ account, database: before.uuid, token })
   const started = Date.now()
 
-  const filled = yield* Effect.gen(function* () {
+  const { filled, sizeBefore } = yield* Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient
+
+    yield* sql`SELECT 1`
+
+    const initialSize = usage.size
+
     yield* tables
 
     const eurostat = yield* fill("Eurostat")
     const oecd = yield* fill("OECD")
 
-    return { Eurostat: eurostat, OECD: oecd }
+    return { filled: { Eurostat: eurostat, OECD: oecd }, sizeBefore: initialSize }
   }).pipe(
     Effect.provide(
       Layer.mergeAll(Outlines.layer, Structures.layer).pipe(Layer.provideMerge(layer)),
     ),
   )
 
-  const after = yield* find({ account, token, stage })
-
   yield* Effect.logInfo("Filled", before.name, {
     ...filled,
     rowsRead: usage.read,
     rowsWritten: usage.written,
     took: Duration.format(Duration.millis(Date.now() - started)),
-    sizeBefore: before.file_size,
-    sizeAfter: after.file_size,
+    sizeBefore,
+    sizeAfter: usage.size,
   })
 })
 

@@ -260,6 +260,28 @@ const seriesDimensions = (
       : Option.toArray(dimension(id, listed.get(id) ?? null, codes)),
   )
 
+// Some dataflows have several Actual constraints. Combine their regions
+// before decoding the outline, so a dataflow has one stable fingerprint.
+const actualConstraints = (
+  constraints: (typeof Constraints.Type)["data"]["contentConstraints"],
+) => {
+  const flows = new Map<string, (typeof constraints)[number]>()
+
+  for (const constraint of constraints) {
+    if (constraint.type !== "Actual") continue
+
+    const flow = constraint.constraintAttachment.dataflows?.[0] ?? ""
+    const previous = flows.get(flow)
+
+    flows.set(flow, {
+      ...constraint,
+      cubeRegions: [...(previous?.cubeRegions ?? []), ...(constraint.cubeRegions ?? [])],
+    })
+  }
+
+  return [...flows.values()]
+}
+
 // The outline of each OECD dataflow with a constraint on the codes its data
 // takes, from the constraints and the structures, both decoded from JSON.
 // A dataflow's structure is the one its id names before "@", of its own
@@ -296,31 +318,33 @@ export const constraints = ({
     )
   }
 
-  return data.contentConstraints.flatMap((constraint): ReadonlyArray<Outline> => {
-    const flow = urn(constraint.constraintAttachment.dataflows?.[0] ?? "")
-    const regions = constraint.cubeRegions ?? []
+  return actualConstraints(data.contentConstraints).flatMap(
+    (constraint): ReadonlyArray<Outline> => {
+      const flow = urn(constraint.constraintAttachment.dataflows?.[0] ?? "")
+      const regions = constraint.cubeRegions ?? []
 
-    if (constraint.type !== "Actual" || flow === undefined || regions.length === 0) return []
+      if (flow === undefined || regions.length === 0) return []
 
-    const indicator = oecdIndicator(flow)
+      const indicator = oecdIndicator(flow)
 
-    if (Option.isNone(indicator)) return []
+      if (Option.isNone(indicator)) return []
 
-    const listed = codelists(flow.agency, flow.id)
-    const { values, found } = regionValues(regions)
+      const listed = codelists(flow.agency, flow.id)
+      const { values, found } = regionValues(regions)
 
-    const frequencies = values.get("FREQ")
+      const frequencies = values.get("FREQ")
 
-    return [
-      {
-        indicator: indicator.value,
-        dimensions: seriesDimensions(values, listed),
-        annual: frequencies === undefined || frequencies.includes("A"),
-        countries: coveredCountries(values.get("REF_AREA")),
-        years: years(found),
-      },
-    ]
-  })
+      return [
+        {
+          indicator: indicator.value,
+          dimensions: seriesDimensions(values, listed),
+          annual: frequencies === undefined || frequencies.includes("A"),
+          countries: coveredCountries(values.get("REF_AREA")),
+          years: years(found),
+        },
+      ]
+    },
+  )
 }
 
 // The label of each code of some codelists.

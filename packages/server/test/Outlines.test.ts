@@ -2,10 +2,11 @@ import { type CatalogEntry, IndicatorId } from "@civicdata/domain"
 import { beforeEach, describe, expect, it } from "@effect/vitest"
 import { reset } from "cloudflare:test"
 import { env } from "cloudflare:workers"
-import { Effect } from "effect"
+import { Effect, Schema } from "effect"
 
 import { Catalog } from "../src/Catalog.ts"
 import { CatalogBuild } from "../src/CatalogBuild.ts"
+import { constraints, Constraints, DataStructures } from "../src/Outlines.ts"
 import { fill } from "../src/Structures.ts"
 import {
   build,
@@ -16,6 +17,8 @@ import {
   unstructured,
   vectorize,
 } from "./catalog.ts"
+import oecdConstraints from "./fixtures/structures/oecd-constraints.json"
+import oecdStructures from "./fixtures/structures/oecd-structures.json"
 
 // Every test starts from empty bindings: the test Worker's D1 database is
 // shared by the file's tests.
@@ -212,3 +215,26 @@ describe("Outlines", () => {
     }).pipe(Effect.provide(catalogOver(listings(), { structures: recorded.layer })))
   })
 })
+
+it.effect("combines repeated Actual constraints into one stable dataset outline", () =>
+  Effect.gen(function* () {
+    const decoded = yield* Schema.decodeUnknownEffect(Constraints)(oecdConstraints)
+    const structures = yield* Schema.decodeUnknownEffect(DataStructures)(oecdStructures)
+
+    const original = constraints({ constraints: decoded, structures })
+
+    const repeated = constraints({
+      constraints: {
+        data: {
+          contentConstraints: [
+            ...decoded.data.contentConstraints,
+            ...decoded.data.contentConstraints,
+          ],
+        },
+      },
+      structures,
+    })
+
+    expect(repeated).toEqual(original)
+  }),
+)

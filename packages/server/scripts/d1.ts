@@ -7,7 +7,11 @@ import * as Reactivity from "effect/reactivity/Reactivity"
 import { SqlClient, SqlError, Statement } from "effect/sql"
 import type { SqlConnection } from "effect/sql"
 
-const Meta = Schema.Struct({ rows_read: Schema.Finite, rows_written: Schema.Finite })
+const Meta = Schema.Struct({
+  rows_read: Schema.Finite,
+  rows_written: Schema.Finite,
+  size_after: Schema.Finite,
+})
 
 const Answer = Schema.Struct({
   result: Schema.Tuple([
@@ -31,6 +35,7 @@ const RawAnswer = Schema.Struct({
 interface Usage {
   read: number
   written: number
+  size: number
 }
 
 export interface Target {
@@ -49,7 +54,7 @@ const failed = (cause: unknown) =>
 
 // The client, and what it counts.
 export const d1 = ({ account, database, token }: Target) => {
-  const usage: Usage = { read: 0, written: 0 }
+  const usage: Usage = { read: 0, written: 0, size: 0 }
 
   const layer = Layer.effectContext(
     Effect.gen(function* () {
@@ -83,6 +88,7 @@ export const d1 = ({ account, database, token }: Target) => {
             Effect.sync(() => {
               usage.read += meta.rows_read
               usage.written += meta.rows_written
+              usage.size = meta.size_after
             }),
           ),
           Effect.mapError(failed),
