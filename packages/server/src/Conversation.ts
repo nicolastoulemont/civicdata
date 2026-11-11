@@ -5,6 +5,7 @@ import {
   type CatalogUnavailable,
   type ChartIndex,
   chartsOf,
+  type Country,
   ConversationBusy,
   ConversationNotFound,
   Ended,
@@ -60,9 +61,13 @@ interface Interface {
   // Keeps the conversation from a question on, even when that question is
   // never answered: an empty one stays until it is deleted.
   readonly open: Effect.Effect<void>
-  // Starts answering a question and streams its steps. Fails with
-  // ConversationBusy while an earlier question is still being answered.
-  readonly ask: (question: string) => Effect.Effect<Stream.Stream<Step, Failure>, ConversationBusy>
+  // Starts answering a question asked from a country, when it is known, and
+  // streams its steps. Fails with ConversationBusy while an earlier question
+  // is still being answered.
+  readonly ask: (
+    question: string,
+    country: Option.Option<Country>,
+  ) => Effect.Effect<Stream.Stream<Step, Failure>, ConversationBusy>
   // The answer in progress from its first step, or no steps when there is none.
   readonly follow: Effect.Effect<Stream.Stream<Step, Failure>>
   // Stops the answer in progress and keeps its turn as Stopped, returning
@@ -183,10 +188,12 @@ const unheardOf = (saved: Saved, heard: ReadonlyArray<Unheard>): Saved["edits"] 
 // Steps kept for whoever follows an answer late: more than an answer has.
 const replay = 256
 
-// The question being answered, when it was asked, its steps so far for
-// whoever follows it, and whether someone asked to stop it.
+// The question being answered, the country it was asked from, when it was
+// asked, its steps so far for whoever follows it, and whether someone asked
+// to stop it.
 interface Answer {
   readonly question: string
+  readonly country: Option.Option<Country>
   readonly started: DateTime.Utc
   readonly steps: PubSub.PubSub<Take.Take<Step, Failure>>
   readonly stop: Deferred.Deferred<void>
@@ -349,7 +356,7 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
       // A kept turn goes to Answers once its last step is out, so the write
       // never holds up the ending.
       const answer = Effect.fn("Conversation.answer")(
-        function* ({ question, started, steps, stop }: Answer) {
+        function* ({ question, country, started, steps, stop }: Answer) {
           const work = yield* Ref.make<ReadonlyArray<Work>>([])
           const logged = yield* Ref.make(Option.none<{ turn: Turn; earlier: Array<string> }>())
           const { chat, changed, asked } = yield* begin({ question, started })
@@ -393,7 +400,7 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
               yield* save(ending, yield* chat.exportJson.pipe(Effect.orDie))
             }).pipe(Semaphore.withPermit(lock))
 
-          yield* agent.ask(chat, { question, changed }).pipe(
+          yield* agent.ask(chat, { question, country, changed }).pipe(
             Stream.tap((step) =>
               isEnding(step) ? end(step) : Ref.update(work, (previous) => put(previous, step)),
             ),
@@ -447,12 +454,15 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
           ),
       )
 
-      const ask = Effect.fn("Conversation.ask")(function* (question: string) {
+      const ask = Effect.fn("Conversation.ask")(function* (
+        question: string,
+        country: Option.Option<Country>,
+      ) {
         const steps = yield* PubSub.unbounded<Take.Take<Step, Failure>>({ replay })
 
         const stop = yield* Deferred.make<void>()
         const started = yield* DateTime.now
-        const next = { question, started, steps, stop }
+        const next = { question, country, started, steps, stop }
         const now = yield* phase.send(PhaseEvent.Ask({ answer: next }))
 
         if (!isAnswering(now) || now.steps !== steps) return yield* new ConversationBusy()

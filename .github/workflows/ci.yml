@@ -1,8 +1,11 @@
 name: CI
 
 on:
+  # Adding or removing the own-catalog label redeploys the preview: with it,
+  # the preview gets its own catalog and store; without it, it reads
+  # production's (docs/deploys.md). Other labels change nothing.
   pull_request:
-    types: [opened, synchronize, reopened, closed]
+    types: [opened, synchronize, reopened, closed, labeled, unlabeled]
   push:
     branches: [main]
 
@@ -11,7 +14,10 @@ permissions: {}
 
 jobs:
   check:
-    if: github.event.action != 'closed'
+    if: >-
+      github.event.action != 'closed'
+      && (!contains(fromJSON('["labeled", "unlabeled"]'), github.event.action)
+        || github.event.label.name == 'own-catalog')
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -33,7 +39,9 @@ jobs:
       - run: pnpm turbo run typecheck test build
 
   dependency-review:
-    if: github.event_name == 'pull_request' && github.event.action != 'closed'
+    if: >-
+      github.event_name == 'pull_request'
+      && contains(fromJSON('["opened", "synchronize", "reopened"]'), github.event.action)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -56,6 +64,7 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
+      pull-requests: read
     environment: preview
     concurrency:
       group: deploy-pr-${{ github.event.pull_request.number }}
@@ -76,6 +85,20 @@ jobs:
       - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           require-lockfile: true
+      # OWN_CATALOG is "true" with the own-catalog label and "false" without;
+      # without it, the stack binds production's catalog and store and
+      # deploys no Workflow (docs/deploys.md). Read when the deploy starts,
+      # not from the event: `gh pr create --label` adds the label after the
+      # pull request opens, so the opened event carries none.
+      - name: Read the own-catalog label
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          labels=$(gh api "repos/$REPO/issues/$PR/labels" --jq '.[].name')
+          if grep -qx own-catalog <<< "$labels"; then own=true; else own=false; fi
+          echo "OWN_CATALOG=$own" >> "$GITHUB_ENV"
       - run: pnpm --filter @civicdata/infra exec alchemy deploy --yes --stage "$STAGE"
       # In CI, Alchemy prints log lines and status messages to stdout before the
       # value, which it prints last as indented JSON. Parse from its opening
@@ -96,10 +119,14 @@ jobs:
           echo "url=$url" >> "$GITHUB_OUTPUT"
       # A new stage has no catalog until a build publishes one, and a deploy
       # may change what a build stores, so each deploy starts a build besides
-      # the Workflow's weekly schedule. The name comes from the stack output,
-      # which pull request code writes, so it is checked before use.
+      # the Workflow's weekly schedule. A preview without the own-catalog
+      # label reads production's catalog and has no catalog Workflow, so it
+      # starts none; production sets no OWN_CATALOG. The name comes from the
+      # stack output, which pull request code writes, so it must be this
+      # stage's own before use.
       - &build
         name: Start a catalog build
+        if: env.OWN_CATALOG != 'false'
         run: |
           output=$(pnpm --silent --filter @civicdata/infra exec alchemy state cat "civicdata/$STAGE/output" --log-level=none --no-input)
           if ! name=$(sed -n '/^{/,$p' <<< "$output" | jq -er .catalog); then
@@ -107,7 +134,7 @@ jobs:
             printf '%s\n' "$output"
             exit 1
           fi
-          if [[ ! "$name" =~ ^[a-z0-9-]+$ ]]; then
+          if [[ "$name" != "civicdata-$STAGE-catalog" ]]; then
             echo "::error::Unexpected catalog Workflow name"
             exit 1
           fi

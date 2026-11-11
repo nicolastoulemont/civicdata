@@ -1,15 +1,17 @@
 import { IndicatorId, regions, Trend as TrendView, Year } from "@civicdata/domain"
-import type { View } from "@civicdata/domain"
+import type { Country, View } from "@civicdata/domain"
 import { Array as Arr } from "effect"
 
 import { Expected } from "./score.ts"
 
 // Questions asked in one conversation, in order, and the answers to the last
 // one that count as right. `shown` is the chart a person changes the first
-// chart of the answer before the last question to.
+// chart of the answer before the last question to. `country` is where
+// Cloudflare places the person; without it, nowhere.
 export interface Case {
   readonly questions: Arr.NonEmptyReadonlyArray<string>
   readonly shown?: View
+  readonly country?: Country
   readonly accepts: Arr.NonEmptyReadonlyArray<Expected>
 }
 
@@ -779,6 +781,11 @@ export const cases: ReadonlyArray<Case> = [
     accepts: [
       Trend({ indicators: lifeExpectancy.worldBank, countries: ["BRA", "MEX"], from: 2000 }),
     ],
+  },
+  {
+    questions: ["Why is everything so expensive now?"],
+    country: "BRA",
+    accepts: [Trend({ indicators: inflation, countries: ["BRA"] })],
   },
   {
     questions: ["Inflation in Brazil and Argentina since 2010", "Remove Argentina"],

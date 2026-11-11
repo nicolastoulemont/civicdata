@@ -5,7 +5,10 @@ name: Remove previews
 # forceDestroy from the stage's last deploy, so a stage last deployed before
 # packages/infra/alchemy.run.ts set it would refuse again. The job first
 # redeploys only the two buckets from main, which records forceDestroy, then
-# destroys the stage. Run it from the Actions tab or with
+# destroys the stage. It deploys them as a stage with its own catalog, so the
+# stack declares a Series bucket of the stage's own and binds nothing of
+# production's; a stage that read production's store gets an empty one, which
+# the destroy deletes. Run it from the Actions tab or with
 # `gh workflow run remove.yml -f prs="100 109"`.
 on:
   workflow_dispatch:
@@ -35,6 +38,7 @@ jobs:
       GH_REPO: ${{ github.repository }}
       CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      OWN_CATALOG: "true"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

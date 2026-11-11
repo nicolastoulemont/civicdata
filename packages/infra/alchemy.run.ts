@@ -11,8 +11,19 @@ export default Alchemy.Stack(
   Effect.gen(function* () {
     const { stage } = yield* Alchemy.Stack
 
-    // Threads and saved Views are the only data that cannot be rebuilt, so a
-    // production destroy keeps the database.
+    // A pull request's preview reads production's catalog (its D1 tables and
+    // vector index) and stored series, so it answers searches and draws
+    // stored charts on its first request with no build of its own. A pull
+    // request that changes what they hold or how they are built carries the
+    // own-catalog label, and CI sets OWN_CATALOG from it. Production, and a
+    // stage someone deploys by hand, keep their own. The Worker never reads
+    // the stage: it gets bindings, and Workflows only when it owns them.
+    const ownCatalog = yield* Config.Boolean("OWN_CATALOG").pipe(Config.withDefault(false))
+    const shared = stage.startsWith("pr-") && !ownCatalog
+
+    // The stage's own database, for what requests write. Never production's
+    // in a preview. Threads and saved Views are the only data that cannot be
+    // rebuilt, so a production destroy keeps the database.
     const database = yield* Cloudflare.D1.Database("Database").pipe(
       Alchemy.RemovalPolicy.retain(stage === "prod"),
     )
@@ -26,16 +37,70 @@ export default Alchemy.Stack(
     // Series cache. Every object can be fetched again from its source.
     const cache = yield* Cloudflare.R2.Bucket("Cache", { forceDestroy })
 
-    // Every stored series, one object each, which the gathering Workflow
-    // fills and charts read. A bucket of its own: unlike the cache it never
-    // expires, and its size and writes are the store's alone.
-    const series = yield* Cloudflare.R2.Bucket("Series", { forceDestroy })
+    // The Workflows' account-wide names, one per stage. CI reads the
+    // catalog's from the stack output to start a build after each deploy of
+    // a stage that owns its catalog; a shared stage outputs none.
+    const prefix = `civicdata-${stage.toLowerCase().replaceAll(/[^a-z0-9-]/g, "-")}`
+    const catalog = `${prefix}-catalog`
 
-    // Indicator meaning for catalog search, embedded with the model in
-    // packages/server/src/Vectors.ts. Each catalog build fills it again.
-    const vectors = yield* Cloudflare.Vectorize.Index("Vectors", {
-      preset: "@cf/baai/bge-small-en-v1.5",
+    // The catalog, the political records, the directions and the series'
+    // bookkeeping (CATALOG_DB), the stored series, the vector index and the
+    // Workflows that build them: the stage's own, or production's, which a
+    // shared stage reads and never builds.
+    const owned = Effect.gen(function* () {
+      return {
+        catalogDatabase: database,
+        // Every stored series, one object each, which the gathering Workflow
+        // fills and charts read. A bucket of its own: unlike the cache it
+        // never expires, and its size and writes are the store's alone.
+        series: yield* Cloudflare.R2.Bucket("Series", { forceDestroy }),
+        // Indicator meaning for catalog search, embedded with the model in
+        // packages/server/src/Vectors.ts. Each catalog build fills it again.
+        vectors: yield* Cloudflare.Vectorize.Index("Vectors", {
+          preset: "@cf/baai/bge-small-en-v1.5",
+        }),
+        // The Workflows that build the catalog and gather the series.
+        workflows: Option.some({
+          // Builds the indicator catalog every Monday at 04:00 UTC: a native
+          // Workflow schedule, no Cron Trigger. CI starts one more build after
+          // each deploy, since a new stage has no catalog until then.
+          CATALOG: Cloudflare.Workflow("Catalog", {
+            workflowName: catalog,
+            className: "CatalogWorkflow",
+            schedules: ["0 4 * * 1"],
+          }),
+          // Gathers each source's series into SERIES every day at 05:00 UTC,
+          // after Monday's catalog build. Deploys start no run; the Gather
+          // series GitHub workflow (.github/workflows/gather.yml) starts one
+          // on demand, by this name.
+          GATHER: Cloudflare.Workflow("Gather", {
+            workflowName: `${prefix}-gather`,
+            className: "GatherWorkflow",
+            schedules: ["0 5 * * *"],
+          }),
+        }),
+      }
     })
+
+    // A ref names another stage's resource without declaring it here, so the
+    // resource never enters this stage's state: a deploy only reads its id,
+    // and a destroy, which deletes what the stage's state holds, never
+    // reaches it (docs/deploys.md). Requests only read what the refs bind;
+    // only the Workflows write, and a shared stage has none.
+    const production = Effect.gen(function* () {
+      const prod = { stage: "prod" }
+
+      return {
+        catalogDatabase: yield* Cloudflare.D1.Database.ref("Database", prod),
+        series: yield* Cloudflare.R2.Bucket.ref("Series", prod),
+        vectors: yield* Cloudflare.Vectorize.Index.ref("Vectors", prod),
+        // None: their schedules would rebuild production's catalog and store
+        // with the pull request's code.
+        workflows: Option.none(),
+      }
+    })
+
+    const { catalogDatabase, series, vectors, workflows } = yield* shared ? production : owned
 
     // The agent's OpenAI key and model, from the shell, CI, or `.env` next to
     // this file (see `.env.example`). A stage deployed without a key still
@@ -70,11 +135,6 @@ export default Alchemy.Stack(
       (sha) => sha !== "",
     )
 
-    // The Workflows' account-wide names, one per stage. CI reads the
-    // catalog's from the stack output to start a build after each deploy.
-    const prefix = `civicdata-${stage.toLowerCase().replaceAll(/[^a-z0-9-]/g, "-")}`
-    const catalog = `${prefix}-catalog`
-
     const web = yield* Cloudflare.Website.Vite("Web", {
       rootDir: "../../apps/web",
       // Pinned so an Alchemy upgrade can't change the runtime. Keep in sync
@@ -87,6 +147,7 @@ export default Alchemy.Stack(
       limits: { cpuMs: 300_000 },
       env: {
         DB: database,
+        CATALOG_DB: catalogDatabase,
         CACHE: cache,
         SERIES: series,
         VECTORS: vectors,
@@ -97,23 +158,7 @@ export default Alchemy.Stack(
         }),
         // One Durable Object per source, pacing requests to it.
         PACE: Cloudflare.DurableObject("Pace", { className: "PaceObject" }),
-        // Builds the indicator catalog every Monday at 04:00 UTC: a native
-        // Workflow schedule, no Cron Trigger. CI starts one more build after
-        // each deploy, since a new stage has no catalog until then.
-        CATALOG: Cloudflare.Workflow("Catalog", {
-          workflowName: catalog,
-          className: "CatalogWorkflow",
-          schedules: ["0 4 * * 1"],
-        }),
-        // Gathers each source's series into SERIES every day at 05:00 UTC,
-        // after Monday's catalog build. Deploys start no run; the Gather
-        // series GitHub workflow (.github/workflows/gather.yml) starts one
-        // on demand, by this name.
-        GATHER: Cloudflare.Workflow("Gather", {
-          workflowName: `${prefix}-gather`,
-          className: "GatherWorkflow",
-          schedules: ["0 5 * * *"],
-        }),
+        ...Option.match(workflows, { onNone: () => ({}), onSome: (bound) => bound }),
         // Every question costs model calls: five per visitor per minute.
         ASK_LIMIT: Cloudflare.RateLimit("AskLimit", {
           namespaceId: 1001,
@@ -123,9 +168,10 @@ export default Alchemy.Stack(
           onNone: () => ({}),
           onSome: (key) => ({ OPENAI_API_KEY: key }),
         }),
-        // Only production classifies catalog directions with OpenAI. Every
-        // preview has its own D1, so each would pay a full pass on its first
-        // build; their maps colour the hand-checked indicators only.
+        // Only production classifies catalog directions with OpenAI. A
+        // preview with its own catalog would pay a full pass on its first
+        // build, so its maps colour the hand-checked indicators only; a
+        // shared preview reads production's directions.
         CLASSIFY_DIRECTIONS: stage === "prod" ? "on" : "off",
         ...Option.match(openAiModel, {
           onNone: () => ({}),
@@ -153,6 +199,9 @@ export default Alchemy.Stack(
       },
     })
 
-    return { url: web.url, catalog }
+    return {
+      url: web.url,
+      ...Option.match(workflows, { onNone: () => ({}), onSome: () => ({ catalog }) }),
+    }
   }),
 )
