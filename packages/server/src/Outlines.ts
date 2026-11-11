@@ -1,5 +1,5 @@
 import { Code, Country, DimensionId, IndicatorId, type Source, sourceOf } from "@civicdata/domain"
-import { Array as Arr, Context, Effect, Layer, Option, Schema, Stream } from "effect"
+import { Array as Arr, Context, Effect, Layer, Option, Record, Schema, Stream } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
 import { areas } from "./Csv.ts"
@@ -420,7 +420,10 @@ const embedded = (
     .flatMap(({ codelist, codes, labels }) =>
       codes
         .flatMap(
-          (code) => labels?.[code] ?? (codelist === null ? undefined : label(codelist, code)) ?? [],
+          (code) =>
+            Option.getOrUndefined(Record.get(labels ?? {}, code)) ??
+            (codelist === null ? undefined : label(codelist, code)) ??
+            [],
         )
         .slice(0, labelsPerDimension),
     )

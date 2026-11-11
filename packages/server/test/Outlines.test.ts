@@ -262,7 +262,7 @@ describe("registered publisher discovery", () => {
       {
         id: DimensionId.make("measure"),
         codelist: null,
-        codes: [Code.make("median")],
+        codes: [Code.make("median"), Code.make("constructor"), Code.make("toString")],
         labels: { [Code.make("median")]: "Median disposable income" },
       },
     ],
@@ -312,7 +312,12 @@ describe("registered publisher discovery", () => {
       const found = yield* catalog.outlines([indicator, IndicatorId.make("Example Files:unknown")])
       expect(found.get(indicator)?.dimensions[0]?.codes).toEqual([
         { code: "median", label: "Median disposable income" },
+        { code: "constructor", label: "constructor" },
+        { code: "toString", label: "toString" },
       ])
+      expect((yield* stored)[0]).toContainEqual(
+        expect.objectContaining({ indicator, text: "Median disposable income" }),
+      )
       expect(found.get(indicator)?.countries).toEqual(["FRA"])
       expect(found.get(indicator)?.years).toEqual({ first: 2000, last: 2025 })
       expect(found.get(IndicatorId.make("Example Files:unknown"))).toMatchObject({

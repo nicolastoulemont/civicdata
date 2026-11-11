@@ -1,6 +1,6 @@
 import { CatalogEntry, CatalogUnavailable, type IndicatorId, Source } from "@civicdata/domain"
 import { D1Client } from "@effect/sql-d1"
-import { Array as Arr, Context, Effect, Layer, Schema } from "effect"
+import { Array as Arr, Context, Effect, Layer, Option, Record, Schema } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
 import { orUnbuilt } from "./built.ts"
@@ -343,7 +343,7 @@ export class Catalog extends Context.Service<Catalog, Interface>()("@civicdata/s
                   codes: Arr.map(codes, (code) => ({
                     code,
                     label:
-                      names?.[code] ??
+                      Option.getOrUndefined(Record.get(names ?? {}, code)) ??
                       (codelist === null ? undefined : label.get(`${codelist} ${code}`)) ??
                       code,
                   })),
