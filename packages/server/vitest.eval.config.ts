@@ -12,11 +12,12 @@ import { defineConfig } from "vitest/config"
 
 import { runtime } from "./vitest.config.ts"
 
-// Every case spends OpenAI tokens and a run takes about 25 minutes, so the
-// eval starts only when someone asked for a run, never as a routine check.
+// Every question spends OpenAI tokens and a run takes from 25 minutes to
+// over an hour, so the eval and the probe run start only when someone asked
+// for a run, never as a routine check.
 if (process.env["RUN_AGENT_EVAL"] !== "1") {
   throw new Error(
-    "The agent eval runs only on request: it spends OpenAI tokens and takes about 25 minutes. Coding agents run it only when the user asked for an eval run in the current task, never to check their own change. To run it: RUN_AGENT_EVAL=1 pnpm --filter @civicdata/server eval",
+    "The agent eval and probe run start only on request: they spend OpenAI tokens and take from 25 minutes to over an hour. Coding agents run them only when the user asked for a run in the current task, never to check their own change. To run one: RUN_AGENT_EVAL=1 pnpm --filter @civicdata/server eval (or probe)",
   )
 }
 
@@ -79,15 +80,29 @@ const RECORDINGS = async (request: Request) => {
   return new Response(null, { status: 204 })
 }
 
-// Asks the agent every question in eval/cases.ts, against OpenAI and the
-// sources' recorded answers. Each question costs a few model requests, so
-// this runs on request only, never in CI.
+// This run's folder for the probe run's answers (eval/probe.eval.ts), named
+// by when it started. Made on the first answer written.
+const run = fileURLToPath(
+  new URL(`eval/runs/${new Date().toISOString().replaceAll(":", "-")}/`, import.meta.url),
+)
+
+// Writes one probe's answers into this run's folder.
+const RUNS = async (request: Request) => {
+  await mkdir(run, { recursive: true })
+  await writeFile(join(run, new URL(request.url).pathname), await request.text())
+
+  return new Response(null, { status: 204 })
+}
+
+// Asks the agent every question in eval/cases.ts (eval) or eval/probes.ts
+// (probe), against OpenAI and the sources' recorded answers. Each question
+// costs a few model requests, so this runs on request only, never in CI.
 export default defineConfig({
   plugins: [
     cloudflareTest({
       miniflare: {
         ...runtime,
-        serviceBindings: { RECORDINGS },
+        serviceBindings: { RECORDINGS, RUNS },
         bindings:
           model === undefined
             ? { OPENAI_API_KEY: key }

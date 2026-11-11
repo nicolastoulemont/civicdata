@@ -49,6 +49,9 @@ declare module "cloudflare:workers" {
     // The sources' answers the agent eval replays, served from disk by
     // vitest.eval.config.ts. Only the eval has it.
     readonly RECORDINGS?: { readonly fetch: (request: Request) => Promise<Response> }
+    // Where the probe run writes each probe's answers, a folder per run on
+    // disk, through vitest.eval.config.ts. Only the eval has it.
+    readonly RUNS?: { readonly fetch: (request: Request) => Promise<Response> }
     readonly OPENAI_API_KEY?: string
     // "on" where the catalog Workflow classifies directions, production
     // only; "off" elsewhere (packages/infra/alchemy.run.ts).

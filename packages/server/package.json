@@ -15,7 +15,8 @@
     "titles": "node scripts/titles.ts",
     "triage": "node scripts/triage.ts",
     "outlines": "node scripts/outlines.ts",
-    "eval": "vitest run --config vitest.eval.config.ts"
+    "eval": "vitest run --config vitest.eval.config.ts agent",
+    "probe": "vitest run --config vitest.eval.config.ts probe"
   },
   "dependencies": {
     "@civicdata/domain": "workspace:*",
