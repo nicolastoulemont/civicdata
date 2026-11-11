@@ -164,3 +164,36 @@ local bucket/database transport. WID country files still need explicit assembly
 into whole country-year series and per-input provenance before ingestion. This
 PR does not solve WID assembly or forecast, uncertainty and quality semantics,
 and adds none of the seven planned source adapters or changes to their terms.
+
+## INSEE API reads
+
+INSEE uses `Api`, without a bulk capability or gather enrollment. Melodi's catalog
+publishes `modified` dates and ZIP CSV products, but this slice downloads neither
+a full mirror nor a production fill. The existing API cache keeps descriptions
+and complete query answers for one day, retaining retrieval times and serving an
+old successful answer if a refresh fails. Metadata/range memoization lasts one day.
+Pace budgets `api.insee.fr` at 25 requests/minute, below the documented anonymous
+30/minute limit, with a minute cooldown after 429.
+
+Data requests fix FREQ=A, every selected series dimension and an explicit
+`page=1`, plus the requested date bounds. Pagination follows the publisher's next
+links only on the same dataset endpoint; absent continuation, cycles, failed
+pages and duplicate country-years fail the whole read. Recorded fixtures use a
+page size of one to exercise continuation. Monthly periods and non-national
+geographies cannot become country-year observations. Unrecognized dimensions,
+statuses, confidentiality states or unit multipliers fail rather than guess.
+The one dataset uses `OBS_VALUE_NIVEAU`. `UNIT_MULT` 0, 3 and 6 multiply fetched
+values into base units, while `UNIT_MEASURE` stays in the visible series choices.
+P becomes Provisional; A remains unflagged. L and M are missing, never zero.
+Reference-price years are filtered exactly, including null, before duplicate
+checks. No annualization, aggregation, interpolation or source pairing occurs.
+
+Every resolved chart carries INSEE, the dataset, `Source: Insee`, the catalog's
+last-update timestamp, the exact first-page API URL and the observation retrieval
+time. The common chart attribution also covers shares and embeds. The terms are
+[Open Licence 2.0](https://www.insee.fr/fr/information/2008466), confirmed in Melodi's
+OpenAPI; they require source and known last-update credit.
+
+The preview requires `own-catalog`. Its normal catalog build discovers this entry
+in isolated resources. No manual production catalog build, gather or fill is
+part of this integration; each needs the owner's explanation and approval first.

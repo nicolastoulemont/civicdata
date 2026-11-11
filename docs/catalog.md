@@ -117,3 +117,32 @@ Changed outline chunks now go to `catalog_outline_stage` before publication. A f
 Builds add the staging table with `CREATE TABLE IF NOT EXISTS`. No existing table is rebuilt. Existing SDMX outline JSON and fingerprints remain byte-for-byte equivalent when metadata is unchanged: inline labels are optional and absent there. Existing annual integers 0/1 and country arrays stay unchanged. Unknown annual eligibility uses -1 in storage; unknown countries use JSON `null` in the existing text column. The new reader accepts both the old and extended forms. Old readers continue reading the deployed publishers' unchanged rows; an adapter emitting nullable coverage must ship after this reader, since old codecs cannot decode JSON null countries. This infrastructure PR registers no such publisher. Its isolated `own-catalog` preview uses the new reader and writer together.
 
 No ids, vector ids, store paths, ledger scopes or World Bank fingerprints change. No full World Bank gather or embedding rebuild is required, and no manual production fill is needed. Normal builds create the table and reuse unchanged fingerprints. Later source PRs must preserve each publisher's terms and attribution. Read policies and asset progress are independent of catalog discovery; see [series.md](series.md#sources). A selected mirror leaves the rest of the catalog searchable. Coherent observation publication is a source opt-in described in [series.md](series.md#coherent-releases); it does not atomically publish catalog metadata and observations together. Forecast/uncertainty/quality and source methodological notes remain separate work.
+
+## INSEE discovery
+
+`Insee` registers `INSEE:DD_CNA_AGREGATS`, Melodi's GDP and main economic
+aggregates dataset. This first integration intentionally does not list the
+other 162 records observed in `/catalog/all` on 11 November 2026: their measures
+and dimension contracts have not been checked. It uses `/catalog/DD_CNA_AGREGATS`
+for the publisher's name, definition and `modified` timestamp, and
+`/range/DD_CNA_AGREGATS` for the actual codes and labels. The existing catalog
+Workflow publishes the entry and its outline; searches read this local catalog.
+No chart request rebuilds it.
+
+Discovery requires annual frequency and exposes only exact `YYYY-FRANCE-F`
+geographies as `GEO` choices, labelled with their full source id. It never maps
+regional codes to France or merges geography vintages. Coverage is France alone;
+the agent permits only a trend for FRA, rejecting rankings, maps and comparisons.
+Every dimension must be chosen, even a singleton. `REF_YEAR_PRICE` is an attribute
+that distinguishes price bases: its sourced years are offered separately from
+`_Z`, our explicit representation of null (no reference year). This sentinel is
+never sent as an INSEE code. Invalid combinations return no observations; the
+adapter never substitutes a different price basis, sector, unit or counterpart.
+The catalog names no Eurostat counterpart. The app's existing 1960 lower year
+bound still applies, though the publisher's dataset starts in 1949.
+
+Official references: [API catalogue](https://www.insee.fr/fr/information/8184146),
+[anonymous access and 30 requests/minute](https://www.insee.fr/fr/information/1302169?question=comment-utiliser-l-api-melodi),
+[Melodi OpenAPI and endpoint licence](https://api-apimanager.insee.fr/portal/environments/DEFAULT/apis/a890b735-159c-4c91-90b7-35159c7c9126/pages/ee625968-272a-4637-a259-68272aa63766/content),
+and [user guide](https://api-apimanager.insee.fr/portal/environments/DEFAULT/apis/a890b735-159c-4c91-90b7-35159c7c9126/pages/712a242a-9d5c-4675-aa24-2a9d5c4675c4/content).
+The separate BDM service supports SDMX 2.1; this adapter reads Melodi JSON, not BDM.

@@ -1,0 +1,61 @@
+{
+  "observations": [
+    {
+      "attributes": {
+        "OBS_STATUS": "P",
+        "LAST_UPDATE": null,
+        "TABLE_IDENTIFIER": null,
+        "DECIMALS": "1",
+        "UNIT_MULT": "6",
+        "REF_PERIOD_DETAIL": null,
+        "CONF_STATUS": "F",
+        "OBS_STATUS_FR": "SD",
+        "REF_YEAR_PRICE": null
+      },
+      "dimensions": {
+        "TRANSFORMATION": "N",
+        "PRICES": "V",
+        "EXPENDITURE": "_Z",
+        "STO": "B1GQ",
+        "GEO": "2025-FRANCE-F",
+        "ACCOUNTING_ENTRY": "B",
+        "PRODUCT": "_T",
+        "FREQ": "A",
+        "REF_SECTOR": "S1",
+        "TIME_PERIOD": "2024",
+        "COUNTERPART_AREA": "W0",
+        "UNIT_MEASURE": "XDC",
+        "INSTR_ASSET": "_Z",
+        "ACTIVITY": "_T"
+      },
+      "measures": {
+        "OBS_VALUE_NIVEAU": {
+          "value": 2935236.2
+        }
+      }
+    }
+  ],
+  "identifier": "DD_CNA_AGREGATS",
+  "paging": {
+    "first": "https://api.insee.fr/melodi/data/DD_CNA_AGREGATS?TRANSFORMATION=N&PRICES=V&EXPENDITURE=_Z&STO=B1GQ&GEO=2025-FRANCE-F&ACCOUNTING_ENTRY=B&PRODUCT=_T&FREQ=A&REF_SECTOR=S1&COUNTERPART_AREA=W0&UNIT_MEASURE=XDC&INSTR_ASSET=_Z&ACTIVITY=_T&startPeriod=2024-01-01&endPeriod=2025-12-31&maxResult=1&page=1",
+    "isLast": true,
+    "previous": "https://api.insee.fr/melodi/data/DD_CNA_AGREGATS?TRANSFORMATION=N&PRICES=V&EXPENDITURE=_Z&STO=B1GQ&GEO=2025-FRANCE-F&ACCOUNTING_ENTRY=B&PRODUCT=_T&FREQ=A&REF_SECTOR=S1&COUNTERPART_AREA=W0&UNIT_MEASURE=XDC&INSTR_ASSET=_Z&ACTIVITY=_T&startPeriod=2024-01-01&endPeriod=2025-12-31&maxResult=1&page=1"
+  },
+  "publisher": {
+    "id": "INSEE",
+    "label": [
+      {
+        "content": "Institut national de la statistique et des etudes economiques (INSEE)",
+        "lang": "fr"
+      },
+      {
+        "content": "National Institute of Statistics and Economic Studies",
+        "lang": "en"
+      }
+    ]
+  },
+  "title": {
+    "en": "Gross domestic product (GDP) and main economic aggregates",
+    "fr": "Produit Int\u00e9rieur Brut (PIB) et grands agr\u00e9gats \u00e9conomiques"
+  }
+}

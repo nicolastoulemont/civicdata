@@ -16,6 +16,8 @@ interface Budget {
 // Workers send from one IP shared with every other Worker (NTO-89), so these
 // budgets leave room for traffic that is not ours.
 const budgets = {
+  // Melodi documents 30 anonymous requests/minute. Leave headroom.
+  INSEE: { windows: [{ count: 25, period: minute }], cooldown: minute },
   // OECD refused the Workers' IP after about 20 requests in a minute, and for
   // five minutes after about 60 in ten. It documents 60 an hour.
   OECD: {
@@ -115,6 +117,7 @@ const SlotJson = Schema.fromJsonString(Slot)
 
 // The hosts each adapter asks, so one HttpClient paces them all.
 export const hosts = new Map<string, Source>([
+  ["api.insee.fr", "INSEE"],
   ["api.worldbank.org", "World Bank"],
   ["ec.europa.eu", "Eurostat"],
   ["sdmx.oecd.org", "OECD"],

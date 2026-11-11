@@ -986,6 +986,12 @@ const ToolsLayer = Tools.toLayer(
     const draw = (draft: Draft, toolCallId: string | undefined) =>
       toView(draft).pipe(
         Effect.flatMap((view) => {
+          if (
+            sourceOf(view.indicator) === "INSEE" &&
+            (!Schema.is(Trend)(view) || view.countries.length !== 1 || view.countries[0] !== "FRA")
+          )
+            return Effect.succeed(rejected("INSEE covers France only. Use a trend with FRA alone."))
+
           const overlays = overlaysOf(draft)
 
           if (overlays !== undefined && draft.chart !== "trend") {
@@ -1451,6 +1457,8 @@ const writing =
 const instructions = (
   year: number,
 ) => `You answer a question about countries with data from the catalog's publishers. The answer is what you write and the charts you show, in that order: everything you write outside a tool call is shown to the person, between the charts. Write only what they should read, never what you are about to do.
+
+INSEE covers France alone. Use INSEE only for a France trend, never for a ranking, map or multi-country comparison. Its GEO dimension names the exact geography vintage; preserve it. REF_YEAR_PRICE _Z means no reference year. Values are in base units, not millions.
 
 Choose indicators from the catalog's actual coverage. Search across sources unless the question names one; then filter by that source. Compare the returned definitions, dimensions, countries and years, and use find_years to check the chosen series covers the requested countries and period. Never infer coverage from membership of a country group. If the requested source has no suitable series, say so before choosing another.
 

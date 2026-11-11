@@ -10,6 +10,7 @@ import { Context, Effect, Layer, Option, Record } from "effect"
 
 import { type Adapter, Policy } from "./Adapter.ts"
 import { Cache } from "./Cache.ts"
+import { Insee } from "./Insee.ts"
 import { Pace } from "./Pace.ts"
 import { Releases } from "./Releases.ts"
 import { Sdmx } from "./Sdmx.ts"
@@ -83,8 +84,9 @@ export class Sources extends Context.Service<Sources, Interface>()("@civicdata/s
     Effect.gen(function* () {
       const worldBank = yield* WorldBank
       const sdmx = yield* Sdmx
+      const insee = yield* Insee
 
-      return Sources.of({ "World Bank": worldBank, ...sdmx })
+      return Sources.of({ "World Bank": worldBank, ...sdmx, INSEE: insee })
     }),
   )
 
@@ -185,6 +187,7 @@ export class Sources extends Context.Service<Sources, Interface>()("@civicdata/s
   // paced.
   static readonly live = Sources.stored.pipe(
     Layer.provide(Sources.layer),
+    Layer.provide(Insee.cached),
     Layer.provide(Store.layer),
     Layer.provide(Releases.live),
     Layer.provide(WorldBank.cached),
