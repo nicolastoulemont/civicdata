@@ -54,7 +54,8 @@ export const Failed = Schema.TaggedStruct("Failed", {
   ]),
 })
 
-// The person stopped the answer while the step ran.
+// The step was cut off while it ran: the person stopped the answer, or
+// another step of its round failed it.
 export const Halted = Schema.TaggedStruct("Stopped", {})
 
 // A step's states: running, then ended in one of `done`, failed or stopped.

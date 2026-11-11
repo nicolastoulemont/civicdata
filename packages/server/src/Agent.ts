@@ -25,6 +25,7 @@ import {
   Fetch,
   Fetched,
   type Finding,
+  Halted,
   bylineOf,
   idOf,
   IndicatorId,
@@ -188,14 +189,17 @@ class Known extends Context.Service<Known, Ref.Ref<ReadonlyMap<string, Cited>>>(
 type Reason = typeof Failed.Type.reason
 
 // Runs a tool's work as one step, reported running, then as `done` says from
-// its result, or failed with its error. `at` makes the step in a state.
+// its result, or failed with its error. A step that dies failed because the
+// agent could not answer. A step cut off, because another tool of its round
+// failed the answer, is stopped: the answer fails after it, so no step is left
+// running. `at` makes the step in a state.
 const reported = Effect.fnUntraced(function* <A, E extends Reason, R>(
   work: Effect.Effect<A, E, R>,
   {
     at,
     done,
   }: {
-    readonly at: (state: typeof Running.Type | typeof Failed.Type) => Work
+    readonly at: (state: typeof Running.Type | typeof Failed.Type | typeof Halted.Type) => Work
     readonly done: (result: A) => Work
   },
 ) {
@@ -203,7 +207,11 @@ const reported = Effect.fnUntraced(function* <A, E extends Reason, R>(
 
   yield* report(at(Running.make({})))
 
-  const result = yield* work.pipe(Effect.tapError((reason) => report(at(Failed.make({ reason })))))
+  const result = yield* work.pipe(
+    Effect.tapError((reason) => report(at(Failed.make({ reason })))),
+    Effect.tapDefect(() => report(at(Failed.make({ reason: new AgentUnavailable() })))),
+    Effect.onInterrupt(() => report(at(Halted.make({})))),
+  )
 
   yield* report(done(result))
 

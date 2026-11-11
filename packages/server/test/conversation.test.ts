@@ -21,6 +21,7 @@ import {
   Dimensions,
   Failed,
   Fetch,
+  Halted,
   Fetched,
   IndicatorId,
   IndicatorNotFound,
@@ -72,6 +73,7 @@ import {
   Deferred,
   Duration,
   Effect,
+  Exit,
   Fiber,
   Layer,
   Option,
@@ -1387,6 +1389,66 @@ describe("conversations", () => {
         })
         expect(yield* turns).toEqual({ answered: [] })
       }).pipe(Effect.provide(serveApi(model.layer, options)))
+    })
+  }
+
+  // A tool that dies, and one that fails, each beside a definition that never
+  // arrives: the World Bank's values die or fail, and its definitions hang.
+  const cutOff = [
+    {
+      name: "dies",
+      observations: () => Effect.die("boom"),
+      fetch: Failed.make({ reason: new AgentUnavailable() }),
+    },
+    {
+      name: "fails",
+      observations: () => Effect.fail(new SourceUnavailable({ source: "World Bank" })),
+      fetch: Failed.make({ reason: new SourceUnavailable({ source: "World Bank" }) }),
+    },
+  ] as const
+
+  for (const { name, observations, fetch } of cutOff) {
+    it.effect(`ends every step still running when a tool ${name}`, () => {
+      const worldBank = Layer.effect(
+        WorldBank,
+        Effect.map(Effect.service(WorldBank).pipe(Effect.provide(recordedWorldBank)), (bank) =>
+          WorldBank.of({ ...bank, describe: () => Effect.never, observations }),
+        ),
+      )
+
+      const both: ReadonlyArray<Response.PartEncoded> = [
+        {
+          type: "tool-call",
+          id: "call-describe_indicator",
+          name: "describe_indicator",
+          params: { indicator: lifeExpectancy, countries: [], dimensions: null },
+        },
+        { type: "tool-call", id: "call-show_chart", name: "show_chart", params: brazil },
+        finish,
+      ]
+
+      const model = scripted([Effect.succeed(both)])
+
+      return Effect.gen(function* () {
+        const seen: Array<Step> = []
+
+        const exit = yield* ask("Life expectancy in Brazil").pipe(
+          Effect.flatMap(Stream.runForEach((step) => Effect.sync(() => seen.push(step)))),
+          Effect.exit,
+        )
+
+        expect(Exit.isFailure(exit)).toBe(true)
+        // The definition was cut off; the chart's fetch failed.
+        expect(log(seen)).toEqual([
+          Definition.make({
+            id: StepId.make("call-describe_indicator"),
+            indicator: lifeExpectancy,
+            state: Halted.make({}),
+          }),
+          fetched(fetch),
+        ])
+        expect(yield* turns).toEqual({ answered: [] })
+      }).pipe(Effect.provide(serveApi(model.layer, { worldBank })))
     })
   }
 
