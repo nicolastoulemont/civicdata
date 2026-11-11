@@ -8,7 +8,7 @@ export const DimensionId = Schema.String.check(Schema.isPattern(/^[A-Za-z][A-Za-
 export type DimensionId = typeof DimensionId.Type
 
 // One value a dimension takes, such as "T" (total) or "Y15-74".
-const Code = Schema.String.check(Schema.isPattern(/^[A-Za-z0-9_][A-Za-z0-9_.@-]*$/)).pipe(
+export const Code = Schema.String.check(Schema.isPattern(/^[A-Za-z0-9_][A-Za-z0-9_.@-]*$/)).pipe(
   Schema.brand("Code"),
 )
 

@@ -94,7 +94,7 @@ import {
 } from "effect"
 import { Chat, LanguageModel, Prompt, Telemetry, Tool, Toolkit } from "effect/ai"
 
-import { Catalog } from "./Catalog.ts"
+import { Catalog, type Labelled } from "./Catalog.ts"
 import { cite } from "./Citations.ts"
 import { Directions } from "./Directions.ts"
 import { Findings } from "./Findings.ts"
@@ -221,9 +221,38 @@ const reported = Effect.fnUntraced(function* <A, E extends Reason, R>(
 // A tool call's step id. A chat always passes the call's id.
 const stepOf = (id: string | undefined, tool: string) => StepId.make(id ?? tool)
 
+// Codes search_indicators lists of one dimension. The catalog stores every
+// code; a dimension of a few hundred would fill the prompt.
+const codesListed = 8
+
+// A total is the series a question that names none asks for, so it is
+// listed first, before a long list is cut.
+const totals = new Set(["_T", "T", "TOTAL"])
+
+// What search_indicators tells the model of a dataset's dimensions: those
+// with more than one code, a dimension with one needing no pick, each with
+// its first codes and how many it leaves out. null when the catalog does not
+// know them; none for a World Bank indicator, which is one series.
+const listedDimensions = (outline: Labelled | undefined, indicator: IndicatorId) => {
+  if (outline === undefined) return sourceOf(indicator) === "World Bank" ? [] : null
+
+  return outline.dimensions.flatMap(({ id, codes }) =>
+    codes.length < 2
+      ? []
+      : [
+          {
+            id,
+            codes: codes
+              .toSorted((a, b) => Number(totals.has(b.code)) - Number(totals.has(a.code)))
+              .slice(0, codesListed),
+            more: Math.max(0, codes.length - codesListed),
+          },
+        ],
+  )
+}
+
 const SearchIndicators = Tool.make("search_indicators", {
-  description:
-    "Search the indicators of the World Bank, Eurostat and the OECD by words in their name or definition, or by code. Returns up to 10 matches, best first, each with its source.",
+  description: `Search the indicators of the World Bank, Eurostat and the OECD by words in their name or definition, or by code. Returns up to 10 matches, best first, each with its source. A Eurostat or OECD dataset holds several series, e.g. by sex or age: "dimensions" lists each dimension that takes several codes, with up to ${codesListed} of its codes and labels and how many more it has. Pass one code of each to find_years and show_chart. A World Bank indicator is one series and has no dimensions. When "dimensions" is null, or the code you need is among the "more", find_years' rejection lists every code.`,
   parameters: Schema.Struct({
     text: Schema.String.annotate({
       description: "Words to search for, e.g. 'life expectancy' or 'GDP per capita'",
@@ -238,6 +267,15 @@ const SearchIndicators = Tool.make("search_indicators", {
       source: Source,
       name: Schema.String,
       definition: Schema.String,
+      dimensions: Schema.NullOr(
+        Schema.Array(
+          Schema.Struct({
+            id: Schema.String,
+            codes: Schema.Array(Schema.Struct({ code: Schema.String, label: Schema.String })),
+            more: Schema.Int,
+          }),
+        ),
+      ),
     }),
   ),
   failure: CatalogUnavailable,
@@ -1008,14 +1046,21 @@ const ToolsLayer = Tools.toLayer(
               }),
             ),
         }).pipe(
-          Effect.map((entries) =>
-            entries.slice(0, 10).map(({ indicator, name, definition }) => ({
-              indicator,
-              source: sourceOf(indicator),
-              name,
-              definition: definition.slice(0, 300),
-            })),
-          ),
+          Effect.flatMap((found) => {
+            const entries = found.slice(0, 10)
+
+            return catalog.outlines(entries.map(({ indicator }) => indicator)).pipe(
+              Effect.map((outlines) =>
+                entries.map(({ indicator, name, definition }) => ({
+                  indicator,
+                  source: sourceOf(indicator),
+                  name,
+                  definition: definition.slice(0, 300),
+                  dimensions: listedDimensions(outlines.get(indicator), indicator),
+                })),
+              ),
+            )
+          }),
         )
       },
       // A code that is not an indicator's is the model's mistake, told to it
@@ -1392,7 +1437,7 @@ A measure only one source publishes comes from that source.
 2. Pick the chart type as the section on chart types below says, and the countries.
    - Countries are ISO 3166-1 alpha-3 codes for every source. When a place name is not plainly one country, call find_countries. List the members of a group yourself, e.g. the G7 or the Nordic countries.
    - A question can start by saying which country the person is asking from. When the question needs a country and neither it nor an earlier question names one, e.g. "Why is everything so expensive now?", chart that country, and name it in your first sentence, e.g. "In France, prices...", so a wrong guess shows. Never call ask_user only to learn the country.
-   - A Eurostat or OECD dataflow holds several series, e.g. by sex or age. find_years' and show_chart's rejections list its dimensions and their codes: pick the series the question asks for, else the total.
+   - A Eurostat or OECD dataflow holds several series, e.g. by sex or age. search_indicators lists its dimensions and codes: pass one code of each, for the series the question asks for, else the total. When it lists none, or cuts a list short of the code you need, find_years' and show_chart's rejections list them all.
    - Charts show annual values. Prefer a Eurostat or OECD dataflow whose name does not say quarterly or monthly.
 3. Call find_years with the indicator, the countries and the series before show_chart, and pick the years from what it returns. When the question names a first year, pass it as from, e.g. ${year - 50} for "the last 50 years"; else pass null. For a relation, call it for both indicators.
    - A chart you show stays in the answer, so pick its indicator before show_chart. When the indicator's values start long after the first year the question asks for, call find_years for the other indicators search_indicators found for the same measure, and chart the one that covers the most years. If none covers them, chart the years there are and say in one sentence where the data starts.

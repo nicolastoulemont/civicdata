@@ -1,0 +1,162 @@
+{
+  "version": "2.0",
+  "class": "collection",
+  "link": {
+    "item": [
+      {
+        "class": "dimension",
+        "source": "ESTAT",
+        "category": {
+          "label": {
+            "JAN": "Population on 1 January - total"
+          },
+          "index": ["JAN"]
+        },
+        "label": "Demographic indicator",
+        "extension": {
+          "lang": "EN",
+          "id": "INDIC_DE",
+          "version": "10.0"
+        }
+      },
+      {
+        "class": "dimension",
+        "source": "ESTAT",
+        "category": {
+          "label": {
+            "Y1": "Maturity: 1 year",
+            "Y5": "Maturity: 5 years",
+            "Y10": "Maturity: 10 years"
+          },
+          "index": ["Y1", "Y5", "Y10"]
+        },
+        "label": "Maturity",
+        "extension": {
+          "lang": "EN",
+          "id": "MATURITY",
+          "version": "3.0"
+        }
+      },
+      {
+        "class": "dimension",
+        "source": "ESTAT",
+        "category": {
+          "label": {
+            "THS_PER": "Thousand persons",
+            "PC": "Percentage",
+            "PC_POP": "Percentage of total population",
+            "PC_ACT": "Percentage of population in the labour force"
+          },
+          "index": ["THS_PER", "PC", "PC_POP", "PC_ACT"]
+        },
+        "label": "Unit of measure",
+        "extension": {
+          "lang": "EN",
+          "id": "UNIT",
+          "version": "84.0"
+        }
+      },
+      {
+        "class": "dimension",
+        "source": "ESTAT",
+        "category": {
+          "label": {
+            "CGB_EA_AAA": "AAA-rated euro area central government bonds"
+          },
+          "index": ["CGB_EA_AAA"]
+        },
+        "label": "Bonds",
+        "extension": {
+          "lang": "EN",
+          "id": "BONDS",
+          "version": "1.3"
+        }
+      },
+      {
+        "class": "dimension",
+        "source": "ESTAT",
+        "category": {
+          "label": {
+            "EMP": "Employed persons",
+            "NEMP": "Not employed persons"
+          },
+          "index": ["EMP", "NEMP"]
+        },
+        "label": "Labour force and employment status",
+        "extension": {
+          "lang": "EN",
+          "id": "WSTATUS",
+          "version": "15.0"
+        }
+      },
+      {
+        "class": "dimension",
+        "source": "ESTAT",
+        "category": {
+          "label": {
+            "Y15-24": "From 15 to 24 years",
+            "Y15-29": "From 15 to 29 years",
+            "Y15-64": "From 15 to 64 years",
+            "Y15-74": "From 15 to 74 years",
+            "Y20-64": "From 20 to 64 years",
+            "Y25-54": "From 25 to 54 years",
+            "Y25-74": "From 25 to 74 years",
+            "Y30-64": "From 30 to 64 years",
+            "Y55-74": "From 55 to 74 years"
+          },
+          "index": [
+            "Y15-24",
+            "Y15-29",
+            "Y15-64",
+            "Y15-74",
+            "Y20-64",
+            "Y25-54",
+            "Y25-74",
+            "Y30-64",
+            "Y55-74"
+          ]
+        },
+        "label": "Age class",
+        "extension": {
+          "lang": "EN",
+          "id": "AGE",
+          "version": "18.0"
+        }
+      },
+      {
+        "class": "dimension",
+        "source": "ESTAT",
+        "category": {
+          "label": {
+            "SPOT_RT": "Spot rate yield curve"
+          },
+          "index": ["SPOT_RT"]
+        },
+        "label": "Yield curve",
+        "extension": {
+          "lang": "EN",
+          "id": "YLD_CURV",
+          "version": "2.1"
+        }
+      },
+      {
+        "class": "dimension",
+        "source": "ESTAT",
+        "category": {
+          "label": {
+            "T": "Total",
+            "M": "Males",
+            "F": "Females"
+          },
+          "index": ["T", "M", "F"]
+        },
+        "label": "Sex",
+        "extension": {
+          "lang": "EN",
+          "id": "SEX",
+          "version": "2.0"
+        }
+      }
+    ]
+  }
+}

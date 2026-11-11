@@ -101,7 +101,7 @@ import { Policy } from "../src/Adapter.ts"
 import { Agent } from "../src/Agent.ts"
 import { Answers } from "../src/Answers.ts"
 import { AskLimit } from "../src/AskLimit.ts"
-import { Catalog } from "../src/Catalog.ts"
+import { Catalog, type Labelled } from "../src/Catalog.ts"
 import { open } from "../src/ConversationObject.ts"
 import { Conversations } from "../src/Conversations.ts"
 import { Directions } from "../src/Directions.ts"
@@ -173,11 +173,64 @@ const recordedWorldBank = Layer.succeed(
   }),
 )
 
+// Eurostat's unemployment by sex, by age in twelve bands and in one unit.
+// The catalog knows no outline of the OECD's dataflow.
+const ages = [
+  "Y15-19",
+  "Y15-24",
+  "Y15-29",
+  "Y15-39",
+  "Y15-59",
+  "Y15-64",
+  "Y15-74",
+  "Y20-24",
+  "Y20-64",
+  "Y25-29",
+  "Y25-54",
+  "Y25-74",
+]
+
+const unemploymentOutline: Labelled = {
+  indicator: IndicatorId.make("ESTAT,UNE_RT_A,1.0"),
+  annual: true,
+  countries: ["FRA", "ESP"],
+  years: { first: 2003, last: 2025 },
+  dimensions: [
+    {
+      id: DimensionId.make("age"),
+      codes: [
+        { code: "Y15-19", label: "From 15 to 19 years" },
+        ...ages.slice(1).map((code) => ({ code, label: `Ages ${code}` })),
+      ],
+    },
+    {
+      id: DimensionId.make("sex"),
+      codes: [
+        { code: "M", label: "Males" },
+        { code: "F", label: "Females" },
+        { code: "T", label: "Total" },
+      ],
+    },
+    {
+      id: DimensionId.make("unit"),
+      codes: [{ code: "PC_ACT", label: "Percentage of population in the labour force" }],
+    },
+  ],
+}
+
 // A catalog of one indicator from each source. A search finds those whose
 // name holds its text, of one source when it names one.
 const catalog = Layer.succeed(
   Catalog,
   Catalog.of({
+    outlines: (indicators) =>
+      Effect.succeed(
+        new Map(
+          indicators.includes(unemploymentOutline.indicator)
+            ? [[unemploymentOutline.indicator, unemploymentOutline]]
+            : [],
+        ),
+      ),
     search: (text, options) =>
       Effect.succeed(
         [
@@ -1319,6 +1372,50 @@ describe("conversations", () => {
       ])
       // The model reads each match's source.
       expect(model.prompts[1]).toContain('"source":"OECD"')
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("lists a dataset's dimensions and codes with each match, and cuts a long list", () => {
+    const model = scripted([
+      Effect.succeed(call("search_indicators", { text: "unemployment", source: null })),
+      silent,
+    ])
+
+    return Effect.gen(function* () {
+      yield* answer("Youth unemployment in France")
+
+      const result = model.prompts[1] ?? ""
+
+      // Eight of the twelve ages, and how many it left out; the total of sex
+      // first; no unit, which takes one code.
+      expect(result).toContain(
+        '"dimensions":[{"id":"age","codes":[{"code":"Y15-19","label":"From 15 to 19 years"}',
+      )
+      expect(result).toContain('{"code":"Y20-24","label":"Ages Y20-24"}],"more":4}')
+      expect(result).not.toContain("Y20-64")
+      expect(result).toContain(
+        '{"id":"sex","codes":[{"code":"T","label":"Total"},{"code":"M","label":"Males"},{"code":"F","label":"Females"}],"more":0}]',
+      )
+      expect(result).not.toContain("PC_ACT")
+      // The OECD's dataflow has no stored outline: its rejection lists them.
+      expect(result).toContain(
+        '"name":"Monthly unemployment rates","definition":"","dimensions":null',
+      )
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("tells the model a World Bank indicator has no dimensions", () => {
+    const model = scripted([
+      Effect.succeed(call("search_indicators", { text: "life expectancy", source: null })),
+      silent,
+    ])
+
+    return Effect.gen(function* () {
+      yield* answer("Life expectancy in Brazil")
+
+      expect(model.prompts[1]).toContain(
+        '"name":"Life expectancy at birth, total (years)","definition":"","dimensions":[]',
+      )
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 

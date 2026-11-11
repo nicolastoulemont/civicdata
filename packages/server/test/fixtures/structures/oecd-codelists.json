@@ -1,0 +1,217 @@
+{
+  "data": {
+    "codelists": [
+      {
+        "id": "CL_ACTIVITY_ISIC4",
+        "version": "1.6",
+        "agencyID": "OECD",
+        "name": "Codelist for economic activity, ISIC rev.4",
+        "codes": [
+          {
+            "id": "_Z",
+            "name": "Not applicable"
+          }
+        ]
+      },
+      {
+        "id": "CL_ADJUSTMENT",
+        "version": "1.0",
+        "agencyID": "OECD",
+        "name": "Codelist for Adjustment",
+        "codes": [
+          {
+            "id": "N",
+            "name": "Neither seasonally adjusted nor calendar adjusted"
+          },
+          {
+            "id": "Y",
+            "name": "Calendar and seasonally adjusted"
+          }
+        ]
+      },
+      {
+        "id": "CL_AGE",
+        "version": "1.8",
+        "agencyID": "OECD",
+        "name": "Codelist for age",
+        "codes": [
+          {
+            "id": "Y15T24",
+            "name": "From 15 to 24 years"
+          },
+          {
+            "id": "Y_GE15",
+            "name": "15 years or over"
+          },
+          {
+            "id": "Y_GE25",
+            "name": "25 years or over"
+          }
+        ]
+      },
+      {
+        "id": "CL_POLLUTANT",
+        "version": "1.2",
+        "agencyID": "OECD",
+        "name": "Air pollutants and greenhouse gases",
+        "codes": [
+          {
+            "id": "GHG",
+            "name": "Greenhouse gases (excludes carbon dioxide from biomass used as a fuel)"
+          },
+          {
+            "id": "CO2",
+            "name": "Carbon dioxide"
+          },
+          {
+            "id": "CH4",
+            "name": "Methane"
+          },
+          {
+            "id": "N2O",
+            "name": "Nitrous oxide"
+          }
+        ]
+      },
+      {
+        "id": "CL_SEX",
+        "version": "1.0",
+        "agencyID": "OECD",
+        "name": "Codelist for concept \"Sex\"",
+        "codes": [
+          {
+            "id": "F",
+            "name": "Female"
+          },
+          {
+            "id": "M",
+            "name": "Male"
+          },
+          {
+            "id": "_T",
+            "name": "Total"
+          }
+        ]
+      },
+      {
+        "id": "CL_TRANSFORMATION",
+        "version": "1.1",
+        "agencyID": "OECD",
+        "name": "Codelist for Transformation",
+        "codes": [
+          {
+            "id": "_Z",
+            "name": "Not applicable"
+          }
+        ]
+      },
+      {
+        "id": "CL_UNIT_MEASURE",
+        "version": "1.33",
+        "agencyID": "OECD",
+        "name": "Codelist for Unit of measure",
+        "codes": [
+          {
+            "id": "FE_WK",
+            "name": "Fatalities per week"
+          },
+          {
+            "id": "VE_WK",
+            "name": "Violent events per week"
+          },
+          {
+            "id": "PT_LF_SUB",
+            "name": "Percentage of labour force in the same subgroup"
+          }
+        ]
+      },
+      {
+        "id": "CL_MEASURE_LFS",
+        "version": "1.0",
+        "agencyID": "OECD.ELS.SAE",
+        "name": "Codelist for LFS related measures",
+        "codes": []
+      },
+      {
+        "id": "CL_MEASURE",
+        "version": "1.0",
+        "agencyID": "OECD.ENV.EEI",
+        "name": "Measure",
+        "codes": [
+          {
+            "id": "GHG_PLC",
+            "name": "Greenhouse Gas Emissions from Plastic Lifecycle"
+          }
+        ]
+      },
+      {
+        "id": "CL_PLASTIC_LIFEC_S",
+        "version": "1.0",
+        "agencyID": "OECD.ENV.EEI",
+        "name": "Plastic lifecycle stage",
+        "codes": [
+          {
+            "id": "PROD_CON",
+            "name": "Production & conversion"
+          },
+          {
+            "id": "EOL",
+            "name": "End-of-life"
+          },
+          {
+            "id": "TOTAL",
+            "name": "All lifecycle stages"
+          }
+        ]
+      },
+      {
+        "id": "CL_MEASURE_LFS_TPS",
+        "version": "1.0",
+        "agencyID": "OECD.SDD.TPS",
+        "name": "Codelist for infra-annual LFS related measures",
+        "codes": [
+          {
+            "id": "UNE_LF_M",
+            "name": "Monthly unemployment rate"
+          }
+        ]
+      },
+      {
+        "id": "CL_ARMED_GROUP",
+        "version": "1.0",
+        "agencyID": "OECD.SWAC",
+        "name": "Codelist of armed groups for political violence",
+        "codes": [
+          {
+            "id": "_Z",
+            "name": "Not applicable"
+          }
+        ]
+      },
+      {
+        "id": "CL_MEASURE_SWAC_PV",
+        "version": "1.0",
+        "agencyID": "OECD.SWAC",
+        "name": "Codelist for political violence in West Africa measures",
+        "codes": [
+          {
+            "id": "PV",
+            "name": "All political violence"
+          },
+          {
+            "id": "VAC",
+            "name": "Violence against civilians"
+          },
+          {
+            "id": "BATTLE",
+            "name": "Battles"
+          },
+          {
+            "id": "REMOTE",
+            "name": "Explosions and remote violence"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -165,15 +165,25 @@ describe("CatalogBuild", () => {
     }).pipe(Effect.provide(catalogOver(lists)))
   })
 
-  it.effect("runs each source's write, embed and publish steps", () => {
+  it.effect("runs each source's outline, label, write, embed and publish steps", () => {
     const run = steps()
 
     return Effect.gen(function* () {
       yield* CatalogBuild.run({ id: "build 1", generation: 1 }).pipe(Effect.provide(run.layer))
 
       expect(run.ran().filter((name) => name.endsWith("OECD"))).toEqual([
+        "outline OECD",
+        "describe OECD",
         "write OECD",
         "publish OECD",
+      ])
+      // The OECD's one step of codelists.
+      expect(run.ran().filter((name) => name.startsWith("label OECD"))).toEqual([
+        "label OECD after ",
+      ])
+      expect(run.ran().filter((name) => name.startsWith("label Eurostat"))).toEqual([
+        "label Eurostat after ",
+        "label Eurostat after ESTAT:UNIT",
       ])
       expect(run.ran().filter((name) => name.startsWith("embed OECD"))).toHaveLength(2)
     }).pipe(Effect.provide(catalogOver(listings())))
@@ -212,12 +222,19 @@ describe("CatalogBuild", () => {
 
       yield* CatalogBuild.run({ id: "build 2", generation: 2 }).pipe(Effect.provide(run.layer))
 
-      // Each source's one classify step finds every entry classified.
+      // Each source's one classify step finds every entry classified, and
+      // each label step every code labelled.
       expect(run.ran().toSorted()).toEqual([
         "classify Eurostat after 0",
         "classify OECD after 0",
         "classify World Bank after 0",
+        "describe Eurostat",
+        "describe OECD",
+        "label Eurostat after ",
+        "label OECD after ",
         "lease after 0 waits",
+        "outline Eurostat",
+        "outline OECD",
         "release the lease",
         "write Eurostat",
         "write OECD",

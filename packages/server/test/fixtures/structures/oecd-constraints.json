@@ -1,0 +1,284 @@
+{
+  "data": {
+    "contentConstraints": [
+      {
+        "id": "CR_A_DSD_GHG_PLC@DF_GHG_PLC",
+        "version": "1.0",
+        "agencyID": "OECD.ENV.EEI",
+        "isFinal": false,
+        "name": "Availability (A) for DSD_GHG_PLC@DF_GHG_PLC",
+        "type": "Actual",
+        "constraintAttachment": {
+          "dataflows": [
+            "urn:sdmx:org.sdmx.infomodel.datastructure.Dataflow=OECD.ENV.EEI:DSD_GHG_PLC@DF_GHG_PLC(1.0)"
+          ]
+        },
+        "cubeRegions": [
+          {
+            "isIncluded": true,
+            "keyValues": [
+              {
+                "id": "MEASURE",
+                "values": ["GHG_PLC"]
+              },
+              {
+                "id": "POLLUTANT",
+                "values": ["CH4", "CO2", "GHG", "N2O"]
+              },
+              {
+                "id": "PLASTIC_LIFEC_S",
+                "values": ["EOL", "PROD_CON", "TOTAL"]
+              },
+              {
+                "id": "FREQ",
+                "values": ["A"]
+              },
+              {
+                "id": "TIME_PERIOD",
+                "timeRange": {
+                  "startPeriod": {
+                    "period": "2015-01-01T00:00:00",
+                    "isInclusive": true
+                  },
+                  "endPeriod": {
+                    "period": "2019-12-31T00:00:00",
+                    "isInclusive": true
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "CR_A_DSD_LFS@DF_IALFS_UNE_M",
+        "version": "1.0",
+        "agencyID": "OECD.SDD.TPS",
+        "isFinal": false,
+        "name": "Availability (A) for DSD_LFS@DF_IALFS_UNE_M",
+        "type": "Actual",
+        "constraintAttachment": {
+          "dataflows": [
+            "urn:sdmx:org.sdmx.infomodel.datastructure.Dataflow=OECD.SDD.TPS:DSD_LFS@DF_IALFS_UNE_M(1.0)"
+          ]
+        },
+        "cubeRegions": [
+          {
+            "isIncluded": true,
+            "keyValues": [
+              {
+                "id": "REF_AREA",
+                "values": [
+                  "ESP",
+                  "ISR",
+                  "TUR",
+                  "ITA",
+                  "USA",
+                  "DEU",
+                  "HUN",
+                  "SVN",
+                  "LUX",
+                  "BGR",
+                  "NLD",
+                  "FIN",
+                  "ROU",
+                  "SVK",
+                  "AUS",
+                  "G7",
+                  "CAN",
+                  "PRT",
+                  "BEL",
+                  "LTU",
+                  "GBR",
+                  "CHL",
+                  "DNK",
+                  "SWE",
+                  "EA",
+                  "ISL",
+                  "FRA",
+                  "POL",
+                  "LVA",
+                  "AUT",
+                  "NZL",
+                  "IRL",
+                  "CZE",
+                  "MEX",
+                  "CHE",
+                  "KOR",
+                  "NOR",
+                  "EU",
+                  "COL",
+                  "GRC",
+                  "OECD",
+                  "JPN",
+                  "EST",
+                  "HRV",
+                  "CRI"
+                ]
+              },
+              {
+                "id": "MEASURE",
+                "values": ["UNE_LF_M"]
+              },
+              {
+                "id": "UNIT_MEASURE",
+                "values": ["PT_LF_SUB"]
+              },
+              {
+                "id": "TRANSFORMATION",
+                "values": ["_Z"]
+              },
+              {
+                "id": "ADJUSTMENT",
+                "values": ["Y", "N"]
+              },
+              {
+                "id": "SEX",
+                "values": ["F", "_T", "M"]
+              },
+              {
+                "id": "AGE",
+                "values": ["Y_GE15", "Y_GE25", "Y15T24"]
+              },
+              {
+                "id": "ACTIVITY",
+                "values": ["_Z"]
+              },
+              {
+                "id": "FREQ",
+                "values": ["Q", "A", "M"]
+              },
+              {
+                "id": "TIME_PERIOD",
+                "timeRange": {
+                  "startPeriod": {
+                    "period": "1953-01-01T00:00:00",
+                    "isInclusive": true
+                  },
+                  "endPeriod": {
+                    "period": "2026-10-31T00:00:00",
+                    "isInclusive": true
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "CR_DSD_LFS@DF_IALFS_UNE_M",
+        "version": "1.0",
+        "agencyID": "OECD.SDD.TPS",
+        "isFinal": true,
+        "name": "OECD.SDD.TPS:CR_DSD_LFS@DF_IALFS_UNE_M(1.0)",
+        "type": "Allowed",
+        "constraintAttachment": {
+          "dataflows": [
+            "urn:sdmx:org.sdmx.infomodel.datastructure.Dataflow=OECD.SDD.TPS:DSD_LFS@DF_IALFS_UNE_M(1.0)"
+          ]
+        },
+        "cubeRegions": [
+          {
+            "isIncluded": true,
+            "keyValues": [
+              {
+                "id": "MEASURE",
+                "values": ["UNE_LF_M"]
+              },
+              {
+                "id": "UNIT_MEASURE",
+                "values": ["PT_LF_SUB"]
+              },
+              {
+                "id": "TRANSFORMATION",
+                "values": ["_Z", "G1"]
+              },
+              {
+                "id": "ADJUSTMENT",
+                "values": ["N", "Y"]
+              },
+              {
+                "id": "SEX",
+                "values": ["_T", "F", "M"]
+              },
+              {
+                "id": "AGE",
+                "values": [
+                  "_T",
+                  "Y_GE15",
+                  "Y_GE25",
+                  "Y15T24",
+                  "Y15T64",
+                  "Y15T74",
+                  "Y25T54",
+                  "Y55T64"
+                ]
+              },
+              {
+                "id": "ACTIVITY",
+                "values": ["_Z"]
+              },
+              {
+                "id": "FREQ",
+                "values": ["A", "M", "Q"]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "CR_A_DSD_SWAC_PV@DF_PV_REGION",
+        "version": "1.0",
+        "agencyID": "OECD.SWAC",
+        "isFinal": false,
+        "name": "Availability (A) for DSD_SWAC_PV@DF_PV_REGION",
+        "type": "Actual",
+        "constraintAttachment": {
+          "dataflows": [
+            "urn:sdmx:org.sdmx.infomodel.datastructure.Dataflow=OECD.SWAC:DSD_SWAC_PV@DF_PV_REGION(1.0)"
+          ]
+        },
+        "cubeRegions": [
+          {
+            "isIncluded": true,
+            "keyValues": [
+              {
+                "id": "REF_AREA",
+                "values": ["F5_CH", "F5_LCB"]
+              },
+              {
+                "id": "FREQ",
+                "values": ["W"]
+              },
+              {
+                "id": "MEASURE",
+                "values": ["BATTLE", "PV", "REMOTE", "VAC"]
+              },
+              {
+                "id": "UNIT_MEASURE",
+                "values": ["FE_WK", "VE_WK"]
+              },
+              {
+                "id": "ARMED_GROUP",
+                "values": ["_Z"]
+              },
+              {
+                "id": "TIME_PERIOD",
+                "timeRange": {
+                  "startPeriod": {
+                    "period": "2014-12-29T00:00:00",
+                    "isInclusive": true
+                  },
+                  "endPeriod": {
+                    "period": "2025-06-22T00:00:00",
+                    "isInclusive": true
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

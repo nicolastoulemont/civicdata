@@ -4,7 +4,17 @@ import { Array as Arr, Context, Effect, Layer, Schema } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
 import { orUnbuilt } from "./built.ts"
+import { Dimension, Outline } from "./Outlines.ts"
 import { Vectors } from "./Vectors.ts"
+
+// A dataset's outline as search hands it over: each code of its dimensions
+// with its label, or the code itself while it has none.
+export interface Labelled extends Omit<Outline, "dimensions"> {
+  readonly dimensions: ReadonlyArray<{
+    readonly id: Dimension["id"]
+    readonly codes: Arr.NonEmptyReadonlyArray<{ readonly code: string; readonly label: string }>
+  }>
+}
 
 interface Interface {
   // The entries that best match the text, best first, of one source when
@@ -13,11 +23,30 @@ interface Interface {
     text: string,
     options?: { readonly source?: Source | undefined },
   ) => Effect.Effect<ReadonlyArray<CatalogEntry>, CatalogUnavailable>
+  // The stored outline of each Eurostat dataset and OECD dataflow among the
+  // indicators. One the catalog has no outline for is missing: a World Bank
+  // indicator, an OECD dataflow without a constraint, or any before a build
+  // stored outlines.
+  readonly outlines: (
+    indicators: ReadonlyArray<IndicatorId>,
+  ) => Effect.Effect<ReadonlyMap<IndicatorId, Labelled>>
 }
 
 const limit = 20
 
 const IdsJson = Schema.fromJsonString(Schema.Array(Schema.String))
+
+// An outline as catalog_outline stores it.
+const Stored = Schema.Struct({
+  indicator: Outline.fields.indicator,
+  annual: Schema.Int,
+  countries: Schema.fromJsonString(Outline.fields.countries),
+  first: Schema.NullOr(Schema.Int),
+  last: Schema.NullOr(Schema.Int),
+  dimensions: Schema.fromJsonString(Schema.Array(Dimension)),
+})
+
+const Label = Schema.Struct({ codelist: Schema.String, code: Schema.String, label: Schema.String })
 
 const words = (text: string) => text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []
 
@@ -99,6 +128,37 @@ export const tables = Effect.gen(function* () {
       direction TEXT NOT NULL,
       model TEXT NOT NULL
     )
+  `
+  // The outline of each Eurostat dataset and OECD dataflow (Outlines.ts): its
+  // dimensions with their codes and codelists, whether it has annual values,
+  // our countries it covers and its first and last year, kept apart from the
+  // generations since the source's listing does not hold them. `fingerprint`
+  // tells a build whether an outline changed; `text` holds the labels search
+  // embeds with the dataset's name.
+  yield* sql`
+    CREATE TABLE IF NOT EXISTS catalog_outline (
+      indicator TEXT PRIMARY KEY,
+      source TEXT NOT NULL,
+      annual INTEGER NOT NULL,
+      countries TEXT NOT NULL,
+      first INTEGER,
+      last INTEGER,
+      dimensions TEXT NOT NULL,
+      fingerprint TEXT NOT NULL,
+      text TEXT NOT NULL DEFAULT ''
+    )
+  `
+  // The label of each code an outline uses, by its source's codelist. A code
+  // gets a row when an outline first uses it, with no label until a build or
+  // the first fill reads its codelist.
+  yield* sql`
+    CREATE TABLE IF NOT EXISTS catalog_label (
+      source TEXT NOT NULL,
+      codelist TEXT NOT NULL,
+      code TEXT NOT NULL,
+      label TEXT,
+      PRIMARY KEY (source, codelist, code)
+    ) WITHOUT ROWID
   `
   // Left by the catalog that loaded and embedded itself during searches.
   yield* sql`DROP TABLE IF EXISTS catalog_refresh`
@@ -227,13 +287,80 @@ export class Catalog extends Context.Service<Catalog, Interface>()("@civicdata/s
         Effect.catchTags({ SqlError: Effect.die, SchemaError: Effect.die }),
       )
 
-      return Catalog.of({ search })
+      const stored = SqlSchema.findAll({
+        Request: Schema.String,
+        Result: Stored,
+        execute: (ids) => sql`
+          SELECT indicator, annual, countries, first, last, dimensions FROM catalog_outline
+          WHERE indicator IN (SELECT value FROM json_each(${ids}))
+        `,
+      })
+
+      const labels = SqlSchema.findAll({
+        Request: Schema.String,
+        Result: Label,
+        execute: (ids) => sql`
+          SELECT label.codelist, label.code, label.label
+          FROM catalog_outline AS outline, json_each(outline.dimensions) AS dimension,
+            json_each(dimension.value, '$.codes') AS code
+          JOIN catalog_label AS label ON label.source = outline.source
+            AND label.codelist = dimension.value ->> 'codelist' AND label.code = code.value
+          WHERE outline.indicator IN (SELECT value FROM json_each(${ids}))
+            AND label.label IS NOT NULL
+        `,
+      })
+
+      const outlines = Effect.fn("Catalog.outlines")(
+        function* (indicators: ReadonlyArray<IndicatorId>) {
+          const ids = yield* Schema.encodeEffect(IdsJson)(indicators)
+
+          const [rows, named] = yield* Effect.all([stored(ids), labels(ids)], {
+            concurrency: "unbounded",
+          }).pipe(
+            orUnbuilt({
+              sql,
+              tables: ["catalog_outline", "catalog_label"],
+              value: [[], []] as const,
+            }),
+          )
+
+          const label = new Map(
+            named.map(({ codelist, code, label: text }) => [`${codelist} ${code}`, text]),
+          )
+
+          return new Map(
+            rows.map(({ indicator, annual, countries, first, last, dimensions }) => [
+              indicator,
+              {
+                indicator,
+                annual: annual === 1,
+                countries,
+                years: first === null || last === null ? null : { first, last },
+                dimensions: dimensions.map(({ id, codelist, codes }) => ({
+                  id,
+                  codes: Arr.map(codes, (code) => ({
+                    code,
+                    label:
+                      (codelist === null ? undefined : label.get(`${codelist} ${code}`)) ?? code,
+                  })),
+                })),
+              } satisfies Labelled,
+            ]),
+          )
+        },
+        Effect.catchTags({ SqlError: Effect.die, SchemaError: Effect.die }),
+      )
+
+      return Catalog.of({ search, outlines })
     }).pipe(Effect.orDie),
   )
 
   static readonly unavailable = Layer.succeed(
     Catalog,
-    Catalog.of({ search: () => Effect.fail(new CatalogUnavailable()) }),
+    Catalog.of({
+      search: () => Effect.fail(new CatalogUnavailable()),
+      outlines: () => Effect.succeed(new Map()),
+    }),
   )
 
   // The catalog's D1 inside Workers (deployed, or under `alchemy dev`). Plain

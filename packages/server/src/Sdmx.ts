@@ -52,7 +52,7 @@ const Options = Schema.Struct({
 type Options = typeof Options.Type
 
 // The sources that publish through SDMX.
-type SdmxSource = Exclude<Source, "World Bank">
+export type SdmxSource = Exclude<Source, "World Bank">
 
 // Each SDMX source's adapter. Nothing of theirs is stored yet.
 type Interface = { readonly [source in SdmxSource]: Adapter }

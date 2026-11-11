@@ -1,0 +1,339 @@
+{
+  "data": {
+    "dataStructures": [
+      {
+        "id": "DSD_LFS",
+        "version": "1.1",
+        "agencyID": "OECD.ELS.SAE",
+        "isFinal": true,
+        "name": "Labour force statistics",
+        "dataStructureComponents": {
+          "dimensionList": {
+            "id": "DimensionDescriptor",
+            "dimensions": [
+              {
+                "id": "REF_AREA",
+                "position": 0,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.ELS.SAE:CS_LFS(1.1).REF_AREA",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD:CL_AREA(1.1)"
+                }
+              },
+              {
+                "id": "MEASURE",
+                "position": 1,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.ELS.SAE:CS_LFS(1.1).MEASURE",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD.ELS.SAE:CL_MEASURE_LFS(1.0)"
+                }
+              },
+              {
+                "id": "UNIT_MEASURE",
+                "position": 2,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.ELS.SAE:CS_LFS(1.1).UNIT_MEASURE",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD:CL_UNIT_MEASURE(1.2)"
+                }
+              },
+              {
+                "id": "SEX",
+                "position": 3,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.ELS.SAE:CS_LFS(1.1).SEX",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD:CL_SEX(1.0)"
+                }
+              },
+              {
+                "id": "AGE",
+                "position": 4,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.ELS.SAE:CS_LFS(1.1).AGE",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD:CL_AGE(1.0)"
+                }
+              },
+              {
+                "id": "LABOUR_FORCE_STATUS",
+                "position": 5,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.ELS.SAE:CS_LFS(1.1).LABOUR_FORCE_STATUS",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD.ELS.SAE:CL_LABOUR_FORCE_STATUS(1.0)"
+                }
+              }
+            ],
+            "timeDimensions": [
+              {
+                "id": "TIME_PERIOD",
+                "position": 6,
+                "type": "TimeDimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.ELS.SAE:CS_LFS(1.1).TIME_PERIOD",
+                "localRepresentation": {
+                  "textFormat": {
+                    "textType": "ObservationalTimePeriod",
+                    "isSequence": false,
+                    "isMultiLingual": false
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "DSD_GHG_PLC",
+        "version": "1.0",
+        "agencyID": "OECD.ENV.EEI",
+        "isFinal": true,
+        "name": "Global Plastic Outlook - Greenhouse Gas Emissions from Plastic Lifecycle from 2015 to 2019",
+        "dataStructureComponents": {
+          "dimensionList": {
+            "id": "DimensionDescriptor",
+            "dimensions": [
+              {
+                "id": "MEASURE",
+                "position": 0,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.ENV.EEI:CS_GPO(1.0).MEASURE",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD.ENV.EEI:CL_MEASURE(1.0)"
+                }
+              },
+              {
+                "id": "POLLUTANT",
+                "position": 1,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.ENV.EEI:CS_GPO(1.0).POLLUTANT",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD:CL_POLLUTANT(1.1)"
+                }
+              },
+              {
+                "id": "PLASTIC_LIFEC_S",
+                "position": 2,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.ENV.EEI:CS_GPO(1.0).PLASTIC_LIFEC_S",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD.ENV.EEI:CL_PLASTIC_LIFEC_S(1.0)"
+                }
+              },
+              {
+                "id": "FREQ",
+                "position": 3,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.ENV.EEI:CS_GPO(1.0).FREQ",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=SDMX:CL_FREQ(2.1)"
+                }
+              }
+            ],
+            "timeDimensions": [
+              {
+                "id": "TIME_PERIOD",
+                "position": 4,
+                "type": "TimeDimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.ENV.EEI:CS_GPO(1.0).TIME_PERIOD",
+                "localRepresentation": {
+                  "textFormat": {
+                    "textType": "ObservationalTimePeriod",
+                    "isSequence": false,
+                    "isMultiLingual": false
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "DSD_LFS",
+        "version": "1.0",
+        "agencyID": "OECD.SDD.TPS",
+        "isFinal": true,
+        "name": "Labour force statistics",
+        "dataStructureComponents": {
+          "dimensionList": {
+            "id": "DimensionDescriptor",
+            "dimensions": [
+              {
+                "id": "REF_AREA",
+                "position": 0,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SDD.TPS:CS_LFS(1.0).REF_AREA",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD:CL_AREA(1.1)"
+                }
+              },
+              {
+                "id": "MEASURE",
+                "position": 1,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SDD.TPS:CS_LFS(1.0).MEASURE",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD.SDD.TPS:CL_MEASURE_LFS_TPS(1.0)"
+                }
+              },
+              {
+                "id": "UNIT_MEASURE",
+                "position": 2,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SDD.TPS:CS_LFS(1.0).UNIT_MEASURE",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD:CL_UNIT_MEASURE(1.2)"
+                }
+              },
+              {
+                "id": "TRANSFORMATION",
+                "position": 3,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SDD.TPS:CS_LFS(1.0).TRANSFORMATION",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD:CL_TRANSFORMATION(1.1)"
+                }
+              },
+              {
+                "id": "ADJUSTMENT",
+                "position": 4,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SDD.TPS:CS_LFS(1.0).ADJUSTMENT",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD:CL_ADJUSTMENT(1.0)"
+                }
+              },
+              {
+                "id": "SEX",
+                "position": 5,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SDD.TPS:CS_LFS(1.0).SEX",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD:CL_SEX(1.0)"
+                }
+              },
+              {
+                "id": "AGE",
+                "position": 6,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SDD.TPS:CS_LFS(1.0).AGE",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD:CL_AGE(1.0)"
+                }
+              },
+              {
+                "id": "ACTIVITY",
+                "position": 7,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SDD.TPS:CS_LFS(1.0).ACTIVITY",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD:CL_ACTIVITY_ISIC4(1.0)"
+                }
+              },
+              {
+                "id": "FREQ",
+                "position": 8,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SDD.TPS:CS_LFS(1.0).FREQ",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=SDMX:CL_FREQ(2.1)"
+                }
+              }
+            ],
+            "timeDimensions": [
+              {
+                "id": "TIME_PERIOD",
+                "position": 9,
+                "type": "TimeDimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SDD.TPS:CS_LFS(1.0).TIME_PERIOD",
+                "localRepresentation": {
+                  "textFormat": {
+                    "textType": "ObservationalTimePeriod",
+                    "isSequence": false,
+                    "isMultiLingual": false
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "DSD_SWAC_PV",
+        "version": "1.0",
+        "agencyID": "OECD.SWAC",
+        "isFinal": true,
+        "name": "Trends of political violence in West Africa",
+        "description": "The weekly rates of political violent events (and of fatalities related to those events) represents the expected number of events per week (or fatalities per week) after smoothing out weekly fluctuations. The weekly rates are calculated at the national level, i.e. including all political violent events within the country under analysis; or at the regional level (a group of neighbour countries or parts of those countries); or violent groups, i.e., including all the events in which the group participates.\nFor event based indicators, the weekly rate is the average number of events per week.\nFor fatalities based indicators, the weekly rate is the average number of fatalities per week from those events.\nThere are three types of events: Violence against civilians, Battles, Explosions and remote violence. \nThere is one data point (weekly rate) for every week since January 1st, 2015, for every type of event and for the sum of all three event\u2019s types. Weekly rates are calculated for the events, and for the fatalities related to those events.\nThe calculation of the weekly rates is performed using input data from ACLED (Armed Conflict Location and Event Data, https://acleddata.com) and following the method in Prieto-Curiel et al., 2023 (https://doi.org/10.1371/journal.pone.0291514). A short description of the method follows:\n1.\tStart with the cumulative total: C(t) = total events (or fatalities) up to week t.\n2.\tFit a piecewise-linear model to this curve.\n3.\tWithin each segment (between change-points), C(t) \u2248 \u03bb \u00d7 t + constant.\n4.\tThe slope \u03bb of each segment is the estimated weekly rate.",
+        "dataStructureComponents": {
+          "dimensionList": {
+            "id": "DimensionDescriptor",
+            "dimensions": [
+              {
+                "id": "REF_AREA",
+                "position": 0,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SWAC:CS_SWAC(1.0).REF_AREA",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD:CL_AREA(1.8)"
+                }
+              },
+              {
+                "id": "FREQ",
+                "position": 1,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SWAC:CS_SWAC(1.0).FREQ",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=SDMX:CL_FREQ(2.1)"
+                }
+              },
+              {
+                "id": "MEASURE",
+                "position": 2,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SWAC:CS_SWAC(1.0).MEASURE",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD.SWAC:CL_MEASURE_SWAC_PV(1.0)"
+                }
+              },
+              {
+                "id": "UNIT_MEASURE",
+                "position": 3,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SWAC:CS_SWAC(1.0).UNIT_MEASURE",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD:CL_UNIT_MEASURE(1.30)"
+                }
+              },
+              {
+                "id": "ARMED_GROUP",
+                "position": 4,
+                "type": "Dimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SWAC:CS_SWAC(1.0).ARMED_GROUP",
+                "localRepresentation": {
+                  "enumeration": "urn:sdmx:org.sdmx.infomodel.codelist.Codelist=OECD.SWAC:CL_ARMED_GROUP(1.0)"
+                }
+              }
+            ],
+            "timeDimensions": [
+              {
+                "id": "TIME_PERIOD",
+                "position": 5,
+                "type": "TimeDimension",
+                "conceptIdentity": "urn:sdmx:org.sdmx.infomodel.conceptscheme.Concept=OECD.SWAC:CS_SWAC(1.0).TIME_PERIOD",
+                "localRepresentation": {
+                  "textFormat": {
+                    "textType": "ObservationalTimePeriod",
+                    "isSequence": false,
+                    "isMultiLingual": false
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}
