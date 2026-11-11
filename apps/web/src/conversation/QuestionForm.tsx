@@ -90,9 +90,10 @@ const Keys = Extension.create({
 const extensions = [Document, Paragraph, Text, UndoRedo, Keys]
 
 // The box, and its placeholder while empty. The placeholder is drawn, not
-// text, so like a textarea's it is no part of the page's content.
+// text, so like a textarea's it is no part of the page's content. The card is
+// a centred column, so the box fills its width.
 const box =
-  "max-h-52 min-h-12 overflow-y-auto px-4 pt-3 pb-2 text-base wrap-break-word whitespace-pre-wrap outline-none md:text-sm data-[empty=true]:before:pointer-events-none data-[empty=true]:before:float-left data-[empty=true]:before:h-0 data-[empty=true]:before:text-muted-foreground data-[empty=true]:before:content-[attr(data-placeholder)]"
+  "w-full max-h-52 min-h-12 overflow-y-auto px-4 pt-3 pb-2 text-base wrap-break-word whitespace-pre-wrap outline-none md:text-sm data-[empty=true]:before:pointer-events-none data-[empty=true]:before:float-left data-[empty=true]:before:h-0 data-[empty=true]:before:text-muted-foreground data-[empty=true]:before:content-[attr(data-placeholder)]"
 
 interface SendProps {
   state: State
