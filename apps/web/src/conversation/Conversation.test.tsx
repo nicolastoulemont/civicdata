@@ -2169,6 +2169,69 @@ describe("Conversation", () => {
     expect(screen.getByText(rose)).toBeDefined()
   })
 
+  it("shows the steps the agent takes after a chart below that chart", async () => {
+    const reply = answer()
+
+    network.use(turns([]), reply.handler, resolve)
+    show("Life expectancy in Brazil, and in Mexico")
+
+    reply.send(message(searching(searched.state)))
+    reply.send(message(rendering(plot(brazil), 0)))
+    reply.send(
+      message(
+        Search.make({ id: StepId.make("search-2"), text: "Mexico", state: Running.make({}) }),
+      ),
+    )
+
+    const chart = await screen.findByRole("region", { name: "Chart 1 of the answer" })
+    await screen.findByText("Searching for “Mexico”…", { selector: "span" })
+    const [before, after] = screen.getAllByRole("list", { name: "Steps" })
+
+    expect(within(before!).getByText("Searched for “life expectancy”: 1 found")).toBeDefined()
+    expect(within(after!).getByText("Searching for “Mexico”…")).toBeDefined()
+    expect(chart.compareDocumentPosition(before!) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy()
+    expect(chart.compareDocumentPosition(after!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it("keeps a chart as the person left it while the agent answered once the answer is kept", async () => {
+    const reply = answer()
+    const user = userEvent.setup()
+    const question = "Life expectancy in Spain"
+    const spain = Trend.make({ ...brazil, countries: ["ESP"] })
+    let answered: ReadonlyArray<Turn> = []
+
+    network.use(
+      http.get(`/api/conversations/${id}`, () => HttpResponse.json(encodeTurns({ answered }))),
+      reply.handler,
+      resolve,
+      http.get("/api/politics", () =>
+        HttpResponse.json(
+          Schema.encodeSync(Schema.toCodecJson(Politics))({
+            governments: [aznar],
+            elections: [],
+            events: [],
+            reforms: [],
+          }),
+        ),
+      ),
+    )
+    show(question)
+
+    reply.send(message(rendering(plot(spain), 0)))
+    await user.click(await screen.findByRole("button", { name: "Governments", pressed: false }))
+    expect(await screen.findByRole("button", { name: "Governments", pressed: true })).toBeDefined()
+
+    const rose = "Life expectancy in Spain rose."
+    answered = [{ question, answer: charted(plot(spain), said(rose)), steps: [] }]
+    reply.send(message(rendering(said(rose), 1)))
+    reply.send(message(charted(plot(spain), said(rose))))
+    reply.end()
+
+    expect(await screen.findByText("Worked")).toBeDefined()
+    expect(screen.getByText(rose)).toBeDefined()
+    expect(screen.getByRole("button", { name: "Governments", pressed: true })).toBeDefined()
+  })
+
   it.each([
     { via: "click", expected: "South Korea" },
     { via: "number", expected: "North Korea" },

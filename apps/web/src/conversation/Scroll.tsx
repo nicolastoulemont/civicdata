@@ -19,8 +19,8 @@ const reduced = () => window.matchMedia("(prefers-reduced-motion: reduce)").matc
 
 // Makes the content tall enough to scroll its last question 24px from the
 // top, however short its answer. The answer grows into the space, and only an
-// answer taller than it moves the end. The rows remount when the answer is
-// saved, so the space belongs to the content, not to a row.
+// answer taller than it moves the end. The space belongs to the content, not
+// to a row, so it outlasts any row that changes.
 const reserve = (viewport: HTMLElement, content: HTMLElement) => {
   const question = [...content.querySelectorAll("[data-question]")].at(-1)
 

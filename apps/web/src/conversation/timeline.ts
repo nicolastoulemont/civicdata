@@ -6,11 +6,11 @@ import type { Failure, useConversation } from "./useConversation.ts"
 type Pending = NonNullable<ReturnType<typeof useConversation>["pending"]>
 
 // A question in the timeline: one that failed, one answered, or the one
-// being answered.
+// being answered, at the index its turn takes once kept.
 export type Entry = Data.TaggedEnum<{
   Failed: { readonly failure: Failure }
   Turn: { readonly turn: Turn; readonly index: TurnIndex }
-  Pending: { readonly pending: Pending }
+  Pending: { readonly pending: Pending; readonly index: TurnIndex }
 }>
 
 export const Entry = Data.taggedEnum<Entry>()
@@ -32,5 +32,7 @@ export const entries = ({ turns, failures, pending }: EntriesInput): ReadonlyArr
       ? []
       : [Entry.Turn({ turn: turns[index], index: TurnIndex.make(index) })]),
   ]).flat(),
-  ...(pending === undefined ? [] : [Entry.Pending({ pending })]),
+  ...(pending === undefined
+    ? []
+    : [Entry.Pending({ pending, index: TurnIndex.make(turns.length) })]),
 ]
