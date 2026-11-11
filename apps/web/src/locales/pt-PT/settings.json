@@ -2,10 +2,10 @@
   "title": "Definições",
   "sections": "Secções das definições",
   "appearance": "Aparência",
-  "appearanceDescription": "O aspeto do civicdata neste navegador. Sistema segue as definições do seu dispositivo.",
+  "appearanceDescription": "O aspeto do openfacts neste navegador. Sistema segue as definições do seu dispositivo.",
   "system": "Sistema",
   "light": "Claro",
   "dark": "Escuro",
   "language": "Idioma",
-  "languageDescription": "O idioma usado pelo civicdata neste navegador. O texto das fontes e as respostas existentes mantêm o idioma original."
+  "languageDescription": "O idioma usado pelo openfacts neste navegador. O texto das fontes e as respostas existentes mantêm o idioma original."
 }

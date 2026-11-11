@@ -39,9 +39,12 @@
   // inset on North America and the Americas, so generated outlines repeat.
   "duplicates": { "ignore": ["apps/web/src/explore/maps/**"] },
   // shadcn's generated components are kept close to upstream rather than
-  // restructured; complexity limits apply to our own code. Build scripts run by
-  // hand; tests check what they write (faces.gen.ts), not the scripts.
-  "health": { "ignore": ["apps/web/src/components/ui/**", "apps/web/scripts/**"] },
+  // restructured; complexity limits apply to our own code. Build scripts
+  // (apps/web/scripts, tools/brand) run by hand; tests check what they write
+  // (faces.gen.ts), not the scripts.
+  "health": {
+    "ignore": ["apps/web/src/components/ui/**", "apps/web/scripts/**", "tools/brand/**"]
+  },
   "rules": {
     "unused-effect-layers": "error",
     "unused-tagged-errors": "error",
@@ -54,6 +57,7 @@
   "boundaries": {
     "zones": [
       { "name": "lint", "patterns": ["tools/oxlint/i18n/**"] },
+      { "name": "brand", "patterns": ["tools/brand/**"] },
       { "name": "domain", "patterns": ["packages/domain/**"] },
       { "name": "machine", "patterns": ["packages/machine/**"] },
       { "name": "server", "patterns": ["packages/server/**"] },
@@ -62,6 +66,7 @@
     ],
     "rules": [
       { "from": "lint", "allow": [] },
+      { "from": "brand", "allow": [] },
       { "from": "domain", "allow": [] },
       { "from": "machine", "allow": [] },
       { "from": "server", "allow": ["domain", "machine"] },

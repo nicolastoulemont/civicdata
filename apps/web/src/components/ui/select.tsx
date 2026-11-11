@@ -21,7 +21,7 @@ function SelectValue({ className, ...props }: SelectPrimitive.Value.Props) {
   return (
     <SelectPrimitive.Value
       data-slot="select-value"
-      // civicdata: one line, ending in an ellipsis when the value is longer.
+      // openfacts: one line, ending in an ellipsis when the value is longer.
       className={cn("min-w-0 flex-1 truncate text-left", className)}
       {...props}
     />
@@ -116,7 +116,7 @@ function SelectItem({ className, children, ...props }: SelectPrimitive.Item.Prop
       )}
       {...props}
     >
-      {/* civicdata: a long label wraps, so options that share a prefix
+      {/* openfacts: a long label wraps, so options that share a prefix
           stay apart. */}
       <SelectPrimitive.ItemText className="flex flex-1 gap-2">{children}</SelectPrimitive.ItemText>
       <SelectPrimitive.ItemIndicator

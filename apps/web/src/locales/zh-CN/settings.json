@@ -2,10 +2,10 @@
   "title": "设置",
   "sections": "设置分类",
   "appearance": "外观",
-  "appearanceDescription": "设置此浏览器中 civicdata 的外观。“跟随系统”会使用设备的外观设置。",
+  "appearanceDescription": "设置此浏览器中 openfacts 的外观。“跟随系统”会使用设备的外观设置。",
   "system": "跟随系统",
   "light": "浅色",
   "dark": "深色",
   "language": "语言",
-  "languageDescription": "此浏览器中 civicdata 使用的语言。来源文本和已有回答保留原始语言。"
+  "languageDescription": "此浏览器中 openfacts 使用的语言。来源文本和已有回答保留原始语言。"
 }

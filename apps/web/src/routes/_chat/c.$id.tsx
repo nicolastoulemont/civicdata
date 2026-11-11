@@ -51,7 +51,7 @@ export const Route = createFileRoute("/_chat/c/$id")({
         title: createI18n().getFixedT(
           "en-US",
           "conversation",
-        )(($) => $["Conversation · civicdata"]),
+        )(($) => $["Conversation · openfacts"]),
       },
     ],
   }),

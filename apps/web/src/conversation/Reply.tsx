@@ -34,7 +34,7 @@ export const Reply = ({ answer }: ReplyProps) => {
       <p className="text-sm text-muted-foreground">
         {t(
           ($) =>
-            $["Cut short: civicdata reached its limit of steps before it finished this answer"],
+            $["Cut short: openfacts reached its limit of steps before it finished this answer"],
         )}
       </p>
     ),

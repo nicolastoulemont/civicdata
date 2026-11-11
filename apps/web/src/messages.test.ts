@@ -12,7 +12,7 @@ const syntax = (message: string) => ({
     .map((match) => match[1] ?? "")
     .toSorted(),
   markup: message.match(/<\/?[\w]+\/?>/g) ?? [],
-  brand: message.includes("civicdata"),
+  brand: message.includes("openfacts"),
   leadingSpace: message.startsWith(" "),
   trailingSpace: message.endsWith(" "),
 })

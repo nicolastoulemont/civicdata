@@ -30,6 +30,7 @@
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
   --color-message-surface: var(--message-surface);
+  --color-brand: var(--brand);
   --color-status-working: var(--status-working);
   --color-status-answered: var(--status-answered);
   --color-status-reply: var(--status-reply);
@@ -90,6 +91,8 @@
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
   --message-surface: oklch(0.943 0 0);
+  /* The dot in the openfacts mark (Mark.tsx, tools/brand). */
+  --brand: oklch(0.511 0.262 276.966);
   /* A conversation's status in the sidebar, as text on a 10% tint of itself.
      Each keeps 4.5:1 or more on the sidebar and on its hovered or current
      card. */
@@ -146,6 +149,7 @@
     --accent: oklch(0.235 0 0);
     --accent-foreground: oklch(0.97 0 0);
     --message-surface: oklch(0.26 0 0);
+    --brand: oklch(0.673 0.182 276.935);
     --status-working: oklch(0.75 0.13 250);
     --status-answered: oklch(0.77 0.15 155);
     --status-reply: oklch(0.8 0.14 75);

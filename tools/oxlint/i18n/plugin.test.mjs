@@ -49,7 +49,7 @@ await test("rejects raw JSX text, accessible names, placeholders, branches, temp
 await test("accepts i18n calls, source data, brand names, punctuation, and technical attributes", () => {
   assert.deepEqual(
     lint(
-      'const App=()=> <section className="flex gap-2" data-state="loading"><p>civicdata</p><button aria-label={t($=>$.save)}>{t($=>$.save)}</button><span>{source.title}</span><span>{count}</span><span> / </span><p>Eurostat</p><input placeholder={t($=>$.question)}/></section>',
+      'const App=()=> <section className="flex gap-2" data-state="loading"><p>openfacts</p><button aria-label={t($=>$.save)}>{t($=>$.save)}</button><span>{source.title}</span><span>{count}</span><span> / </span><p>Eurostat</p><input placeholder={t($=>$.question)}/></section>',
     ),
     [],
   )

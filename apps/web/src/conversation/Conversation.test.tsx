@@ -1141,7 +1141,7 @@ describe("Conversation", () => {
     show()
 
     expect(await screen.findAllByRole("heading", { name: "You" })).toHaveLength(2)
-    expect(screen.getAllByRole("heading", { name: "civicdata" })).toHaveLength(2)
+    expect(screen.getAllByRole("heading", { name: "openfacts" })).toHaveLength(2)
   })
 
   it("offers a named button after scrolling up, and returns to the latest answer", async () => {
@@ -1226,7 +1226,7 @@ describe("Conversation", () => {
     const ticks = ticksOf(await findRail())
     const viewport = layOut()
 
-    screen.getByRole("link", { name: "civicdata" }).focus()
+    screen.getByRole("link", { name: "openfacts" }).focus()
     await user.tab()
     // The previous-question button is disabled at the first question.
     expect(document.activeElement).toBe(ticks[0])
@@ -2436,7 +2436,7 @@ describe("Conversation", () => {
 
     expect(await findQuestion("Life expectancy in Brazil")).toBeDefined()
     expect((await findComposer()).getAttribute("aria-placeholder")).toBe(
-      "Write your next question while civicdata answers",
+      "Write your next question while openfacts answers",
     )
 
     // A draft waits: Enter and Cmd+Enter send nothing while the agent answers.
@@ -2502,7 +2502,7 @@ describe("Conversation", () => {
         screen
           .queryByRole("textbox", { name: "Ask a follow-up" })
           ?.getAttribute("aria-placeholder"),
-      ).not.toBe("Write your next question while civicdata answers"),
+      ).not.toBe("Write your next question while openfacts answers"),
     )
     expect(rows()).toHaveLength(1)
   })

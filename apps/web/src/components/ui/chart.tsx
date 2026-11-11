@@ -107,7 +107,7 @@ ${colorConfig
   )
 }
 
-// civicdata: the tooltip stays above the legend, which Recharts draws after it.
+// openfacts: the tooltip stays above the legend, which Recharts draws after it.
 function ChartTooltip({
   wrapperStyle,
   ...props
@@ -252,7 +252,7 @@ function ChartTooltipContent({
             )
           })}
       </div>
-      {/* civicdata: notes about the hovered point, under its values. */}
+      {/* openfacts: notes about the hovered point, under its values. */}
       {children}
     </div>
   )
@@ -260,7 +260,7 @@ function ChartTooltipContent({
 
 const ChartLegend = RechartsPrimitive.Legend
 
-// civicdata: legend items that bring one series forward. Pointing at an item
+// openfacts: legend items that bring one series forward. Pointing at an item
 // or focusing it brings its series forward while it lasts; pressing it keeps
 // the series forward until it is pressed again.
 interface LegendPicking {

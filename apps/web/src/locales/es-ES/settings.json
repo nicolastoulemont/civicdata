@@ -2,10 +2,10 @@
   "title": "Ajustes",
   "sections": "Secciones de ajustes",
   "appearance": "Apariencia",
-  "appearanceDescription": "El aspecto de civicdata en este navegador. Sistema sigue los ajustes de tu dispositivo.",
+  "appearanceDescription": "El aspecto de openfacts en este navegador. Sistema sigue los ajustes de tu dispositivo.",
   "system": "Sistema",
   "light": "Claro",
   "dark": "Oscuro",
   "language": "Idioma",
-  "languageDescription": "El idioma de civicdata en este navegador. El texto de las fuentes y las respuestas existentes conservan su idioma original."
+  "languageDescription": "El idioma de openfacts en este navegador. El texto de las fuentes y las respuestas existentes conservan su idioma original."
 }

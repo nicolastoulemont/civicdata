@@ -9,6 +9,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
 import { Toggle } from "@/history/Toggle"
+import { Mark } from "@/Mark"
 
 interface HeaderProps {
   title: string | undefined
@@ -28,7 +29,10 @@ export const Header = ({ title }: HeaderProps) => {
       <Breadcrumb className="min-w-0">
         <BreadcrumbList className="flex-nowrap">
           <BreadcrumbItem>
-            <BreadcrumbLink render={<Link to="/" />}>civicdata</BreadcrumbLink>
+            <BreadcrumbLink render={<Link to="/" />} className="flex items-center gap-1.5">
+              <Mark className="size-4" />
+              openfacts
+            </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator>/</BreadcrumbSeparator>
           <BreadcrumbItem className="min-w-0">

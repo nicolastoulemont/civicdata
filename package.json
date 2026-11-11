@@ -16,12 +16,15 @@
     "fallow": "fallow",
     "check": "pnpm format:check && pnpm lint && pnpm test:lint && pnpm fallow && turbo run typecheck test build",
     "prepare": "effect-tsgo patch --typescript",
-    "evals": "node packages/server/scripts/evals.ts"
+    "evals": "node packages/server/scripts/evals.ts",
+    "brand": "node tools/brand/brand.mjs"
   },
   "devDependencies": {
     "@effect/tsgo": "0.67.5",
     "@oxlint/plugins": "1.92.0",
+    "@resvg/resvg-js": "2.6.2",
     "fallow": "^3.41.0",
+    "opentype.js": "^2.0.0",
     "oxfmt": "^0.77.0",
     "oxlint": "1.92.0",
     "oxlint-tsgolint": "^7.0.2006",
