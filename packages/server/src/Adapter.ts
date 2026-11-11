@@ -33,6 +33,8 @@ export const Policy = Data.taggedEnum<Policy>()
 
 export interface AssetEntry {
   readonly indicator: IndicatorId
+  // Each candidate replaces a complete series, not a country/year partition.
+  // Partitioned inputs must be assembled before reaching this stream.
   readonly series: Stream.Stream<Stored, SourceUnavailable>
 }
 
