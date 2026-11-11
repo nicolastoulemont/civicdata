@@ -116,6 +116,7 @@ type Saved =
   | { readonly [key: string]: number | string | null }
 
 interface Interface {
+  readonly sources: ReadonlyArray<Source>
   // Takes the lease that lets one build at a time change the catalog, for
   // the Workflow instance `holder`, and answers whether it holds it. An
   // instance that already holds it takes it again, so a replayed step
@@ -390,7 +391,8 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
           sql`SELECT indicator, annual, countries, text FROM catalog_outline WHERE source = ${source}`,
       })
 
-      const list = (source: Source) => sources[source].list
+      const list = (source: Source) =>
+        sources[source]?.list ?? Effect.fail(new SourceUnavailable({ source }))
 
       const take = Effect.fn("CatalogBuild.take")(
         function* (holder: string) {
@@ -611,6 +613,7 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
       })
 
       return CatalogBuild.of({
+        sources: Object.keys(sources).map((source) => Source.make(source)),
         take,
         release,
         outline,
@@ -710,7 +713,7 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
     })
 
     const one = Effect.fn("CatalogBuild.source")(function* (source: Source) {
-      if (source !== "World Bank") {
+      if (source === "Eurostat" || source === "OECD") {
         yield* refine(source).pipe(
           Effect.catch((error) => Effect.logWarning("Refreshing outlines failed", source, error)),
         )
@@ -732,7 +735,7 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
     })
 
     const [, failed] = yield* Effect.partition(
-      Source.literals,
+      build.sources,
       (source) =>
         one(source).pipe(
           Effect.tapError((error) => Effect.logError("Catalog build failed", source, error)),

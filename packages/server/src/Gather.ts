@@ -277,11 +277,13 @@ export class Gather extends Context.Service<Gather, Interface>()("@civicdata/ser
         Effect.catchTags({ SqlError: Effect.die, SchemaError: Effect.die }),
       )
 
-      const mirrors = Source.literals.flatMap((source): ReadonlyArray<Mirror> => {
-        const { policy } = sources[source]
+      const mirrors = Object.entries(sources).flatMap(
+        ([name, { policy }]): ReadonlyArray<Mirror> => {
+          const source = Source.make(name)
 
-        return Policy.$is("Full")(policy) ? [{ source, policy }] : []
-      })
+          return Policy.$is("Full")(policy) ? [{ source, policy }] : []
+        },
+      )
 
       return Gather.of({ mirrors, check, gather })
     }).pipe(Effect.orDie),

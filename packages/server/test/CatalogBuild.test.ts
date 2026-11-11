@@ -1,4 +1,4 @@
-import { type CatalogEntry, IndicatorId, Source, SourceUnavailable } from "@civicdata/domain"
+import { type CatalogEntry, IndicatorId, SourceUnavailable } from "@civicdata/domain"
 import { beforeEach, describe, expect, it } from "@effect/vitest"
 import { reset } from "cloudflare:test"
 import { Deferred, Effect, Match, Schema } from "effect"
@@ -31,7 +31,7 @@ beforeEach(() => reset())
 const names = (entries: ReadonlyArray<CatalogEntry>) => entries.map((found) => found.name)
 
 // An entry of each source's list in generation 1.
-const kept: Record<Source, string> = {
+const kept = {
   "World Bank": "Life expectancy at birth, total (years)",
   Eurostat: "Population on 1 January",
   OECD: "Monthly unemployment rates",
@@ -189,7 +189,7 @@ describe("CatalogBuild", () => {
     }).pipe(Effect.provide(catalogOver(listings())))
   })
 
-  for (const down of Source.literals) {
+  for (const down of ["World Bank", "Eurostat", "OECD"] as const) {
     it.effect(`keeps ${down}'s old generation when it is down, and publishes the others`, () => {
       const lists = listings()
 

@@ -12,6 +12,21 @@ const trend: Search = {
 }
 
 describe("explore URL", () => {
+  it("opens deployed share ids unchanged and preserves a fourth publisher", () => {
+    for (const indicator of [
+      "SP.POP.TOTL",
+      "ESTAT,UNE_RT_A,1.0",
+      "OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M,1.0",
+      "Fixture:SP.POP.TOTL",
+    ]) {
+      const search: Search = { ...trend, indicator }
+      const view = toView(search)
+      const reopened = fromUrl(new URL(`https://example.org/explore${toQuery(view)}`))
+      expect(reopened).toEqual(view)
+      expect(toSearch(view).indicator).toBe(indicator)
+    }
+  })
+
   it("round-trips a trend and a ranking", () => {
     const ranking: Search = {
       chart: "ranking",

@@ -1,4 +1,4 @@
-import { Source } from "@civicdata/domain"
+import { type Source } from "@civicdata/domain"
 import { Console, Context, Effect, Layer, Option, Ref, Schema } from "effect"
 
 // How each source answered the run: from a recording, or by a request that
@@ -76,7 +76,7 @@ export class Tally extends Context.Service<Tally, Interface>()("@civicdata/serve
 
         return [
           "Source requests (sent / replayed):",
-          ...Source.literals.map((source) => {
+          ...Array.from(all.keys()).map((source) => {
             const { sent, replayed } = all.get(source) ?? none
 
             return `  ${source}: ${sent} / ${replayed}`

@@ -1,7 +1,10 @@
 import {
   type CatalogEntry,
   Dimensions,
-  IndicatorId,
+  identify,
+  IndicatorNotFound,
+  NativeId,
+  nativeId,
   pathOf,
   type Source,
   Trend,
@@ -26,7 +29,8 @@ import { bucket } from "./series.ts"
 
 beforeEach(() => reset())
 
-const flow = IndicatorId.make("OECD.TEST,DSD_MADE@DF_UP,1.0")
+const native: NativeId = NativeId.make("DSD_MADE@DF_UP")
+const flow = identify("Fixture", native)
 
 const sex = (code: string) => Schema.decodeSync(Dimensions)({ SEX: code })
 
@@ -54,7 +58,8 @@ const madeUp = (asked: Array<Query>): Adapter => ({
           })),
         })),
       ),
-    url: (query) => `https://example.org/${pathOf(query)}?from=${query.from}&to=${query.to}`,
+    url: (query) =>
+      `https://example.org/${nativeId(query.indicator)}/${pathOf(query).split("/")[1]}?from=${query.from}&to=${query.to}`,
   }),
   list: Effect.succeed([entry(flow, "Made-up rate")]),
   describe: (indicator) =>
@@ -76,15 +81,15 @@ const unused = (source: Source): Adapter => ({
   fetch: () => Effect.die(`${source} is not asked in these tests`),
 })
 
-// Every source but the OECD's slot, which the made-up source takes. Nothing
-// outside this registry knows about it.
+// A fourth publisher, registered only in this test.
 const registry = (asked: Array<Query>) =>
   Layer.succeed(
     Sources,
     Sources.of({
       "World Bank": unused("World Bank"),
       Eurostat: unused("Eurostat"),
-      OECD: madeUp(asked),
+      OECD: unused("OECD"),
+      Fixture: madeUp(asked),
     }),
   )
 
@@ -104,6 +109,23 @@ const view = (code: string) =>
   })
 
 describe("a source that implements the contract", () => {
+  it.effect("returns a missing indicator for an unregistered publisher", () =>
+    Effect.gen(function* () {
+      const resolver = yield* Resolver
+
+      for (const source of ["Missing", "constructor", "toString"]) {
+        const indicator = identify(source, NativeId.make("measure"))
+        expect(yield* resolver.resolve({ ...view("F"), indicator }).pipe(Effect.flip)).toEqual(
+          new IndicatorNotFound({ indicator }),
+        )
+      }
+    }).pipe(
+      Effect.provide(
+        Resolver.layer.pipe(Layer.provide(registry([])), Layer.provide(Directions.listed)),
+      ),
+    ),
+  )
+
   it.effect("is gathered by series key and charted from the store, and asked on a miss", () => {
     const asked: Array<Query> = []
     const store = bucket()
@@ -124,7 +146,7 @@ describe("a source that implements the contract", () => {
 
     return Effect.gen(function* () {
       yield* build(1).pipe(
-        Effect.provide(catalogOver(listings({ OECD: [entry(flow, "Made-up rate")] }))),
+        Effect.provide(catalogOver(listings({ Fixture: [entry(flow, "Made-up rate")] }))),
       )
       yield* Gather.run().pipe(Effect.provide(Layer.merge(gather, Step.immediate)))
 
@@ -142,9 +164,9 @@ describe("a source that implements the contract", () => {
       expect(women.sources).toMatchObject([
         {
           indicator: flow,
-          source: "OECD",
+          source: "Fixture",
           dataset: "Made-up statistics",
-          url: `https://example.org/${flow}/SEX=F?from=2020&to=2021`,
+          url: `https://example.org/${native}/SEX=F?from=2020&to=2021`,
         },
       ])
 

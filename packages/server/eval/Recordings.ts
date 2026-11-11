@@ -62,7 +62,7 @@ const pathOf = Effect.fnUntraced(function* (
     byte.toString(16).padStart(2, "0"),
   ).join("")
 
-  return `https://recordings/${folders[source]}/${hex}.json`
+  return `https://recordings/${folders[source] ?? encodeURIComponent(source)}/${hex}.json`
 })
 
 // The files under eval/recordings, through the RECORDINGS binding that

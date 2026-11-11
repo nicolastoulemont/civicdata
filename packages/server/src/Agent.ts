@@ -252,7 +252,7 @@ const listedDimensions = (outline: Labelled | undefined, indicator: IndicatorId)
 }
 
 const SearchIndicators = Tool.make("search_indicators", {
-  description: `Search the indicators of the World Bank, Eurostat and the OECD by words in their name or definition, or by code. Returns up to 10 matches, best first, each with its source. A Eurostat or OECD dataset holds several series, e.g. by sex or age: "dimensions" lists each dimension that takes several codes, with up to ${codesListed} of its codes and labels and how many more it has. Pass one code of each to find_years and show_chart. A World Bank indicator is one series and has no dimensions. When "dimensions" is null, or the code you need is among the "more", find_years' rejection lists every code.`,
+  description: `Search the catalog's indicators by words in their name or definition, or by code. Returns up to 10 matches, best first, each with its source. A Eurostat or OECD dataset holds several series, e.g. by sex or age: "dimensions" lists each dimension that takes several codes, with up to ${codesListed} of its codes and labels and how many more it has. Pass one code of each to find_years and show_chart. A World Bank indicator is one series and has no dimensions. When "dimensions" is null, or the code you need is among the "more", find_years' rejection lists every code.`,
   parameters: Schema.Struct({
     text: Schema.String.annotate({
       description: "Words to search for, e.g. 'life expectancy' or 'GDP per capita'",
@@ -1057,6 +1057,12 @@ const ToolsLayer = Tools.toLayer(
                   name,
                   definition: definition.slice(0, 300),
                   dimensions: listedDimensions(outlines.get(indicator), indicator),
+                  coverage: outlines.has(indicator)
+                    ? {
+                        countries: outlines.get(indicator)?.countries,
+                        years: outlines.get(indicator)?.years,
+                      }
+                    : null,
                 })),
               ),
             )
@@ -1086,7 +1092,7 @@ const ToolsLayer = Tools.toLayer(
 
             const read = Effect.all(
               [
-                sources[sourceOf(id)].describe(id),
+                Sources.get(sources, id).pipe(Effect.flatMap((adapter) => adapter.describe(id))),
                 notes.get(id, scope).pipe(Effect.orElseSucceed(() => null)),
                 directions.of(id),
               ],
@@ -1424,14 +1430,9 @@ const writing =
 
 const instructions = (
   year: number,
-) => `You answer a question about countries with data from the World Bank, Eurostat or the OECD. The answer is what you write and the charts you show, in that order: everything you write outside a tool call is shown to the person, between the charts. Write only what they should read, never what you are about to do.
+) => `You answer a question about countries with data from the catalog's publishers. The answer is what you write and the charts you show, in that order: everything you write outside a tool call is shown to the person, between the charts. Write only what they should read, never what you are about to do.
 
-Pick the source that fits the question when several measure the same thing:
-- Eurostat when every country in the question is in the European Union.
-- The OECD when every country is an OECD member and some are outside the European Union.
-- The World Bank for worldwide comparisons, and whenever the source above has no indicator for what the question asks.
-- The source the question names, if it names one.
-A measure only one source publishes comes from that source.
+Choose indicators from the catalog's actual coverage. Search across sources unless the question names one; then filter by that source. Compare the returned definitions, dimensions, countries and years, and use find_years to check the chosen series covers the requested countries and period. Never infer coverage from membership of a country group. If the requested source has no suitable series, say so before choosing another.
 
 1. Call search_indicators to find the indicator that measures what the question asks. Use only codes it returns; never write a code from memory. Pass a source to look in that source only, e.g. when its first results are another source's. When two results are close, call describe_indicator to read their definitions.
 2. Pick the chart type as the section on chart types below says, and the countries.

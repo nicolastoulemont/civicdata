@@ -352,7 +352,7 @@ const make = Effect.gen(function* () {
         Match.when("World Bank", () => worldBank(indicator)),
         Match.when("Eurostat", () => eurostatNotes(indicator)),
         Match.when("OECD", () => oecdNotesOf(indicator)),
-        Match.exhaustive,
+        Match.orElse(() => Effect.fail(new IndicatorNotFound({ indicator }))),
       ),
     })
 

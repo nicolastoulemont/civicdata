@@ -55,7 +55,7 @@ export class Resolver extends Context.Service<Resolver, Interface>()("@civicdata
 
       const series = Effect.fn("Resolver.series")(function* (query: Asked) {
         const source = sourceOf(query.indicator)
-        const adapter = adapters[source]
+        const adapter = yield* Sources.get(adapters, query.indicator)
 
         const [described, fetched] = yield* Effect.all(
           [
