@@ -388,6 +388,31 @@ const scripted = (turns: ReadonlyArray<Turn>) => {
   return { layer, prompts }
 }
 
+// The rounds of the nth question: a search the model reasoned before, a
+// chart, then words. OpenAI gives each part an item id, and the reasoning
+// is the search's own.
+const roundsOf = (n: number) => [
+  Effect.succeed([
+    {
+      type: "reasoning",
+      text: `Reasoning ${n}`,
+      metadata: { openai: { itemId: `rs_${n}` } },
+    } as const,
+    ...call("search_indicators", { text: `search ${n}`, source: null }, { step: `search-${n}` }),
+  ]),
+  Effect.succeed([
+    {
+      type: "tool-call",
+      id: `chart-${n}`,
+      name: "show_chart",
+      params: brazil,
+      metadata: { openai: { itemId: `fc_${n}` } },
+    } as const,
+    finish,
+  ]),
+  Effect.succeed(words(`Words ${n}`)),
+]
+
 const eurostat = "https://ec.europa.eu/eurostat/api/dissemination"
 
 const totalAged15To74 = Schema.decodeSync(Dimensions)({ age: "Y15-74", unit: "PC_ACT", sex: "T" })
@@ -881,6 +906,33 @@ describe("conversations", () => {
       expect(last).toContain("Second question")
       expect(last).toContain("Fifth question")
       expect((yield* turns).answered.map((turn) => turn.question)).toEqual(questions)
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("sends older questions with their words and charts, without their lookups", () => {
+    const model = scripted([1, 2, 3].flatMap(roundsOf))
+
+    return Effect.gen(function* () {
+      yield* Effect.forEach(["Question 1", "Question 2", "Question 3", "Question 4"], answer, {
+        discard: true,
+      })
+
+      // The fourth question's first round.
+      const sent = model.prompts[9] ?? ""
+
+      for (const kept of ["Question 1", "chart-1", "Words 1", "Question 2", "chart-2", "Words 2"]) {
+        expect(sent).toContain(kept)
+      }
+
+      // A kept call loses its item id, since its reasoning is gone.
+      for (const dropped of ["search 1", "search-1", "Reasoning 1", "rs_1", "fc_1", "search 2"]) {
+        expect(sent).not.toContain(dropped)
+      }
+
+      // The latest question keeps all the agent did, item ids included.
+      for (const kept of ["search 3", "search-3", "Reasoning 3", "rs_3", "fc_3", "Words 3"]) {
+        expect(sent).toContain(kept)
+      }
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
@@ -3615,6 +3667,33 @@ describe("traces", () => {
       expect(
         ended.some(({ span }) => span.attributes.get("openfacts.refusal") === "DimensionsMissing"),
       ).toBe(true)
+    }).pipe(Effect.provide(serveApi(model.layer, { traces: traces.layer })))
+  })
+
+  it.effect("records on a model request the input served from the cache and the reasoning", () => {
+    const model = scripted([
+      Effect.succeed([
+        { type: "text", text: takeaway },
+        {
+          ...finish,
+          reason: "stop",
+          usage: {
+            inputTokens: { total: 5000, cacheRead: 4096 },
+            outputTokens: { total: 300, reasoning: 200 },
+          },
+        },
+      ]),
+    ])
+
+    const traces = recording()
+
+    return Effect.gen(function* () {
+      yield* answer("How has life expectancy changed in Brazil?")
+
+      const request = traces.spans.find((span) => span.name === "LanguageModel.generateText")
+
+      expect(request?.attributes.get("gen_ai.usage.cache_read.input_tokens")).toBe(4096)
+      expect(request?.attributes.get("openfacts.usage.reasoning_tokens")).toBe(200)
     }).pipe(Effect.provide(serveApi(model.layer, { traces: traces.layer })))
   })
 

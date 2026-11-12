@@ -93,6 +93,7 @@ import {
   Struct,
 } from "effect"
 import { Chat, LanguageModel, Prompt, Telemetry, Tool, Toolkit } from "effect/ai"
+import { FetchHttpClient } from "effect/http"
 
 import { Catalog, type Labelled } from "./Catalog.ts"
 import { cite } from "./Citations.ts"
@@ -155,24 +156,6 @@ const rounds = 18
 // with everything the agent did to answer them, leave the chat, so a long
 // conversation costs no more per question than a short one.
 const recall = 3
-
-// The chat's instructions and its last `recall` questions. Each question
-// starts with the person's message, so the cut never splits a tool call from
-// its result.
-const forget = (prompt: Prompt.Prompt) => {
-  const questions = prompt.content.flatMap((message, index) =>
-    message.role === "user" ? [index] : [],
-  )
-
-  const first = questions.at(-recall)
-
-  return first === undefined
-    ? prompt
-    : Prompt.fromMessages([
-        ...prompt.content.filter((message) => message.role === "system"),
-        ...prompt.content.slice(first),
-      ])
-}
 
 // Where a tool reports its step while it runs: to the answer that called it.
 class Report extends Context.Service<Report, (step: Work) => Effect.Effect<void>>()(
@@ -556,6 +539,81 @@ const Tools = Toolkit.make(
   ShowChart,
   AskUser,
 )
+
+// The tools whose calls a follow-up builds on: the charts shown, which "add
+// Italy" changes, and the choice the person was asked to make.
+const lasting: ReadonlySet<string> = new Set([ShowChart.name, AskUser.name])
+
+// What an older question keeps: the agent's words and its lasting calls with
+// their results. Each kept part is made again without its provider options,
+// which hold OpenAI's item ids: OpenAI refuses a call by id whose reasoning
+// is gone.
+const compact = Match.type<Prompt.Message>().pipe(
+  Match.discriminatorsExhaustive("role")({
+    system: (message): ReadonlyArray<Prompt.Message> => [message],
+    user: (message) => [message],
+    assistant: (message) => {
+      const content = message.content.flatMap(
+        (part): ReadonlyArray<Prompt.AssistantMessagePart> => {
+          if (part.type === "text") return [Prompt.makePart("text", { text: part.text })]
+
+          if (part.type === "tool-call" && lasting.has(part.name)) {
+            const { id, name, params, providerExecuted } = part
+
+            return [Prompt.makePart("tool-call", { id, name, params, providerExecuted })]
+          }
+
+          return []
+        },
+      )
+
+      return content.length === 0 ? [] : [Prompt.makeMessage("assistant", { content })]
+    },
+    tool: (message) => {
+      const content = message.content.flatMap((part) => {
+        if (part.type !== "tool-result" || !lasting.has(part.name)) return []
+
+        const { id, name, isFailure, result, modelOutput, providerExecuted } = part
+
+        return [
+          Prompt.makePart("tool-result", {
+            id,
+            name,
+            isFailure,
+            result,
+            modelOutput,
+            providerExecuted,
+          }),
+        ]
+      })
+
+      return content.length === 0 ? [] : [Prompt.makeMessage("tool", { content })]
+    },
+  }),
+)
+
+// The chat's instructions and its last `recall` questions. The latest keeps
+// all the agent did to answer it. The ones before keep what a follow-up
+// builds on (`compact`), since each round sends the chat again and their
+// searches and lookups would cost on every round of every later question.
+// Each question starts with the person's message, so the cut never splits a
+// tool call from its result.
+const forget = (prompt: Prompt.Prompt) => {
+  const questions = prompt.content
+    .flatMap((message, index) => (message.role === "user" ? [index] : []))
+    .slice(-recall)
+
+  const [first] = questions
+  const latest = questions.at(-1)
+
+  return first === undefined || latest === undefined
+    ? prompt
+    : Prompt.fromMessages([
+        ...prompt.content.filter((message) => message.role === "system"),
+        ...prompt.content.slice(first, latest).flatMap(compact),
+        ...prompt.content.slice(latest),
+      ])
+}
 
 // A chat leaves tool arguments undecoded; ask_user's are checked again to
 // show its question.
@@ -1395,7 +1453,20 @@ const traced = <T extends Record<string, Tool.Any>>(
 
 // Writes on each model request's span what the model answered: its words
 // and the tools it called, in the parts of OpenTelemetry's GenAI messages.
+// It also writes the input tokens OpenAI served from its prompt cache and the
+// output tokens the model spent reasoning, which the adapter leaves out.
 const output: Telemetry.SpanTransformer = ({ response, span }) => {
+  for (const part of response) {
+    if (part.type !== "finish") continue
+
+    const { cacheRead } = part.usage.inputTokens
+    const { reasoning } = part.usage.outputTokens
+
+    if (cacheRead !== undefined) span.attribute("gen_ai.usage.cache_read.input_tokens", cacheRead)
+
+    if (reasoning !== undefined) span.attribute("openfacts.usage.reasoning_tokens", reasoning)
+  }
+
   const parts = response.flatMap((part): ReadonlyArray<object> => {
     if (part.type === "text") return [{ type: "text", content: part.text }]
 
@@ -1731,18 +1802,26 @@ export class Agent extends Context.Service<Agent, Interface>()("@openfacts/serve
   // OpenAI, when the deployment has an OPENAI_API_KEY binding, with the
   // findings shipped in research/findings.json. Without a key (plain
   // `pnpm dev`, or a stage nobody gave a key) every question fails with
-  // AgentUnavailable.
-  static readonly live = Layer.unwrap(
-    Effect.tryPromise(() => import("cloudflare:workers")).pipe(
-      Effect.map(({ env }) =>
-        env.OPENAI_API_KEY === undefined
-          ? Agent.unavailable
-          : Agent.layer.pipe(
-              Layer.provide(Findings.layer),
-              Layer.provide(openAi(env.OPENAI_API_KEY, env.OPENAI_MODEL)),
-            ),
+  // AgentUnavailable. The requests of one `conversation` share a prompt
+  // cache: each round sends the chat so far again, and OpenAI serves the
+  // part it has seen from the cache.
+  static readonly live = ({ conversation }: { readonly conversation?: string } = {}) =>
+    Layer.unwrap(
+      Effect.tryPromise(() => import("cloudflare:workers")).pipe(
+        Effect.map(({ env }) =>
+          env.OPENAI_API_KEY === undefined
+            ? Agent.unavailable
+            : Agent.layer.pipe(
+                Layer.provide(Findings.layer),
+                Layer.provide(
+                  openAi(env.OPENAI_API_KEY, {
+                    model: env.OPENAI_MODEL,
+                    cache: conversation,
+                  }).pipe(Layer.provide(FetchHttpClient.layer)),
+                ),
+              ),
+        ),
+        Effect.orElseSucceed(() => Agent.unavailable),
       ),
-      Effect.orElseSucceed(() => Agent.unavailable),
-    ),
-  )
+    )
 }

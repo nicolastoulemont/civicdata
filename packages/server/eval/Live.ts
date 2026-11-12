@@ -58,7 +58,7 @@ const Recorded = Layer.effectDiscard(
 // The agent as a conversation runs it, against the live model and archives
 // and the sources' recorded answers (eval/Recordings.ts).
 export const Live = Layer.mergeAll(
-  Agent.live.pipe(Layer.provide(Resolver.layer)),
+  Agent.live().pipe(Layer.provide(Resolver.layer)),
   Built,
   Recorded,
 ).pipe(

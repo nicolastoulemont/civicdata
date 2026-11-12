@@ -43,6 +43,8 @@ The agent's spans record:
 |                              | `openfacts.charts.changed`                                                        | charts the person changed before asking                                          |
 | `LanguageModel.generateText` | `gen_ai.request.model`, `gen_ai.usage.input_tokens`, `gen_ai.usage.output_tokens` | set by `@effect/ai-openai`                                                       |
 |                              | `openfacts.output`                                                                | what the model wrote and the tools it called                                     |
+|                              | `gen_ai.usage.cache_read.input_tokens`                                            | input tokens OpenAI served from its prompt cache, at a tenth of the price        |
+|                              | `openfacts.usage.reasoning_tokens`                                                | output tokens the model spent reasoning                                          |
 | `execute_tool <name>`        | `gen_ai.tool.name`, `gen_ai.tool.call.id`                                         | the tool and the call                                                            |
 |                              | `parameters`, `openfacts.tool.result`                                             | what the model passed (Effect's Toolkit writes it) and what the tool answered    |
 |                              | `openfacts.tool.rejection`                                                        | why the tool sent the call back for the model to fix                             |
@@ -96,7 +98,7 @@ Previews and production share the stack. Tell them apart with `resource.deployme
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | Questions            | answers run, how they ended, tool calls sent back, tokens, and the time a visitor waits for an answer                       |
 | Agent                | rounds per answer, tool calls and rejections by tool, tool and answer time, the calls sent back with why, answers with none |
-| Model                | input and output tokens, and model request time                                                                             |
+| Model                | input tokens and the part the cache served, output tokens and the part spent reasoning, and model request time              |
 | Requests and sources | requests, failures and time by route, and failures and time by source host                                                  |
 | Page and workflows   | errors the page did not catch, and each Workflow run                                                                        |
 | Volume               | spans sent by service, which is what Grafana Cloud bills                                                                    |
@@ -118,6 +120,7 @@ For a question the dashboard does not answer, Explore with Tempo runs TraceQL qu
 | How often does each tool get sent back?             | `{ span.openfacts.tool.rejection != nil } \| rate() by (span.gen_ai.tool.name)`                                                                                        |
 | Which tools are slow?                               | `{ span.gen_ai.operation.name = "execute_tool" } \| quantile_over_time(duration, .9) by (span.gen_ai.tool.name)`                                                       |
 | How many tokens do answers use?                     | `{ name = "LanguageModel.generateText" } \| sum_over_time(span.gen_ai.usage.input_tokens)`                                                                             |
+| How many input tokens did the cache serve?          | `{ name = "LanguageModel.generateText" } \| sum_over_time(span.gen_ai.usage.cache_read.input_tokens)`                                                                  |
 | One conversation, every question                    | `{ span.gen_ai.conversation.id = "<id from /c/<id>>" }`                                                                                                                |
 | Which Views did the data refuse?                    | `{ span.openfacts.refusal != nil } \| rate() by (span.openfacts.refusal)`                                                                                              |
 | Errors the page did not catch                       | `{ resource.service.name = "openfacts-web" && name = "page.error" }`                                                                                                   |
