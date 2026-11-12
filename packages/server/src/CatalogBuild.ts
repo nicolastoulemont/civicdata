@@ -477,6 +477,10 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
           }
 
           yield* sql`DELETE FROM catalog WHERE source = ${source} AND generation = ${generation}`
+          // The rows rewritten below may take the rowids of those deleted.
+          yield* sql`
+            DELETE FROM catalog_indicator WHERE source = ${source} AND generation = ${generation}
+          `
 
           for (const chunk of Arr.chunksOf(kept, rowsPerInsert)) {
             const rows = yield* Schema.encodeEffect(EntriesJson)(chunk)
@@ -547,6 +551,14 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
 
       const publish = Effect.fn("CatalogBuild.publish")(
         function* (source: Source, generation: number) {
+          // Here rather than in the write step, so a generation is found by
+          // indicator however the build that wrote it ran.
+          yield* sql`
+            INSERT INTO catalog_indicator (indicator, source, generation, entry)
+            SELECT indicator, source, generation, rowid FROM catalog
+            WHERE source = ${source} AND generation = ${generation}
+            ON CONFLICT DO UPDATE SET entry = excluded.entry
+          `
           yield* sql`
             INSERT INTO catalog_current (source, generation) VALUES (${source}, ${generation})
             ON CONFLICT (source) DO UPDATE SET generation = excluded.generation
@@ -558,6 +570,10 @@ export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
           `
           yield* sql`
             DELETE FROM catalog_fingerprint WHERE source = ${source}
+              AND generation < (SELECT generation FROM catalog_current WHERE source = ${source})
+          `
+          yield* sql`
+            DELETE FROM catalog_indicator WHERE source = ${source}
               AND generation < (SELECT generation FROM catalog_current WHERE source = ${source})
           `
         },

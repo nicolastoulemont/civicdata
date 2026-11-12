@@ -287,11 +287,15 @@ const watched = (bound: (read: Bound) => void): Database => {
 
 // The catalog over `database`. Fresh: a test's catalog over the test
 // Worker's own database is the same layer.
-const catalogOn = (database: Database) =>
+const catalogOn = (database: Database, index: Index = vectorize().index) =>
   Layer.fresh(Catalog.layer).pipe(
-    Layer.provide(Vectors.cloudflare({ ai: workersAi({ up: true }), index: vectorize().index })),
+    Layer.provide(Vectors.cloudflare({ ai: workersAi({ up: true }), index })),
     Layer.provide(D1Client.layer({ db: database }).pipe(Layer.orDie)),
   )
+
+// The catalog alone over the test Worker's D1 database, as the Worker serves
+// it: unlike `catalogOver`, it builds nothing, so it creates no tables.
+export const served = ({ index }: { index?: Index } = {}) => catalogOn(db, index)
 
 // The catalog over the test Worker's D1 database as D1 serves it once
 // overloaded: it refuses the first `refusals` reads.
@@ -311,8 +315,9 @@ export const overloaded = ({ refusals }: { refusals: number }) => {
 
 // The catalog over the test Worker's D1 database, and how SQLite plans each
 // read the catalog makes: the detail of each step of the read's query plan.
-// A build over `database` (catalogOver) has its reads planned too.
-export const planned = () => {
+// A build over `database` (catalogOver) has its reads planned too. Searches
+// by meaning read `index`.
+export const planned = ({ index }: { index?: Index } = {}) => {
   const reads: Array<Bound> = []
   const database = watched((read) => reads.push(read))
 
@@ -325,7 +330,7 @@ export const planned = () => {
     ).pipe(Effect.map(({ results }) => ({ query, steps: results.map(({ detail }) => detail) }))),
   )
 
-  return { layer: catalogOn(database), database, plans }
+  return { layer: catalogOn(database, index), database, plans }
 }
 
 // Drops tables, leaving the catalog as an earlier version made it.
