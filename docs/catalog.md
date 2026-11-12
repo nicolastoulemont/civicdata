@@ -4,7 +4,7 @@ One Workflow, `CatalogWorkflow`, builds the indicator catalog and stores the pol
 
 ## Indicator catalog
 
-Indicator search reads a catalog of World Bank indicators, Eurostat datasets and OECD dataflows, kept in D1 for search by words and in Vectorize for search by meaning. Searches only read it. The `CatalogWorkflow` Workflow (`packages/server/src/CatalogBuild.ts`) builds it every Monday at 04:00 UTC from a native Workflow schedule, and CI starts one more build after each deploy, through the Workflows API.
+Indicator search reads a catalog of World Bank indicators, Eurostat datasets and OECD dataflows, kept in D1 for search by words and in Vectorize for search by meaning. Searches only read it. The `CatalogWorkflow` Workflow (`packages/server/src/CatalogBuild.ts`) builds it after each deploy, which CI starts through the Workflows API, and in production also every Monday at 04:00 UTC from a native Workflow schedule. No other stage builds on a schedule.
 
 The Worker reads the catalog and the political records through the `CATALOG_DB` binding. A pull request's preview binds production's database and index there and builds nothing, unless the pull request carries the `own-catalog` label ([docs/deploys.md](deploys.md#what-a-preview-shares-with-production)). Add the label to a pull request that changes a table's shape, the embedding model or the build code. Only builds create, alter or drop tables: the catalog's in `tables` and the political records' in `politicsTables`, which `CatalogBuild`, `PoliticsBuild` and `Gather` run. A reader meets a missing table only on a stage no build has written to, and answers as if nothing were published.
 

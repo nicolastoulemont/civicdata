@@ -1,9 +1,10 @@
 name: Gather series
 
-# Starts one run of a stage's gathering Workflow, besides its daily 05:00 UTC
-# schedule. Deploys start none, so this is how a pull request preview with the
-# own-catalog label, or prod after a change to what a run stores, gets its
-# series before the next 05:00. A preview without the label reads
+# Starts one run of a stage's gathering Workflow. Only prod's runs on a
+# schedule, daily at 05:00 UTC, and deploys start none, so this is the only
+# way a pull request preview with the own-catalog label runs its gather code
+# against its own store, and how prod gets its series before the next 05:00
+# after a change to what a run stores. A preview without the label reads
 # production's store and has no gathering Workflow, so it is refused. Run it
 # from the Actions tab or with `gh workflow run gather.yml -f stage=pr-123`.
 on:

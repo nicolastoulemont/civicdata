@@ -73,6 +73,15 @@ export default Alchemy.Stack(
     const prefix = `civicdata-${stage.toLowerCase().replaceAll(/[^a-z0-9-]/g, "-")}`
     const catalog = `${prefix}-catalog`
 
+    // Only production runs its Workflows on a schedule. Every stage paces
+    // its own requests (packages/server/src/Pace.ts), so each scheduled
+    // stage adds a full stage's traffic against the publishers. Another
+    // stage with its own catalog builds once after each deploy, which CI
+    // starts, and gathers only when someone starts a run
+    // (.github/workflows/gather.yml). An empty list clears the schedules an
+    // earlier deploy set.
+    const scheduled = stage === "prod"
+
     // The catalog, the political records, the directions and the series'
     // bookkeeping (CATALOG_DB), the stored series, the vector index and the
     // Workflows that build them: the stage's own, or production's, which a
@@ -89,24 +98,29 @@ export default Alchemy.Stack(
         vectors: yield* Cloudflare.Vectorize.Index("Vectors", {
           preset: "@cf/baai/bge-small-en-v1.5",
         }),
-        // The Workflows that build the catalog and gather the series.
+        // The Workflows that build the catalog and gather the series. A
+        // stage with its own catalog needs both even unscheduled: only a
+        // Workflow writes its tables and bucket, and a build refuses to run
+        // in a Worker that binds either one alone (`database` in
+        // packages/server/src/CatalogBuild.ts).
         workflows: Option.some({
-          // Builds the indicator catalog every Monday at 04:00 UTC: a native
-          // Workflow schedule, no Cron Trigger. CI starts one more build after
-          // each deploy, since a new stage has no catalog until then.
+          // Builds the indicator catalog, in production every Monday at
+          // 04:00 UTC: a native Workflow schedule, no Cron Trigger. CI starts
+          // one more build after each deploy, since a new stage has no
+          // catalog until then.
           CATALOG: Cloudflare.Workflow("Catalog", {
             workflowName: catalog,
             className: "CatalogWorkflow",
-            schedules: ["0 4 * * 1"],
+            schedules: scheduled ? ["0 4 * * 1"] : [],
           }),
-          // Gathers each source's series into SERIES every day at 05:00 UTC,
-          // after Monday's catalog build. Deploys start no run; the Gather
-          // series GitHub workflow (.github/workflows/gather.yml) starts one
-          // on demand, by this name.
+          // Gathers each source's series into SERIES, in production every day
+          // at 05:00 UTC, after Monday's catalog build. Deploys start no run;
+          // the Gather series GitHub workflow (.github/workflows/gather.yml)
+          // starts one on demand, by this name.
           GATHER: Cloudflare.Workflow("Gather", {
             workflowName: `${prefix}-gather`,
             className: "GatherWorkflow",
-            schedules: ["0 5 * * *"],
+            schedules: scheduled ? ["0 5 * * *"] : [],
           }),
         }),
       }

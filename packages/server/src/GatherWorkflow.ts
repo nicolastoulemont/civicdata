@@ -6,10 +6,10 @@ import { Step } from "./CatalogBuild.ts"
 import { Gather } from "./Gather.ts"
 import * as Traces from "./Traces.ts"
 
-// The Workflow that gathers each source's series into the store, every day at
-// 05:00 UTC (packages/infra). Workers only:
-// package.json resolves `@openfacts/server/workflow` to `workflow.node.ts`
-// outside workerd.
+// The Workflow that gathers each source's series into the store: in
+// production every day at 05:00 UTC, elsewhere only when started by hand
+// (packages/infra). Workers only: package.json resolves
+// `@openfacts/server/workflow` to `workflow.node.ts` outside workerd.
 export class GatherWorkflow extends WorkflowEntrypoint {
   override async run(
     event: Readonly<CloudflareWorkersModule.WorkflowEvent<unknown>>,

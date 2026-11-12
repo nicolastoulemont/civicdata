@@ -72,6 +72,7 @@ jobs:
       cancel-in-progress: false
     outputs:
       url: ${{ steps.url.outputs.url }}
+      open: ${{ steps.pr.outputs.open }}
     env:
       STAGE: pr-${{ github.event.pull_request.number }}
       TURNSTILE_SITE_KEY: ${{ vars.TURNSTILE_SITE_KEY }}
@@ -88,26 +89,39 @@ jobs:
       - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           require-lockfile: true
-      # OWN_CATALOG is "true" with the own-catalog label and "false" without;
-      # without it, the stack binds production's catalog and store and
-      # deploys no Workflow (docs/deploys.md). Read when the deploy starts,
-      # not from the event: `gh pr create --label` adds the label after the
+      # Read when the deploy starts, not from the event. OPEN is "false" once
+      # the pull request has closed: this job joins the deploy-pr group only
+      # after check passes, so a pull request merged while check runs gets
+      # its cleanup first, which finds no stage, and this job after it.
+      # Deploying then would leave a stage, with its Workflows, that nothing
+      # removes, so the job destroys the stage instead. OWN_CATALOG is "true"
+      # with the own-catalog label and "false" without; without it, the stack
+      # binds production's catalog and store and deploys no Workflow
+      # (docs/deploys.md). `gh pr create --label` adds the label after the
       # pull request opens, so the opened event carries none.
-      - name: Read the own-catalog label
+      - name: Read the pull request
+        id: pr
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
         run: |
-          labels=$(gh api "repos/$REPO/issues/$PR/labels" --jq '.[].name')
-          if grep -qx own-catalog <<< "$labels"; then own=true; else own=false; fi
+          pr=$(gh api "repos/$REPO/pulls/$PR")
+          open=$(jq -r '.state == "open"' <<< "$pr")
+          own=$(jq -r 'any(.labels[]; .name == "own-catalog")' <<< "$pr")
+          echo "OPEN=$open" >> "$GITHUB_ENV"
           echo "OWN_CATALOG=$own" >> "$GITHUB_ENV"
-      - run: pnpm --filter @openfacts/infra exec alchemy deploy --yes --stage "$STAGE"
+          echo "open=$open" >> "$GITHUB_OUTPUT"
+      - if: env.OPEN == 'true'
+        run: pnpm --filter @openfacts/infra exec alchemy deploy --yes --stage "$STAGE"
+      - if: env.OPEN == 'false'
+        run: pnpm --filter @openfacts/infra exec alchemy destroy --yes --stage "$STAGE"
       # In CI, Alchemy prints log lines and status messages to stdout before the
       # value, which it prints last as indented JSON. Parse from its opening
       # brace. The stack output comes from pull request code, so accept a bare
       # https origin only before it reaches the comment.
       - id: url
+        if: env.OPEN == 'true'
         run: |
           output=$(pnpm --silent --filter @openfacts/infra exec alchemy state cat "civicdata/$STAGE/output" --log-level=none --no-input)
           if ! url=$(sed -n '/^{/,$p' <<< "$output" | jq -er .url); then
@@ -121,15 +135,16 @@ jobs:
           fi
           echo "url=$url" >> "$GITHUB_OUTPUT"
       # A new stage has no catalog until a build publishes one, and a deploy
-      # may change what a build stores, so each deploy starts a build besides
-      # the Workflow's weekly schedule. A preview without the own-catalog
-      # label reads production's catalog and has no catalog Workflow, so it
-      # starts none; production sets no OWN_CATALOG. The name comes from the
+      # may change what a build stores, so each deploy starts a build;
+      # production's Workflow also builds weekly. A preview without the
+      # own-catalog label reads production's catalog and has no catalog
+      # Workflow, so it starts none, and neither does a destroyed one;
+      # production sets neither OWN_CATALOG nor OPEN. The name comes from the
       # stack output, which pull request code writes, so it must be this
       # stage's own before use.
       - &build
         name: Start a catalog build
-        if: env.OWN_CATALOG != 'false'
+        if: env.OWN_CATALOG != 'false' && env.OPEN != 'false'
         run: |
           output=$(pnpm --silent --filter @openfacts/infra exec alchemy state cat "civicdata/$STAGE/output" --log-level=none --no-input)
           if ! name=$(sed -n '/^{/,$p' <<< "$output" | jq -er .catalog); then
@@ -207,7 +222,7 @@ jobs:
     permissions:
       pull-requests: write
     env:
-      STATE: ${{ needs.preview.result }}
+      STATE: ${{ needs.preview.result == 'success' && needs.preview.outputs.open == 'false' && 'removed' || needs.preview.result }}
       URL: ${{ needs.preview.outputs.url }}
     steps:
       - *comment
@@ -243,6 +258,10 @@ jobs:
       - run: pnpm --filter @openfacts/infra exec alchemy deploy --yes --stage "$STAGE"
       - *build
 
+  # Destroys a closed pull request's stage. One merged while its check runs
+  # reaches this job before its preview deploys: the destroy finds no stage,
+  # and the preview job, which reads the pull request when it starts,
+  # destroys the stage instead of deploying it.
   cleanup:
     if: >-
       github.event_name == 'pull_request'
