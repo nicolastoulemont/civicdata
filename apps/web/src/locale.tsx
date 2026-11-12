@@ -5,7 +5,7 @@ import LanguageDetector from "i18next-browser-languagedetector"
 import { type ReactNode, useEffect } from "react"
 import { I18nextProvider } from "react-i18next"
 
-import { resources } from "./messages.ts"
+import { backend, english } from "./messages.ts"
 
 export const fallback: Locale = "en-US"
 
@@ -62,14 +62,14 @@ const detectLocale = (detection: LanguageDetector) => {
   return matchLocale(Array.isArray(detected) ? detected : detected == null ? [] : [detected])
 }
 
-// Only browser activation writes this reference. Server requests each own an
-// instance and always render en-US, including during client hydration.
-let active: i18n | undefined
+// The reader's locale and the instance showing it. Only browser activation
+// writes this reference. Server requests each own an instance and always
+// render en-US, including during client hydration. Requests carry the
+// reader's locale while its messages still load.
+let active: { instance: i18n; locale: Locale } | undefined
 
 export const requestLocale = (): Locale => {
-  const locale = active?.language
-
-  if (isLocale(locale)) return locale
+  if (active !== undefined) return active.locale
 
   if (!("window" in globalThis)) return fallback
 
@@ -77,10 +77,13 @@ export const requestLocale = (): Locale => {
 }
 
 export const createI18n = () => {
-  const instance = createInstance()
+  const instance = createInstance().use(backend)
 
   void instance.init({
-    resources,
+    resources: { [fallback]: english },
+    // English is in the page; the backend fetches the other locales.
+    partialBundledLanguages: true,
+    ns: Object.keys(english),
     lng: fallback,
     fallbackLng: fallback,
     supportedLngs: [...Locale.literals],
@@ -105,22 +108,28 @@ export const LocaleProvider = ({ instance, children }: LocaleProviderProps) => {
     const detection = detector(instance)
 
     const remember = (locale: string) => {
+      if (!isLocale(locale)) return
+
+      if (active?.instance === instance) active = { instance, locale }
+
       try {
-        if (isLocale(locale)) detection.cacheUserLanguage(locale)
+        detection.cacheUserLanguage(locale)
       } catch {
         // The selected locale still works when storage is blocked.
       }
     }
 
-    active = instance
+    const locale = detectLocale(detection)
+
+    active = { instance, locale }
 
     instance.on("languageChanged", remember)
-    void instance.changeLanguage(detectLocale(detection))
+    void instance.changeLanguage(locale)
 
     return () => {
       instance.off("languageChanged", remember)
 
-      if (active === instance) active = undefined
+      if (active?.instance === instance) active = undefined
     }
   }, [instance])
 

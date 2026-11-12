@@ -26,7 +26,7 @@ import { cleanup, render, screen, waitFor, within } from "@testing-library/react
 import userEvent from "@testing-library/user-event"
 import { DateTime, Duration, Schema } from "effect"
 import { http, HttpResponse } from "msw/http"
-import { describe, expect, it, onTestFinished } from "vitest"
+import { beforeAll, describe, expect, it, onTestFinished } from "vitest"
 
 import { Conversation } from "@/conversation/Conversation"
 import { Layout } from "@/history/Layout"
@@ -229,6 +229,10 @@ const timeline = async () =>
 const findChart = () => screen.findByRole("heading", { name: "Life expectancy at birth (years)" })
 
 describe("persist", () => {
+  // Answer loads the chart's code lazily, and the page's preload fetches it
+  // first. These tests render without the route, so they fetch it themselves.
+  beforeAll(() => import("@/explore/Explore"))
+
   it("shows a conversation opened before while the network hangs, then asks for anything newer", async () => {
     const { store, values } = memory()
 

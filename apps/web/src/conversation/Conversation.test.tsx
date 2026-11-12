@@ -81,7 +81,7 @@ import { type Array as Arr, Cause, DateTime, Duration, Schema, Struct } from "ef
 import type { i18n } from "i18next"
 import { http, HttpResponse } from "msw/http"
 import { I18nextProvider } from "react-i18next"
-import { describe, expect, it, onTestFinished, vi } from "vitest"
+import { beforeAll, describe, expect, it, onTestFinished, vi } from "vitest"
 
 import { SidebarProvider } from "@/components/ui/sidebar"
 
@@ -590,6 +590,10 @@ const researching = (state: typeof Research.Type.state) =>
   })
 
 describe("Conversation", () => {
+  // Answer loads the chart's code lazily, and the page's preload fetches it
+  // first. These tests render without the route, so they fetch it themselves.
+  beforeAll(() => import("@/explore/Explore"))
+
   it("asks the question from the home page, shows each step, then the chart", async () => {
     const reply = answer()
 

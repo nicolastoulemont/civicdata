@@ -30,4 +30,7 @@ const load = async ({ queryClient, id }: PreloadOptions) => {
 // cache never reaches the browser.
 export const preload = createIsomorphicFn().client((options: PreloadOptions) => {
   load(options).catch(() => undefined)
+  // Answer loads the chart's code lazily; fetching it here means the first
+  // chart need not wait for it.
+  import("@/explore/Explore").catch(() => undefined)
 })
