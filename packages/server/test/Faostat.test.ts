@@ -27,7 +27,7 @@ import { WorldBank } from "../src/WorldBank.ts"
 import { http } from "./fakes.ts"
 import { seriesDb, bucket } from "./series.ts"
 
-const { indicator, manifestUrl, record } = asti
+const { indicator, record } = asti
 
 beforeEach(() => reset())
 
@@ -74,7 +74,7 @@ it.effect(
               http((url) => {
                 requests.push(url)
 
-                return new Response(toc)
+                return new Response("Publisher unavailable", { status: 503 })
               }),
             ),
           ),
@@ -138,7 +138,7 @@ it.effect(
         .pipe(Effect.result)
 
       expect(absent).toMatchObject({ failure: { reason: "NotStored" } })
-      expect(requests).toEqual([manifestUrl, manifestUrl])
+      expect(requests).toEqual([])
     }),
 )
 

@@ -27,10 +27,20 @@ export const storage = Effect.fn("Ilostat.storage")(function* ({
   const base = `https://${account}.r2.cloudflarestorage.com/${encodeURIComponent(bucket)}`
   const url = (key: string) => `${base}/${key.split("/").map(encodeURIComponent).join("/")}`
 
-  const request = Effect.fn("R2.request")(function* (key: string, init: RequestInit) {
+  const request = Effect.fn("R2.request")(function* (
+    key: string,
+    init: { method: "GET" | "PUT" | "DELETE"; headers?: Headers; body?: string },
+  ) {
     const signed = yield* Effect.tryPromise(() => signer.sign(url(key), init))
+    const outgoing = HttpClientRequest.fromWeb(signed)
 
-    return yield* client.execute(HttpClientRequest.fromWeb(signed))
+    return yield* client.execute(
+      init.body !== undefined
+        ? outgoing.pipe(
+            HttpClientRequest.bodyText(init.body, signed.headers.get("content-type") ?? undefined),
+          )
+        : outgoing,
+    )
   })
 
   const bucketTransport: SeriesBucket = {
