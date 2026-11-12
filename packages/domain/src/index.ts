@@ -30,6 +30,7 @@ export {
   Located,
   Lookup,
   maxQuestion,
+  Pick,
   put,
   Question,
   Read,

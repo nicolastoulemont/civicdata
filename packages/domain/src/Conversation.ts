@@ -1,4 +1,4 @@
-import { Match, Schema, Struct } from "effect"
+import { Effect, Match, Schema, Struct } from "effect"
 
 import { Cited, RecordId } from "./Cited.ts"
 import { Country } from "./Country.ts"
@@ -307,12 +307,24 @@ export const Answered = Schema.TaggedStruct("Answered", {
   blocks: Schema.NonEmptyArray(Block),
 })
 
+// How many of a question's choices the person may pick: one when they
+// exclude each other, e.g. which Korea, several when the answer can chart
+// more than one, e.g. which countries to compare.
+export const Pick = Schema.Literals(["one", "several"])
+
+export type Pick = typeof Pick.Type
+
 // The question can be read several ways that give different charts; the
 // agent asks which, offering choices. The reply is the next question. A
 // question asked after the agent wrote blocks keeps them, in order, before it.
+// Questions kept before `pick` existed took one choice.
 export const Asked = Schema.TaggedStruct("Asked", {
   question: Schema.String,
   choices: Schema.NonEmptyArray(Schema.String),
+  pick: Pick.pipe(
+    Schema.withDecodingDefaultKey(Effect.succeed("one")),
+    Schema.withConstructorDefault(Effect.succeed<Pick>("one")),
+  ),
   blocks: Schema.optionalKey(Schema.NonEmptyArray(Block)),
 })
 

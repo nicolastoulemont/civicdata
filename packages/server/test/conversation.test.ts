@@ -1896,6 +1896,7 @@ describe("conversations", () => {
         call("ask_user", {
           question: "Which measure?",
           choices: ["Life expectancy", "Healthy life expectancy"],
+          pick: "one",
         }),
       ),
       Effect.succeed(call("show_chart", brazil)),
@@ -1932,8 +1933,34 @@ describe("conversations", () => {
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 
+  it.effect("lets the person pick several choices, and charts the ones they picked", () => {
+    const choices = {
+      question: "Which countries should I compare?",
+      choices: ["Mexico", "Chile", "Peru"] as const,
+      pick: "several" as const,
+    }
+
+    const model = scripted([
+      Effect.succeed(call("ask_user", choices)),
+      Effect.succeed(call("show_chart", { ...brazil, countries: ["BRA", "MEX", "PER"] })),
+    ])
+
+    return Effect.gen(function* () {
+      expect(log(yield* answer("Compare life expectancy in Brazil"))).toEqual([Asked.make(choices)])
+
+      yield* answer("Mexico and Peru")
+
+      expect(model.prompts[1]).toContain("Which countries should I compare?")
+      expect(model.prompts[1]).toContain("Mexico and Peru")
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
   it.effect("asks the person after a chart, keeping the chart and the question", () => {
-    const choices = { question: "Which measure?", choices: ["At birth", "At 65"] as const }
+    const choices = {
+      question: "Which measure?",
+      choices: ["At birth", "At 65"] as const,
+      pick: "one" as const,
+    }
 
     const model = scripted([
       Effect.succeed(call("show_chart", brazil)),
@@ -1962,7 +1989,7 @@ describe("conversations", () => {
         type: "tool-call",
         id: "call-ask_user",
         name: "ask_user",
-        params: { question: "Which measure?", choices: ["At birth", "At 65"] },
+        params: { question: "Which measure?", choices: ["At birth", "At 65"], pick: "one" },
       },
       finish,
     ]
@@ -2745,7 +2772,11 @@ describe("changing a chart", () => {
         yield* show(0, perPerson)
         yield* Deferred.succeed(
           reply,
-          call("ask_user", { question: "With which countries?", choices: ["Mexico", "Chile"] }),
+          call("ask_user", {
+            question: "With which countries?",
+            choices: ["Mexico", "Chile"],
+            pick: "several",
+          }),
         )
         yield* Fiber.join(second)
         yield* answer("Mexico")
