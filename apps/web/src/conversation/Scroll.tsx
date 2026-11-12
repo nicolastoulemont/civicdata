@@ -93,25 +93,6 @@ const positionOf = (node: HTMLElement) => ({
   content: node.scrollHeight,
 })
 
-// Makes the content tall enough to scroll its last question 24px from the
-// top, however short its answer. The answer grows into the space, and only an
-// answer taller than it moves the end. The space belongs to the content, not
-// to a row, so it outlasts any row that changes.
-const reserve = (viewport: HTMLElement, content: HTMLElement) => {
-  const question = [...content.querySelectorAll("[data-question]")].at(-1)
-
-  if (question === undefined) return
-
-  const top = question.getBoundingClientRect().top - content.getBoundingClientRect().top
-  content.style.minHeight = `${top - 24 + viewport.clientHeight}px`
-}
-
-// Fits the space to the viewport and the rows again, once a question asked
-// here reserved it. It stays until the next question takes it over.
-const refit = (viewport: HTMLElement, content: HTMLElement) => {
-  if (content.style.minHeight !== "") reserve(viewport, content)
-}
-
 // The composer is docked at the end of the content and sticks to the bottom
 // of the viewport, so rows scroll under it and the last one still ends above
 // it, however tall the composer grows. The dock has no background: rows show
@@ -178,7 +159,6 @@ export const Scroll = ({ children, composer, previews, asked }: ScrollProps) => 
     if (node === null || rows === null) return undefined
 
     const followEnd = () => {
-      refit(node, rows)
       locate()
 
       const following = follow.current === "following"
@@ -199,15 +179,13 @@ export const Scroll = ({ children, composer, previews, asked }: ScrollProps) => 
     return () => observer.disconnect()
   }, [change, end, locate])
 
+  // A question asked here lands at the end, above the composer, and the view
+  // follows its answer down. The button to scroll to the end goes once the
+  // view moves there.
   useLayoutEffect(() => {
-    const node = viewport.current
-    const rows = content.current
+    if (asked === undefined) return
 
-    if (asked === undefined || node === null || rows === null) return
-
-    // The button to scroll to the end goes once the view moves there.
     follow.current = "following"
-    reserve(node, rows)
     end(motion())
   }, [asked, end])
 
