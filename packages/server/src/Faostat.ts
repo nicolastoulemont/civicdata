@@ -244,31 +244,29 @@ export class Faostat extends Context.Service<Faostat, Adapter>()("@openfacts/ser
 
       const adapter: Adapter = {
         policy: Policy.StoredOnly({ url: () => archiveUrl }),
-        list: version.pipe(Effect.as([{ indicator, name, definition }])),
+        list: Effect.succeed([{ indicator, name, definition }]),
         describe,
         fetch: () => Effect.fail(new SourceUnavailable({ source: "FAOSTAT", reason: "NotStored" })),
         discovery: {
-          outlines: Stream.fromEffect(
-            version.pipe(
-              Effect.andThen(
-                Schema.decodeUnknownEffect(Outline)({
-                  indicator,
-                  annual: true,
-                  // The area's dictionary is a code map, not measure coverage.
-                  countries: null,
-                  years: null,
-                  dimensions: dimensions.map((dimension) => ({
-                    id: dimension.id,
-                    codelist: null,
-                    codes: dimension.options.map((option) => option.code),
-                    labels: Object.fromEntries(
-                      dimension.options.map((option) => [option.code, option.label]),
-                    ),
-                  })),
-                }),
-              ),
-              Effect.mapError(unavailable),
-            ),
+          outlines: Stream.make(
+            Outline.make({
+              indicator,
+              annual: true,
+              // The area's dictionary is a code map, not measure coverage.
+              countries: null,
+              years: null,
+              dimensions: dimensions.map((dimension) => ({
+                id: dimension.id,
+                codelist: null,
+                codes: [
+                  dimension.options[0].code,
+                  ...dimension.options.slice(1).map((option) => option.code),
+                ],
+                labels: Object.fromEntries(
+                  dimension.options.map((option) => [option.code, option.label]),
+                ),
+              })),
+            }),
           ),
         },
       }

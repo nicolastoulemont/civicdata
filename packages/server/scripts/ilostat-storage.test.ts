@@ -21,6 +21,9 @@ const objects = () => {
     if (request.method === "PUT") {
       const text = await request.text()
 
+      if (init?.body instanceof ReadableStream && !request.headers.has("content-length"))
+        return new Response(null, { status: 411 })
+
       if (request.headers.get("if-none-match") === "*" && held.has(key))
         return new Response(null, { status: 412 })
 
@@ -66,13 +69,11 @@ it.effect("preserves metadata and conditional writes through the signed R2 wire"
     const key = "series/v2/ilostat/ILOSTAT:SDG_B552_NOC_RT_A"
     expect(yield* Effect.promise(() => target.get(key))).toBeNull()
     yield* Effect.promise(() =>
-      target.put(key, '{"sample":true}', { customMetadata: { hash: "test-hash" } }),
+      target.put(key, '{"sample":"é"}', { customMetadata: { hash: "test-hash" } }),
     )
     const found = yield* Effect.promise(() => target.get(key))
     expect(found?.customMetadata).toEqual({ hash: "test-hash" })
-    expect(yield* Effect.promise(() => found?.text() ?? Promise.resolve(""))).toBe(
-      '{"sample":true}',
-    )
+    expect(yield* Effect.promise(() => found?.text() ?? Promise.resolve(""))).toBe('{"sample":"é"}')
     expect(
       yield* Effect.promise(() =>
         target.put(key, "replacement", {
@@ -84,7 +85,7 @@ it.effect("preserves metadata and conditional writes through the signed R2 wire"
 
     const unchanged = yield* Effect.promise(() => target.get(key))
     expect(yield* Effect.promise(() => unchanged?.text() ?? Promise.resolve(""))).toBe(
-      '{"sample":true}',
+      '{"sample":"é"}',
     )
     yield* Effect.promise(() => target.delete([key]))
     expect(yield* Effect.promise(() => target.get(key))).toBeNull()

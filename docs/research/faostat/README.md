@@ -1,5 +1,10 @@
 # FAOSTAT first slice
 
+Discovery uses the reviewed metadata bundled with this adapter. It does not
+fetch the bulk manifest from Workers: that request failed during production
+catalog builds even while the endpoint answered locally. The Node gather still
+checks the live manifest and verifies the selected archive before storing data.
+
 `FAOSTAT:AE` admits only ASTI expenditure measure `8006`: agricultural research
 and development expenditure as a share of agricultural value added, in percent.
 The unit is `%`, with no multiplier, currency conversion or aggregation by this
