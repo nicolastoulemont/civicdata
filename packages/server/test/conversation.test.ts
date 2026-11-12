@@ -251,51 +251,55 @@ const fixtureOutline: Labelled = {
 
 // A catalog of one indicator from each source. A search finds those whose
 // name holds its text, of one source when it names one. FAOSTAT has
-// published no catalog, so a search of it alone cannot be answered.
-const catalog = Layer.succeed(
-  Catalog,
-  Catalog.of({
-    outlines: (indicators) =>
-      Effect.succeed(
-        new Map(
-          [unemploymentOutline, fixtureOutline].flatMap((outline) =>
-            indicators.includes(outline.indicator) ? [[outline.indicator, outline]] : [],
-          ),
-        ),
-      ),
-    search: (text, options) =>
-      options?.source === "FAOSTAT"
-        ? Effect.fail(new CatalogUnavailable())
-        : Effect.succeed(
-            [
-              {
-                indicator: lifeExpectancy,
-                name: "Life expectancy at birth, total (years)",
-                definition: "",
-              },
-              {
-                indicator: IndicatorId.make("ESTAT,UNE_RT_A,1.0"),
-                name: "Unemployment by sex and age - annual data",
-                definition: "",
-              },
-              {
-                indicator: IndicatorId.make("OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M,1.0"),
-                name: "Monthly unemployment rates",
-                definition: "",
-              },
-              {
-                indicator: IndicatorId.make("WID:measure"),
-                name: "WID annual measure",
-                definition: "Only published by WID.",
-              },
-            ].filter(
-              ({ indicator, name }) =>
-                name.toLowerCase().includes(text.toLowerCase()) &&
-                (options?.source === undefined || sourceOf(indicator) === options.source),
+// published no catalog, so a search of it alone cannot be answered. Its
+// outlines can be read unless `outlined` is false.
+const catalogOf = ({ outlined }: { outlined: boolean }) =>
+  Layer.succeed(
+    Catalog,
+    Catalog.of({
+      outlines: (indicators) =>
+        outlined
+          ? Effect.succeed(
+              new Map(
+                [unemploymentOutline, fixtureOutline].flatMap((outline) =>
+                  indicators.includes(outline.indicator) ? [[outline.indicator, outline]] : [],
+                ),
+              ),
+            )
+          : Effect.fail(new CatalogUnavailable()),
+      search: (text, options) =>
+        options?.source === "FAOSTAT"
+          ? Effect.fail(new CatalogUnavailable())
+          : Effect.succeed(
+              [
+                {
+                  indicator: lifeExpectancy,
+                  name: "Life expectancy at birth, total (years)",
+                  definition: "",
+                },
+                {
+                  indicator: IndicatorId.make("ESTAT,UNE_RT_A,1.0"),
+                  name: "Unemployment by sex and age - annual data",
+                  definition: "",
+                },
+                {
+                  indicator: IndicatorId.make("OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M,1.0"),
+                  name: "Monthly unemployment rates",
+                  definition: "",
+                },
+                {
+                  indicator: IndicatorId.make("WID:measure"),
+                  name: "WID annual measure",
+                  definition: "Only published by WID.",
+                },
+              ].filter(
+                ({ indicator, name }) =>
+                  name.toLowerCase().includes(text.toLowerCase()) &&
+                  (options?.source === undefined || sourceOf(indicator) === options.source),
+              ),
             ),
-          ),
-  }),
-)
+    }),
+  )
 
 const finish: Response.PartEncoded = {
   type: "finish",
@@ -474,6 +478,8 @@ interface ServeOptions {
   readonly insee?: Layer.Layer<Insee>
   readonly findings?: Layer.Layer<Findings>
   readonly notes?: Layer.Layer<Notes>
+  // Whether the catalog can read its outlines. It can unless a test says not.
+  readonly outlined?: boolean
   // The conversations' Durable Object storage. Without it, each conversation
   // keeps its transcript in memory.
   readonly storage?: Storage
@@ -515,8 +521,11 @@ const serveApi = (
     traces = Layer.empty,
     answers = Answers.none,
     country,
+    outlined = true,
   }: ServeOptions = {},
 ) => {
+  const catalog = catalogOf({ outlined })
+
   const agent = Agent.layer.pipe(
     Layer.provide(model),
     Layer.provide(findings),
@@ -2002,6 +2011,37 @@ describe("conversations", () => {
       expect(yield* turns).toEqual({ answered: [] })
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
+
+  it.effect(
+    "fails an answer that dies with AgentUnavailable, and answers the next question",
+    () => {
+      const model = scripted([Effect.die(new Error("D1 DB is overloaded"))])
+
+      return Effect.gen(function* () {
+        expect(yield* answer("Life expectancy in Brazil").pipe(Effect.flip)).toBeInstanceOf(
+          AgentUnavailable,
+        )
+        expect(yield* turns).toEqual({ answered: [] })
+
+        expect((yield* answer("Life expectancy in Brazil")).at(-1)).toEqual(charted(said()))
+      }).pipe(Effect.provide(serveApi(model.layer)))
+    },
+  )
+
+  it.effect(
+    "lists a search's matches without dimensions when their outlines cannot be read",
+    () => {
+      const model = scripted([
+        Effect.succeed(call("search_indicators", { text: "unemployment", source: null })),
+      ])
+
+      return Effect.gen(function* () {
+        expect((yield* answer("Unemployment in France")).at(-1)).toEqual(charted(said()))
+        expect(model.prompts[1]).toContain("ESTAT,UNE_RT_A,1.0")
+        expect(model.prompts[1]).not.toContain("Y15-74")
+      }).pipe(Effect.provide(serveApi(model.layer, { outlined: false })))
+    },
+  )
 
   it.effect("refuses a second question while the first is being answered", () =>
     Effect.gen(function* () {

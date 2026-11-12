@@ -239,6 +239,57 @@ const db = env.CATALOG_DB
 
 if (db === undefined) throw new Error("vitest.config.ts must bind a D1 database as CATALOG_DB")
 
+type Database = NonNullable<typeof env.CATALOG_DB>
+
+// A read D1 refuses, with the error production's catalog database gave on
+// 2026-11-12.
+const refuse = () =>
+  Promise.reject(
+    new Error(
+      "D1_ERROR: D1 DB is overloaded. Too many resources consumed within a 10 second window.",
+    ),
+  )
+
+// The catalog over the test Worker's D1 database as D1 serves it once
+// overloaded: it refuses the first `refusals` reads.
+export const overloaded = ({ refusals }: { refusals: number }) => {
+  let left = refusals
+
+  // Each read binds a prepared statement, then runs it. While refusals are
+  // left, the bound statement refuses to run.
+  const refusing = (statement: ReturnType<Database["prepare"]>) => {
+    const bind = statement.bind.bind(statement)
+
+    statement.bind = (...values) => {
+      const bound = bind(...values)
+
+      if (left > 0) {
+        left -= 1
+        bound.all = refuse
+        bound.raw = refuse
+      }
+
+      return bound
+    }
+
+    return statement
+  }
+
+  const database: Database = {
+    prepare: (query) => refusing(db.prepare(query)),
+    batch: (statements) => db.batch(statements),
+    exec: (query) => db.exec(query),
+    withSession: (constraint) => db.withSession(constraint),
+    dump: () => db.dump(),
+  }
+
+  // Fresh: a test's catalog over the healthy database is the same layer.
+  return Layer.fresh(Catalog.layer).pipe(
+    Layer.provide(Vectors.cloudflare({ ai: workersAi({ up: true }), index: vectorize().index })),
+    Layer.provide(D1Client.layer({ db: database }).pipe(Layer.orDie)),
+  )
+}
+
 // Drops tables, leaving the catalog as an earlier version made it.
 export const drop = (...tables: ReadonlyArray<string>) =>
   Effect.promise(() => db.exec(tables.map((table) => `DROP TABLE ${table};`).join(" ")))

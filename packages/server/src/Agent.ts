@@ -1151,7 +1151,10 @@ const ToolsLayer = Tools.toLayer(
           Effect.flatMap((found) => {
             const entries = found.slice(0, 10)
 
+            // Matches whose outlines cannot be read now are listed as a
+            // World Bank indicator is, without dimensions or coverage.
             return catalog.outlines(entries.map(({ indicator }) => indicator)).pipe(
+              Effect.orElseSucceed((): ReadonlyMap<IndicatorId, Labelled> => new Map()),
               Effect.map((outlines) =>
                 entries.map(({ indicator, name, definition }) => ({
                   indicator,
@@ -1741,6 +1744,14 @@ export class Agent extends Context.Service<Agent, Interface>()("@openfacts/serve
           Effect.provideService(LanguageModel.LanguageModel, model),
           Effect.catchTag("AiError", (error) =>
             Effect.logWarning("Language model failed", error.reason).pipe(
+              Effect.andThen(think(Failed.make({ reason: new AgentUnavailable() }))),
+              Effect.andThen(Effect.fail(new AgentUnavailable())),
+            ),
+          ),
+          // The answer's stream fails only as its contract says, so whoever
+          // reads it can show the question as failed and ask it again.
+          Effect.catchDefect((defect) =>
+            Effect.logError("Answer died", defect).pipe(
               Effect.andThen(think(Failed.make({ reason: new AgentUnavailable() }))),
               Effect.andThen(Effect.fail(new AgentUnavailable())),
             ),
