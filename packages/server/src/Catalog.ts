@@ -79,13 +79,6 @@ const toMatch = (text: string) => {
   return found.length === 0 ? undefined : found.map((word) => `"${word}"*`).join(" ")
 }
 
-// ["NY.GDP.PCAP.CD", ...] → `indicator : ("ny gdp pcap cd" OR ...)`: each code
-// as a phrase, so FTS5 finds the rows through its index instead of scanning
-// the table. The phrase also matches longer codes, which the exact
-// comparison in the query then drops.
-const toCodes = (indicators: ReadonlyArray<IndicatorId>) =>
-  `indicator : (${indicators.map((indicator) => `"${words(indicator).join(" ")}"`).join(" OR ")})`
-
 // Reciprocal rank fusion: an entry scores 1 / (60 + rank) in each ranking it
 // appears in, so one found by words and by meaning rises above one found by
 // either alone. 60 is the constant from Cormack et al. (2009).
@@ -107,8 +100,9 @@ const fuse = (rankings: ReadonlyArray<ReadonlyArray<CatalogEntry>>) => {
 // entries in SQLite full-text search (FTS5); `catalog_current` names the
 // generation of each source that searches read; `catalog_fingerprint` holds
 // a fingerprint of what each generation stores, which tells a build whether a
-// listing matches the published generation; `catalog_direction` holds which
-// way each indicator's values are better. A build writes a new generation
+// listing matches the published generation; `catalog_indicator` finds an
+// entry's row by its indicator; `catalog_direction` holds which way each
+// indicator's values are better. A build writes a new generation
 // and publishes it once complete (see CatalogBuild.ts). Only builds run this:
 // readers never create tables (built.ts).
 export const tables = Effect.gen(function* () {
@@ -126,6 +120,32 @@ export const tables = Effect.gen(function* () {
       generation INTEGER NOT NULL
     )
   `
+  // The rowid of each entry's row in `catalog`, by indicator. FTS5 indexes
+  // the words of a code, never the whole code, so a lookup through it reads
+  // the long lists of rows holding words many codes share ("oecd", "dsd",
+  // "1"). A build fills a generation's rows when it publishes it.
+  yield* sql`
+    CREATE TABLE IF NOT EXISTS catalog_indicator (
+      indicator TEXT NOT NULL,
+      source TEXT NOT NULL,
+      generation INTEGER NOT NULL,
+      entry INTEGER NOT NULL,
+      PRIMARY KEY (indicator, source, generation)
+    ) WITHOUT ROWID
+  `
+  // A catalog an earlier version built has no rows here until a source
+  // changes, so they come from what it holds. A catalog built since is
+  // empty only before its first publish, with nothing to read.
+  const indexed = yield* sql`SELECT 1 FROM catalog_indicator LIMIT 1`
+
+  if (indexed.length === 0) {
+    yield* sql`
+      INSERT INTO catalog_indicator (indicator, source, generation, entry)
+      SELECT indicator, source, generation, rowid FROM catalog WHERE true
+      ON CONFLICT DO NOTHING
+    `
+  }
+
   // A table of its own, rather than a column of catalog_current, so a stage
   // whose tables an earlier version made gets it too.
   yield* sql`
@@ -239,26 +259,21 @@ export class Catalog extends Context.Service<Catalog, Interface>()("@openfacts/s
         `,
       })
 
+      // The published entries of the indicators: each code's row in
+      // catalog_indicator, then its catalog row by rowid. CROSS JOIN fixes
+      // that order, so a plan never starts from the full-text table.
       const listed = SqlSchema.findAll({
-        Request: Schema.Struct({
-          indicators: Schema.Array(Schema.String),
-          match: Schema.String,
-          source: Schema.NullOr(Source),
-        }),
+        Request: Schema.Struct({ ids: Schema.String, source: Schema.NullOr(Source) }),
         Result: CatalogEntry,
-        execute: ({ indicators, match, source }) =>
-          Schema.encodeEffect(IdsJson)(indicators).pipe(
-            Effect.flatMap(
-              (ids) => sql`
-                SELECT catalog.indicator, catalog.name, catalog.definition FROM catalog
-                JOIN catalog_current AS current
-                  ON current.source = catalog.source AND current.generation = catalog.generation
-                WHERE catalog MATCH ${match}
-                  AND (${source} IS NULL OR catalog.source = ${source})
-                  AND catalog.indicator IN (SELECT value FROM json_each(${ids}))
-              `,
-            ),
-          ),
+        execute: ({ ids, source }) => sql`
+          SELECT catalog.indicator, catalog.name, catalog.definition
+          FROM json_each(${ids}) AS id
+          CROSS JOIN catalog_indicator AS indexed ON indexed.indicator = id.value
+          CROSS JOIN catalog_current AS current
+            ON current.source = indexed.source AND current.generation = indexed.generation
+          CROSS JOIN catalog ON catalog.rowid = indexed.entry
+          WHERE ${source} IS NULL OR indexed.source = ${source}
+        `,
       })
 
       // The published entries closest in meaning to the text, closest first.
@@ -269,7 +284,14 @@ export class Catalog extends Context.Service<Catalog, Interface>()("@openfacts/s
 
           if (!Arr.isReadonlyArrayNonEmpty(indicators)) return []
 
-          const found = yield* listed({ indicators, match: toCodes(indicators), source })
+          const ids = yield* Schema.encodeEffect(IdsJson)(indicators)
+
+          // A stage whose last build predates catalog_indicator searches
+          // by words alone until its next build.
+          const found = yield* listed({ ids, source }).pipe(
+            orUnbuilt({ sql, tables: ["catalog_indicator"], value: [] }),
+          )
+
           const entries = new Map(found.map((entry) => [entry.indicator, entry]))
 
           // A neighbor missing from the catalog left it.

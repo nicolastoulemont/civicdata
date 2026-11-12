@@ -7,8 +7,11 @@ import { Catalog } from "../src/Catalog.ts"
 import {
   build,
   catalogOver,
+  drop,
   listings,
   overloaded,
+  planned,
+  served,
   vectorize,
   workersAi,
   worldBankList,
@@ -186,6 +189,60 @@ describe("Catalog", () => {
         "Income share held by highest 10%",
       ])
     }).pipe(Effect.provide(catalogOver(lists)))
+  })
+
+  it.effect("looks each neighbour up by its indicator", () => {
+    const { index } = vectorize()
+    const reads = planned({ index })
+
+    return Effect.gen(function* () {
+      yield* build(1)
+
+      const found = yield* Catalog.use((catalog) => catalog.search("how rich")).pipe(
+        Effect.provide(reads.layer),
+      )
+
+      expect(names(found)).toHaveLength(2)
+
+      // Only the neighbour lookup reads a list of codes.
+      const neighbours = (yield* reads.plans).filter(({ query }) => query.includes("json_each"))
+
+      expect(neighbours).toHaveLength(1)
+      // Matching each code as a phrase reads the full-text postings of
+      // tokens many codes share ("oecd", "dsd", "1").
+      expect(neighbours[0]?.steps).toContain("SEARCH indexed USING PRIMARY KEY (indicator=?)")
+      expect(neighbours[0]?.steps).not.toContain("SCAN catalog VIRTUAL TABLE INDEX 0:M5")
+    }).pipe(Effect.provide(catalogOver(listings(), { index })))
+  })
+
+  it.effect("finds neighbours in a catalog built before neighbours had their own table", () => {
+    const lists = listings()
+    const { index } = vectorize()
+
+    // Each build makes its layers anew, as a deployed Workflow step does.
+    const over = catalogOver(lists, { index })
+
+    const search = (text: string) =>
+      Catalog.use((catalog) => catalog.search(text)).pipe(Effect.provide(served({ index })))
+
+    return Effect.gen(function* () {
+      yield* build(1).pipe(Effect.provide(over))
+      yield* drop("catalog_indicator")
+
+      // Words still answer until the next build.
+      expect(yield* search("how rich")).toEqual([])
+      expect(names(yield* search("life expectancy"))).toEqual([
+        "Life expectancy at birth, total (years)",
+      ])
+
+      // Nothing changed, so this build publishes nothing.
+      yield* build(2).pipe(Effect.provide(over))
+
+      expect(names(yield* search("how rich")).toSorted()).toEqual([
+        "GDP per capita (current US$)",
+        "Income share held by highest 10%",
+      ])
+    })
   })
 
   it.effect("searches by words while Workers AI is down", () => {
