@@ -250,44 +250,80 @@ const refuse = () =>
     ),
   )
 
-// The catalog over the test Worker's D1 database as D1 serves it once
-// overloaded: it refuses the first `refusals` reads.
-export const overloaded = ({ refusals }: { refusals: number }) => {
-  let left = refusals
+type Statement = ReturnType<Database["prepare"]>
 
-  // Each read binds a prepared statement, then runs it. While refusals are
-  // left, the bound statement refuses to run.
-  const refusing = (statement: ReturnType<Database["prepare"]>) => {
+// A statement a read binds: its SQL and its values.
+interface Bound {
+  readonly query: string
+  readonly values: ReadonlyArray<unknown>
+  readonly statement: Statement
+}
+
+// The test Worker's D1 database, telling `bound` of each statement a read
+// binds before it runs.
+const watched = (bound: (read: Bound) => void): Database => {
+  const watching = (query: string, statement: Statement) => {
     const bind = statement.bind.bind(statement)
 
     statement.bind = (...values) => {
-      const bound = bind(...values)
+      const read = bind(...values)
 
-      if (left > 0) {
-        left -= 1
-        bound.all = refuse
-        bound.raw = refuse
-      }
+      bound({ query, values, statement: read })
 
-      return bound
+      return read
     }
 
     return statement
   }
 
-  const database: Database = {
-    prepare: (query) => refusing(db.prepare(query)),
+  return {
+    prepare: (query) => watching(query, db.prepare(query)),
     batch: (statements) => db.batch(statements),
     exec: (query) => db.exec(query),
     withSession: (constraint) => db.withSession(constraint),
     dump: () => db.dump(),
   }
+}
 
-  // Fresh: a test's catalog over the healthy database is the same layer.
-  return Layer.fresh(Catalog.layer).pipe(
+// The catalog over `database`. Fresh: a test's catalog over the test
+// Worker's own database is the same layer.
+const catalogOn = (database: Database) =>
+  Layer.fresh(Catalog.layer).pipe(
     Layer.provide(Vectors.cloudflare({ ai: workersAi({ up: true }), index: vectorize().index })),
     Layer.provide(D1Client.layer({ db: database }).pipe(Layer.orDie)),
   )
+
+// The catalog over the test Worker's D1 database as D1 serves it once
+// overloaded: it refuses the first `refusals` reads.
+export const overloaded = ({ refusals }: { refusals: number }) => {
+  let left = refusals
+
+  return catalogOn(
+    watched(({ statement }) => {
+      if (left === 0) return
+
+      left -= 1
+      statement.all = refuse
+      statement.raw = refuse
+    }),
+  )
+}
+
+// The catalog over the test Worker's D1 database, and how SQLite plans each
+// read the catalog makes: the detail of each step of the read's query plan.
+export const planned = () => {
+  const reads: Array<Bound> = []
+
+  const plans = Effect.forEach(reads, ({ query, values }) =>
+    Effect.promise(() =>
+      db
+        .prepare(`EXPLAIN QUERY PLAN ${query}`)
+        .bind(...values)
+        .all<{ detail: string }>(),
+    ).pipe(Effect.map(({ results }) => ({ query, steps: results.map(({ detail }) => detail) }))),
+  )
+
+  return { layer: catalogOn(watched((read) => reads.push(read))), plans }
 }
 
 // Drops tables, leaving the catalog as an earlier version made it.
