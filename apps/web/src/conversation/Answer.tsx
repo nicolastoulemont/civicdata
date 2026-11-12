@@ -10,14 +10,20 @@ import {
   type View,
 } from "@openfacts/domain"
 import type { TFunction } from "i18next"
-import { useState } from "react"
+import { lazy, Suspense, useState } from "react"
 import { useTranslation } from "react-i18next"
 
 import { Act } from "@/act"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Explore } from "@/explore/Explore"
+import { Skeleton } from "@/components/ui/skeleton"
 
 import { useAct, useShow } from "./useConversation.ts"
+
+// The chart's code loads apart from the conversation's, so the page shows
+// before it; the conversation's preload starts fetching it.
+const Explore = lazy(() =>
+  import("@/explore/Explore").then((module) => ({ default: module.Explore })),
+)
 
 // Why a changed chart could not be kept, in plain words.
 const problemOf = (error: Error, t: TFunction<"conversation">) =>
@@ -64,14 +70,16 @@ export const Answer = ({ id, turn, chart, agent, shown, kept }: AnswerProps) => 
 
   return (
     <Act value={(action) => (kept ? acting.mutate(action) : undefined)}>
-      <Explore
-        view={view}
-        onChange={(next) => (kept ? showing.mutate(next) : setDrawn(next))}
-        overlays={overlays}
-        onOverlays={setOverlays}
-        heading="h3"
-        agent={agent.view}
-      />
+      <Suspense fallback={<Skeleton className="h-80 w-full" />}>
+        <Explore
+          view={view}
+          onChange={(next) => (kept ? showing.mutate(next) : setDrawn(next))}
+          overlays={overlays}
+          onOverlays={setOverlays}
+          heading="h3"
+          agent={agent.view}
+        />
+      </Suspense>
       {showing.isError ? (
         <Alert variant="destructive">
           <AlertTitle>{t(($) => $["Your change could not be kept"])}</AlertTitle>

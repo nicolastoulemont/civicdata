@@ -42,7 +42,7 @@ it("uses the browser language, saves an explicit choice, and keeps the URL", asy
   const url = window.location.href
   show()
 
-  expect(screen.getByLabelText("Current locale").textContent).toBe("de-DE")
+  await waitFor(() => expect(screen.getByLabelText("Current locale").textContent).toBe("de-DE"))
   await userEvent.click(screen.getByRole("combobox"))
   await userEvent.click(await screen.findByRole("option", { name: /🇫🇷\s+Français/u }))
 

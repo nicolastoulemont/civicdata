@@ -2,9 +2,14 @@ import { Locale } from "@openfacts/domain"
 import { Schema } from "effect"
 import { describe, expect, it } from "vitest"
 
-import { resources } from "./messages.ts"
+import { english } from "./messages.ts"
 
 const decodeCatalog = Schema.decodeUnknownSync(Schema.Record(Schema.String, Schema.String))
+
+const catalogs = import.meta.glob("./locales/*/*.json", { eager: true, import: "default" })
+
+const catalog = (locale: Locale, namespace: string) =>
+  decodeCatalog(catalogs[`./locales/${locale}/${namespace}.json`])
 
 // Translations may reorder words, but these parts are the catalog contract.
 const syntax = (message: string) => ({
@@ -17,9 +22,9 @@ const syntax = (message: string) => ({
   trailingSpace: message.endsWith(" "),
 })
 
-for (const namespace of ["common", "settings", "home", "conversation", "explore"] as const) {
+for (const namespace of Object.keys(english)) {
   describe(`${namespace} catalogs`, () => {
-    const source = decodeCatalog(resources["en-US"][namespace])
+    const source = catalog("en-US", namespace)
     const keys = Object.keys(source).toSorted()
 
     it("has English source messages", () => {
@@ -27,11 +32,11 @@ for (const namespace of ["common", "settings", "home", "conversation", "explore"
     })
 
     it.each(Locale.literals)("keeps all messages and placeholders in %s", (locale) => {
-      const catalog = decodeCatalog(resources[locale][namespace])
+      const messages = catalog(locale, namespace)
 
-      expect(Object.keys(catalog).toSorted()).toEqual(keys)
+      expect(Object.keys(messages).toSorted()).toEqual(keys)
 
-      for (const [key, message] of Object.entries(catalog)) {
+      for (const [key, message] of Object.entries(messages)) {
         expect(message.trim(), `${locale}/${namespace}:${key}`).not.toBe("")
         expect(syntax(message), `${locale}/${namespace}:${key}`).toEqual(syntax(source[key] ?? ""))
       }
