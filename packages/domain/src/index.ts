@@ -73,6 +73,7 @@ export {
   ConversationBusy,
   ConversationNotFound,
   DimensionsMissing,
+  Failure,
   IndicatorNotFound,
   NoChart,
   isRefusal,

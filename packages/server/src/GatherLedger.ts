@@ -1,23 +1,54 @@
-import { Source } from "@openfacts/domain"
+import { Failure, Source, SourceUnavailable } from "@openfacts/domain"
 import { DateTime, Effect, Option, Schema } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
 import { AssetId, Versions } from "./Adapter.ts"
+import { failureOf } from "./Failure.ts"
 import { layout } from "./Store.ts"
 
+// Why an asset failed: what its source did, or something on our side, such
+// as the store, the database, or a Workflow step that lost its error's type.
+const Internal = Schema.TaggedStruct("Internal", {})
+
+export const Reason = Schema.Union([Failure, Internal])
+
+export type Reason = typeof Reason.Type
+
+export const reasonOf = (error: { readonly _tag: string }): Reason =>
+  error instanceof SourceUnavailable ? failureOf(error) : Internal.make({})
+
+// The reasons that say the publisher will answer the same way again: it
+// refused the request, or sent what we cannot read. After three failed runs
+// on the same version, an asset whose last failure was one of these waits a
+// week. Any other failure (no answer, a 5xx, a 429, our side) is retried on
+// the next run.
+const lasting = JSON.stringify(["Refused", "Unreadable"] satisfies ReadonlyArray<Reason["_tag"]>)
+
 // Kept as a tagged union so later policies can add an Unstorable decision.
+// A failure recorded before reasons were classified holds a string, which
+// never starts a backoff.
 const Gathered = Schema.TaggedUnion({
   Stored: { version: Schema.String, at: Schema.DateTimeUtcFromString },
   Failed: {
     wanted: Schema.String,
     stored: Schema.OptionFromNullOr(Schema.String),
     failures: Schema.Int,
-    reason: Schema.String,
+    reason: Schema.Union([Reason, Schema.String]),
     at: Schema.DateTimeUtcFromString,
   },
 })
 
 const GatheredJson = Schema.fromJsonString(Gathered)
+
+// An asset a run still wants, at the version it wants, with what the ledger
+// last recorded for it.
+const Wanted = Schema.Struct({
+  asset: AssetId,
+  version: Schema.NonEmptyString,
+  state: Schema.OptionFromNullOr(GatheredJson),
+})
+
+export interface Wanted extends Schema.Schema.Type<typeof Wanted> {}
 
 // Only Gather constructs this ledger, on the build's CATALOG_DB connection.
 export const ledger = Effect.fn("GatherLedger.open")(function* (namespace = "") {
@@ -68,11 +99,7 @@ export const ledger = Effect.fn("GatherLedger.open")(function* (namespace = "") 
       after: Schema.String,
       now: Schema.String,
     }),
-    Result: Schema.Struct({
-      asset: AssetId,
-      version: Schema.NonEmptyString,
-      state: Schema.OptionFromNullOr(GatheredJson),
-    }),
+    Result: Wanted,
     execute: ({ source, versions, after, now }) => sql`
       SELECT json_extract(wanted.value, '$.asset') AS asset,
         json_extract(wanted.value, '$.version') AS version, gathered.state
@@ -87,6 +114,8 @@ export const ledger = Effect.fn("GatherLedger.open")(function* (namespace = "") 
           IS NOT json_extract(wanted.value, '$.version'))
         AND (COALESCE(json_extract(gathered.state, '$.failures'), 0) < 3
           OR json_extract(gathered.state, '$.wanted') IS NOT json_extract(wanted.value, '$.version')
+          OR COALESCE(json_extract(gathered.state, '$.reason._tag'), '')
+            NOT IN (SELECT value FROM json_each(${lasting}))
           OR julianday(${now}) - julianday(json_extract(gathered.state, '$.at')) >= 7)
       ORDER BY asset LIMIT 50`,
   })
@@ -101,6 +130,7 @@ export const ledger = Effect.fn("GatherLedger.open")(function* (namespace = "") 
           json_extract(state, '$.version') AS stored,
           json_extract(state, '$.wanted') AS wanted,
           json_extract(state, '$.failures') AS failures,
+          json_extract(state, '$.reason._tag') AS reason,
           json_extract(state, '$.at') AS at
         FROM json_each(${JSON.stringify(versions)}) AS wanted
         LEFT JOIN asset_gathered ON scope = ${`${layout}/${source}${namespace}`}
@@ -108,6 +138,7 @@ export const ledger = Effect.fn("GatherLedger.open")(function* (namespace = "") 
       )
       SELECT count(CASE WHEN tag = 'Stored' AND stored = version THEN 1 END) AS unchanged,
         count(CASE WHEN tag = 'Failed' AND failures >= 3 AND wanted = version
+          AND reason IN (SELECT value FROM json_each(${lasting}))
           AND julianday(${now}) - julianday(at) < 7 THEN 1 END) AS backedOff
       FROM entries`,
   })
@@ -143,7 +174,7 @@ export const ledger = Effect.fn("GatherLedger.open")(function* (namespace = "") 
       source: Source
       version: string
       previous: Option.Option<typeof Gathered.Type>
-      reason: string
+      reason: Reason
     },
   ) {
     const last = Option.match(previous, {

@@ -5,17 +5,20 @@ import { join } from "node:path"
 import { promisify } from "node:util"
 
 import { NodeStream } from "@effect/platform-node"
-import { SourceUnavailable } from "@openfacts/domain"
+import { Failure, SourceUnavailable } from "@openfacts/domain"
 import { DateTime, Effect, Layer, Stream } from "effect"
 import { HttpClient } from "effect/http"
 
+import { unavailable } from "../src/Failure.ts"
 import { asti, FaostatArchive } from "../src/Faostat.ts"
 import { table } from "../src/Table.ts"
 import { scratch, sortRows, series } from "./series.ts"
 
 const { archiveUrl, dataset, name, definition, indicator, record, currentVersion } = asti
 
-const unavailable = () => new SourceUnavailable({ source: "FAOSTAT" })
+// An archive that is not the one we reviewed, or that we could not unpack.
+const unreadable = () =>
+  new SourceUnavailable({ source: "FAOSTAT", failure: Failure.cases.Unreadable.make({}) })
 
 // The complete asset is validated and its manifest rechecked before any series is
 // offered. Disk holds the asset; memory holds one CSV row or the selected national measure.
@@ -33,7 +36,7 @@ export const faoArchive = Layer.effect(
           Effect.gen(function* () {
             const folder = yield* scratch("FAOSTAT")
 
-            const response = yield* client.get(archiveUrl)
+            const response = yield* client.get(archiveUrl).pipe(unavailable("FAOSTAT", archiveUrl))
             const retrievedAt = yield* DateTime.now
             const zip = join(folder, "AE.zip")
             const download = yield* Effect.tryPromise(() => open(zip, "w"))
@@ -46,7 +49,7 @@ export const faoArchive = Layer.effect(
             yield* Effect.tryPromise({
               try: (signal) =>
                 promisify(execFile)("unzip", ["-q", zip, csv, "-d", folder], { signal }),
-              catch: unavailable,
+              catch: unreadable,
             })
             const staged = join(folder, "rows")
             const sorted = join(folder, "sorted")
@@ -57,7 +60,7 @@ export const faoArchive = Layer.effect(
 
             yield* NodeStream.fromReadable({
               evaluate: () => createReadStream(join(folder, csv)),
-              onError: unavailable,
+              onError: unreadable,
             }).pipe(
               Stream.decodeText(),
               Stream.splitLines,
@@ -72,7 +75,7 @@ export const faoArchive = Layer.effect(
                   if (line === "") return undefined
                   const rows = yield* table(`${header}\n${line}\n`)
 
-                  if (rows.length !== 1) return yield* unavailable()
+                  if (rows.length !== 1) return yield* unreadable()
                   count += 1
                   const row = yield* record(rows[0] ?? {})
 
@@ -80,7 +83,7 @@ export const faoArchive = Layer.effect(
                   selected += 1
                   const place = row.qualifications[0]
 
-                  if (place === undefined) return yield* unavailable()
+                  if (place === undefined) return yield* unreadable()
                   yield* Effect.tryPromise(() =>
                     output.write(`${place.country}:${place.year}\t${JSON.stringify(row)}\n`),
                   )
@@ -93,12 +96,12 @@ export const faoArchive = Layer.effect(
             )
 
             if (selected === 0 || count !== Number(version.split("/")[1]))
-              return yield* unavailable()
+              return yield* unreadable()
             yield* sortRows(staged, sorted)
 
             const after = yield* currentVersion(client)
 
-            if (after !== version) return yield* unavailable()
+            if (after !== version) return yield* unreadable()
 
             return series(sorted, {
               indicator: { id: indicator, name, definition },
@@ -106,7 +109,9 @@ export const faoArchive = Layer.effect(
               version,
               retrievedAt,
             })
-          }).pipe(Effect.mapError(unavailable)),
+          }).pipe(
+            Effect.mapError((error) => (error instanceof SourceUnavailable ? error : unreadable())),
+          ),
         ),
     })
   }),

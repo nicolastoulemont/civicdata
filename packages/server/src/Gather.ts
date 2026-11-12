@@ -10,8 +10,10 @@ import {
 } from "@openfacts/domain"
 import {
   Array as Arr,
+  Clock,
   Context,
   DateTime,
+  Duration,
   Effect,
   Layer,
   Option,
@@ -24,9 +26,9 @@ import { SqlClient, SqlSchema } from "effect/sql"
 
 import { AssetId, type Bulk, Release, Versions } from "./Adapter.ts"
 import { tables } from "./Catalog.ts"
-import { database, Step } from "./CatalogBuild.ts"
+import { database, Step, type StepFailed } from "./CatalogBuild.ts"
 import { Faostat } from "./Faostat.ts"
-import { ledger } from "./GatherLedger.ts"
+import { ledger, reasonOf, type Wanted } from "./GatherLedger.ts"
 import { Ilostat } from "./Ilostat.ts"
 import { Imf } from "./Imf.ts"
 import { Insee } from "./Insee.ts"
@@ -44,6 +46,17 @@ import { WorldBank } from "./WorldBank.ts"
 // of about 50 KB, served in a tenth of a second. Pace keeps requests within
 // the source's budget.
 const perStep = 50
+
+// How long a step may keep starting assets. Workflows stops a step after 5
+// minutes (`Step.workflow`) and runs it again, asking for the same assets. A
+// World Bank download gives up after a minute, so a step that starts its last
+// asset before 3 minutes ends in time, even when the publisher hangs.
+const budget = Duration.minutes(3)
+
+// Where a source's next step starts: after the last asset attempted, or
+// nowhere once the last of fewer than a step's assets was attempted.
+const nextAfter = (entries: ReadonlyArray<Wanted>, cursor: string | null) =>
+  entries.length < perStep && cursor === (entries.at(-1)?.asset ?? null) ? null : cursor
 
 const verify = (bulk: Bulk, version: string) => bulk.verify?.(version) ?? Effect.void
 
@@ -79,11 +92,13 @@ interface Interface {
   ) => Effect.Effect<Batch>
 }
 
-// Five consecutive asset failures stop a source while keeping its ledger.
+// A run that left some sources ungathered: five consecutive asset failures
+// stopped them, or a step failed. The other sources still ran, and the
+// ledger keeps what each stored.
 export class GatherFailed extends Schema.TaggedError<
   GatherFailed,
   { readonly brand: unique symbol }
->()("GatherFailed", { source: Schema.String, failed: Schema.Int }) {}
+>()("GatherFailed", { sources: Schema.Array(Source) }) {}
 
 const PlacesJson = Schema.fromJsonString(
   Schema.Array(Schema.Struct({ country: Schema.String, year: Schema.Int })),
@@ -397,7 +412,10 @@ export class Gather extends Context.Service<Gather, Interface>()("@openfacts/ser
                       source,
                       version: release.version,
                       previous: wanted.state,
-                      reason: String(error.cause),
+                      // Workflows keeps no error's type across a step.
+                      reason: reasonOf(
+                        error.cause instanceof SourceUnavailable ? error.cause : error,
+                      ),
                     })
                   }
                 }),
@@ -470,6 +488,31 @@ export class Gather extends Context.Service<Gather, Interface>()("@openfacts/ser
         }),
       )
 
+      // Gathers one wanted asset and records in the ledger what came of it.
+      const attempt = Effect.fn("Gather.attempt")(function* (
+        mirror: Mirror,
+        { asset, version, state, catalog }: Wanted & { catalog: ReadonlyArray<CatalogEntry> },
+      ) {
+        const result = yield* one(mirror, { asset, version, entries: catalog }).pipe(Effect.result)
+
+        if (Result.isFailure(result)) {
+          yield* records.failed(asset, {
+            source: mirror.source,
+            version,
+            previous: state,
+            reason: reasonOf(result.failure),
+          })
+
+          return "failed" as const
+        }
+
+        yield* records.stored(asset, { source: mirror.source, version })
+
+        if (result.success.held > 0) return "held" as const
+
+        return result.success.stored > 0 ? ("stored" as const) : ("unchanged" as const)
+      })
+
       const gather = Effect.fn("Gather.gather")(
         function* (
           mirror: Mirror,
@@ -485,43 +528,28 @@ export class Gather extends Context.Service<Gather, Interface>()("@openfacts/ser
           const totals = { stored: 0, unchanged: 0, held: 0, failed: 0 }
           let consecutive = streak
           let cursor: string | null = null
+          const deadline = (yield* Clock.currentTimeMillis) + Duration.toMillis(budget)
 
           // Sequential requests stop exactly at the fifth failure. A cursor
           // prevents an isolated failure from reappearing in this run.
           const catalog = yield* listed(mirror.source)
 
-          for (const { version, state, asset } of entries) {
-            const result = yield* one(mirror, { asset, version, entries: catalog }).pipe(
-              Effect.result,
-            )
+          for (const wanted of entries) {
+            const outcome = yield* attempt(mirror, { ...wanted, catalog })
 
-            if (Result.isSuccess(result)) {
-              yield* records.stored(asset, { source: mirror.source, version })
+            totals[outcome] += 1
+            consecutive = outcome === "failed" ? consecutive + 1 : 0
+            cursor = wanted.asset
 
-              if (result.success.held > 0) totals.held += 1
-              else if (result.success.stored > 0) totals.stored += 1
-              else totals.unchanged += 1
-              consecutive = 0
-            } else {
-              yield* records.failed(asset, {
-                source: mirror.source,
-                version,
-                previous: state,
-                reason: String(result.failure),
-              })
-              totals.failed += 1
-              consecutive += 1
-            }
-
-            cursor = asset
-
-            if (consecutive === 5) break
+            // Past its budget, the step returns its cursor before Workflows'
+            // timeout; the next step goes on from it.
+            if (consecutive === 5 || (yield* Clock.currentTimeMillis) >= deadline) break
           }
 
           return {
             ...totals,
             streak: consecutive,
-            after: entries.length === perStep || consecutive === 5 ? cursor : null,
+            after: nextAfter(entries, cursor),
           } satisfies Batch
         },
         Effect.catchTags({ SqlError: Effect.die, SchemaError: Effect.die }),
@@ -555,15 +583,32 @@ export class Gather extends Context.Service<Gather, Interface>()("@openfacts/ser
   )
 
   // Workflow steps save cursors and failure streaks; the ledger survives runs.
+  // A source that fails ends only itself: the run goes on to the next, then
+  // fails naming every source that failed.
   static readonly run = Effect.fn("Gather.run")(function* (source?: Source) {
     const gather = yield* Gather
+    const failed: Array<Source> = []
 
     for (const mirror of gather.mirrors.filter(
       (item) => source === undefined || item.source === source,
     )) {
-      if (mirror.bulk.release === undefined) yield* mirrorOne(mirror)
-      else yield* gather.publish(mirror)
+      const attempt: Effect.Effect<
+        void,
+        StepFailed | GatherFailed | SourceUnavailable,
+        Gather | Step
+      > = mirror.bulk.release === undefined ? mirrorOne(mirror) : gather.publish(mirror)
+
+      const result = yield* Effect.result(attempt)
+
+      if (Result.isFailure(result)) {
+        yield* Effect.logWarning(`Could not gather ${mirror.source}`, result.failure)
+        failed.push(mirror.source)
+      }
     }
+
+    if (Arr.isArrayNonEmpty(failed)) return yield* new GatherFailed({ sources: failed })
+
+    return undefined
   })
 }
 
@@ -603,7 +648,7 @@ const mirrorOne = Effect.fn("Gather.mirror")(function* (mirror: Mirror) {
 
   yield* Effect.logInfo(`Gathered ${source}`, totals)
 
-  if (streak === 5) return yield* new GatherFailed({ source, failed: totals.failed })
+  if (streak === 5) return yield* new GatherFailed({ sources: [source] })
 
   return undefined
 })

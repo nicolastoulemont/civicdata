@@ -1,14 +1,17 @@
 import { beforeEach, describe, expect, it } from "@effect/vitest"
-import { Year } from "@openfacts/domain"
+import { Failure, Year } from "@openfacts/domain"
 import { reset } from "cloudflare:test"
-import { DateTime, Effect, Layer } from "effect"
+import { DateTime, Effect, Fiber, Layer, Stream } from "effect"
 import { TestClock } from "effect/testing"
 
-import { Step, StepFailed } from "../src/CatalogBuild.ts"
+import toc from "../../../docs/research/faostat/manifest.json?raw"
+import raw from "../../../docs/research/faostat/record.json" with { type: "json" }
+import { Step } from "../src/CatalogBuild.ts"
+import { asti, FaostatArchive } from "../src/Faostat.ts"
 import { Gather, GatherFailed } from "../src/Gather.ts"
 import { Sources } from "../src/Sources.ts"
-import { entry } from "./catalog.ts"
-import { steps } from "./fakes.ts"
+import { build, catalogOver, entry, listings } from "./catalog.ts"
+import { http, steps } from "./fakes.ts"
 import {
   bucket,
   bulk,
@@ -31,6 +34,34 @@ import {
 beforeEach(() => reset())
 
 const run = Gather.run().pipe(Effect.provide(Step.immediate))
+
+// Runs `effect` while the test clock moves a second for each live
+// millisecond, so its retries wait and its timeouts end.
+const passing = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
+  Effect.gen(function* () {
+    const fiber = yield* Effect.forkChild(effect)
+
+    while (fiber.pollUnsafe() === undefined) {
+      yield* TestClock.adjust("1 second")
+      yield* TestClock.withLive(Effect.sleep("1 millis"))
+    }
+
+    return yield* Fiber.join(fiber)
+  })
+
+// What the ledger recorded for an asset's last failure, and how many runs
+// in a row failed it.
+const failure = (asset: string) =>
+  Effect.promise(() =>
+    seriesDb
+      .prepare(
+        "SELECT json_extract(state, '$.reason') AS reason, json_extract(state, '$.failures') AS failures FROM asset_gathered WHERE asset = ?",
+      )
+      .bind(asset)
+      .first<{ reason: string; failures: number }>(),
+  ).pipe(
+    Effect.map((row) => ({ reason: JSON.parse(row?.reason ?? "null"), failures: row?.failures })),
+  )
 
 // Spain's population since 2020, as charts read it.
 const spain = Effect.fn(function* (codes: ReturnType<typeof indicators>) {
@@ -292,13 +323,14 @@ describe("Gather", () => {
         Effect.flip,
       )
 
-      expect(error).toBeInstanceOf(StepFailed)
+      // Its check step failed; the run names the source.
+      expect(error).toEqual(new GatherFailed({ sources: ["World Bank"] }))
       expect(store.puts()).toBe(0)
       expect(yield* gathered).toBeNull()
     })
   })
   it.effect(
-    "backs off after three failed runs, but retries a changed version or after a week",
+    "backs off after three runs with an unreadable answer, but retries a changed version or after a week",
     () => {
       const codes = indicators("BACKOFF")
       const published = publishing(codes)
@@ -329,7 +361,7 @@ describe("Gather", () => {
         )
 
         expect(failed?.failures).toBe(3)
-        expect(failed?.reason).toContain("SourceUnavailable")
+        expect(JSON.parse(failed?.reason ?? "")).toEqual(Failure.cases.Unreadable.make({}))
 
         published.version = "2026-12-15"
         yield* run.pipe(Effect.provide(gather))
@@ -407,7 +439,7 @@ describe("Gather", () => {
     return Effect.gen(function* () {
       yield* catalogue(codes.map((code) => entry(code, `Indicator ${code}`)))
       const error = yield* run.pipe(Effect.provide(gather), Effect.flip)
-      expect(error).toEqual(new GatherFailed({ source: "World Bank", failed: 5 }))
+      expect(error).toEqual(new GatherFailed({ sources: ["World Bank"] }))
       expect(source.requests()).toBe(54)
       expect(store.puts()).toBe(48)
       expect((yield* Effect.promise(ledgerRows)).results).toHaveLength(53)
@@ -417,6 +449,197 @@ describe("Gather", () => {
       yield* run.pipe(Effect.provide(gather))
       expect(source.requests() - asked).toBe(13)
       expect(store.puts()).toBe(60)
+    })
+  })
+
+  it.effect("records a 502 or a hang as what happened, and asks again on the next run", () => {
+    const codes = indicators("OUTAGE")
+    const published = publishing(codes)
+    const source = serving(published)
+    const store = bucket()
+    const gather = gatherOver(source.layer, store.bucket)
+
+    return Effect.gen(function* () {
+      published.answers.set(codes.population, { status: 502 })
+      published.answers.set(codes.unemployment, "hang")
+      yield* catalogue(catalogOf(codes))
+
+      for (let day = 0; day < 3; day += 1) {
+        yield* passing(run.pipe(Effect.provide(gather)))
+        yield* TestClock.adjust("1 day")
+      }
+
+      expect(yield* failure(codes.population)).toEqual({
+        reason: Failure.cases.ServerError.make({ status: 502 }),
+        failures: 3,
+      })
+      expect(yield* failure(codes.unemployment)).toEqual({
+        reason: Failure.cases.Timeout.make({}),
+        failures: 3,
+      })
+
+      published.answers.set(codes.population, bulk(recorded.population))
+      published.answers.set(codes.unemployment, bulk(recorded.unemployment))
+      yield* run.pipe(Effect.provide(gather))
+
+      expect(store.puts()).toBe(2)
+    })
+  })
+
+  it.effect("backs off for a week from an indicator the World Bank refuses", () => {
+    const codes = indicators("REFUSED")
+    const published = publishing(codes)
+    const source = serving(published)
+    const store = bucket()
+    const gather = gatherOver(source.layer, store.bucket)
+
+    return Effect.gen(function* () {
+      published.answers.set(codes.unemployment, { status: 404 })
+      yield* catalogue(catalogOf(codes))
+
+      for (let day = 0; day < 3; day += 1) {
+        yield* run.pipe(Effect.provide(gather))
+        yield* TestClock.adjust("1 day")
+      }
+
+      expect(yield* failure(codes.unemployment)).toEqual({
+        reason: Failure.cases.Refused.make({ status: 404 }),
+        failures: 3,
+      })
+
+      const asked = source.requests()
+
+      yield* run.pipe(Effect.provide(gather))
+
+      // The release only.
+      expect(source.requests() - asked).toBe(1)
+    })
+  })
+
+  it.effect("asks again for an asset whose failures were recorded before they had a reason", () => {
+    const codes = indicators("UNCLASSIFIED")
+    const source = serving(publishing(codes))
+    const store = bucket()
+    const gather = gatherOver(source.layer, store.bucket)
+
+    return Effect.gen(function* () {
+      yield* catalogue(catalogOf(codes))
+      yield* run.pipe(Effect.provide(gather))
+      const at = DateTime.formatIso(yield* DateTime.now)
+      // As production recorded the World Bank's outage of 2026-11-12.
+      yield* Effect.promise(() =>
+        seriesDb
+          .prepare(
+            "UPDATE asset_gathered SET state = json_object('_tag', 'Failed', 'wanted', '2026-10-08', 'stored', NULL, 'failures', 3, 'reason', 'SourceUnavailable', 'at', ?) WHERE asset = ?",
+          )
+          .bind(at, codes.population)
+          .run(),
+      )
+      const asked = source.requests()
+
+      yield* run.pipe(Effect.provide(gather))
+
+      // The release, then the population again.
+      expect(source.requests() - asked).toBe(2)
+      expect(yield* failure(codes.population)).toEqual({ reason: null, failures: null })
+    })
+  })
+
+  it.effect("ends a step before Workflows' timeout while downloads are slow", () => {
+    const codes = Array.from({ length: 10 }, (_, at) => `SLOW.${String(at).padStart(2, "0")}`)
+
+    const published = {
+      version: "2026-10-08",
+      answers: new Map(codes.map((code) => [code, bulk(recorded.population)])),
+    }
+
+    // Each download answers 50 seconds after it is asked.
+    const source = serving(published, { delay: "50 seconds" })
+    const store = bucket()
+    const workflow = steps()
+
+    return Effect.gen(function* () {
+      yield* catalogue(codes.map((code) => entry(code, `Indicator ${code}`)))
+      yield* Gather.run().pipe(
+        Effect.provide(Layer.merge(workflow.layer, gatherOver(source.layer, store.bucket))),
+      )
+
+      // A step starts assets for 3 minutes: four of them, 50 seconds each.
+      expect(workflow.ran()).toEqual([
+        "check World Bank",
+        "gather World Bank after ",
+        "gather World Bank after SLOW.03",
+        "gather World Bank after SLOW.07",
+      ])
+      expect(store.puts()).toBe(10)
+    })
+  })
+
+  it.effect("gathers the next source after five World Bank failures in a row", () => {
+    const codes = Array.from({ length: 5 }, (_, at) => `STREAK.${at}`)
+
+    const published = {
+      version: "2026-10-08",
+      answers: new Map(codes.map((code) => [code, "broken" as const])),
+    }
+
+    const source = serving(published)
+    const store = bucket()
+
+    const archive = Layer.succeed(
+      FaostatArchive,
+      FaostatArchive.of({
+        read: (version) =>
+          Stream.fromEffect(
+            Effect.gen(function* () {
+              const parsed = yield* asti.record(raw)
+
+              if (parsed === undefined) return yield* Effect.die("The recorded row is no series")
+
+              return {
+                ...parsed,
+                indicator: { id: asti.indicator, name: asti.name, definition: asti.definition },
+                dataset: asti.dataset,
+                version,
+                retrievedAt: yield* DateTime.now,
+              }
+            }),
+          ),
+      }),
+    )
+
+    const gather = gatherOver(source.layer, store.bucket, {
+      faostat: Layer.merge(
+        archive,
+        http(() => new Response(toc)),
+      ),
+    })
+
+    return Effect.gen(function* () {
+      yield* build(1).pipe(
+        Effect.provide(
+          catalogOver(
+            listings({
+              "World Bank": codes.map((code) => entry(code, `Indicator ${code}`)),
+              FAOSTAT: [entry(asti.indicator, asti.name, asti.definition)],
+            }),
+          ),
+        ),
+      )
+
+      const error = yield* run.pipe(Effect.provide(gather), Effect.flip)
+
+      expect(error).toEqual(new GatherFailed({ sources: ["World Bank"] }))
+
+      const faostat = yield* Effect.promise(() =>
+        seriesDb
+          .prepare(
+            "SELECT json_extract(state, '$._tag') AS tag FROM asset_gathered WHERE scope = 'series/v2/FAOSTAT'",
+          )
+          .all(),
+      )
+
+      expect(faostat.results).toEqual([{ tag: "Stored" }])
     })
   })
 
@@ -487,7 +710,7 @@ it.effect("bridges deployed World Bank successes and backoff without a bulk refe
     yield* Effect.promise(() =>
       seriesDb
         .prepare(
-          "UPDATE asset_gathered SET state = json_object('_tag', 'Failed', 'wanted', '2026-10-08', 'stored', 'old', 'failures', 3, 'reason', 'recorded outage', 'at', ?) WHERE asset = ?",
+          "UPDATE asset_gathered SET state = json_object('_tag', 'Failed', 'wanted', '2026-10-08', 'stored', 'old', 'failures', 3, 'reason', json_object('_tag', 'Refused', 'status', 404), 'at', ?) WHERE asset = ?",
         )
         .bind(at, codes.unemployment)
         .run(),

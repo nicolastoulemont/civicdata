@@ -1,10 +1,12 @@
 import { D1Client } from "@effect/sql-d1"
 import { type CatalogEntry, IndicatorId } from "@openfacts/domain"
 import { env } from "cloudflare:workers"
-import { Effect, Layer } from "effect"
+import { type Duration, Effect, Layer } from "effect"
+import { HttpClient, HttpClientResponse } from "effect/http"
+import { TestClock } from "effect/testing"
 import { strToU8, zipSync } from "fflate"
 
-import { Faostat } from "../src/Faostat.ts"
+import { Faostat, type FaostatArchive } from "../src/Faostat.ts"
 import { Gather } from "../src/Gather.ts"
 import { Ilostat } from "../src/Ilostat.ts"
 import { Imf } from "../src/Imf.ts"
@@ -17,7 +19,7 @@ import { Who } from "../src/Who.ts"
 import { Wid } from "../src/Wid.ts"
 import { WorldBank } from "../src/WorldBank.ts"
 import { build, catalogOver, entry, listings } from "./catalog.ts"
-import { http, memory, offline } from "./fakes.ts"
+import { memory, offline } from "./fakes.ts"
 import population from "./fixtures/worldbank/bulk-population.csv?raw"
 import unemployment from "./fixtures/worldbank/bulk-unemployment.csv?raw"
 import unknown from "./fixtures/worldbank/bulk-unknown.xml?raw"
@@ -79,39 +81,56 @@ export const bulk = (recording: string, change = ({ cell }: Value) => cell) => {
 }
 
 // What the fake World Bank publishes: the World Development Indicators'
-// release date, and the bulk download of each indicator code, or "broken"
-// for an answer that is no ZIP. An unlisted code answers as the World Bank
-// does for an indicator it does not know.
+// release date, and the bulk download of each indicator code, "broken" for
+// an answer that is no ZIP, a status it fails with, or "hang" for a request
+// it never answers. An unlisted code answers as the World Bank does for an
+// indicator it does not know.
 export interface Published {
   version: string
-  answers: Map<string, Uint8Array<ArrayBuffer> | "broken">
+  answers: Map<string, Uint8Array<ArrayBuffer> | "broken" | "hang" | { status: number }>
 }
 
-// The World Bank over HTTP, counting the requests it answers.
-export const serving = (published: Published) => {
+// The World Bank over HTTP, counting the requests it answers. Each bulk
+// download takes `delay` of the test clock.
+export const serving = (published: Published, { delay }: { delay?: Duration.Input } = {}) => {
   let requests = 0
 
-  const layer = http((url) => {
-    requests += 1
+  const layer = Layer.succeed(
+    HttpClient.HttpClient,
+    HttpClient.make((request) =>
+      Effect.gen(function* () {
+        requests += 1
 
-    const { pathname } = new URL(url)
+        const { pathname } = new URL(request.url)
+        const answer = (response: Response) => HttpClientResponse.fromWeb(request, response)
 
-    // The recorded answer, dated with the release the test publishes.
-    if (pathname === "/v2/sources/2") {
-      return new Response(
-        JSON.stringify(sources).replace(
-          /"lastupdated":"[^"]*"/,
-          `"lastupdated":"${published.version}"`,
-        ),
-      )
-    }
+        // The recorded answer, dated with the release the test publishes.
+        if (pathname === "/v2/sources/2") {
+          return answer(
+            new Response(
+              JSON.stringify(sources).replace(
+                /"lastupdated":"[^"]*"/,
+                `"lastupdated":"${published.version}"`,
+              ),
+            ),
+          )
+        }
 
-    const found = published.answers.get(pathname.split("/indicator/")[1] ?? "")
+        if (delay !== undefined) yield* TestClock.adjust(delay)
 
-    if (found === "broken") return Response.json({ unexpected: true })
+        const found = published.answers.get(pathname.split("/indicator/")[1] ?? "")
 
-    return new Response(found ?? unknown)
-  })
+        if (found === "hang") return yield* Effect.never
+
+        if (found === "broken") return answer(Response.json({ unexpected: true }))
+
+        if (found !== undefined && "status" in found)
+          return answer(new Response("<title>5xx Error Page</title>", { status: found.status }))
+
+        return answer(new Response(found ?? unknown))
+      }),
+    ),
+  )
 
   return { layer, requests: () => requests }
 }
@@ -165,7 +184,12 @@ export const catalogue = (entries: ReadonlyArray<CatalogEntry>) =>
 
 // The gathering run over the test Worker's D1 database and SERIES bucket,
 // asking the fake World Bank directly, as the deployed run does.
-export const gatherOver = (client: ReturnType<typeof serving>["layer"], store: SeriesBucket) =>
+// With `faostat`, FAOSTAT is a mirror too, gathered after the World Bank.
+export const gatherOver = (
+  client: ReturnType<typeof serving>["layer"],
+  store: SeriesBucket,
+  { faostat }: { faostat?: Layer.Layer<FaostatArchive | HttpClient.HttpClient> } = {},
+) =>
   Gather.layer.pipe(
     Layer.provide(Store.r2(store)),
     Layer.provide(Sources.layer),
@@ -175,7 +199,7 @@ export const gatherOver = (client: ReturnType<typeof serving>["layer"], store: S
     Layer.provide(Wid.layer),
     Layer.provide(Imf.layer),
     Layer.provide(Who.layer.pipe(Layer.provide(offline))),
-    Layer.provide(Faostat.layer.pipe(Layer.provide(offline))),
+    Layer.provide(Faostat.layer.pipe(Layer.provide(faostat ?? offline))),
     Layer.provide(Layer.merge(WorldBank.layer, Sdmx.layer).pipe(Layer.provide(client))),
     Layer.provide(D1Client.layer({ db }).pipe(Layer.orDie)),
   )

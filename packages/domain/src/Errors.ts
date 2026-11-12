@@ -10,13 +10,34 @@ export class IndicatorNotFound extends Schema.TaggedError<
   { readonly brand: unique symbol }
 >()("IndicatorNotFound", { indicator: IndicatorId }, { httpApiStatus: 404 }) {}
 
+// What a source did when it failed us: no answer before our deadline, no
+// connection, an HTTP status (5xx: the publisher erred, 429: it limits us,
+// another: it refused the request), or an answer we could not read. Only the
+// status travels, never the answer's body.
+export const Failure = Schema.TaggedUnion({
+  Timeout: {},
+  Transport: {},
+  ServerError: { status: Schema.Int },
+  RateLimited: {},
+  Refused: { status: Schema.Int },
+  Unreadable: {},
+})
+
+export type Failure = typeof Failure.Type
+
 // The source failed, timed out, or answered in a shape we do not recognize.
+// `reason` says why the store could not answer instead; `failure` says what
+// the source did.
 export class SourceUnavailable extends Schema.TaggedError<
   SourceUnavailable,
   { readonly brand: unique symbol }
 >()(
   "SourceUnavailable",
-  { source: Source, reason: Schema.optional(Schema.Literals(["NotStored", "StoreUnavailable"])) },
+  {
+    source: Source,
+    reason: Schema.optional(Schema.Literals(["NotStored", "StoreUnavailable"])),
+    failure: Schema.optional(Failure),
+  },
   { httpApiStatus: 502 },
 ) {}
 
