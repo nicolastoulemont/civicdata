@@ -1,7 +1,7 @@
 import { D1Client } from "@effect/sql-d1"
 import { CatalogEntry, CatalogUnavailable, type IndicatorId, Source } from "@openfacts/domain"
-import { Array as Arr, Context, Effect, Layer, Option, Record, Schema } from "effect"
-import { SqlClient, SqlSchema } from "effect/sql"
+import { Array as Arr, Context, Effect, Layer, Option, Record, Schedule, Schema } from "effect"
+import { SqlClient, SqlError, SqlSchema } from "effect/sql"
 
 import { orUnbuilt } from "./built.ts"
 import { Dimension, Outline } from "./Outlines.ts"
@@ -29,8 +29,29 @@ interface Interface {
   // stored outlines.
   readonly outlines: (
     indicators: ReadonlyArray<IndicatorId>,
-  ) => Effect.Effect<ReadonlyMap<IndicatorId, Labelled>>
+  ) => Effect.Effect<ReadonlyMap<IndicatorId, Labelled>, CatalogUnavailable>
 }
+
+// A read of the catalog. D1 refuses reads for a few seconds once the
+// database is overloaded, so a failed read is tried twice more, a second and
+// then two apart, before the catalog is unavailable. Rows that fail to decode
+// are a defect: nothing a caller can fix.
+const read = <A, R>(
+  effect: Effect.Effect<A, CatalogUnavailable | SqlError.SqlError | Schema.SchemaError, R>,
+): Effect.Effect<A, CatalogUnavailable, R> =>
+  effect.pipe(
+    Effect.retry({
+      while: SqlError.isSqlError,
+      schedule: Schedule.exponential("1 second"),
+      times: 2,
+    }),
+    Effect.catchTag("SqlError", (error) =>
+      Effect.logError("Catalog read failed", error).pipe(
+        Effect.andThen(Effect.fail(new CatalogUnavailable())),
+      ),
+    ),
+    Effect.catchTag("SchemaError", Effect.die),
+  )
 
 const limit = 20
 
@@ -247,47 +268,46 @@ export class Catalog extends Context.Service<Catalog, Interface>()("@openfacts/s
         ),
       )
 
-      const search = Effect.fn("Catalog.search")(
-        function* (text: string, options?: { readonly source?: Source | undefined }) {
-          const match = toMatch(text)
-          const source = options?.source ?? null
+      const search = Effect.fn("Catalog.search")(function* (
+        text: string,
+        options?: { readonly source?: Source | undefined },
+      ) {
+        const match = toMatch(text)
+        const source = options?.source ?? null
 
-          if (match === undefined) return []
+        if (match === undefined) return []
 
-          // Before a build publishes the source searched, or any source for
-          // a search of all, there is nothing to search: an unpublished
-          // source would answer that it lists no such indicator. A database
-          // no build has written to has published nothing.
-          const sources = yield* published().pipe(
-            orUnbuilt({ sql, tables: ["catalog", "catalog_current"], value: [] }),
-          )
+        // Before a build publishes the source searched, or any source for
+        // a search of all, there is nothing to search: an unpublished
+        // source would answer that it lists no such indicator. A database
+        // no build has written to has published nothing.
+        const sources = yield* published().pipe(
+          orUnbuilt({ sql, tables: ["catalog", "catalog_current"], value: [] }),
+        )
 
-          if (
-            source === null
-              ? !Arr.isReadonlyArrayNonEmpty(sources)
-              : !sources.some((found) => found.source === source)
-          ) {
-            return yield* new CatalogUnavailable()
-          }
+        if (
+          source === null
+            ? !Arr.isReadonlyArrayNonEmpty(sources)
+            : !sources.some((found) => found.source === source)
+        ) {
+          return yield* new CatalogUnavailable()
+        }
 
-          const code = text.trim().toLowerCase()
+        const code = text.trim().toLowerCase()
 
-          const [byWords, nearest] = yield* Effect.all(
-            [matches({ match, code, source }), byMeaning(text, source)],
-            { concurrency: "unbounded" },
-          )
+        const [byWords, nearest] = yield* Effect.all(
+          [matches({ match, code, source }), byMeaning(text, source)],
+          { concurrency: "unbounded" },
+        )
 
-          const startsWithCode = (entry: CatalogEntry) =>
-            entry.indicator.toLowerCase().startsWith(code)
+        const startsWithCode = (entry: CatalogEntry) =>
+          entry.indicator.toLowerCase().startsWith(code)
 
-          // Fusion keeps the rule `matches` applies: typed codes come first.
-          return fuse([byWords, nearest])
-            .toSorted((a, b) => Number(startsWithCode(b)) - Number(startsWithCode(a)))
-            .slice(0, limit)
-        },
-        // Database and row-decoding failures are defects: nothing a caller can fix.
-        Effect.catchTags({ SqlError: Effect.die, SchemaError: Effect.die }),
-      )
+        // Fusion keeps the rule `matches` applies: typed codes come first.
+        return fuse([byWords, nearest])
+          .toSorted((a, b) => Number(startsWithCode(b)) - Number(startsWithCode(a)))
+          .slice(0, limit)
+      }, read)
 
       const stored = SqlSchema.findAll({
         Request: Schema.String,
@@ -312,48 +332,47 @@ export class Catalog extends Context.Service<Catalog, Interface>()("@openfacts/s
         `,
       })
 
-      const outlines = Effect.fn("Catalog.outlines")(
-        function* (indicators: ReadonlyArray<IndicatorId>) {
-          const ids = yield* Schema.encodeEffect(IdsJson)(indicators)
+      const outlines = Effect.fn("Catalog.outlines")(function* (
+        indicators: ReadonlyArray<IndicatorId>,
+      ) {
+        const ids = yield* Schema.encodeEffect(IdsJson)(indicators)
 
-          const [rows, named] = yield* Effect.all([stored(ids), labels(ids)], {
-            concurrency: "unbounded",
-          }).pipe(
-            orUnbuilt({
-              sql,
-              tables: ["catalog_outline", "catalog_label"],
-              value: [[], []] as const,
-            }),
-          )
+        const [rows, named] = yield* Effect.all([stored(ids), labels(ids)], {
+          concurrency: "unbounded",
+        }).pipe(
+          orUnbuilt({
+            sql,
+            tables: ["catalog_outline", "catalog_label"],
+            value: [[], []] as const,
+          }),
+        )
 
-          const label = new Map(
-            named.map(({ codelist, code, label: text }) => [`${codelist} ${code}`, text]),
-          )
+        const label = new Map(
+          named.map(({ codelist, code, label: text }) => [`${codelist} ${code}`, text]),
+        )
 
-          return new Map(
-            rows.map(({ indicator, annual, countries, first, last, dimensions }) => [
+        return new Map(
+          rows.map(({ indicator, annual, countries, first, last, dimensions }) => [
+            indicator,
+            {
               indicator,
-              {
-                indicator,
-                annual: annual === -1 ? null : annual === 1,
-                countries,
-                years: first === null || last === null ? null : { first, last },
-                dimensions: dimensions.map(({ id, codelist, codes, labels: names }) => ({
-                  id,
-                  codes: Arr.map(codes, (code) => ({
+              annual: annual === -1 ? null : annual === 1,
+              countries,
+              years: first === null || last === null ? null : { first, last },
+              dimensions: dimensions.map(({ id, codelist, codes, labels: names }) => ({
+                id,
+                codes: Arr.map(codes, (code) => ({
+                  code,
+                  label:
+                    Option.getOrUndefined(Record.get(names ?? {}, code)) ??
+                    (codelist === null ? undefined : label.get(`${codelist} ${code}`)) ??
                     code,
-                    label:
-                      Option.getOrUndefined(Record.get(names ?? {}, code)) ??
-                      (codelist === null ? undefined : label.get(`${codelist} ${code}`)) ??
-                      code,
-                  })),
                 })),
-              } satisfies Labelled,
-            ]),
-          )
-        },
-        Effect.catchTags({ SqlError: Effect.die, SchemaError: Effect.die }),
-      )
+              })),
+            } satisfies Labelled,
+          ]),
+        )
+      }, read)
 
       return Catalog.of({ search, outlines })
     }).pipe(Effect.orDie),

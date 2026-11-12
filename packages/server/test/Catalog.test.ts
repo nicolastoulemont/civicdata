@@ -4,7 +4,15 @@ import { reset } from "cloudflare:test"
 import { Effect } from "effect"
 
 import { Catalog } from "../src/Catalog.ts"
-import { build, catalogOver, listings, vectorize, workersAi, worldBankList } from "./catalog.ts"
+import {
+  build,
+  catalogOver,
+  listings,
+  overloaded,
+  vectorize,
+  workersAi,
+  worldBankList,
+} from "./catalog.ts"
 
 // Every test starts from empty bindings: the test Worker's D1 database and
 // buckets are shared by the file's tests.
@@ -19,6 +27,43 @@ describe("Catalog", () => {
 
       expect(error).toBeInstanceOf(CatalogUnavailable)
     }).pipe(Effect.provide(catalogOver(listings()))),
+  )
+
+  it.live("reads again when D1 refuses a read as overloaded", () =>
+    Effect.gen(function* () {
+      yield* build(1)
+
+      const found = yield* Catalog.use((catalog) => catalog.search("youth unemploy")).pipe(
+        Effect.provide(overloaded({ refusals: 1 })),
+      )
+
+      expect(names(found)).toEqual([
+        "Unemployment, youth total (% of total labor force ages 15-24)",
+      ])
+    }).pipe(Effect.provide(catalogOver(listings()))),
+  )
+
+  it.live(
+    "fails with CatalogUnavailable while D1 refuses every read as overloaded",
+    () =>
+      Effect.gen(function* () {
+        yield* build(1)
+
+        const catalog = Catalog.use((each) =>
+          Effect.all([
+            each.search("youth unemploy").pipe(Effect.flip),
+            each.outlines([]).pipe(Effect.flip),
+          ]),
+        )
+
+        const [searched, outlined] = yield* catalog.pipe(
+          Effect.provide(overloaded({ refusals: Number.POSITIVE_INFINITY })),
+        )
+
+        expect(searched).toBeInstanceOf(CatalogUnavailable)
+        expect(outlined).toBeInstanceOf(CatalogUnavailable)
+      }).pipe(Effect.provide(catalogOver(listings()))),
+    15_000,
   )
 
   it.effect("ranks name matches first", () =>
