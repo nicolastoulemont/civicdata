@@ -638,8 +638,10 @@ export class Outlines extends Context.Service<Outlines, Interface>()("@openfacts
 
       const unlabelled = Effect.fn("Outlines.unlabelled")(
         function* (source: Source, { after, limit }: { after: string; limit: number }) {
+          // Without statistics SQLite reads the primary key, every label
+          // the source has, rather than the index of codes with none.
           const rows = yield* sql<{ readonly codelist: string }>`
-            SELECT DISTINCT codelist FROM catalog_label
+            SELECT DISTINCT codelist FROM catalog_label INDEXED BY catalog_unlabelled
             WHERE source = ${source} AND label IS NULL AND codelist > ${after}
             ORDER BY codelist
             LIMIT ${limit}
@@ -656,7 +658,7 @@ export class Outlines extends Context.Service<Outlines, Interface>()("@openfacts
           { codelist, labels }: { codelist: Codelist; labels: ReadonlyMap<string, string> },
         ) {
           const missing = yield* sql<{ readonly code: string }>`
-            SELECT code FROM catalog_label
+            SELECT code FROM catalog_label INDEXED BY catalog_unlabelled
             WHERE source = ${source} AND codelist = ${codelist} AND label IS NULL
           `
 
@@ -666,11 +668,13 @@ export class Outlines extends Context.Service<Outlines, Interface>()("@openfacts
             Object.fromEntries(missing.map(({ code }) => [code, labels.get(code) ?? code])),
           )
 
+          // Each code by its whole key: a join on json_each walks the whole
+          // codelist and reads the JSON again for each code. `->>` reads a
+          // text code such as "10" as a key, not an array index.
           yield* sql`
-            UPDATE catalog_label SET label = labelled.value
-            FROM json_each(${json}) AS labelled
-            WHERE catalog_label.source = ${source} AND catalog_label.codelist = ${codelist}
-              AND catalog_label.code = labelled.key AND catalog_label.label IS NULL
+            UPDATE catalog_label SET label = ${json} ->> code
+            WHERE source = ${source} AND codelist = ${codelist}
+              AND code IN (SELECT key FROM json_each(${json})) AND label IS NULL
           `
 
           return missing.length

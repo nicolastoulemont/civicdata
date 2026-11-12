@@ -311,8 +311,10 @@ export const overloaded = ({ refusals }: { refusals: number }) => {
 
 // The catalog over the test Worker's D1 database, and how SQLite plans each
 // read the catalog makes: the detail of each step of the read's query plan.
+// A build over `database` (catalogOver) has its reads planned too.
 export const planned = () => {
   const reads: Array<Bound> = []
+  const database = watched((read) => reads.push(read))
 
   const plans = Effect.forEach(reads, ({ query, values }) =>
     Effect.promise(() =>
@@ -323,7 +325,7 @@ export const planned = () => {
     ).pipe(Effect.map(({ results }) => ({ query, steps: results.map(({ detail }) => detail) }))),
   )
 
-  return { layer: catalogOn(watched((read) => reads.push(read))), plans }
+  return { layer: catalogOn(database), database, plans }
 }
 
 // Drops tables, leaving the catalog as an earlier version made it.
@@ -357,6 +359,7 @@ export const catalogOver = (
     classifier = Classifier.off,
     structures = recordings().layer,
     adapters = {},
+    database = db,
   }: {
     ai?: Ai
     index?: Index
@@ -364,6 +367,7 @@ export const catalogOver = (
     classifier?: Layer.Layer<Classifier>
     structures?: Layer.Layer<Structures>
     adapters?: Readonly<Record<Source, Adapter>>
+    database?: Database
   } = {},
 ) =>
   Layer.mergeAll(Catalog.layer, CatalogBuild.layer).pipe(
@@ -372,7 +376,7 @@ export const catalogOver = (
     Layer.provideMerge(structures),
     Layer.provide(Vectors.cloudflare({ ai, index, model })),
     Layer.provide(classifier),
-    Layer.provide(D1Client.layer({ db }).pipe(Layer.orDie)),
+    Layer.provide(D1Client.layer({ db: database }).pipe(Layer.orDie)),
   )
 
 // The directions charts read: the hand-checked list, then what builds stored
