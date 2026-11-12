@@ -389,9 +389,11 @@ const second = () =>
     vi.advanceTimersByTime(1000)
   })
 
-// A country's shade on the map, read from its outline, which names it.
-const shadeOf = (name: string) =>
-  screen.getByText((text) => text.startsWith(`${name}: `)).parentElement?.getAttribute("fill")
+// A country's outline on the map, labelled with its name and value.
+const outline = (name: string) => screen.getByLabelText((label) => label.startsWith(`${name}: `))
+
+// A country's shade on the map.
+const shadeOf = (name: string) => outline(name).getAttribute("fill")
 
 // The map's key, each shade's values then "No data".
 const mapKey = () =>
@@ -1680,6 +1682,27 @@ describe("Explore", () => {
       }),
     ).toBeDefined()
     expect(screen.getByText("French Guiana")).toBeDefined()
+  })
+
+  it("names the country and its value when the pointer is over it on a map", async () => {
+    network.use(everywhere)
+    const user = userEvent.setup()
+
+    show(
+      Ranking.make({
+        indicator: population,
+        countries: ["FRA", "DEU"],
+        year: Year.make(2020),
+        as: "Map",
+      }),
+    )
+    await screen.findByRole("figure", { name: /^Map of Europe/ })
+
+    await user.hover(outline("France"))
+    expect((await screen.findByRole("tooltip")).textContent).toBe("France: 1,000")
+
+    await user.hover(outline("Germany"))
+    await vi.waitFor(() => expect(screen.getByRole("tooltip").textContent).toBe("Germany: 2,000"))
   })
 
   // France, Germany and Italy from 2017 to 2020: Germany and Italy have
