@@ -15,7 +15,7 @@ import { Effect, Schema, Stream } from "effect"
 import { type Adapter, type Discovery, Policy } from "../src/Adapter.ts"
 import { Catalog } from "../src/Catalog.ts"
 import { CatalogBuild } from "../src/CatalogBuild.ts"
-import { Outline } from "../src/Outlines.ts"
+import { Outline, Outlines } from "../src/Outlines.ts"
 import { constraints, Constraints, DataStructures } from "../src/Outlines.ts"
 import { fill } from "../src/Structures.ts"
 import {
@@ -121,6 +121,110 @@ describe("Outlines", () => {
       )
     }).pipe(Effect.provide(catalogOver(listings())))
   })
+
+  it.effect("labels codes by their whole key, reading only the codes with no label", () => {
+    const reads = planned()
+
+    return Effect.gen(function* () {
+      yield* build(1)
+
+      const plans = yield* reads.plans
+
+      const steps = (read: string) =>
+        plans.filter(({ query }) => query.includes(read)).map((plan) => plan.steps)
+
+      const updates = steps("UPDATE catalog_label")
+
+      // By codelist alone, each label would walk the whole codelist and read
+      // the JSON again for each code.
+      expect(updates).not.toHaveLength(0)
+
+      for (const update of updates) {
+        expect(update).toContain(
+          "SEARCH catalog_label USING PRIMARY KEY (source=? AND codelist=? AND code=?)",
+        )
+      }
+
+      // By the primary key, finding codes to label would read every label
+      // the source has.
+      expect(steps("SELECT DISTINCT codelist FROM catalog_label")[0]).toContain(
+        "SEARCH catalog_label USING INDEX catalog_unlabelled (source=? AND codelist>?)",
+      )
+
+      expect(steps("SELECT code FROM catalog_label")[0]).toContain(
+        "SEARCH catalog_label USING INDEX catalog_unlabelled (source=? AND codelist=?)",
+      )
+    }).pipe(Effect.provide(catalogOver(listings(), { database: reads.database })))
+  })
+
+  it.effect("reads and prunes a source's outlines by their index", () => {
+    const reads = planned()
+
+    return Effect.gen(function* () {
+      yield* build(1)
+
+      const bySource = (yield* reads.plans).filter(({ query }) =>
+        /FROM catalog_outline\s+WHERE source/.test(query),
+      )
+
+      // The fingerprints, the outlines search shows, the pages a build
+      // describes, and the prune of those a source no longer gives.
+      expect(new Set(bySource.map(({ query }) => query)).size).toBe(4)
+
+      // A scan would read every source's outlines, dimensions and all.
+      for (const { steps } of bySource) {
+        expect(steps.join("\n")).toMatch(/SEARCH catalog_outline USING .*catalog_outline_source/)
+      }
+
+      expect(
+        bySource.find(({ query }) => query.includes("SELECT indicator, fingerprint"))?.steps,
+      ).toEqual(["SEARCH catalog_outline USING COVERING INDEX catalog_outline_source (source=?)"])
+    }).pipe(Effect.provide(catalogOver(listings(), { database: reads.database })))
+  })
+
+  it.effect("labels a code that reads as a number", () =>
+    Effect.gen(function* () {
+      const outlines = yield* Outlines
+      const indicator = IndicatorId.make("ESTAT,SBS_OVW_ACT,1.0")
+      const codelist = "ESTAT:NACE_R2"
+
+      // A build makes the tables.
+      yield* build(1)
+      yield* outlines.write(
+        "Eurostat",
+        Stream.make({
+          indicator,
+          dimensions: [
+            {
+              id: DimensionId.make("nace_r2"),
+              codelist,
+              codes: [Code.make("10"), Code.make("C10-12")],
+            },
+          ],
+          annual: true,
+          countries: [Country.make("FRA")],
+          years: { first: 2021, last: 2023 },
+        }),
+      )
+
+      expect(
+        yield* outlines.label("Eurostat", {
+          codelist,
+          labels: new Map([
+            ["10", "Manufacture of food products"],
+            ["C10-12", "Manufacture of food products, beverages and tobacco"],
+          ]),
+        }),
+      ).toBe(2)
+      expect(
+        (yield* (yield* Catalog).outlines([indicator])).get(indicator)?.dimensions[0]?.codes,
+      ).toEqual([
+        { code: "10", label: "Manufacture of food products" },
+        { code: "C10-12", label: "Manufacture of food products, beverages and tobacco" },
+      ])
+      expect(yield* outlines.unlabelled("Eurostat", { after: "", limit: 10 })).toEqual([])
+    }).pipe(Effect.provide(catalogOver(listings()))),
+  )
 
   it.effect("writes nothing and asks for no codelist when nothing changed", () => {
     const recorded = recordings()

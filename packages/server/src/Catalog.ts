@@ -169,6 +169,12 @@ export const tables = Effect.gen(function* () {
       text TEXT NOT NULL DEFAULT ''
     )
   `
+  // A build reads and prunes one source's outlines by this index, and reads
+  // their fingerprints from it alone, never touching `dimensions`.
+  yield* sql`
+    CREATE INDEX IF NOT EXISTS catalog_outline_source
+    ON catalog_outline (source, indicator, fingerprint)
+  `
   // A streamed refresh stages changed chunks before touching published outlines.
   yield* sql`CREATE TABLE IF NOT EXISTS catalog_outline_stage (source TEXT NOT NULL, rows TEXT NOT NULL)`
   // The label of each code an outline uses, by its source's codelist. A code
@@ -182,6 +188,12 @@ export const tables = Effect.gen(function* () {
       label TEXT,
       PRIMARY KEY (source, codelist, code)
     ) WITHOUT ROWID
+  `
+  // The codes with no label yet, so a build finds the codelists to label
+  // without reading every label a source has.
+  yield* sql`
+    CREATE INDEX IF NOT EXISTS catalog_unlabelled
+    ON catalog_label (source, codelist) WHERE label IS NULL
   `
   // Left by the catalog that loaded and embedded itself during searches.
   yield* sql`DROP TABLE IF EXISTS catalog_refresh`
