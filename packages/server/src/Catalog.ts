@@ -321,13 +321,21 @@ export class Catalog extends Context.Service<Catalog, Interface>()("@openfacts/s
       const labels = SqlSchema.findAll({
         Request: Schema.String,
         Result: Label,
+        // CROSS JOIN keeps this join order, which SQLite would otherwise
+        // change: each code is read out of its outline before its label is
+        // looked up by the label's whole key. Looking labels up first, by
+        // source alone, read every label of the publisher for each outline:
+        // 35 million rows for five OECD outlines in production.
         execute: (ids) => sql`
           SELECT label.codelist, label.code, label.label
-          FROM catalog_outline AS outline, json_each(outline.dimensions) AS dimension,
-            json_each(dimension.value, '$.codes') AS code
-          JOIN catalog_label AS label ON label.source = outline.source
-            AND label.codelist = dimension.value ->> 'codelist' AND label.code = code.value
+          FROM catalog_outline AS outline
+          CROSS JOIN json_each(outline.dimensions) AS dimension
+          CROSS JOIN json_each(dimension.value, '$.codes') AS code
+          CROSS JOIN catalog_label AS label
           WHERE outline.indicator IN (SELECT value FROM json_each(${ids}))
+            AND label.source = outline.source
+            AND label.codelist = dimension.value ->> 'codelist'
+            AND label.code = code.value
             AND label.label IS NOT NULL
         `,
       })

@@ -23,6 +23,7 @@ import {
   catalogOver,
   entry,
   listings,
+  planned,
   recordings,
   unstructured,
   vectorize,
@@ -99,6 +100,27 @@ describe("Outlines", () => {
       ])
     }).pipe(Effect.provide(catalogOver(listings()))),
   )
+
+  it.effect("looks each code's label up by its whole key", () => {
+    const reads = planned()
+
+    return Effect.gen(function* () {
+      yield* build(1)
+
+      yield* Catalog.use((catalog) => catalog.outlines([unemployment, monthly])).pipe(
+        Effect.provide(reads.layer),
+      )
+
+      const labelled = (yield* reads.plans).filter(({ query }) => query.includes("catalog_label"))
+
+      expect(labelled).toHaveLength(1)
+      // Labels by their publisher alone would read every label it has, for
+      // each outline.
+      expect(labelled[0]?.steps).toContain(
+        "SEARCH label USING PRIMARY KEY (source=? AND codelist=? AND code=?)",
+      )
+    }).pipe(Effect.provide(catalogOver(listings())))
+  })
 
   it.effect("writes nothing and asks for no codelist when nothing changed", () => {
     const recorded = recordings()
