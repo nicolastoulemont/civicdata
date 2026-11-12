@@ -108,7 +108,7 @@ export class ConversationObject implements DurableObject {
     this.#conversation ??= open(
       Layer.mergeAll(
         Transcript.durable(this.#state.storage),
-        Agent.live.pipe(Layer.provide(Resolver.layer)),
+        Agent.live({ conversation: this.#state.id.toString() }).pipe(Layer.provide(Resolver.layer)),
         AskLimit.live,
         Answers.live(this.#state.id.toString()),
       ).pipe(

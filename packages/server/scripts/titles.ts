@@ -88,7 +88,7 @@ const model = Layer.unwrap(
   Effect.gen(function* () {
     const name = yield* Config.option(Config.String("OPENAI_MODEL"))
 
-    return languageModel(Option.getOrUndefined(name))
+    return languageModel({ model: Option.getOrUndefined(name) })
   }),
 )
 

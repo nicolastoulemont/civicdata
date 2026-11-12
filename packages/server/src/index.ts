@@ -27,7 +27,7 @@ const Live = Layer.mergeAll(
 ).pipe(
   Layer.provide(Handlers),
   Layer.provide(Conversations.live),
-  Layer.provide(Agent.live.pipe(Layer.provide(Resolver.layer))),
+  Layer.provide(Agent.live().pipe(Layer.provide(Resolver.layer))),
   Layer.provide(AskLimit.live),
   Layer.provide(Verification.live),
   Layer.provide(Catalog.live),

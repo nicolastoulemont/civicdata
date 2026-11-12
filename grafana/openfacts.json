@@ -938,7 +938,7 @@
     {
       "type": "timeseries",
       "title": "Tokens",
-      "description": "",
+      "description": "Input tokens, the part of them OpenAI served from its prompt cache at a tenth of the price, output tokens, and the part of them the model spent reasoning.",
       "datasource": {
         "type": "tempo",
         "uid": "${traces}"
@@ -956,6 +956,17 @@
           "metricsQueryType": "range"
         },
         {
+          "refId": "C",
+          "datasource": {
+            "type": "tempo",
+            "uid": "${traces}"
+          },
+          "queryType": "traceql",
+          "query": "{ name = \"LanguageModel.generateText\" && resource.deployment.environment.name = \"$stage\" } | sum_over_time(span.gen_ai.usage.cache_read.input_tokens)",
+          "limit": 50,
+          "metricsQueryType": "range"
+        },
+        {
           "refId": "B",
           "datasource": {
             "type": "tempo",
@@ -963,6 +974,17 @@
           },
           "queryType": "traceql",
           "query": "{ name = \"LanguageModel.generateText\" && resource.deployment.environment.name = \"$stage\" } | sum_over_time(span.gen_ai.usage.output_tokens)",
+          "limit": 50,
+          "metricsQueryType": "range"
+        },
+        {
+          "refId": "D",
+          "datasource": {
+            "type": "tempo",
+            "uid": "${traces}"
+          },
+          "queryType": "traceql",
+          "query": "{ name = \"LanguageModel.generateText\" && resource.deployment.environment.name = \"$stage\" } | sum_over_time(span.openfacts.usage.reasoning_tokens)",
           "limit": 50,
           "metricsQueryType": "range"
         }
@@ -1016,6 +1038,30 @@
               {
                 "id": "displayName",
                 "value": "Output"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "C"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Cached input"
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byFrameRefID",
+              "options": "D"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "Reasoning"
               }
             ]
           }
