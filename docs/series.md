@@ -33,9 +33,25 @@ Producers must use backpressure and bounded chunks. They may share one file curs
 
 ## What a run does
 
-A run visits registered sources with `bulk` capabilities. It checks versions once, compares the selected assets with `asset_gathered`, and takes up to 50 wanted assets per step in ID order. A successful unchanged run makes no bulk request. Each asset's entries are persisted sequentially; only after the entire outer stream and every store write finish does the ledger record its version. Held candidates count as consumed, not as an activated release: the actual stored series keeps its prior provenance.
+A run visits registered sources with `bulk` capabilities. It checks versions once, compares the selected assets with `asset_gathered`, and takes up to 50 wanted assets per step in ID order. A step starts no asset after 3 minutes and returns its cursor, so it ends within Workflows' 5-minute step timeout even when every download waits out its 1-minute deadline; the next step goes on from that cursor. A successful unchanged run makes no bulk request. Each asset's entries are persisted sequentially; only after the entire outer stream and every store write finish does the ledger record its version. Held candidates count as consumed, not as an activated release: the actual stored series keeps its prior provenance.
 
-A failed stream or store write leaves that asset failed with its previous completed version, wanted version, reason, failure count and attempt time. Other successful units stay complete. Five consecutive asset failures stop the source and fail the run; success resets the streak. A cursor prevents another attempt in the same run. After three separate-run failures an asset waits seven days from the last attempt, unless its wanted version changes. A version check failure still fails the source's Workflow step.
+A failed stream or store write leaves that asset failed with its previous completed version, wanted version, reason, failure count and attempt time. Other successful units stay complete. Five consecutive asset failures stop the source; success resets the streak. A cursor prevents another attempt in the same run. A version check failure still fails the source's Workflow step. A source that stops or fails ends only itself: the run gathers the sources after it, then fails with `GatherFailed` naming every source that failed, so the Workflow instance shows as failed.
+
+The reason is typed. `Failure` in `packages/domain/src/Errors.ts` says what the source did, and `SourceUnavailable` carries it as `failure`:
+
+| Reason                   | What happened                                                                        | Backoff          |
+| ------------------------ | ------------------------------------------------------------------------------------ | ---------------- |
+| `Timeout`                | no answer before our deadline                                                        | none             |
+| `Transport`              | no connection, or the answer was cut off                                             | none             |
+| `ServerError { status }` | a 5xx                                                                                | none             |
+| `RateLimited`            | a 429, from the source or from `Pace`                                                | none             |
+| `Refused { status }`     | any other non-2xx status                                                             | after three runs |
+| `Unreadable`             | an answer that does not decode, or that breaks the streaming contract                | after three runs |
+| `Internal`               | our store or database failed, or a Workflow step lost its error's type (ledger only) | none             |
+
+`failureOf` in `packages/server/src/Failure.ts` classifies an HTTP client error, a timeout, a schema error or an adapter's `SourceUnavailable`, and `unavailable(source, url)` maps a request's errors with it and logs the error itself. Every adapter request should go through it. A `SourceUnavailable` without a `failure` counts as `Unreadable`. Clients receive the status code and the category, never the answer's body.
+
+After three separate-run failures on the same wanted version, an asset whose last reason is `Refused` or `Unreadable` waits seven days from the last attempt, unless its wanted version changes. Any other reason leaves it wanted on the next run, however many runs failed. Rows recorded before reasons were typed hold a string reason; they never start a backoff, so the next run asks for them again and records a typed reason, keeping the failure count.
 
 There is no transaction between R2 and the progress database. A crash after an entry commit, or after the last store commit but before the ledger commit, can repeat that asset's fetch and writes. Hashing reuses unchanged stored values on retry. Earlier entries of a failed asset may already be visible. **Atomic release activation across entries is deferred and required before V-Dem integration.** A missing entry is never taken as evidence of success merely because old values exist.
 
@@ -79,9 +95,9 @@ D1's `asset_gathered` has primary key `(scope, asset)`. Scope remains the store 
 - `Stored`: `version` and UTC `at`, meaning the asset output was consumed successfully.
 - `Failed`: `wanted`, previous completed `stored` version or null, `failures`, `reason` and last attempt's UTC `at`.
 
-Initialization bridges deployed World Bank `series_gathered(scope, indicator, state)` rows using `INSERT OR IGNORE`, copying the indicator as asset and JSON state verbatim. Stored versions, failure reasons, counts and weekly backoff survive. Both `series/v1/World Bank` and `series/v2/World Bank` keep their scopes: a v1 success never completes v2. Existing asset rows win if initialization repeats or stops after copying. The old table is retained read-only for the bridge. The earlier `series_version` migration still seeds only published entries under the current layout, then drops that older table. No migration reads R2 to infer success.
+Initialization bridges deployed World Bank `series_gathered(scope, indicator, state)` rows using `INSERT OR IGNORE`, copying the indicator as asset and JSON state verbatim. Stored versions, failure reasons and counts survive; weekly backoff survives for typed lasting reasons only. Both `series/v1/World Bank` and `series/v2/World Bank` keep their scopes: a v1 success never completes v2. Existing asset rows win if initialization repeats or stops after copying. The old table is retained read-only for the bridge. The earlier `series_version` migration still seeds only published entries under the current layout, then drops that older table. No migration reads R2 to infer success.
 
-To inspect failures, query `asset_gathered` by scope and asset, extracting `$.wanted`, `$.stored`, `$.failures`, `$.reason` and `$.at` from state where `$._tag = 'Failed'`.
+To inspect failures, query `asset_gathered` by scope and asset, extracting `$.wanted`, `$.stored`, `$.failures`, `$.reason._tag`, `$.reason.status` and `$.at` from state where `$._tag = 'Failed'`.
 
 ## Reading
 
@@ -115,7 +131,9 @@ and failed writes cannot complete an asset. Completion is recorded in
 A retry skips those completed assets; if only activation failed, it downloads
 nothing. A failed asset may leave staged packs, but no chart reads them.
 Failed assets retain their reason and failure count in the same ledger. After
-three failed runs, that asset waits seven days; a new release bypasses the wait.
+three failed runs ending `Refused` or `Unreadable`, that asset waits seven days;
+a new release bypasses the wait. A stage step that fails inside Workflows loses
+its error's type and records `Internal`.
 Other eligible assets still stage, until five consecutive attempts fail. A
 backed-off or failed required asset prevents activation without discarding the
 other assets' completed progress.

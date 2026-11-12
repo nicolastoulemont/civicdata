@@ -3,7 +3,7 @@ import { DateTime, Effect, Result, Schema } from "effect"
 import { SqlClient } from "effect/sql"
 
 import { type AssetId } from "./Adapter.ts"
-import { ledger } from "./GatherLedger.ts"
+import { ledger, reasonOf } from "./GatherLedger.ts"
 
 interface Input {
   readonly asset: AssetId
@@ -67,7 +67,7 @@ export const collect = Effect.fn("Inputs.collect")(
           source,
           version: input.version,
           previous: item.state,
-          reason: String(attempt.failure),
+          reason: reasonOf(attempt.failure),
         })
     }
 

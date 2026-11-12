@@ -1,6 +1,7 @@
 import {
   type CatalogEntry,
   Country,
+  Failure,
   IndicatorId,
   IndicatorNotFound,
   SourceUnavailable,
@@ -13,6 +14,7 @@ import { unzipSync } from "fflate"
 import { type Adapter, AssetId, Policy } from "./Adapter.ts"
 import { Cache } from "./Cache.ts"
 import { records } from "./Csv.ts"
+import { unavailable } from "./Failure.ts"
 import { Described, type Query, Series, widen } from "./Series.ts"
 import { plain } from "./text.ts"
 
@@ -56,7 +58,9 @@ const ObservationsBody = Schema.Union([
   Schema.Tuple([Schema.Struct({}), Schema.NullOr(Schema.Array(Row))]),
 ])
 
-const unavailable = () => new SourceUnavailable({ source: "World Bank" })
+// An answer that is no bulk download we can read.
+const unreadable = () =>
+  new SourceUnavailable({ source: "World Bank", failure: Failure.cases.Unreadable.make({}) })
 
 // The request that answers the query's values. One page always holds every
 // row: at most one per country and year.
@@ -111,15 +115,16 @@ const make = Effect.gen(function* () {
   )
 
   // Fetches a World Bank URL and decodes its body. Every transport, status
-  // and shape failure becomes SourceUnavailable; the cause is logged, not
-  // sent to clients.
+  // and shape failure becomes SourceUnavailable with what the World Bank did;
+  // the error is logged, not sent to clients.
   const get = <A, I>(url: string, body: Schema.Codec<A, I>) =>
-    client.get(url).pipe(
-      Effect.flatMap(HttpClientResponse.schemaBodyJson(body)),
-      Effect.timeout("15 seconds"),
-      Effect.tapError((error) => Effect.logWarning("World Bank request failed", url, error)),
-      Effect.mapError(unavailable),
-    )
+    client
+      .get(url)
+      .pipe(
+        Effect.flatMap(HttpClientResponse.schemaBodyJson(body)),
+        Effect.timeout("15 seconds"),
+        unavailable("World Bank", url),
+      )
 
   const describe = Effect.fn("WorldBank.describe")(function* (indicator: IndicatorId) {
     const url = `${base}/indicator/${indicator}?format=json`
@@ -177,8 +182,7 @@ const make = Effect.gen(function* () {
     const buffer = yield* patient.get(url).pipe(
       Effect.flatMap((response) => response.arrayBuffer),
       Effect.timeout("1 minute"),
-      Effect.tapError((error) => Effect.logWarning("World Bank request failed", url, error)),
-      Effect.mapError(unavailable),
+      unavailable("World Bank", url),
     )
 
     // An indicator the World Bank does not know answers an XML error, which
@@ -189,7 +193,7 @@ const make = Effect.gen(function* () {
       catch: () =>
         new TextDecoder().decode(buffer).includes('id="120"')
           ? new IndicatorNotFound({ indicator })
-          : unavailable(),
+          : unreadable(),
     })
 
     const [csv] = Object.values(files)
@@ -199,7 +203,7 @@ const make = Effect.gen(function* () {
     if (header === -1) {
       yield* Effect.logWarning("World Bank bulk download holds no values", url)
 
-      return yield* unavailable()
+      return yield* unreadable()
     }
 
     return { observations: valuesOf(text.slice(header)), url, retrievedAt: yield* DateTime.now }
@@ -252,7 +256,7 @@ const make = Effect.gen(function* () {
         Stream.suspend(() => {
           const entry = entries.find(({ indicator }) => String(indicator) === asset)
 
-          if (entry === undefined) return Stream.fail(unavailable())
+          if (entry === undefined) return Stream.fail(unreadable())
 
           return Stream.succeed({ indicator: entry.indicator, series: gather(entry, release) })
         }),

@@ -7,12 +7,14 @@ import {
   IndicatorNotFound,
   Observation,
   Qualification,
+  Failure,
   SourceUnavailable,
 } from "@openfacts/domain"
 import { Context, DateTime, Effect, Layer, Option, Schema, Stream } from "effect"
 import { HttpClient } from "effect/http"
 
 import { AssetId, type Adapter, Policy } from "./Adapter.ts"
+import { unavailable } from "./Failure.ts"
 import areas from "./faostat.json" with { type: "json" }
 import { Outline } from "./Outlines.ts"
 import type { Stored } from "./Store.ts"
@@ -31,7 +33,9 @@ const definition =
 const dataset =
   "FAO. FAOSTAT: ASTI - Expenditures (AE), measure 8006. Licence: CC-BY-4.0; https://www.fao.org/contact-us/terms/db-terms-of-use/en; changes: national annual selection and format, no aggregation or conversion"
 
-const unavailable = () => new SourceUnavailable({ source: "FAOSTAT" })
+// An answer we cannot read: not the manifest, archive or rows we reviewed.
+const unreadable = () =>
+  new SourceUnavailable({ source: "FAOSTAT", failure: Failure.cases.Unreadable.make({}) })
 
 const dimensions = Schema.decodeUnknownSync(Schema.Array(Dimension))([
   {
@@ -92,11 +96,11 @@ const versionOf = Effect.fn("Faostat.version")(function* (text: string) {
     !/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d$/.test(row.DateUpdate) ||
     row.FileRows <= 0
   )
-    return yield* unavailable()
+    return yield* unreadable()
 
   // Include membership count as well as the publisher's opaque update timestamp.
   return `${row.DateUpdate}/${row.FileRows}`
-}, Effect.mapError(unavailable))
+}, Effect.mapError(unreadable))
 
 const Row = Schema.Struct({
   "Area Code": Schema.String,
@@ -121,14 +125,15 @@ const numberOf = (text: string) => {
 
   return text === "" || (/^-?\d+(\.\d+)?$/.test(text) && Number.isFinite(value) && value >= 0)
     ? Effect.succeed(value)
-    : Effect.fail(unavailable())
+    : Effect.fail(unreadable())
 }
 
 const currentVersion = (client: HttpClient.HttpClient) =>
   client.get(manifestUrl).pipe(
     Effect.flatMap((response) => response.text),
+    Effect.timeout("1 minute"),
+    unavailable("FAOSTAT", manifestUrl),
     Effect.flatMap(versionOf),
-    Effect.mapError(unavailable),
   )
 
 interface Point {
@@ -161,7 +166,7 @@ const statusOf = (code: string): Evidence["status"] =>
       }
 
 const record = Effect.fn("Faostat.record")(function* (raw: Record<string, string>) {
-  if (Object.keys(raw).some((key) => !Object.hasOwn(Row.fields, key))) return yield* unavailable()
+  if (Object.keys(raw).some((key) => !Object.hasOwn(Row.fields, key))) return yield* unreadable()
   const row = yield* Schema.decodeUnknownEffect(Row)(raw)
   const area = yield* areaOf(row)
 
@@ -172,7 +177,7 @@ const record = Effect.fn("Faostat.record")(function* (raw: Record<string, string
       "Expenditure in Agricultural R&D as Share of Agricultural Value Added (Standard Local Currency)" ||
     row.Unit !== "%"
   )
-    return yield* unavailable()
+    return yield* unreadable()
 
   if (!/^\d{4}$/.test(row.Year)) return undefined
 
@@ -197,7 +202,7 @@ const record = Effect.fn("Faostat.record")(function* (raw: Record<string, string
   const observations = yield* observationsOf(qualification, value)
 
   return { dimensions: selected, observations, qualifications: [qualification] }
-}, Effect.mapError(unavailable))
+}, Effect.mapError(unreadable))
 
 const observationsOf = Effect.fn("Faostat.observations")(function* (
   qualification: Qualification,
@@ -283,7 +288,7 @@ export class Faostat extends Context.Service<Faostat, Adapter>()("@openfacts/ser
               : Effect.succeed([]),
           gather: (asset, options) =>
             asset !== "AE"
-              ? Stream.fail(unavailable())
+              ? Stream.fail(unreadable())
               : Stream.make({ indicator, series: disk.read(options.version) }),
         },
       })
@@ -299,7 +304,7 @@ const areaOf = Effect.fn("Faostat.area")(function* (row: typeof Row.Type) {
     area.m49 !== row["Area Code (M49)"] ||
     area.label.replaceAll(";", ",") !== row.Area
   )
-    return yield* unavailable()
+    return yield* unreadable()
 
   return area
 })
