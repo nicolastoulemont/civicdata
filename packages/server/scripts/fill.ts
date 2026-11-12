@@ -59,7 +59,7 @@ export const fill = (source: "FAOSTAT" | "ILOSTAT" | "V-Dem" | "WID" | "IMF") =>
     yield* Gather.run(source).pipe(Effect.provide(Layer.merge(gather, Step.immediate)))
   }).pipe(
     Effect.provide(
-      Pace.paced(Duration.seconds(10)).pipe(
+      Pace.paced(Duration.minutes(2)).pipe(
         Layer.provide(FetchHttpClient.layer),
         Layer.provide(Pace.memory),
       ),
