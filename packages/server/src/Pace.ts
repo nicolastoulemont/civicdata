@@ -1,6 +1,8 @@
 import type { Source } from "@openfacts/domain"
 import { Clock, Context, Duration, Effect, Layer, Ref, Schema } from "effect"
-import { FetchHttpClient, HttpClient, HttpClientResponse } from "effect/http"
+import { HttpClient, HttpClientResponse } from "effect/http"
+
+import * as Fetch from "./Fetch.ts"
 
 const minute = 60_000
 const hour = 60 * minute
@@ -245,15 +247,12 @@ export class Pace extends Context.Service<Pace, Interface>()("@openfacts/server/
   static readonly client = Pace.paced(Duration.seconds(2))
 
   // What the adapters send through when deployed: fetch, paced.
-  static readonly http = Pace.client.pipe(
-    Layer.provide(FetchHttpClient.layer),
-    Layer.provide(Pace.live),
-  )
+  static readonly http = Pace.client.pipe(Layer.provide(Fetch.layer), Layer.provide(Pace.live))
 
   // What a gathering run sends through. Nobody waits on it, so a request
   // waits up to ten seconds for a slot.
   static readonly gathering = Pace.paced(Duration.seconds(10)).pipe(
-    Layer.provide(FetchHttpClient.layer),
+    Layer.provide(Fetch.layer),
     Layer.provide(Pace.live),
   )
 }

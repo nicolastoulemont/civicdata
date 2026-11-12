@@ -193,6 +193,16 @@ const retried = {
   timeout: "5 minutes",
 } satisfies CloudflareWorkersModule.WorkflowStepConfig
 
+// What a build uses of a Workflow's step.
+export interface WorkflowStep {
+  readonly do: <T extends Rpc.Serializable<T>>(
+    name: string,
+    config: CloudflareWorkersModule.WorkflowStepConfig,
+    callback: () => Promise<T>,
+  ) => Promise<T>
+  readonly sleep: (name: string, duration: number) => Promise<void>
+}
+
 // Runs one named step of a build. Workflows saves the result of each step
 // that completes; when a build resumes after a failure, a completed step
 // answers its saved result instead of running again.
@@ -207,15 +217,19 @@ export class Step extends Context.Service<
     readonly sleep: (name: string, duration: Duration.Duration) => Effect.Effect<void, StepFailed>
   }
 >()("@openfacts/server/CatalogBuild/Step") {
-  static readonly workflow = (step: CloudflareWorkersModule.WorkflowStep) =>
+  // A step's body runs with the caller's services, so its spans and logs
+  // reach the run's tracer under the span that started the step.
+  static readonly workflow = (step: WorkflowStep) =>
     Layer.succeed(
       Step,
       Step.of({
         run: (name, effect) =>
-          Effect.tryPromise({
-            try: () => step.do(name, retried, () => Effect.runPromise(effect)),
-            catch: (cause) => new StepFailed({ step: name, cause }),
-          }),
+          Effect.flatMap(Effect.context(), (context) =>
+            Effect.tryPromise({
+              try: () => step.do(name, retried, () => Effect.runPromiseWith(context)(effect)),
+              catch: (cause) => new StepFailed({ step: name, cause }),
+            }),
+          ),
         sleep: (name, duration) =>
           Effect.tryPromise({
             try: () => step.sleep(name, Duration.toMillis(duration)),
