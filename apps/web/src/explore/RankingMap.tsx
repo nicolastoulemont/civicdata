@@ -2,6 +2,8 @@ import { type Country, countries, regionOf, type ResolvedView } from "@openfacts
 import { use, useId } from "react"
 import { useTranslation } from "react-i18next"
 
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+
 import { shading } from "./palette.ts"
 import { banded, type Band, load, offMap, path, shades } from "./sheet.ts"
 import { useFormat } from "./useFormat.ts"
@@ -72,48 +74,76 @@ export const RankingMap = ({ resolved, bands }: RankingMapProps) => {
           value4: better === undefined ? "" : `, ${better.toLowerCase()}`,
         })}
       </figcaption>
-      <svg
-        viewBox={`0 0 ${sheet.width} ${sheet.height}`}
-        className="h-auto max-h-[70svh] w-full"
-        aria-hidden
-      >
-        <path d={path(sheet.land)} className="fill-muted/60" />
-        {countries.flatMap(({ code }) => {
-          const outline = sheet.outlines[code]
+      {/* One tooltip, opened by whichever shape the pointer rests on and
+          following it, shows that shape's label: its country and value. */}
+      <Tooltip<string> trackCursorAxis="both">
+        {({ payload }) => (
+          <>
+            <svg
+              viewBox={`0 0 ${sheet.width} ${sheet.height}`}
+              className="h-auto max-h-[70svh] w-full"
+              aria-hidden
+            >
+              <path d={path(sheet.land)} className="fill-muted/60" />
+              {countries.flatMap(({ code }) => {
+                const outline = sheet.outlines[code]
+                const label = `${countryName(code)}: ${valueOf(code)}`
 
-          return outline === undefined
-            ? []
-            : [
-                <path
-                  key={code}
-                  d={path(outline)}
-                  className="stroke-background motion-safe:transition-[fill] motion-safe:duration-500"
-                  fill={fillOf(code)}
-                  strokeWidth={0.5}
-                >
-                  <title>{`${countryName(code)}: ${valueOf(code)}`}</title>
-                </path>,
-              ]
-        })}
-      </svg>
-      {sheet.insets.length > 0 ? (
-        <ul className="grid grid-cols-4 gap-2 sm:grid-cols-8">
-          {sheet.insets.map((inset) => (
-            <li key={inset.name} className="flex flex-col gap-1 text-xs text-muted-foreground">
-              <svg
-                viewBox={`0 0 ${inset.width} ${inset.height}`}
-                className="h-auto w-full rounded-sm border"
-                aria-hidden
-              >
-                <path d={path(inset.outline)} fill={fillOf(inset.country)}>
-                  <title>{`${inset.name}, ${countryName(inset.country)}: ${valueOf(inset.country)}`}</title>
-                </path>
-              </svg>
-              {inset.name}
-            </li>
-          ))}
-        </ul>
-      ) : null}
+                return outline === undefined
+                  ? []
+                  : [
+                      <TooltipTrigger
+                        key={code}
+                        payload={label}
+                        render={
+                          <path
+                            aria-label={label}
+                            d={path(outline)}
+                            className="stroke-background motion-safe:transition-[fill] motion-safe:duration-500"
+                            fill={fillOf(code)}
+                            strokeWidth={0.5}
+                          />
+                        }
+                      />,
+                    ]
+              })}
+            </svg>
+            {sheet.insets.length > 0 ? (
+              <ul className="grid grid-cols-4 gap-2 sm:grid-cols-8">
+                {sheet.insets.map((inset) => {
+                  const label = `${inset.name}, ${countryName(inset.country)}: ${valueOf(inset.country)}`
+
+                  return (
+                    <li
+                      key={inset.name}
+                      className="flex flex-col gap-1 text-xs text-muted-foreground"
+                    >
+                      <svg
+                        viewBox={`0 0 ${inset.width} ${inset.height}`}
+                        className="h-auto w-full rounded-sm border"
+                        aria-hidden
+                      >
+                        <TooltipTrigger
+                          payload={label}
+                          render={
+                            <path
+                              aria-label={label}
+                              d={path(inset.outline)}
+                              fill={fillOf(inset.country)}
+                            />
+                          }
+                        />
+                      </svg>
+                      {inset.name}
+                    </li>
+                  )
+                })}
+              </ul>
+            ) : null}
+            <TooltipContent>{payload}</TooltipContent>
+          </>
+        )}
+      </Tooltip>
       <ul className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
         {better === undefined ? null : <li className="text-foreground">{better}</li>}
         {key.map(({ shade, low, high }) => (
