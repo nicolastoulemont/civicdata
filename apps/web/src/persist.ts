@@ -4,10 +4,12 @@ import {
   experimental_createQueryPersister,
 } from "@tanstack/query-persist-client-core"
 import {
+  hashKey,
   notifyManager,
   partialMatchKey,
   type Query,
   type QueryClient,
+  type QueryKey,
   type QueryPersister,
 } from "@tanstack/react-query"
 import { Schema } from "effect"
@@ -98,8 +100,14 @@ const indexedDb = (): Store | undefined => {
   }
 }
 
+// Where a query is saved, by the first element of its key and its hash.
+const savedAt = (name: string, hash: string) => `openfacts-${name}-${hash}`
+
 interface Kind<A, I> {
   readonly store: Store
+  // Hashes of the queries a page deleted the saved entries of. They are not
+  // saved again while the page is open, such as by an answer that ends after.
+  readonly unsaved: ReadonlySet<string>
   // The first element of the keys of the queries this kind saves.
   readonly name: string
   readonly schema: Schema.Codec<A, I>
@@ -116,7 +124,15 @@ interface Kind<A, I> {
 // for it, so the page never waits on restoring the rest.
 const keep = <A, I>(
   queryClient: QueryClient,
-  { store, name, schema, keeps = () => true, gone = () => false, refresh = false }: Kind<A, I>,
+  {
+    store,
+    unsaved,
+    name,
+    schema,
+    keeps = () => true,
+    gone = () => false,
+    refresh = false,
+  }: Kind<A, I>,
 ) => {
   const prefix = `openfacts-${name}`
   const codec = Entry(schema)
@@ -163,12 +179,12 @@ const keep = <A, I>(
     },
   })
 
-  const drop = (query: Query) => store.removeItem(`${prefix}-${query.queryHash}`)
+  const drop = (query: Query) => store.removeItem(savedAt(name, query.queryHash))
 
   const save = (query: Query) => {
     const { data } = query.state
 
-    return valid(data) && keeps(data)
+    return !unsaved.has(query.queryHash) && valid(data) && keeps(data)
       ? saved.persistQuery(query).catch(() => undefined)
       : drop(query)
   }
@@ -215,15 +231,33 @@ const keep = <A, I>(
   void saved.persisterGc()
 }
 
+// Per query client, deletes what the browser saved for a query.
+const unsavers = new WeakMap<QueryClient, (queryKey: QueryKey) => Promise<void>>()
+
+// Deletes what this browser saved for the query at `queryKey`, such as a
+// conversation deleted from the list, and saves it no more while the page is
+// open.
+export const unsave = async (queryClient: QueryClient, queryKey: QueryKey) =>
+  unsavers.get(queryClient)?.(queryKey)
+
 // Saves conversations and charts in this browser, so a conversation opened
 // before shows at once.
 export const persist = (queryClient: QueryClient, store = indexedDb()) => {
   if (store === undefined) return
 
   const guarded = guard(store)
+  const unsaved = new Set<string>()
+
+  unsavers.set(queryClient, async (queryKey) => {
+    const hash = hashKey(queryKey)
+
+    unsaved.add(hash)
+    await guarded.removeItem(savedAt(String(queryKey[0]), hash))
+  })
 
   keep(queryClient, {
     store: guarded,
+    unsaved,
     name: "conversation",
     schema: Turns,
     // Only finished turns are saved. A conversation being answered, or one
@@ -234,5 +268,5 @@ export const persist = (queryClient: QueryClient, store = indexedDb()) => {
     refresh: true,
   })
 
-  keep(queryClient, { store: guarded, name: "resolve", schema: ResolvedView })
+  keep(queryClient, { store: guarded, unsaved, name: "resolve", schema: ResolvedView })
 }

@@ -1,11 +1,11 @@
 import { ConversationId } from "@openfacts/domain"
-import { Array, DateTime, Option, Order, Schema } from "effect"
+import { Array, DateTime, Option, Order, Schema, Struct } from "effect"
 import { useSyncExternalStore } from "react"
 
 import { save } from "@/conversation/draft"
 
-// A conversation asked in this browser: its first question as a title, and
-// when its last question was asked here.
+// A conversation asked in this browser: its first question as a title, or the
+// title it was renamed to, and when its last question was asked here.
 const Entry = Schema.Struct({
   id: ConversationId,
   title: Schema.String,
@@ -103,7 +103,18 @@ export const record = (id: ConversationId, question: string) => {
   ])
 }
 
-// Drops a conversation the server no longer has, and the draft typed in it.
+// Gives a conversation the title `text`, trimmed, without moving it in the
+// list. A blank title keeps the one it had.
+export const rename = (id: ConversationId, text: string) => {
+  const title = text.trim()
+
+  if (title === "") return
+
+  write(read().map((entry) => (entry.id === id ? Struct.assign(entry, { title }) : entry)))
+}
+
+// Drops a conversation from this browser's list, and the draft typed in it.
+// The server keeps it until it deletes it.
 export const forget = (id: ConversationId) => {
   save(id, "")
   write(read().filter((entry) => entry.id !== id))

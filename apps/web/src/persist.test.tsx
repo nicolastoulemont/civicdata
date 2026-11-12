@@ -7,6 +7,7 @@ import {
   IndicatorId,
   ResolvedView,
   Searched,
+  Step,
   StepId,
   Text,
   Trend,
@@ -27,8 +28,8 @@ import { DateTime, Duration, Schema } from "effect"
 import { http, HttpResponse } from "msw/http"
 import { describe, expect, it, onTestFinished } from "vitest"
 
-import { SidebarProvider } from "@/components/ui/sidebar"
 import { Conversation } from "@/conversation/Conversation"
+import { Layout } from "@/history/Layout"
 
 import { network } from "../test/network.ts"
 import { persist, type Store } from "./persist.ts"
@@ -165,9 +166,9 @@ const show = (store: Store) => {
 
   const root = createRootRoute({
     component: () => (
-      <SidebarProvider>
+      <Layout>
         <Conversation id={id} first={undefined} />
-      </SidebarProvider>
+      </Layout>
     ),
   })
 
@@ -177,6 +178,50 @@ const show = (store: Store) => {
     </QueryClientProvider>,
   )
 }
+
+const encodeStep = Schema.encodeSync(Schema.fromJsonString(Schema.toCodecJson(Step)))
+
+// An answer to a question asked in the conversation, which the test ends
+// with `step`.
+const answer = () => {
+  const encoder = new TextEncoder()
+
+  const { promise, resolve: opened } =
+    Promise.withResolvers<ReadableStreamDefaultController<Uint8Array>>()
+
+  const body = new ReadableStream<Uint8Array>({ start: opened })
+
+  return {
+    handler: http.post(
+      `/api/conversations/${id}/questions`,
+      () => new HttpResponse(body, { headers: { "content-type": "text/event-stream" } }),
+    ),
+    end: async (step: Step) => {
+      const controller = await promise
+
+      controller.enqueue(encoder.encode(`event: message\ndata: ${encodeStep(step)}\n\n`))
+      controller.close()
+    },
+  }
+}
+
+// Lists the conversation in the sidebar, as asking in it did before.
+const list = () =>
+  localStorage.setItem(
+    "openfacts:conversations",
+    JSON.stringify([{ id, title: charted.question, askedAt: new Date().toISOString() }]),
+  )
+
+// Deletes the conversation from the sidebar's menu.
+const remove = async (user: ReturnType<typeof userEvent.setup>) => {
+  const sidebar = within(await screen.findByRole("navigation", { name: "Conversations" }))
+
+  await user.pointer({ keys: "[MouseRight]", target: await sidebar.findByRole("link") })
+  await user.click(await screen.findByRole("menuitem", { name: "Delete" }))
+}
+
+const saved = (values: Map<string, unknown>) =>
+  [...values.keys()].filter((key) => key.startsWith("openfacts-conversation-"))
 
 const timeline = async () =>
   within(await screen.findByRole("list", { name: "Questions and answers" }))
@@ -288,6 +333,52 @@ describe("persist", () => {
     expect(await screen.findByText(/No questions yet/)).toBeDefined()
     expect(screen.queryByText("How has life expectancy changed in Brazil?")).toBeNull()
     await waitFor(() => expect(values.size).toBe(1))
+  })
+
+  it("forgets a saved conversation deleted from the list", async () => {
+    const user = userEvent.setup()
+    const { store, values } = memory()
+
+    list()
+    network.use(turns({ answered: [charted] }), resolve)
+    show(store)
+    await findChart()
+    await waitFor(() => expect(saved(values)).toHaveLength(1))
+
+    await remove(user)
+
+    await waitFor(() => expect(saved(values)).toEqual([]))
+    cleanup()
+
+    const reload = hanging()
+
+    network.use(reload.handler, resolve)
+    show(store)
+
+    await waitFor(() => expect(reload.sent.turns).toBe(true))
+    expect(screen.queryByText(charted.question)).toBeNull()
+  })
+
+  it("does not save a conversation deleted while it is being answered", async () => {
+    const user = userEvent.setup()
+    const { store, values } = memory()
+    const reply = answer()
+
+    network.use(turns({ answered: [] }), reply.handler, resolve)
+    show(store)
+
+    await user.type(
+      await screen.findByRole("textbox", { name: "Ask a follow-up" }),
+      charted.question,
+    )
+    await user.click(screen.getByRole("button", { name: "Send" }))
+    await remove(user)
+    await reply.end(charted.answer)
+
+    // The chart's data is saved after the answer ends.
+    await findChart()
+    await waitFor(() => expect(values.size).toBe(1))
+    expect(saved(values)).toEqual([])
   })
 
   it("loads from the network when the browser blocks storage", async () => {
