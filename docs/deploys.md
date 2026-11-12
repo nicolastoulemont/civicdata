@@ -35,11 +35,20 @@ and [Cloudflare custom domains](https://developers.cloudflare.com/workers/config
 ## Bot protection
 
 Cloudflare's HTTP DDoS protection is always enabled for the custom domains.
-Turnstile also checks each question and chart explanation before the server
-starts a model request. Browsing charts, reading answers, and stopping an answer
-need no challenge. Each retry gets a fresh proof; proofs are single-use and expire
-after five minutes. The server checks the proof's action and exact hostname and
-rejects a request if verification fails or Cloudflare cannot be reached.
+Turnstile also checks each browser before it can ask a question or have a chart
+explained, since each one starts a model request. Browsing charts, reading
+answers, and stopping an answer need no challenge. Once the app loads, it calls
+`POST /api/verification`. A browser without a pass gets `VerificationRequired`,
+runs Turnstile hidden (`interaction-only`) and sends its proof. If Cloudflare
+wants the person to interact, the hidden check gives up, and the first question
+or explanation that browser sends gets `VerificationRequired` and opens the
+challenge in a dialog. Proofs are single-use and expire after five minutes. The
+server checks the proof's action and exact hostname, rejects the request if
+verification fails or Cloudflare cannot be reached, and otherwise sets a pass:
+the `__Host-verified` session cookie (HttpOnly, Secure, SameSite=Strict),
+holding its expiry signed with HMAC-SHA256 under the Turnstile secret. Requests
+from that browser pass without a proof until the session ends or 24 hours have
+gone by, whichever comes first. Rotating the secret voids every pass.
 
 The managed `openfacts` Turnstile widget allows `openfacts.app`, which also covers
 its preview subdomains. Both GitHub environments have the public variable

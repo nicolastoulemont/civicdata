@@ -2,6 +2,7 @@ import { DEFAULT_SCRIPT_ID, Turnstile } from "@marsidev/react-turnstile"
 import { verificationAction, VerificationRequired, VerificationToken } from "@openfacts/domain"
 import { Machine } from "@openfacts/machine"
 import { Data, Effect, Option, Result, Schema } from "effect"
+import type { ReactNode } from "react"
 import { createRoot } from "react-dom/client"
 import { I18nextProvider, useTranslation } from "react-i18next"
 
@@ -56,6 +57,44 @@ const machine = Machine.make<State, Event, Outcome>()({
   },
 })
 
+interface ProofProps {
+  sitekey: string
+  // Whether the person may be asked to interact. Without it, the widget shows
+  // nothing and fails as soon as Cloudflare wants the person.
+  interactive: boolean
+  onPass: (token: VerificationToken) => void
+  onFail: () => void
+}
+
+const Proof = ({ sitekey, interactive, onPass, onFail }: ProofProps) => (
+  <Turnstile
+    siteKey={sitekey}
+    options={{
+      action: verificationAction,
+      appearance: interactive ? "always" : "interaction-only",
+      retry: "never",
+      refreshExpired: "never",
+    }}
+    scriptOptions={{
+      onError: () => {
+        document.getElementById(DEFAULT_SCRIPT_ID)?.remove()
+        onFail()
+      },
+    }}
+    onSuccess={(value) =>
+      Option.match(Schema.decodeUnknownOption(VerificationToken)(value), {
+        onNone: onFail,
+        onSome: onPass,
+      })
+    }
+    {...(interactive ? {} : { onBeforeInteractive: onFail })}
+    onError={onFail}
+    onExpire={onFail}
+    onTimeout={onFail}
+    onUnsupported={onFail}
+  />
+)
+
 interface ChallengeProps {
   sitekey: string
   onResult: (outcome: Outcome) => void
@@ -64,7 +103,6 @@ interface ChallengeProps {
 const Challenge = ({ sitekey, onResult }: ChallengeProps) => {
   const { t } = useTranslation("common")
   const [state, send] = useMachine(machine, { on: onResult })
-  const fail = () => send(Event.Fail())
 
   return (
     <Dialog
@@ -79,26 +117,12 @@ const Challenge = ({ sitekey, onResult }: ChallengeProps) => {
           <DialogDescription>{t(($) => $.verificationDescription)}</DialogDescription>
         </DialogHeader>
         {State.$is("Checking")(state) ? (
-          <Turnstile
+          <Proof
             key={state.attempt}
-            siteKey={sitekey}
-            options={{ action: verificationAction, retry: "never", refreshExpired: "never" }}
-            scriptOptions={{
-              onError: () => {
-                document.getElementById(DEFAULT_SCRIPT_ID)?.remove()
-                fail()
-              },
-            }}
-            onSuccess={(value) =>
-              Option.match(Schema.decodeUnknownOption(VerificationToken)(value), {
-                onNone: fail,
-                onSome: (token) => send(Event.Pass({ token })),
-              })
-            }
-            onError={fail}
-            onExpire={fail}
-            onTimeout={fail}
-            onUnsupported={fail}
+            sitekey={sitekey}
+            interactive
+            onPass={(token) => send(Event.Pass({ token }))}
+            onFail={() => send(Event.Fail())}
           />
         ) : null}
         {State.$is("Failed")(state) ? (
@@ -114,8 +138,11 @@ const Challenge = ({ sitekey, onResult }: ChallengeProps) => {
   )
 }
 
-// Mounted only for a paid request. Interrupting the request closes its dialog.
-export const challenge = (sitekey: string) =>
+// Renders into its own root at the end of the page until the proof settles.
+// Interrupting it removes what it rendered.
+const mount = (
+  render: (resume: (outcome: Outcome) => void) => ReactNode,
+): Effect.Effect<VerificationToken, VerificationRequired> =>
   Effect.acquireUseRelease(
     Effect.sync(() => {
       const container = document.createElement("div")
@@ -126,18 +153,7 @@ export const challenge = (sitekey: string) =>
     }),
     ({ root }) =>
       Effect.callback<VerificationToken, VerificationRequired>((resume) => {
-        const instance = createI18n()
-
-        void instance.changeLanguage(requestLocale())
-
-        root.render(
-          <I18nextProvider i18n={instance}>
-            <Challenge
-              sitekey={sitekey}
-              onResult={(outcome) => resume(Effect.fromResult(outcome))}
-            />
-          </I18nextProvider>,
-        )
+        root.render(render((outcome) => resume(Effect.fromResult(outcome))))
       }),
     ({ root, container }) =>
       Effect.sync(() => {
@@ -145,3 +161,29 @@ export const challenge = (sitekey: string) =>
         container.remove()
       }),
   )
+
+// Asks the person in a dialog, for a request that needs a proof now.
+export const dialog = (sitekey: string) =>
+  mount((resume) => {
+    const instance = createI18n()
+
+    void instance.changeLanguage(requestLocale())
+
+    return (
+      <I18nextProvider i18n={instance}>
+        <Challenge sitekey={sitekey} onResult={resume} />
+      </I18nextProvider>
+    )
+  })
+
+// Gets a proof without showing anything, failing when Cloudflare wants the
+// person to interact.
+export const background = (sitekey: string) =>
+  mount((resume) => (
+    <Proof
+      sitekey={sitekey}
+      interactive={false}
+      onPass={(token) => resume(Result.succeed(token))}
+      onFail={() => resume(Result.fail(new VerificationRequired()))}
+    />
+  ))
