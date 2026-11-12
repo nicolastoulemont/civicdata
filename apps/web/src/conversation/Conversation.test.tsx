@@ -2443,6 +2443,51 @@ describe("Conversation", () => {
     expect(await findQuestion("Which Korea?")).toBeDefined()
   })
 
+  it("sends the choices ticked by click or number, in the agent's order", async () => {
+    const user = userEvent.setup()
+    const sent: Array<unknown> = []
+    network.use(
+      turns([
+        {
+          question: "Compare life expectancy in Brazil",
+          answer: Asked.make({
+            question: "Which countries should I compare?",
+            choices: ["Mexico", "Chile", "Peru"],
+            pick: "several",
+          }),
+        },
+      ]),
+      http.post(`/api/conversations/${id}/questions`, async ({ request }) => {
+        sent.push(await request.json())
+
+        return new HttpResponse(message(Unanswered.make({})), {
+          headers: { "content-type": "text/event-stream" },
+        })
+      }),
+    )
+    show()
+
+    const panel = await screen.findByRole("region", { name: "Which countries should I compare?" })
+    const send = within(panel).getByRole("button", { name: "Send choices" })
+    expect((await findComposer()).getAttribute("aria-placeholder")).toBe(
+      "Pick one or more choices above, or say what you mean",
+    )
+    expect(send.hasAttribute("disabled")).toBe(true)
+
+    await user.click(within(panel).getByRole("checkbox", { name: "Peru" }))
+    await user.keyboard("1")
+    await user.keyboard("2")
+    await user.keyboard("2")
+
+    expect(within(panel).getByRole("checkbox", { name: "Mexico", checked: true })).toBeDefined()
+    expect(within(panel).getByRole("checkbox", { name: "Chile", checked: false })).toBeDefined()
+    await user.click(send)
+
+    expect(await findQuestion("Mexico and Peru")).toBeDefined()
+    expect(sent).toEqual([{ question: "Mexico and Peru" }])
+    expect(screen.queryByRole("region", { name: "Which countries should I compare?" })).toBeNull()
+  })
+
   it("keeps older questions read-only and gives keyboard focus to the latest choices", async () => {
     const user = userEvent.setup()
     network.use(

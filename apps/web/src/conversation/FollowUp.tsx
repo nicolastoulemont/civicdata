@@ -1,9 +1,9 @@
-import type { ConversationId, Ending } from "@openfacts/domain"
+import type { ConversationId, Ending, Pick } from "@openfacts/domain"
 import { Match } from "effect"
 import type { TFunction } from "i18next"
 import { useTranslation } from "react-i18next"
 
-import { Choices } from "./Choices.tsx"
+import { OneChoice, SeveralChoices } from "./Choices.tsx"
 import { Lane } from "./Lane.tsx"
 import { type Answering, QuestionForm } from "./QuestionForm.tsx"
 
@@ -20,11 +20,17 @@ const suggest = (last: Ending | undefined, { answering, t }: SuggestOptions) =>
       ? t(($) => $["How has life expectancy changed in Brazil?"])
       : Match.valueTags(last, {
           Answered: () => t(($) => $["Add Mexico, or show it per person"]),
-          Asked: () => t(($) => $["Pick a choice above, or say what you mean"]),
+          Asked: ({ pick }) =>
+            pick === "one"
+              ? t(($) => $["Pick a choice above, or say what you mean"])
+              : t(($) => $["Pick one or more choices above, or say what you mean"]),
           Unanswered: () => t(($) => $["Name what to measure and where"]),
           Exhausted: () => t(($) => $["Ask again, or ask a narrower question"]),
           Stopped: () => t(($) => $["Ask again, or ask something else"]),
         })
+
+// The panel for each way the person picks among the agent's choices.
+const panels = { one: OneChoice, several: SeveralChoices } satisfies Record<Pick, typeof OneChoice>
 
 interface FollowUpProps {
   id: ConversationId
@@ -41,6 +47,8 @@ export const FollowUp = ({ id, last, answering, ask }: FollowUpProps) => {
   const question =
     answering === undefined && last !== undefined && "choices" in last ? last : undefined
 
+  const Choices = question === undefined ? undefined : panels[question.pick]
+
   return (
     <div className="pb-3 sm:pb-4">
       <Lane>
@@ -49,7 +57,7 @@ export const FollowUp = ({ id, last, answering, ask }: FollowUpProps) => {
             question === undefined ? undefined : "[&_[data-slot=input-group]]:rounded-t-none"
           }
         >
-          {question === undefined ? null : (
+          {question === undefined || Choices === undefined ? null : (
             <Choices question={question.question} choices={question.choices} choose={ask} />
           )}
           <QuestionForm

@@ -39,6 +39,7 @@ import {
   type Observation,
   Overlay,
   type Overlays,
+  Pick,
   type Politics as PoliticalRecords,
   Ranking,
   Ratio,
@@ -408,11 +409,15 @@ const FindResearch = Tool.make("find_research", {
 
 const AskUser = Tool.make("ask_user", {
   description:
-    "Ask the person which of a few readings of their question they mean, when the readings give different charts and none is a safe default. Their reply is the next message. Ask at most once per question.",
+    "Ask the person which of a few readings of their question they mean, when the readings give different charts and none is a safe default. Their reply is the next message: the choice they picked, the choices they picked joined into a list, or words of their own. Ask at most once per question.",
   parameters: Schema.Struct({
     question: Schema.String.annotate({ description: "A short question, e.g. 'Which GDP?'" }),
     choices: Schema.Array(Schema.String).annotate({
       description: "Two to four short answers, e.g. 'In current dollars', 'Adjusted for inflation'",
+    }),
+    pick: Pick.annotate({
+      description:
+        "How many choices the person may pick: 'one' when the choices exclude each other, e.g. 'Which Korea?'; 'several' when you can chart more than one, e.g. 'Which countries should I compare?'",
     }),
   }),
   success: Schema.String,
@@ -1507,7 +1512,13 @@ const askedIn = (round: Round) =>
 
       return first === undefined
         ? []
-        : [{ question: call.params.question, choices: Arr.make(first, ...rest) }]
+        : [
+            {
+              question: call.params.question,
+              choices: Arr.make(first, ...rest),
+              pick: call.params.pick,
+            },
+          ]
     })[0],
   )
 
@@ -1618,7 +1629,7 @@ Better and worse: describe_indicator and show_chart give a direction. Higher or 
 
 If no indicator of any source measures what the question asks, say so in one sentence and stop without calling show_chart. A question only about politics, with no data to chart, e.g. "Who governed Spain in 2008?", is one of those: you answer with charts.
 
-If the question can be read in ways that give different charts and none is a safe default, call ask_user instead of show_chart, with two to four short choices. Prefer a sensible default to asking: ask at most once per question.
+If the question can be read in ways that give different charts and none is a safe default, call ask_user instead of show_chart, with two to four short choices. Let the person pick several when you can chart more than one of them, e.g. countries to compare or measures to show side by side, and one when they exclude each other. Prefer a sensible default to asking: ask at most once per question.
 
 A later question can follow up on your last answer, e.g. "add Chile" or "now per person". Apply it to the charts it names, or else to every chart it fits: "add Italy" adds Italy to each chart, "only since 2015" changes the years of every trend. Show each changed chart again, in the same order, keep the rest of each chart, and write about each one again. When a question starts with charts on screen, the person changed them since your last answer: follow up on those charts instead, each by the answer it belongs to and its place in that answer.`
 
