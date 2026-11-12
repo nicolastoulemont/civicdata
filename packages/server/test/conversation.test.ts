@@ -7,6 +7,7 @@ import {
   Api,
   Asked,
   type Block,
+  CatalogUnavailable,
   Change,
   Chart,
   ChartIndex,
@@ -233,7 +234,7 @@ const unemploymentOutline: Labelled = {
 }
 
 const fixtureOutline: Labelled = {
-  indicator: IndicatorId.make("Fixture:measure"),
+  indicator: IndicatorId.make("WID:measure"),
   annual: null,
   countries: null,
   years: { first: 2000, last: 2025 },
@@ -249,7 +250,8 @@ const fixtureOutline: Labelled = {
 }
 
 // A catalog of one indicator from each source. A search finds those whose
-// name holds its text, of one source when it names one.
+// name holds its text, of one source when it names one. FAOSTAT has
+// published no catalog, so a search of it alone cannot be answered.
 const catalog = Layer.succeed(
   Catalog,
   Catalog.of({
@@ -262,34 +264,36 @@ const catalog = Layer.succeed(
         ),
       ),
     search: (text, options) =>
-      Effect.succeed(
-        [
-          {
-            indicator: lifeExpectancy,
-            name: "Life expectancy at birth, total (years)",
-            definition: "",
-          },
-          {
-            indicator: IndicatorId.make("ESTAT,UNE_RT_A,1.0"),
-            name: "Unemployment by sex and age - annual data",
-            definition: "",
-          },
-          {
-            indicator: IndicatorId.make("OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M,1.0"),
-            name: "Monthly unemployment rates",
-            definition: "",
-          },
-          {
-            indicator: IndicatorId.make("Fixture:measure"),
-            name: "Fixture annual measure",
-            definition: "Only published by Fixture.",
-          },
-        ].filter(
-          ({ indicator, name }) =>
-            name.toLowerCase().includes(text.toLowerCase()) &&
-            (options?.source === undefined || sourceOf(indicator) === options.source),
-        ),
-      ),
+      options?.source === "FAOSTAT"
+        ? Effect.fail(new CatalogUnavailable())
+        : Effect.succeed(
+            [
+              {
+                indicator: lifeExpectancy,
+                name: "Life expectancy at birth, total (years)",
+                definition: "",
+              },
+              {
+                indicator: IndicatorId.make("ESTAT,UNE_RT_A,1.0"),
+                name: "Unemployment by sex and age - annual data",
+                definition: "",
+              },
+              {
+                indicator: IndicatorId.make("OECD.SDD.TPS,DSD_LFS@DF_IALFS_UNE_M,1.0"),
+                name: "Monthly unemployment rates",
+                definition: "",
+              },
+              {
+                indicator: IndicatorId.make("WID:measure"),
+                name: "WID annual measure",
+                definition: "Only published by WID.",
+              },
+            ].filter(
+              ({ indicator, name }) =>
+                name.toLowerCase().includes(text.toLowerCase()) &&
+                (options?.source === undefined || sourceOf(indicator) === options.source),
+            ),
+          ),
   }),
 )
 
@@ -1468,11 +1472,7 @@ describe("conversations", () => {
   it.effect("routes a requested fourth publisher through catalog search", () => {
     const model = scripted([
       Effect.succeed(
-        call(
-          "search_indicators",
-          { text: "measure", source: "Fixture" },
-          { step: "fixture-search" },
-        ),
+        call("search_indicators", { text: "measure", source: "WID" }, { step: "wid-search" }),
       ),
       Effect.succeed(
         call(
@@ -1485,10 +1485,10 @@ describe("conversations", () => {
     ])
 
     return Effect.gen(function* () {
-      const steps = log(yield* answer("Find Fixture's measure for France"))
+      const steps = log(yield* answer("Find WID's measure for France"))
       expect(steps).toContainEqual(
         expect.objectContaining({
-          source: "Fixture",
+          source: "WID",
           state: expect.objectContaining({ count: 1 }),
         }),
       )
@@ -1498,11 +1498,71 @@ describe("conversations", () => {
           state: expect.objectContaining({ count: 0 }),
         }),
       )
-      expect(model.prompts[1]).toContain('"indicator":"Fixture:measure","source":"Fixture"')
+      expect(model.prompts[1]).toContain('"indicator":"WID:measure","source":"WID"')
       expect(model.prompts[1]).toContain('"label":"Median disposable income"')
       expect(model.prompts[1]).toContain(
         '"coverage":{"countries":null,"years":{"first":2000,"last":2025}}',
       )
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("names every registered publisher to the model", () => {
+    const model = scripted([])
+
+    return Effect.gen(function* () {
+      yield* answer("Unemployment in France")
+
+      const listed = /The catalog's publishers are ([^.]+)\./.exec(model.prompts[0] ?? "")?.[1]
+
+      expect(listed?.split(", ").toSorted()).toEqual(
+        [
+          "World Bank",
+          "Eurostat",
+          "OECD",
+          "INSEE",
+          "ILOSTAT",
+          "FAOSTAT",
+          "V-Dem",
+          "WID",
+          "IMF",
+          "WHO",
+        ].toSorted(),
+      )
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("tells the model the publishers there are when it names another, and answers", () => {
+    const model = scripted([
+      Effect.succeed(
+        call("search_indicators", { text: "top 1% income", source: "World Inequality Database" }),
+      ),
+      silent,
+    ])
+
+    return Effect.gen(function* () {
+      expect(log(yield* answer("Top 1% income share in France"))).toEqual([Unanswered.make({})])
+      expect(model.prompts[1]).toContain(
+        "No publisher is named World Inequality Database. Pass one of World Bank, ",
+      )
+      expect((yield* turns).answered).toHaveLength(1)
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("fails the step when a publisher's catalog cannot be searched, and answers", () => {
+    const model = scripted([
+      Effect.succeed(call("search_indicators", { text: "fertilizer", source: "FAOSTAT" })),
+      silent,
+    ])
+
+    return Effect.gen(function* () {
+      expect(log(yield* answer("Fertilizer use in France"))[0]).toMatchObject({
+        source: "FAOSTAT",
+        state: Failed.make({ reason: new CatalogUnavailable() }),
+      })
+      expect(model.prompts[1]).toContain(
+        "FAOSTAT's indicators cannot be searched now. Search all publishers, with source null.",
+      )
+      expect((yield* turns).answered).toHaveLength(1)
     }).pipe(Effect.provide(serveApi(model.layer)))
   })
 

@@ -251,6 +251,9 @@ const listedDimensions = (outline: Labelled | undefined, indicator: IndicatorId)
   )
 }
 
+// What a tool tells the model when it cannot do what the model asked, and why.
+const Refused = Schema.TaggedStruct("Rejected", { problem: Schema.String })
+
 const SearchIndicators = Tool.make("search_indicators", {
   description: `Search the catalog's indicators by words in their name or definition, or by code. Returns up to 10 matches, best first, each with its source. A dataset can hold several series, e.g. by sex or age: "dimensions" lists each dimension that takes several codes, with up to ${codesListed} of its codes and labels and how many more it has. Pass one code of each to find_years and show_chart. A World Bank indicator is one series and has no dimensions. When "dimensions" is null, or the code you need is among the "more", find_years' rejection lists every code.`,
   parameters: Schema.Struct({
@@ -258,32 +261,36 @@ const SearchIndicators = Tool.make("search_indicators", {
       description: "Words to search for, e.g. 'life expectancy' or 'GDP per capita'",
     }),
     source: Schema.NullOr(Source).annotate({
-      description: "Only this source's indicators; null for all registered sources",
+      description:
+        "Only this publisher's indicators, named as the instructions list it, e.g. 'Eurostat'; null for all publishers",
     }),
   }),
-  success: Schema.Array(
-    Schema.Struct({
-      indicator: IndicatorId,
-      source: Source,
-      name: Schema.String,
-      definition: Schema.String,
-      coverage: Schema.NullOr(
-        Schema.Struct({
-          countries: Schema.NullOr(Schema.Array(Country)),
-          years: Schema.NullOr(Schema.Struct({ first: Schema.Int, last: Schema.Int })),
-        }),
-      ),
-      dimensions: Schema.NullOr(
-        Schema.Array(
+  success: Schema.Union([
+    Schema.Array(
+      Schema.Struct({
+        indicator: IndicatorId,
+        source: Source,
+        name: Schema.String,
+        definition: Schema.String,
+        coverage: Schema.NullOr(
           Schema.Struct({
-            id: Schema.String,
-            codes: Schema.Array(Schema.Struct({ code: Schema.String, label: Schema.String })),
-            more: Schema.Int,
+            countries: Schema.NullOr(Schema.Array(Country)),
+            years: Schema.NullOr(Schema.Struct({ first: Schema.Int, last: Schema.Int })),
           }),
         ),
-      ),
-    }),
-  ),
+        dimensions: Schema.NullOr(
+          Schema.Array(
+            Schema.Struct({
+              id: Schema.String,
+              codes: Schema.Array(Schema.Struct({ code: Schema.String, label: Schema.String })),
+              more: Schema.Int,
+            }),
+          ),
+        ),
+      }),
+    ),
+    Refused,
+  ]),
   failure: CatalogUnavailable,
   dependencies: [Report],
 })
@@ -297,8 +304,6 @@ const Shown = Schema.TaggedStruct("Shown", {
   data: Summary,
   direction: Direction,
 })
-
-const Refused = Schema.TaggedStruct("Rejected", { problem: Schema.String })
 
 // What describe_indicator tells the model: the indicator's definition, which
 // way its values are better, and what its source writes about it, or null for
@@ -949,6 +954,8 @@ const ToolsLayer = Tools.toLayer(
     const notes = yield* Notes
     const directions = yield* Directions
 
+    const publishers = Object.keys(sources).join(", ")
+
     // A View's values, or why the data cannot give them: no source has the
     // indicator, or its dataflow holds several series and the View has not
     // picked one. find_years and show_chart tell the model the same problem.
@@ -1054,7 +1061,18 @@ const ToolsLayer = Tools.toLayer(
       )
 
     return Tools.of({
+      // A publisher that is not registered is the model's mistake, and one
+      // whose catalog cannot be searched now fails the step; either way the
+      // model searches again. Only a search of every publisher fails the answer.
       search_indicators: ({ text, source }, { toolCallId }) => {
+        if (source !== null && !Object.hasOwn(sources, source)) {
+          return Effect.succeed(
+            rejected(
+              `No publisher is named ${source}. Pass one of ${publishers}, or null for all of them.`,
+            ),
+          )
+        }
+
         const id = stepOf(toolCallId, "search_indicators")
 
         const at = (state: typeof Search.Type.state) =>
@@ -1093,6 +1111,15 @@ const ToolsLayer = Tools.toLayer(
               ),
             )
           }),
+          Effect.catchTag("CatalogUnavailable", (error) =>
+            source === null
+              ? Effect.fail(error)
+              : Effect.succeed(
+                  rejected(
+                    `${source}'s indicators cannot be searched now. Search all publishers, with source null.`,
+                  ),
+                ),
+          ),
         )
       },
       // A code that is not an indicator's is the model's mistake, told to it
@@ -1454,13 +1481,19 @@ const blocksIn = (
 const writing =
   "Write Markdown: short paragraphs, and a list or a small table only when it reads better than sentences. No headings, images, links or HTML. Say what the data shows: which way each country moves, which is highest or lowest, or how two indicators go together. Take numbers and years from the data, rounded if you like."
 
-const instructions = (
-  year: number,
-) => `You answer a question about countries with data from the catalog's publishers. The answer is what you write and the charts you show, in that order: everything you write outside a tool call is shown to the person, between the charts. Write only what they should read, never what you are about to do.
+// The chat's instructions, given the current year and the registered
+// publishers' names, which search_indicators takes as its source.
+const instructions = ({
+  year,
+  publishers,
+}: {
+  readonly year: number
+  readonly publishers: string
+}) => `You answer a question about countries with data from the catalog's publishers. The answer is what you write and the charts you show, in that order: everything you write outside a tool call is shown to the person, between the charts. Write only what they should read, never what you are about to do.
 
 INSEE covers France alone. Use INSEE only for a France trend, never for a ranking, map or multi-country comparison. Its GEO dimension names the exact geography vintage; preserve it. REF_YEAR_PRICE _Z means no reference year. Values are in base units, not millions.
 
-Choose indicators from the catalog's actual coverage. Search across sources unless the question names one; then filter by that source. Compare the returned definitions, dimensions, countries and years, and use find_years to check the chosen series covers the requested countries and period. Never infer coverage from membership of a country group. If the requested source has no suitable series, say so before choosing another.
+The catalog's publishers are ${publishers}. Choose indicators from the catalog's actual coverage. Search across sources unless the question names one; then pass that publisher as source, named exactly as listed here. Compare the returned definitions, dimensions, countries and years, and use find_years to check the chosen series covers the requested countries and period. Never infer coverage from membership of a country group. If the requested source has no suitable series, say so before choosing another.
 
 1. Call search_indicators to find the indicator that measures what the question asks. Use only codes it returns; never write a code from memory. Pass a source to look in that source only, e.g. when its first results are another source's. When two results are close, call describe_indicator to read their definitions.
 2. Pick the chart type as the section on chart types below says, and the countries.
@@ -1498,7 +1531,12 @@ To name a record find_politics returned, cite it by its id in double brackets, e
 
 Why a figure moved: give a cause only from a research finding find_research returned, never from what you know. When the question asks why, or your words would say what made a figure rise or fall, call find_research with the chart's indicator, countries and years before you write about the chart. Cite a finding by its id in double brackets, as you cite records, and write it as what research found, never as what the chart shows: "Studies of the euro crisis found [[finding:euro-crisis-multipliers]]." The finding's name takes the id's place and its card lists the studies. For a disputed finding, give both sides: its claim and its objection. For a finding of one study, say it rests on one study. When find_research returns no finding, say the research you have does not cover why. You may still describe the chart and cite events from find_politics, but state no cause.
 
-Publisher qualifications: show_chart lists FAOSTAT raw flags/notes without a survey field and ILOSTAT status and notes in "qualifications", keyed by survey/source, country and year, including missing values and excluded reference periods or geography. State Unreliable explicitly when discussing an affected value. Never quote a missing or excluded observation as a plotted value. These notes describe measurement, not causes.
+Publisher qualifications: show_chart's data lists under "qualifications" what some publishers say about each value, by source, country and year. An entry with missing true, or with an exclusion of its reference period or geography, has no plotted value: never quote it as one. Read each entry by its source:
+- IMF: a status of EstimateProjection marks a year after latestActual, which IMF staff estimated or projected rather than recorded. When a chart runs past latestActual, say from which year its values are IMF projections, e.g. "From 2026 the figures are IMF projections", and never write about a projected year as what happened.
+- V-Dem and WHO: each estimate comes with lower and upper bounds, a 68% interval for V-Dem and a 95% one for WHO. When two values you compare have overlapping intervals, say the gap lies within the publisher's uncertainty instead of calling one higher.
+- ILOSTAT, FAOSTAT and WID: a status is the publisher's flag or grade for the value, e.g. ILOSTAT's Unreliable, FAOSTAT's Estimated value or WID's data quality grade. Say Unreliable, or a low quality grade, when you discuss a value that has one.
+- Notes say how a publisher measured a value, e.g. which survey or which borders. Mention one only when it changes how the reader should take a value you discuss.
+These qualifications describe measurement, not causes.
 
 Breaks in series and the sources' notes: show_chart's data lists under "flagged" each break in series the source marks, by country and year: the source changed how it measures from that year. When a chart you show crosses one, say so, naming the country, the year and the source, e.g. "Eurostat marks a break in series for Germany in 2020", so a change of method does not read as a change in the world. When a question asks why a line jumps, why two sources disagree, or how a figure is measured, call describe_indicator with the chart's indicator, countries and series before you write, and answer from the notes it returns, naming the source, e.g. "Eurostat's notes say". The notes say how the source measures a figure, never what made it move: give a cause only from find_research, as the paragraph above says. Quote no number the notes or the data do not give. If the notes do not explain it, say so instead of guessing.
 
@@ -1519,12 +1557,16 @@ export class Agent extends Context.Service<Agent, Interface>()("@openfacts/serve
       const model = yield* LanguageModel.LanguageModel
       const toolkit = traced(yield* Tools)
       const resolver = yield* Resolver
+      const publishers = Object.keys(yield* Sources).join(", ")
 
       const start = Effect.gen(function* () {
         const now = yield* DateTime.now
 
         return yield* Chat.fromPrompt([
-          { role: "system", content: instructions(DateTime.getPartUtc(now, "year")) },
+          {
+            role: "system",
+            content: instructions({ year: DateTime.getPartUtc(now, "year"), publishers }),
+          },
         ])
       })
 
