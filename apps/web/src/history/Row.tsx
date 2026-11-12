@@ -1,5 +1,5 @@
 import { ConversationNotFound, type Ending, type Turns } from "@openfacts/domain"
-import { useIsMutating, useQuery } from "@tanstack/react-query"
+import { useIsMutating, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { cn } from "cn"
 import { Data, DateTime, Match } from "effect"
@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/sidebar"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { answerKey, turnsQuery } from "@/conversation/useConversation"
+import { unsave } from "@/persist"
 
 import { ago } from "./ago.ts"
 import { type Entry, forget, rename } from "./store.ts"
@@ -111,13 +112,14 @@ interface RowProps {
 // in a tooltip, then its status and how long ago it was last asked. The server
 // keeps answering after the page leaves, so a conversation it reports
 // answering is checked again until it is done. Right-clicking the card, or a
-// long press, opens a menu to rename it or delete it from this browser. While
-// renaming, the title is an input: Enter or leaving it keeps the new title,
-// Escape keeps the old one.
+// long press, opens a menu to rename it or delete it from this browser: from
+// the list, and the turns saved for it. While renaming, the title is an
+// input: Enter or leaving it keeps the new title, Escape keeps the old one.
 export const Row = ({ entry: { id, title, askedAt }, current, now }: RowProps) => {
   const { t } = useTranslation("home")
   const { setOpenMobile } = useSidebar()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const asking = useIsMutating({ mutationKey: answerKey(id) }) > 0
   const [renaming, setRenaming] = useState(false)
   const link = useRef<HTMLAnchorElement>(null)
@@ -146,6 +148,7 @@ export const Row = ({ entry: { id, title, askedAt }, current, now }: RowProps) =
 
   const remove = () => {
     forget(id)
+    void unsave(queryClient, turnsQuery(id).queryKey)
 
     if (current) void navigate({ to: "/" })
   }
