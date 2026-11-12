@@ -179,6 +179,9 @@ const sidebar = async () => within(await screen.findByRole("navigation", { name:
 // The sidebar's row for the conversation about life expectancy.
 const row = async () => (await sidebar()).findByRole("link", { name: /Life expectancy/ })
 
+// The row for the default entry, about life expectancy in Brazil.
+const card = async () => (await sidebar()).findByRole("link", { name: /life expectancy changed/ })
+
 beforeEach(() => localStorage.clear())
 
 afterEach(() => {
@@ -518,6 +521,114 @@ describe("History", () => {
     expect(await within(link).findByText("Not answered")).toBeDefined()
     expect(localStorage.getItem(key)).toContain(brazil)
     expect(localStorage.getItem(draft(brazil))).toBe("And in Chile?")
+  })
+
+  it("renames a conversation from its card's menu, keeping its place", async () => {
+    const user = userEvent.setup()
+
+    store(
+      entry(),
+      entry({ id: happiness, title: "Which countries are happiest?", askedAt: minutes(60) }),
+    )
+    network.use(turns(brazil, { answered: [] }), turns(happiness, { answered: [] }))
+    show()
+
+    await user.pointer({
+      keys: "[MouseRight]",
+      target: (await sidebar()).getByRole("link", { name: /happiest/ }),
+    })
+    await user.click(await screen.findByRole("menuitem", { name: "Rename" }))
+
+    const input = await screen.findByRole("textbox", { name: "Conversation title" })
+
+    await waitFor(() => expect(document.activeElement).toBe(input))
+    await user.clear(input)
+    await user.type(input, "  Happiness ranking {Enter}")
+
+    const link = (await sidebar()).getByRole("link", { name: /Happiness ranking/ })
+
+    expect(document.activeElement).toBe(link)
+    expect((await sidebar()).getAllByRole("link").map((each) => each.getAttribute("href"))).toEqual(
+      [`/c/${brazil}`, `/c/${happiness}`],
+    )
+    expect(localStorage.getItem(key)).toContain('"title":"Happiness ranking"')
+  })
+
+  it("keeps a new title typed when the title's input is left", async () => {
+    const user = userEvent.setup()
+
+    store(entry())
+    network.use(turns(brazil, { answered: [] }))
+    show()
+
+    await user.pointer({ keys: "[MouseRight]", target: await card() })
+    await user.click(await screen.findByRole("menuitem", { name: "Rename" }))
+    const input = await screen.findByRole("textbox", { name: "Conversation title" })
+
+    await user.clear(input)
+    await user.type(input, "Life expectancy")
+    await user.click(screen.getByRole("searchbox", { name: "Search conversations" }))
+
+    expect((await sidebar()).getByRole("link", { name: /^Life expectancy/ })).toBeDefined()
+  })
+
+  it("keeps the old title when renaming is cancelled or left blank", async () => {
+    const user = userEvent.setup()
+    const title = "How has life expectancy changed in Brazil?"
+
+    store(entry({ title }))
+    network.use(turns(brazil, { answered: [] }))
+    show()
+
+    await user.pointer({ keys: "[MouseRight]", target: await card() })
+    await user.click(await screen.findByRole("menuitem", { name: "Rename" }))
+    await user.type(await screen.findByRole("textbox", { name: "Conversation title" }), "Chile")
+    await user.keyboard("{Escape}")
+
+    expect(document.activeElement).toBe(
+      (await sidebar()).getByRole("link", { name: new RegExp(`^${title}`) }),
+    )
+
+    await user.pointer({ keys: "[MouseRight]", target: await card() })
+    await user.click(await screen.findByRole("menuitem", { name: "Rename" }))
+    await user.clear(await screen.findByRole("textbox", { name: "Conversation title" }))
+    await user.keyboard("{Enter}")
+
+    expect((await sidebar()).getByRole("link", { name: new RegExp(`^${title}`) })).toBeDefined()
+    expect(localStorage.getItem(key)).toContain(title)
+  })
+
+  it("deletes a conversation from this browser's list, and its draft", async () => {
+    const user = userEvent.setup()
+
+    store(entry(), entry({ id: happiness, title: "Which countries are happiest?" }))
+    localStorage.setItem(draft(brazil), "And in Chile?")
+    network.use(turns(brazil, { answered: [] }), turns(happiness, { answered: [] }))
+    show()
+
+    await user.pointer({ keys: "[MouseRight]", target: await card() })
+    await user.click(await screen.findByRole("menuitem", { name: "Delete" }))
+
+    const list = await sidebar()
+
+    expect(list.queryByRole("link", { name: /life expectancy changed/ })).toBeNull()
+    expect(list.getByRole("link", { name: /happiest/ })).toBeDefined()
+    expect(localStorage.getItem(key)).not.toContain(brazil)
+    expect(localStorage.getItem(draft(brazil))).toBeNull()
+  })
+
+  it("goes to the home page when the open conversation is deleted", async () => {
+    const user = userEvent.setup()
+
+    store(entry())
+    network.use(turns(brazil, { answered: [] }))
+    show(`/c/${brazil}`)
+
+    await user.pointer({ keys: "[MouseRight]", target: await card() })
+    await user.click(await screen.findByRole("menuitem", { name: "Delete" }))
+
+    expect(await screen.findByText("Home")).toBeDefined()
+    expect(screen.queryByRole("navigation", { name: "Conversations" })).toBeNull()
   })
 
   it("keeps listing a conversation while its first question fails", async () => {
