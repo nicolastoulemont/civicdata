@@ -8,6 +8,12 @@
 
 Deploys run only after the `check` job passes. Fork pull requests run `check` without secrets and never deploy. Each stage gets its own Worker, D1 database, `Cache` bucket, conversation Durable Objects and pacing. The `prod` D1 database survives `alchemy destroy`.
 
+Only `prod` runs Workflows on a schedule. Pacing is per stage (`packages/server/src/Pace.ts`), so every stage that gathered on its own schedule would add a full stage's requests against the World Bank and the other publishers.
+
+### Closing a pull request
+
+The `cleanup` job destroys the stage when the pull request closes. `alchemy destroy` deletes what the stage's state lists: the Worker with its Durable Objects and custom domain, the Workflows, the D1 database, both buckets and the index. A pull request merged while its last push's `check` still runs closes before that push's preview deploys: `cleanup` finds an empty state and deletes nothing, then the `preview` job would deploy a stage nothing removes. So the `preview` job reads the pull request when it starts and, once it has closed, destroys the stage instead of deploying it, and the comment says "Removed". Both jobs share the `deploy-pr-<n>` concurrency group, so whichever runs last sees the closed pull request.
+
 ## Domains
 
 Production serves `https://openfacts.app`. Each `pr-<n>` stage serves
@@ -73,7 +79,7 @@ The Worker reads the catalog's tables through the `CATALOG_DB` binding, and bind
 
 Add the `own-catalog` label to a pull request that changes what the catalog or the store holds or how either is built: a table's shape, the embedding model, the catalog, politics or gather build code. Without it the preview reads production data that does not match its code: its search fails or returns wrong results, and production is unaffected.
 
-With the label, the preview gets its own catalog database binding, `Vectors` index, `Series` bucket and Workflows, and CI starts a catalog build after each deploy, as every preview did before. CI runs on `labeled` and `unlabeled`: adding the label redeploys the preview with its own resources and starts a build, and removing it points the preview back at production and deletes its own index, bucket and Workflows. The preview job reads the label when it deploys, not from the event, and passes `OWN_CATALOG` to the stack, which decides from it and the stage: only a `pr-<n>` stage without the label shares, and so does `alchemy dev` unless `OWN_CATALOG=true`. Production and a stage deployed by hand keep their own.
+With the label, the preview gets its own catalog database binding, `Vectors` index, `Series` bucket and Workflows, and CI starts a catalog build after each deploy, as every preview did before. Its Workflows have no schedule: the catalog builds once per deploy, and the series gather only when someone starts a run with the [Gather series](series.md#start-a-run-by-hand) workflow, so a pull request that changes gather code runs it against its own empty store on demand. The preview keeps both Workflows because a Workflow is the only code that writes its tables and bucket, and a build refuses to run in a Worker that binds only one of them (`database` in `packages/server/src/CatalogBuild.ts`). CI runs on `labeled` and `unlabeled`: adding the label redeploys the preview with its own resources and starts a build, and removing it points the preview back at production and deletes its own index, bucket and Workflows. The preview job reads the label when it deploys, not from the event, and passes `OWN_CATALOG` to the stack, which decides from it and the stage: only a `pr-<n>` stage without the label shares, and so does `alchemy dev` unless `OWN_CATALOG=true`. Production and a stage deployed by hand keep their own.
 
 R2 refuses to delete a bucket that holds objects. Every stage but `prod` sets `forceDestroy` on its two buckets, so `alchemy destroy` empties them first; on `prod` the destroy fails instead. A destroy reads `forceDestroy` from the stage's last deploy, not from the code it runs.
 
@@ -89,7 +95,9 @@ If the `cleanup` job fails, the closed pull request's comment says "Failed" and 
 gh workflow run remove.yml -f prs="100 109"
 ```
 
-It refuses an open pull request. For each stage, it deploys only the two buckets, which records `forceDestroy` on a stage last deployed without it, then destroys the stage. It deploys them as a stage with its own catalog, so a preview that read production's store gets an empty `Series` bucket of its own, which the destroy deletes. Its last step lists every `civicdata-` bucket left in the account and fails if one belongs to a closed pull request.
+It refuses an open pull request and destroys each stage. Its last step lists the account's Workers, Workflows, D1 databases, R2 buckets and Vectorize indexes, and fails if one's name carries `-pr-<n>-` for a closed pull request.
+
+A destroy reads the state store, never the stack's code, so a stage whose state is empty but whose resources exist (one whose state someone deleted) needs them deleted through the Cloudflare API or dashboard. Every resource's name carries its stage.
 
 ## One-time setup
 

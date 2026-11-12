@@ -18,10 +18,10 @@ const classifier = () =>
     : Classifier.off
 
 // The Workflow that builds the catalog and stores the political records,
-// every Monday at 04:00 UTC and once after each deploy (packages/infra). The
-// two builds run side by side, and one failing does not stop the other.
-// Workers only: package.json resolves `@openfacts/server/workflow` to
-// `workflow.node.ts` outside workerd.
+// once after each deploy and, in production, every Monday at 04:00 UTC
+// (packages/infra). The two builds run side by side, and one failing does
+// not stop the other. Workers only: package.json resolves
+// `@openfacts/server/workflow` to `workflow.node.ts` outside workerd.
 export class CatalogWorkflow extends WorkflowEntrypoint {
   override async run(
     event: Readonly<CloudflareWorkersModule.WorkflowEvent<unknown>>,
