@@ -29,7 +29,7 @@ question.ask                              browser: from the request to the answe
 | Worker       | `packages/server/src/index.ts`              | each `/api` request and the work behind it                                                                                                                              |
 | Conversation | `packages/server/src/ConversationObject.ts` | each request and the answer it starts; every span of a question carries `gen_ai.conversation.id`                                                                        |
 | Agent        | `packages/server/src/Agent.ts`              | the answer, each model request and each tool call, named and attributed as OpenTelemetry's [GenAI conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/) say |
-| Workflows    | `CatalogWorkflow.ts`, `GatherWorkflow.ts`   | each run, under `CatalogWorkflow.run` or `GatherWorkflow.run`                                                                                                           |
+| Workflows    | `CatalogWorkflow.ts`, `GatherWorkflow.ts`   | each run, under `CatalogWorkflow.run` or `GatherWorkflow.run`, with the work and source requests of each step under the span that ran the step                          |
 
 The agent's spans record:
 

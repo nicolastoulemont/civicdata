@@ -1,10 +1,10 @@
 import { Publisher } from "@openfacts/domain"
 import { Array as Arr, Context, Effect, Layer, Match, Option, Schema, Struct } from "effect"
-import { FetchHttpClient } from "effect/http"
 import { SqlClient, SqlSchema } from "effect/sql"
 
 import { ArchiveUnavailable, Archives, ElectionRecord, GovernmentRecord } from "./Archives.ts"
 import { database, Step } from "./CatalogBuild.ts"
+import * as Fetch from "./Fetch.ts"
 import { fingerprint } from "./fingerprint.ts"
 import { Dataset, datasets, politicsTables } from "./Politics.ts"
 
@@ -205,11 +205,12 @@ export class PoliticsBuild extends Context.Service<PoliticsBuild, Interface>()(
     }).pipe(Effect.orDie),
   )
 
-  // Inside Workers, where the Workflow runs, with D1 and the Worker's fetch.
+  // Inside Workers, where the Workflow runs, with D1 and the Worker's fetch,
+  // naming the app.
   static readonly live = PoliticsBuild.layer.pipe(
     Layer.provide(database),
     Layer.provide(Archives.layer),
-    Layer.provide(FetchHttpClient.layer),
+    Layer.provide(Fetch.layer),
   )
 
   // One generation of every dataset, numbered like the catalog's by the

@@ -1,9 +1,9 @@
 // Manual operation. Supply explicit D1 and R2 targets only after owner approval.
 import { Config, Duration, Effect, Layer } from "effect"
-import { FetchHttpClient } from "effect/http"
 
 import { Step } from "../src/CatalogBuild.ts"
 import { Faostat } from "../src/Faostat.ts"
+import * as Fetch from "../src/Fetch.ts"
 import { Gather } from "../src/Gather.ts"
 import { Ilostat } from "../src/Ilostat.ts"
 import { Imf } from "../src/Imf.ts"
@@ -59,9 +59,6 @@ export const fill = (source: "FAOSTAT" | "ILOSTAT" | "V-Dem" | "WID" | "IMF") =>
     yield* Gather.run(source).pipe(Effect.provide(Layer.merge(gather, Step.immediate)))
   }).pipe(
     Effect.provide(
-      Pace.paced(Duration.minutes(2)).pipe(
-        Layer.provide(FetchHttpClient.layer),
-        Layer.provide(Pace.memory),
-      ),
+      Pace.paced(Duration.minutes(2)).pipe(Layer.provide(Fetch.layer), Layer.provide(Pace.memory)),
     ),
   )
