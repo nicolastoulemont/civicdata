@@ -1,16 +1,28 @@
 import type { QueryClient } from "@tanstack/react-query"
 import { HeadContent, Outlet, Scripts, createRootRouteWithContext } from "@tanstack/react-router"
+import { Effect, Fiber } from "effect"
+import { useEffect } from "react"
 import { useTranslation } from "react-i18next"
 
+import { verify } from "@/api"
 import { createI18n } from "@/locale"
 import { origin } from "@/origin"
 import { script } from "@/settings/appearance"
 
 import styles from "@/styles.css?url"
 
-// The head script sets data-theme on <html> before React hydrates it.
+// The head script sets data-theme on <html> before React hydrates it. The
+// browser asks for its pass once the page loads (`verify`).
 const Root = () => {
   const { i18n } = useTranslation()
+
+  useEffect(() => {
+    const fiber = Effect.runFork(verify)
+
+    return () => {
+      Effect.runFork(Fiber.interrupt(fiber))
+    }
+  }, [])
 
   return (
     <html lang={i18n.language} suppressHydrationWarning>

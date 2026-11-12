@@ -35,9 +35,18 @@ import { ResolvedView } from "./ResolvedView.ts"
 import { VerificationRequired, VerificationUnavailable } from "./Verification.ts"
 import { View } from "./View.ts"
 
-class System extends HttpApiGroup.make("system", { topLevel: true }).add(
-  HttpApiEndpoint.get("health", "/health", { success: HttpApiSchema.NoContent }),
-) {}
+class System extends HttpApiGroup.make("system", { topLevel: true })
+  .add(HttpApiEndpoint.get("health", "/health", { success: HttpApiSchema.NoContent }))
+  // Gives the browser a pass for its session, so its questions and chart
+  // explanations need no challenge. It answers at once when the browser holds
+  // a pass already, and otherwise redeems the Turnstile proof the request
+  // carries.
+  .add(
+    HttpApiEndpoint.post("verify", "/verification", {
+      success: HttpApiSchema.NoContent,
+      error: [VerificationRequired, VerificationUnavailable],
+    }),
+  ) {}
 
 class Views extends HttpApiGroup.make("views")
   .add(

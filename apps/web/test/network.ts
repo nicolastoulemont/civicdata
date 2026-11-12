@@ -71,8 +71,12 @@ const traces = http.post("/api/otlp/v1/traces", async ({ request }) => {
 // The spans the page exported so far, in every test of the file.
 export const exportedSpans = (): ReadonlyArray<Exported> => exported
 
+// The Worker's check, which the app runs once it loads. A browser in a test
+// holds a pass.
+const verification = http.post("/api/verification", () => new HttpResponse(null, { status: 204 }))
+
 // The fake network every frontend test runs against. Register a test's
 // responses with `network.use(...)` handlers from `msw/http`.
-export const network = setupServer(traces, fallback)
+export const network = setupServer(traces, verification, fallback)
 
 export const drainUnhandled = () => unhandled.splice(0)
