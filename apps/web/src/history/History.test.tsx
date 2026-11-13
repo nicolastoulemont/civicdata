@@ -23,7 +23,7 @@ import {
   Outlet,
   RouterProvider,
 } from "@tanstack/react-router"
-import { render, screen, waitFor, within } from "@testing-library/react"
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { DateTime, Option, Schema } from "effect"
 import { http, HttpResponse } from "msw/http"
@@ -33,6 +33,7 @@ import { Conversation } from "@/conversation/Conversation"
 
 import { network } from "../../test/network.ts"
 import { Layout } from "./Layout.tsx"
+import { saved } from "./size.ts"
 
 // Where the list is kept. Its format outlives deploys: changing it empties
 // every visitor's list.
@@ -128,8 +129,8 @@ const blocked = () => {
 
 const decodeId = Schema.decodeUnknownOption(ConversationId)
 
-// The app's pages inside the real layout: a stand-in home page, and the real
-// conversation page.
+// The app's pages inside the real layout, sized from this browser's cookies
+// as the route sizes it: a stand-in home page, and the real conversation page.
 const show = (path = "/") => {
   const root = createRootRoute({ component: Outlet })
 
@@ -137,7 +138,7 @@ const show = (path = "/") => {
     getParentRoute: () => root,
     id: "chat",
     component: () => (
-      <Layout>
+      <Layout size={saved(document.cookie)}>
         <Outlet />
       </Layout>
     ),
@@ -182,7 +183,18 @@ const row = async () => (await sidebar()).findByRole("link", { name: /Life expec
 // The row for the default entry, about life expectancy in Brazil.
 const card = async () => (await sidebar()).findByRole("link", { name: /life expectancy changed/ })
 
-beforeEach(() => localStorage.clear())
+beforeEach(() => {
+  localStorage.clear()
+  document.cookie = "sidebar=; path=/; max-age=0"
+})
+
+// A reload: the page goes away and comes back over what this browser kept.
+const reload = (path = "/") => {
+  cleanup()
+  show(path)
+}
+
+const separator = () => screen.getByRole("separator", { name: "Resize the sidebar" })
 
 afterEach(() => {
   vi.useRealTimers()
@@ -699,6 +711,54 @@ describe("History", () => {
     )
 
     await user.keyboard("{Control>}b{/Control}")
+
+    expect(await sidebar()).toBeDefined()
+  })
+
+  it("reopens at the width it was dragged to, after a reload", async () => {
+    const user = userEvent.setup()
+
+    // happy-dom lays nothing out: every element is as wide as the window.
+    vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockReturnValue(1280)
+    store(entry())
+    network.use(turns(brazil, { answered: [] }))
+    show()
+
+    await sidebar()
+    const before = separator().getAttribute("aria-valuenow")
+
+    separator().focus()
+    await user.keyboard("{ArrowRight}{ArrowRight}{ArrowRight}")
+
+    const after = separator().getAttribute("aria-valuenow")
+
+    expect(after).not.toBe(before)
+
+    reload()
+
+    await sidebar()
+    expect(separator().getAttribute("aria-valuenow")).toBe(after)
+  })
+
+  it("stays closed after a reload once closed", async () => {
+    const user = userEvent.setup()
+
+    store(entry())
+    network.use(turns(brazil, { answered: [] }))
+    show(`/c/${brazil}`)
+
+    await sidebar()
+    await user.keyboard("{Control>}b{/Control}")
+    await waitFor(() =>
+      expect(screen.queryByRole("navigation", { name: "Conversations" })).toBeNull(),
+    )
+
+    reload(`/c/${brazil}`)
+
+    expect(await screen.findByRole("button", { name: "Toggle sidebar" })).toBeDefined()
+    expect(screen.queryByRole("navigation", { name: "Conversations" })).toBeNull()
+
+    await user.click(screen.getByRole("button", { name: "Toggle sidebar" }))
 
     expect(await sidebar()).toBeDefined()
   })
