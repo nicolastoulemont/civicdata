@@ -1,8 +1,9 @@
 import { DateTime, Duration, Effect, Schema } from "effect"
 
 import { Cache } from "../platform/Cache.ts"
-import type { Adapter } from "../series/Adapter.ts"
-import { Answer, Described, widen } from "../series/Series.ts"
+import type { Adapter } from "../series/Adapter.types.ts"
+import { Answer, Described } from "../series/Series.schemas.ts"
+import { widen } from "../series/Series.ts"
 
 const fresh = (at: DateTime.Utc, now: DateTime.Utc) =>
   Duration.isLessThan(DateTime.distance(at, now), Duration.days(1))

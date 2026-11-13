@@ -13,17 +13,24 @@ import {
 import { Context, DateTime, Effect, Layer, Option, Schema, Stream } from "effect"
 import { HttpClient } from "effect/http"
 
-import { AssetId, type Adapter, Policy } from "../series/Adapter.ts"
-import { Outline } from "../series/Outline.ts"
-import { type Stored } from "../series/Store.ts"
+import { AssetId } from "../series/Adapter.schemas.ts"
+import { type Adapter, Policy } from "../series/Adapter.types.ts"
+import { Outline } from "../series/Outline.schemas.ts"
+import { type Stored } from "../series/Store.schemas.ts"
 import { table } from "../utils/Table.ts"
 import surveys from "./assets/ilostat.json" with { type: "json" }
+import { archive } from "./constants/ilostat/archive.ts"
+import { archiveUrl } from "./constants/ilostat/archiveUrl.ts"
+import { dataset } from "./constants/ilostat/dataset.ts"
+import { definition } from "./constants/ilostat/definition.ts"
+import { indicator } from "./constants/ilostat/indicator.ts"
+import { name } from "./constants/ilostat/name.ts"
+import { tocUrl } from "./constants/ilostat/tocUrl.ts"
 
-const archive = "SDG_B552_NOC_RT_A"
-export const indicator = IndicatorId.make(`ILOSTAT:${archive}`)
-export const archiveUrl = `https://rplumber.ilo.org/data/indicator?format=.csv.gz&id=${archive}`
-export const tocUrl = "https://rplumber.ilo.org/metadata/toc/indicator?format=.csv&lang=en"
 const unavailable = () => new SourceUnavailable({ source: "ILOSTAT" })
+
+const check = (id: IndicatorId) =>
+  id === indicator ? Effect.void : Effect.fail(new IndicatorNotFound({ indicator: id }))
 
 // Hex of every UTF-8 byte: reversible and disjoint from native survey syntax.
 const encodeSurvey = (raw: string) =>
@@ -39,12 +46,6 @@ const dimension = Schema.decodeUnknownSync(Dimension)({
     label: `${code}: ${value.label} (${value.country})`,
   })),
 })
-
-export const definition =
-  "Female share of senior and middle management positions under the 19th ICLS employment definition, percent (multiplier 0). Not total management. Each survey/source is a separate series; no sex or age dimension is implied. Annual national observations only: quarter/semester/month reference periods and confirmed partial geography are excluded from plotted values, with publisher notes retained. Earlier-definition and working-poverty tables are not included."
-
-export const name = "Female share of senior and middle management, 19th ICLS (%)"
-export const dataset = `${archive}; International Labour Organization (ILO), ILOSTAT; CC BY 4.0 https://creativecommons.org/licenses/by/4.0/; https://www.ilo.org/rights-and-permissions; selection: annual national scope and survey/source; format changed, no aggregation`
 
 // The Node reader sorts on disk; Workers never collect an archive.
 export class IlostatArchive extends Context.Service<
@@ -195,9 +196,6 @@ export class Ilostat extends Context.Service<Ilostat, Adapter>()("@repo/server/I
         Effect.flatMap(versionOf),
         Effect.mapError(unavailable),
       )
-
-      const check = (id: IndicatorId) =>
-        id === indicator ? Effect.void : Effect.fail(new IndicatorNotFound({ indicator: id }))
 
       const adapter: Adapter = {
         policy: Policy.StoredOnly({ url: () => archiveUrl }),

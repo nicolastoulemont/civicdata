@@ -6,7 +6,6 @@ import {
   CatalogUnavailable,
   Change,
   Chart,
-  type ChartIndex,
   Cited,
   Country,
   Coverage,
@@ -100,23 +99,29 @@ import {
 import { Chat, LanguageModel, Prompt, Telemetry, Tool, Toolkit } from "effect/ai"
 import { FetchHttpClient } from "effect/http"
 
-import { Catalog, type Labelled } from "../catalog/Catalog.ts"
+import { Catalog } from "../catalog/Catalog.ts"
+import { type Labelled } from "../catalog/Catalog.types.ts"
 import { Directions } from "../catalog/Directions.ts"
 import { Politics } from "../politics/Politics.ts"
 import { Demand } from "../research/Demand.ts"
 import { Discovery } from "../research/Discovery.ts"
 import { Findings } from "../research/Findings.ts"
-import { Library, Found as PaperResults, Lead } from "../research/Library.ts"
+import { Found as PaperResults, Lead } from "../research/Library.schemas.ts"
+import { Library } from "../research/Library.ts"
 import { Papers } from "../research/Papers.ts"
-import { Question as PaperQuestion } from "../research/search.ts"
-import { Support, Checked } from "../research/Support.ts"
+import { Question as PaperQuestion } from "../research/search.schemas.ts"
+import { Checked } from "../research/Support.schemas.ts"
+import { Support } from "../research/Support.ts"
 import { recent } from "../series/Series.ts"
 import { Notes } from "../sources/Notes.ts"
 import { Sources } from "../sources/Sources.ts"
 import { Resolver } from "../views/Resolver.ts"
-import { coverage, Summary, summarize } from "../views/Summary.ts"
-import { cite } from "./Citations.ts"
+import { Summary } from "../views/Summary.schemas.ts"
+import { coverage } from "../views/utils/coverage.ts"
+import { summarize } from "../views/utils/summarize.ts"
+import type { Changed } from "./Agent.types.ts"
 import { openAi } from "./OpenAi.ts"
+import { cite } from "./utils/cite.ts"
 
 // Why an answer could not be given at all.
 type Failure = AgentUnavailable | CatalogUnavailable
@@ -128,14 +133,6 @@ type Unexplained =
   | IndicatorNotFound
   | TransformNotApplicable
   | DimensionsMissing
-
-// A chart a person changed since the model last heard of it: the question
-// whose answer holds it, its place in that answer, and the one on screen.
-export interface Changed {
-  readonly question: string
-  readonly chart: ChartIndex
-  readonly view: View
-}
 
 // A question, the country it was asked from when Cloudflare could place the
 // person, and the charts they changed since the model last heard of them.

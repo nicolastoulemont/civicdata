@@ -5,8 +5,9 @@ import { env } from "cloudflare:workers"
 import { DateTime, Duration, Effect, Layer } from "effect"
 import { TestClock } from "effect/testing"
 
-import { Demand, DemandUnavailable } from "../Demand.ts"
-import { Version } from "../store.ts"
+import { DemandUnavailable } from "../Demand.schemas.ts"
+import { Demand } from "../Demand.ts"
+import { Version } from "../store.schemas.ts"
 
 const db = env.DB
 

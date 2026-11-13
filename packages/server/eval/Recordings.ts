@@ -12,7 +12,8 @@ import {
 } from "effect/http"
 
 import { Cache } from "../src/platform/Cache.ts"
-import { hosts, Pace } from "../src/platform/Pace.ts"
+import { hosts } from "../src/platform/constants/hosts.ts"
+import { Pace } from "../src/platform/Pace.ts"
 import { Faostat } from "../src/sources/Faostat.ts"
 import { Ilostat } from "../src/sources/Ilostat.ts"
 import { Imf } from "../src/sources/Imf.ts"

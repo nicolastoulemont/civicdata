@@ -6,7 +6,8 @@ import { TestClock } from "effect/testing"
 
 import { steps } from "../../tests/fakes.ts"
 import { Catalog } from "../Catalog.ts"
-import { BuildFailed, CatalogBuild } from "../CatalogBuild.ts"
+import { BuildFailed } from "../CatalogBuild.schemas.ts"
+import { CatalogBuild } from "../CatalogBuild.ts"
 import { Directions } from "../Directions.ts"
 import {
   build,

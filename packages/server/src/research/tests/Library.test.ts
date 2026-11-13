@@ -3,10 +3,11 @@ import { reset } from "cloudflare:test"
 import { Effect, Layer } from "effect"
 
 import { Discovery } from "../Discovery.ts"
-import { Found, Lead, Library, LibraryUnavailable } from "../Library.ts"
+import { Found, Lead, LibraryUnavailable } from "../Library.schemas.ts"
+import { Library } from "../Library.ts"
 import { Papers } from "../Papers.ts"
-import { Question } from "../search.ts"
-import { PaperId } from "../store.ts"
+import { Question } from "../search.schemas.ts"
+import { PaperId } from "../store.schemas.ts"
 import { annotate, bibliography, bodyOf, entry, list, papersDb, stored } from "./papers.ts"
 
 // The lookup as the Worker builds it, over its PAPERS_DB and PAPERS bindings.

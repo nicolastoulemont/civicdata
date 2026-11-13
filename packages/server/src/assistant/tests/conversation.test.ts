@@ -105,17 +105,20 @@ import { strToU8, zipSync } from "fflate"
 
 import { Logged } from "../../../eval/candidates.ts"
 import { Handlers } from "../../api/Handlers.ts"
-import { Catalog, type Labelled } from "../../catalog/Catalog.ts"
+import { Catalog } from "../../catalog/Catalog.ts"
+import { type Labelled } from "../../catalog/Catalog.types.ts"
 import { Directions } from "../../catalog/Directions.ts"
 import { Politics } from "../../politics/Politics.ts"
 import { build, politicsOver, recorded as archived } from "../../politics/tests/politics.ts"
 import { Demand } from "../../research/Demand.ts"
 import { Discovery } from "../../research/Discovery.ts"
 import { Findings } from "../../research/Findings.ts"
-import { Found as PaperResults, Lead, Library } from "../../research/Library.ts"
+import { Found as PaperResults, Lead } from "../../research/Library.schemas.ts"
+import { Library } from "../../research/Library.ts"
 import { Papers } from "../../research/Papers.ts"
-import { Question as PaperQuestion } from "../../research/search.ts"
-import { Support, Verdict } from "../../research/Support.ts"
+import { Question as PaperQuestion } from "../../research/search.schemas.ts"
+import { Verdict } from "../../research/Support.schemas.ts"
+import { Support } from "../../research/Support.ts"
 import {
   annotate,
   bodyOf,
@@ -125,7 +128,7 @@ import {
   stored,
   withdrawCopy,
 } from "../../research/tests/papers.ts"
-import { Policy } from "../../series/Adapter.ts"
+import { Policy } from "../../series/Adapter.types.ts"
 import { Faostat } from "../../sources/Faostat.ts"
 import { Ilostat } from "../../sources/Ilostat.ts"
 import { Imf } from "../../sources/Imf.ts"
@@ -154,9 +157,11 @@ import { AskLimit } from "../../visitors/AskLimit.ts"
 import { Verification } from "../../visitors/Verification.ts"
 import { Agent } from "../Agent.ts"
 import { Answers } from "../Answers.ts"
+import { keep } from "../constants/keep.ts"
 import { open } from "../ConversationObject.ts"
 import { Conversations } from "../Conversations.ts"
-import { keep, type Storage, Transcript } from "../Transcript.ts"
+import { Transcript } from "../Transcript.ts"
+import { type Storage } from "../Transcript.types.ts"
 
 const lifeExpectancy = IndicatorId.make("SP.DYN.LE00.IN")
 const gdpPerPerson = IndicatorId.make("NY.GDP.PCAP.CD")

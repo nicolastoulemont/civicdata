@@ -3,17 +3,13 @@ import { Context, Effect, Layer, Predicate, type Redacted, Schema } from "effect
 import { type AiError, LanguageModel } from "effect/ai"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
 
-import {
-  Category,
-  type Classification,
-  complete,
-  grounded,
-  keyOf,
-  Labels,
-  Scope,
-  Settings,
-} from "./annotation.ts"
-import { Passage } from "./archive.ts"
+import { Category, type Classification, Labels, Scope } from "./annotation.schemas.ts"
+import { Settings } from "./annotation.ts"
+import { AnnotationInvalid, ProviderFailed, type Usage } from "./Annotator.schemas.ts"
+import { Passage } from "./archive.schemas.ts"
+import { complete } from "./utils/complete.ts"
+import { grounded } from "./utils/grounded.ts"
+import { keyOf } from "./utils/keyOf.ts"
 
 // The model calls that annotate a paper: one Responses request that selects
 // its scope and excerpts, one Decisions request that classifies its passages.
@@ -63,14 +59,6 @@ const choices = [
   },
 ] satisfies ReadonlyArray<{ value: Category; description: string }>
 
-const Tokens = Schema.NullOr(Schema.Int.check(Schema.isGreaterThanOrEqualTo(0)))
-
-// What one model call cost: its requests and the tokens the provider
-// reported, or null where it reported none.
-export const Usage = Schema.Struct({ requests: Schema.Int, input: Tokens, output: Tokens })
-
-export interface Usage extends Schema.Schema.Type<typeof Usage> {}
-
 const Response = Schema.Struct({
   answers: Schema.Array(
     Schema.Struct({
@@ -108,21 +96,6 @@ const Extracted = Schema.Struct({
     AuthorCausalEstimate: { evidence: Reference },
   }),
 })
-
-// The model answered, but not as the contract asks: malformed output, an
-// unknown sentence, an ungrounded quote, or missing or duplicate labels.
-// Asking again is a new attempt, not a retry.
-export class AnnotationInvalid extends Schema.TaggedError<
-  AnnotationInvalid,
-  { readonly brand: unique symbol }
->()("AnnotationInvalid", { problem: Schema.String }) {}
-
-// The provider did not answer: a network failure, an error status or a
-// timeout. Asking again may succeed.
-export class ProviderFailed extends Schema.TaggedError<
-  ProviderFailed,
-  { readonly brand: unique symbol }
->()("ProviderFailed", { problem: Schema.String }) {}
 
 const invalid = (problem: string) => new AnnotationInvalid({ problem })
 

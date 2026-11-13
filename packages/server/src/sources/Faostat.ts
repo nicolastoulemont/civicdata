@@ -13,10 +13,11 @@ import {
 import { Context, DateTime, Effect, Layer, Option, Schema, Stream } from "effect"
 import { HttpClient } from "effect/http"
 
-import { AssetId, type Adapter, Policy } from "../series/Adapter.ts"
+import { AssetId } from "../series/Adapter.schemas.ts"
+import { type Adapter, Policy } from "../series/Adapter.types.ts"
 import { unavailable } from "../series/Failure.ts"
-import { Outline } from "../series/Outline.ts"
-import type { Stored } from "../series/Store.ts"
+import { Outline } from "../series/Outline.schemas.ts"
+import type { Stored } from "../series/Store.schemas.ts"
 import areas from "./assets/faostat.json" with { type: "json" }
 
 const indicator = IndicatorId.make("FAOSTAT:AE")

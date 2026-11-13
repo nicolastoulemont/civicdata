@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@effect/vitest"
 
-import { scrub } from "../Answers.ts"
+import { scrub } from "../utils/scrub.ts"
 
 describe("scrub", () => {
   it.each([

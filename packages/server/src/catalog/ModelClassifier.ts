@@ -2,7 +2,9 @@ import { type CatalogEntry, Direction, IndicatorId } from "@repo/domain"
 import { Effect, Layer, Option, type Redacted, Schema } from "effect"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
 
-import { Classifier, ClassifierUnavailable, Classifying } from "./Classifier.ts"
+import { ClassifierUnavailable } from "./Classifier.schemas.ts"
+import { Classifier } from "./Classifier.ts"
+import { Classifying } from "./Classifier.types.ts"
 
 // The only model OpenAI's Decisions API serves.
 const model = "gpt-6-luna"

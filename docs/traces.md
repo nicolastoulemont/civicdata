@@ -57,7 +57,7 @@ Text attributes stop at 8,192 characters.
 
 Grafana Cloud drops the GenAI conventions' content attributes on ingest: `gen_ai.input.messages`, `gen_ai.output.messages`, `gen_ai.tool.call.arguments` and `gen_ai.tool.call.result` never reach Tempo, while `gen_ai.tool.name` and every `openfacts.` attribute do. The agent writes its content under the names above instead.
 
-A span that ends refusing a View ends as a success, with `openfacts.refusal` naming the refusal: `IndicatorNotFound`, `DimensionsMissing` or `TransformNotApplicable` (`settled` in `packages/server/src/platform/Traces.ts`). The agent sends such a call back to the model and the page asks the person to pick, so nothing failed, and `status = error` finds only what did. An HTTP client span keeps OpenTelemetry's rule: a 4xx answer marks it failed, though the OECD answers 404 for a key without data.
+A span that ends refusing a View ends as a success, with `openfacts.refusal` naming the refusal: `IndicatorNotFound`, `DimensionsMissing` or `TransformNotApplicable` (`settled` in `packages/server/src/platform/utils/settled.ts`). The agent sends such a call back to the model and the page asks the person to pick, so nothing failed, and `status = error` finds only what did. An HTTP client span keeps OpenTelemetry's rule: a 4xx answer marks it failed, though the OECD answers 404 for a key without data.
 
 Spans record the questions people ask, the country each was asked from and what the model writes, never an IP address or a request's headers. Grafana Cloud keeps them 14 days.
 

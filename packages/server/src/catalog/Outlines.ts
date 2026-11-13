@@ -2,8 +2,9 @@ import { Country, IndicatorId, type Source } from "@repo/domain"
 import { Array as Arr, Context, Effect, Layer, Option, Record, Schema, Stream } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
-import { type Codelist, Dimension, Outline, searchable } from "../series/Outline.ts"
-import type { SdmxSource } from "../sources/sdmx/SdmxSource.ts"
+import { type Codelist, Dimension, Outline } from "../series/Outline.schemas.ts"
+import { searchable } from "../series/utils/searchable.ts"
+import type { SdmxSource } from "../sources/sdmx/SdmxSource.types.ts"
 import { Structures } from "../sources/sdmx/Structures.ts"
 import { fingerprint } from "../utils/fingerprint.ts"
 

@@ -27,7 +27,8 @@ import {
   serving,
 } from "../../sources/tests/series.ts"
 import { http, steps } from "../../tests/fakes.ts"
-import { Gather, GatherFailed } from "../Gather.ts"
+import { GatherFailed } from "../Gather.schemas.ts"
+import { Gather } from "../Gather.ts"
 
 // Every test starts from empty bindings: the test Worker's D1 database and
 // buckets are shared by the file's tests.

@@ -1,7 +1,8 @@
 import type { CloudflareWorkersModule } from "@cloudflare/workers-types"
 import { Effect } from "effect"
 
-import { type WorkflowStep, Step } from "../platform/Step.ts"
+import { Step } from "../platform/Step.ts"
+import { type WorkflowStep } from "../platform/Step.types.ts"
 
 // Workflows' side of each step: saves a step's result by name, answers a
 // saved one without running it again, and retries a throwing body as its

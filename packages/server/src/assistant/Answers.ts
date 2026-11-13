@@ -14,7 +14,8 @@ import { Context, DateTime, Duration, Effect, Layer, Option, Schema } from "effe
 import { SqlClient } from "effect/sql"
 
 import { once } from "../platform/built.ts"
-import { defaultModel } from "./model.ts"
+import { defaultModel } from "./constants/defaultModel.ts"
+import { scrub } from "./utils/scrub.ts"
 
 // A chart a person changed before asking: the turn and place of the agent's
 // chart, and the chart on screen there.
@@ -50,22 +51,6 @@ type Tally = Action | "change"
 const keep = Duration.days(365)
 
 const writeLimit = Duration.seconds(5)
-
-// Text that names or reaches a person: an email address, or a run of nine or
-// more digits, such as a phone, card or account number, with up to two
-// spaces, dots, dashes or brackets between digits. A run ending in 000 is a
-// round figure, such as "1 000 000 000 people", and stays. A year or a range
-// of years has fewer digits.
-const email = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g
-const number = /\+?\d(?:[ .()-]{0,2}\d){8,}/g
-
-const isRound = (digits: string) => digits.endsWith("000")
-
-// A question with every email address and long number replaced.
-export const scrub = (question: string) =>
-  question
-    .replaceAll(email, "[email]")
-    .replaceAll(number, (run) => (isRound(run) ? run : "[number]"))
 
 // The columns stored as JSON.
 const Row = Schema.Struct({

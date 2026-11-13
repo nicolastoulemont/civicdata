@@ -5,7 +5,6 @@
 
 import {
   codesOf,
-  type Country,
   Dimensions,
   Indicator,
   type IndicatorId,
@@ -15,98 +14,21 @@ import {
   type SeriesKey,
   sourceOf,
   SourceUnavailable,
-  type Year,
 } from "@repo/domain"
-import { Array as Arr, Context, Data, Effect, Layer, Option, Order, Schema, Stream } from "effect"
+import { Array as Arr, Context, Effect, Layer, Option, Order, Schema, Stream } from "effect"
 
 import { fingerprint } from "../utils/fingerprint.ts"
-import { Described } from "./Series.ts"
-
-const imfCoherent = (value: {
-  readonly indicator?: { readonly id: IndicatorId }
-  readonly version: string
-  readonly observations: ReadonlyArray<Observation>
-  readonly qualifications?: ReadonlyArray<Qualification>
-}) =>
-  value.indicator?.id !== "IMF:NGDP_RPCH" ||
-  (value.observations.every((point) =>
-    (value.qualifications ?? []).some(
-      (item) =>
-        item.source === "IMF" &&
-        item.country === point.country &&
-        item.year === point.year &&
-        !item.missing &&
-        value.version.startsWith(`${item.vintage}/`),
-    ),
-  ) &&
-    (value.qualifications ?? []).every(
-      (item) =>
-        item.source === "IMF" &&
-        item.missing ===
-          !value.observations.some(
-            (point) => point.country === item.country && point.year === item.year,
-          ),
-    ))
-
-const coherent = (value: {
-  readonly indicator?: { readonly id: IndicatorId }
-  readonly version: string
-  readonly observations: ReadonlyArray<Observation>
-  readonly qualifications?: ReadonlyArray<Qualification>
-}) =>
-  imfCoherent(value) &&
-  (value.indicator?.id !== "V-Dem:v2x_polyarchy" ||
-    value.observations.every((point) =>
-      (value.qualifications ?? []).some(
-        (item) =>
-          item.source === "V-Dem" &&
-          item.country === point.country &&
-          item.year === point.year &&
-          item.estimate === point.value,
-      ),
-    )) &&
-  (value.qualifications ?? []).every(
-    (item) =>
-      item.source !== "V-Dem" ||
-      (item.version === value.version &&
-        (item.missing
-          ? !value.observations.some(
-              (point) => point.country === item.country && point.year === item.year,
-            )
-          : value.observations.some(
-              (point) =>
-                point.country === item.country &&
-                point.year === item.year &&
-                point.value === item.estimate,
-            ))),
-  )
-
-// One stored series: its values for every country and year we chart, what
-// the source calls its indicator, the value of each of its dimensions, when
-// the source was asked, and the source's own date for the release the values
-// came from, such as the World Development Indicators' last update.
-export const Stored = Schema.Struct({
-  ...Described.fields,
-  dimensions: Dimensions,
-  version: Schema.NonEmptyString,
-  observations: Schema.Array(Observation),
-  inputs: Schema.optionalKey(Schema.UndefinedOr(Schema.NonEmptyArray(Input))),
-  qualifications: Schema.optionalKey(Schema.Array(Qualification)),
-}).check(Schema.makeFilter(coherent))
-
-export interface Stored extends Schema.Schema.Type<typeof Stored> {}
+import { layout } from "./constants/layout.ts"
+import { Stored } from "./Store.schemas.ts"
+import { type Offer, Outcome, type Place, type SeriesBucket, Verdict } from "./Store.types.ts"
+import { coherent } from "./utils/coherent.ts"
+import { judge } from "./utils/judge.ts"
 
 // Country, then year: the order a stored series keeps its observations in.
 const byCountryYear = Order.combine(
   Order.mapInput(Order.String, (observation: Observation) => observation.country),
   Order.mapInput(Order.Number, (observation: Observation) => observation.year),
 )
-
-// The series' key: its indicator and dimensions.
-export const keyOf = (series: Stored): SeriesKey => ({
-  indicator: series.indicator.id,
-  dimensions: series.dimensions,
-})
 
 // A series as a pack holds it: without the indicator and dataset, which the
 // pack holds once for all its series.
@@ -217,12 +139,6 @@ const hashOf = (
     ),
   )
 
-// The folder of every object the store writes, which names the format they
-// hold. Bump its version when what an object holds changes, so a reader
-// never decodes an object of another format, and the gather, which records
-// each release under it, stores every series again.
-export const layout = "series/v2"
-
 // The object an entry lives in, in the bucket: `<layout>/<source>/<indicator>`.
 // The source's folder is its name in lower case, words joined by "-", such
 // as "world-bank". The object holds the entry's one pack, or the index of its
@@ -258,76 +174,11 @@ const textOf = (
 ) =>
   `{"_tag":"Pack","indicator":${JSON.stringify(indicator)},"dataset":${JSON.stringify(dataset)},"series":[${elements.join(",")}]}`
 
-// What the store needs from an R2 bucket binding.
-export interface SeriesBucket {
-  readonly get: (key: string) => Promise<{
-    readonly text: () => Promise<string>
-    readonly customMetadata?: Record<string, string> | undefined
-  } | null>
-  readonly put: (
-    key: string,
-    value: string,
-    options: {
-      readonly customMetadata: Record<string, string>
-      readonly onlyIf?: { readonly etagDoesNotMatch: string }
-    },
-  ) => Promise<{ readonly key: string } | null>
-  readonly delete: (keys: Array<string>) => Promise<void>
-}
-
 // The bucket failed to answer or to store.
 class StoreUnavailable extends Schema.TaggedError<
   StoreUnavailable,
   { readonly brand: unique symbol }
 >()("StoreUnavailable", { cause: Schema.Defect() }) {}
-
-// A country and year a series has a value for.
-export interface Place {
-  readonly country: Country
-  readonly year: Year
-}
-
-// What to do with a candidate for a stored series. A candidate that is empty
-// or loses country-years the stored series has is held back: the stored
-// series keeps serving. Revised values and added country-years replace it,
-// since sources revise legitimately, sometimes by a lot.
-type Verdict = Data.TaggedEnum<{
-  Replace: {}
-  Hold: { readonly reason: "Empty" | "Lost"; readonly lost: ReadonlyArray<Place> }
-}>
-
-const Verdict = Data.taggedEnum<Verdict>()
-
-const placeOf = ({ country, year }: Place) => `${country}:${year}`
-
-export const judge = (stored: ReadonlyArray<Place>, candidate: ReadonlyArray<Place>): Verdict => {
-  const kept = new Set(candidate.map(placeOf))
-
-  const lost = stored.flatMap(({ country, year }) =>
-    kept.has(placeOf({ country, year })) ? [] : [{ country, year }],
-  )
-
-  if (!Arr.isReadonlyArrayNonEmpty(candidate)) return Verdict.Hold({ reason: "Empty", lost })
-
-  return Arr.isArrayNonEmpty(lost) ? Verdict.Hold({ reason: "Lost", lost }) : Verdict.Replace()
-}
-
-// What a write did with one candidate: stored it, kept the stored series
-// because it holds the same values, or held it back.
-export type Outcome = Data.TaggedEnum<{
-  Stored: {}
-  Unchanged: {}
-  Held: { readonly reason: "Empty" | "Lost"; readonly lost: ReadonlyArray<Place> }
-}>
-
-export const Outcome = Data.taggedEnum<Outcome>()
-
-// A candidate, its observations sorted by country and year, and what the
-// write did with it.
-export interface Offer {
-  readonly candidate: Stored
-  readonly outcome: Outcome
-}
 
 interface Interface {
   readonly namespace: (name: string) => Interface

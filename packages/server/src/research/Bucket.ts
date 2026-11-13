@@ -1,17 +1,9 @@
 // A stage's PAPERS bucket, as the store's writers use it: through the
 // Worker's binding, or over Cloudflare's R2 API from a machine.
-import { Context, Effect, Layer, Option, Redacted, Schema } from "effect"
+import { Context, Effect, Layer, Option, Redacted } from "effect"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
 
-// R2 refused or failed a request for one object.
-export class BucketUnavailable extends Schema.TaggedError<
-  BucketUnavailable,
-  { readonly brand: unique symbol }
->()("BucketUnavailable", {
-  operation: Schema.String,
-  key: Schema.String,
-  problem: Schema.String,
-}) {}
+import { BucketUnavailable } from "./Bucket.schemas.ts"
 
 interface Interface {
   readonly get: (key: string) => Effect.Effect<Option.Option<Uint8Array>, BucketUnavailable>

@@ -3,7 +3,7 @@ import { Failure, SourceUnavailable } from "@repo/domain"
 import { Cause } from "effect"
 import { HttpClientError, HttpClientRequest, HttpClientResponse } from "effect/http"
 
-import { failureOf } from "../Failure.ts"
+import { failureOf } from "../utils/failureOf.ts"
 
 const request = HttpClientRequest.get("https://api.worldbank.org/v2/en/indicator/SP.POP.TOTL")
 

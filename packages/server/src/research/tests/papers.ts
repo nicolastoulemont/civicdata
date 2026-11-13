@@ -8,20 +8,13 @@ import { SqlClient } from "effect/sql"
 import corpus from "../../tests/fixtures/papers/corpus.json"
 import { plansOf } from "../../tests/plans.ts"
 import { fingerprint } from "../../utils/fingerprint.ts"
-import { Scope } from "../annotation.ts"
-import { Evidence, type Passage } from "../archive.ts"
-import { Entry } from "../entry.ts"
-import {
-  type Admission,
-  annotationKey,
-  Bibliography,
-  Body,
-  objectsOf,
-  PaperId,
-  type Reason,
-  tables,
-  type Withdrawal,
-} from "../store.ts"
+import { Scope } from "../annotation.schemas.ts"
+import { Evidence, type Passage } from "../archive.schemas.ts"
+import { Entry } from "../entry.schemas.ts"
+import { Bibliography, Body, PaperId, type Reason } from "../store.schemas.ts"
+import { annotationKey, tables, type Withdrawal } from "../store.ts"
+import { type Admission } from "../store.types.ts"
+import { objectsOf } from "../utils/objectsOf.ts"
 
 export const paper = () =>
   Paper.make({

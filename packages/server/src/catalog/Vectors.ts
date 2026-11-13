@@ -6,6 +6,9 @@
 import { type CatalogEntry, IndicatorId } from "@repo/domain"
 import { Array as Arr, Context, Effect, Layer, Schema } from "effect"
 
+import { VectorsUnavailable } from "./Vectors.schemas.ts"
+import type { Ai, Index } from "./Vectors.types.ts"
+
 const Embedded = Schema.Struct({ data: Schema.NonEmptyArray(Schema.Array(Schema.Finite)) })
 
 const Matches = Schema.Struct({
@@ -17,39 +20,6 @@ const Matches = Schema.Struct({
 interface Passage extends CatalogEntry {
   readonly labels: string
 }
-
-// What the index needs from the Workers AI binding. Its answers are decoded
-// before use: the types say what Workers AI documents, not what it sent.
-export interface Ai {
-  readonly run: (
-    name: string,
-    input: {
-      readonly text: ReadonlyArray<string>
-      readonly pooling: "cls"
-      readonly truncate_inputs: true
-    },
-  ) => Promise<{ readonly data: ReadonlyArray<ReadonlyArray<number>> }>
-}
-
-// What the index needs from a Vectorize index binding.
-export interface Index {
-  readonly upsert: (
-    vectors: Array<{ readonly id: string; readonly values: ReadonlyArray<number> }>,
-  ) => Promise<{ readonly mutationId: string }>
-  readonly deleteByIds: (ids: Array<string>) => Promise<{ readonly mutationId: string }>
-  readonly query: (
-    vector: ReadonlyArray<number>,
-    options: { readonly topK: number },
-  ) => Promise<{
-    readonly matches: ReadonlyArray<{ readonly id: string; readonly score: number }>
-  }>
-}
-
-// Workers AI or Vectorize failed, or answered in a shape we do not recognize.
-export class VectorsUnavailable extends Schema.TaggedError<
-  VectorsUnavailable,
-  { readonly brand: unique symbol }
->()("VectorsUnavailable", { cause: Schema.Unknown }) {}
 
 interface Interface {
   // The model that embeds entries. Vectors it stored under another model do

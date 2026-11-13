@@ -3,20 +3,17 @@ import { Context, Effect, Layer, Schema, Stream } from "effect"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
 import { Gunzip } from "fflate"
 
-import type { Discovery } from "../../series/Adapter.ts"
-import type { Codelist, Outline } from "../../series/Outline.ts"
-import {
-  Constraints,
-  constraints,
-  DataStructures,
-  EurostatCodelists,
-  eurostatLabels,
-  type Labels,
-  metabase,
-  OecdCodelists,
-  oecdLabels,
-} from "./parse.ts"
-import { eurostat, oecd, type SdmxSource } from "./SdmxSource.ts"
+import type { Discovery } from "../../series/Adapter.types.ts"
+import type { Codelist, Outline } from "../../series/Outline.schemas.ts"
+import { eurostat } from "./constants/eurostat.ts"
+import { oecd } from "./constants/oecd.ts"
+import { Constraints, DataStructures, EurostatCodelists, OecdCodelists } from "./parse.schemas.ts"
+import { metabase } from "./parse.ts"
+import { type Labels } from "./parse.types.ts"
+import { type SdmxSource } from "./SdmxSource.types.ts"
+import { constraints } from "./utils/constraints.ts"
+import { eurostatLabels } from "./utils/eurostatLabels.ts"
+import { oecdLabels } from "./utils/oecdLabels.ts"
 
 const structure = "application/vnd.sdmx.structure+json;version=1.0"
 

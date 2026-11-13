@@ -25,6 +25,8 @@ import { orUnbuilt } from "../platform/built.ts"
 import events from "./assets/official/events.json"
 import reforms from "./assets/official/reforms.json"
 import colors from "./assets/parties/colors.json"
+import { datasets } from "./constants/datasets.ts"
+import { Dataset } from "./Politics.schemas.ts"
 
 interface Query {
   readonly countries: ReadonlyArray<Country>
@@ -38,19 +40,6 @@ interface Interface {
   // and reforms of the years that concern any of them.
   readonly records: (query: Query) => Effect.Effect<PoliticalRecords, PoliticsUnavailable>
 }
-
-// The kinds of political records, each in its own table.
-const Records = Schema.Literals(["governments", "elections"])
-
-// One publisher's records of one kind, stored and published together.
-export const Dataset = Schema.Struct({ records: Records, publisher: Publisher })
-
-export type Dataset = typeof Dataset.Type
-
-// Every dataset a build stores and every answer reads.
-export const datasets: ReadonlyArray<Dataset> = Records.literals.flatMap((records) =>
-  Publisher.literals.map((publisher) => ({ records, publisher })),
-)
 
 // The political records' tables. `governments` and `elections` hold every
 // generation of each publisher's records; `politics_current` names the

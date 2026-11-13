@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 
-import { records } from "../sdmx/Csv.ts"
+import { records } from "../sdmx/utils/records.ts"
 
 describe("records", () => {
   it("reads quoted fields that hold commas, quotes and line breaks", () => {

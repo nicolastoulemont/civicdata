@@ -4,7 +4,7 @@ World Bank charts read from our own copy of the World Development Indicators ins
 
 ## Sources
 
-Each registered publisher implements `Adapter` in `packages/server/src/series/Adapter.ts`. Listing and discovery describe the searchable catalog, independently of what is mirrored. `describe` supplies metadata; `fetch` supplies API observations. A file adapter's raw `fetch` should fail with `SourceUnavailable({ source, reason: "NotStored" })`; the shared read path never calls it.
+Each registered publisher implements `Adapter` in `packages/server/src/series/Adapter.types.ts`. Listing and discovery describe the searchable catalog, independently of what is mirrored. `describe` supplies metadata; `fetch` supplies API observations. A file adapter's raw `fetch` should fail with `SourceUnavailable({ source, reason: "NotStored" })`; the shared read path never calls it.
 
 The read policy has three explicit variants:
 
@@ -49,7 +49,7 @@ The reason is typed. `Failure` in `packages/domain/src/Errors.ts` says what the 
 | `Unreadable`             | an answer that does not decode, or that breaks the streaming contract                | after three runs |
 | `Internal`               | our store or database failed, or a Workflow step lost its error's type (ledger only) | none             |
 
-`failureOf` in `packages/server/src/series/Failure.ts` classifies an HTTP client error, a timeout, a schema error or an adapter's `SourceUnavailable`, and `unavailable(source, url)` maps a request's errors with it and logs the error itself. Every adapter request should go through it. A `SourceUnavailable` without a `failure` counts as `Unreadable`. Clients receive the status code and the category, never the answer's body.
+`failureOf` in `packages/server/src/series/utils/failureOf.ts` classifies an HTTP client error, a timeout, a schema error or an adapter's `SourceUnavailable`, and `unavailable(source, url)` maps a request's errors with it and logs the error itself. Every adapter request should go through it. A `SourceUnavailable` without a `failure` counts as `Unreadable`. Clients receive the status code and the category, never the answer's body.
 
 After three separate-run failures on the same wanted version, an asset whose last reason is `Refused` or `Unreadable` waits seven days from the last attempt, unless its wanted version changes. Any other reason leaves it wanted on the next run, however many runs failed. Rows recorded before reasons were typed hold a string reason; they never start a backoff, so the next run asks for them again and records a typed reason, keeping the failure count.
 

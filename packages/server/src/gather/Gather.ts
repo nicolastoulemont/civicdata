@@ -27,11 +27,19 @@ import { SqlClient, SqlSchema } from "effect/sql"
 import { tables } from "../catalog/Catalog.ts"
 import { database } from "../platform/built.ts"
 import { Pace } from "../platform/Pace.ts"
-import { Step, type StepFailed } from "../platform/Step.ts"
-import { AssetId, type Bulk, Release, Versions } from "../series/Adapter.ts"
-import { ledger, reasonOf, type Wanted } from "../series/GatherLedger.ts"
+import { type StepFailed } from "../platform/Step.schemas.ts"
+import { Step } from "../platform/Step.ts"
+import { AssetId, Release, Versions } from "../series/Adapter.schemas.ts"
+import { type Bulk } from "../series/Adapter.types.ts"
+import { type Wanted } from "../series/GatherLedger.schemas.ts"
+import { ledger } from "../series/GatherLedger.ts"
 import { Releases, releaseTables } from "../series/Releases.ts"
-import { judge, keyOf, Outcome, type Place, Stored, Store } from "../series/Store.ts"
+import { Stored } from "../series/Store.schemas.ts"
+import { Store } from "../series/Store.ts"
+import { Outcome, type Place } from "../series/Store.types.ts"
+import { judge } from "../series/utils/judge.ts"
+import { keyOf } from "../series/utils/keyOf.ts"
+import { reasonOf } from "../series/utils/reasonOf.ts"
 import { Faostat } from "../sources/Faostat.ts"
 import { Ilostat } from "../sources/Ilostat.ts"
 import { Imf } from "../sources/Imf.ts"
@@ -42,6 +50,7 @@ import { Vdem } from "../sources/Vdem.ts"
 import { Who } from "../sources/Who.ts"
 import { Wid } from "../sources/Wid.ts"
 import { WorldBank } from "../sources/WorldBank.ts"
+import { GatherFailed } from "./Gather.schemas.ts"
 
 // Assets per step. The World Bank's bulk download of one is a ZIP
 // of about 50 KB, served in a tenth of a second. Pace keeps requests within
@@ -92,14 +101,6 @@ interface Interface {
     options: { versions: Versions; after: string; streak: number },
   ) => Effect.Effect<Batch>
 }
-
-// A run that left some sources ungathered: five consecutive asset failures
-// stopped them, or a step failed. The other sources still ran, and the
-// ledger keeps what each stored.
-export class GatherFailed extends Schema.TaggedError<
-  GatherFailed,
-  { readonly brand: unique symbol }
->()("GatherFailed", { sources: Schema.Array(Source) }) {}
 
 const PlacesJson = Schema.fromJsonString(
   Schema.Array(Schema.Struct({ country: Schema.String, year: Schema.Int })),

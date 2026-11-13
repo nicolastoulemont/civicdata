@@ -10,7 +10,7 @@ import {
 import { DateTime } from "effect"
 import { describe, expect, it } from "vitest"
 
-import { summarize } from "../Summary.ts"
+import { summarize } from "../utils/summarize.ts"
 
 const youthUnemployment = IndicatorId.make("SL.UEM.1524.ZS")
 

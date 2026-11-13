@@ -19,7 +19,7 @@ import countries from "../../tests/fixtures/who/countries.json"
 import directory from "../../tests/fixtures/who/directory.json"
 import series from "../../tests/fixtures/who/series.json"
 import { Resolver } from "../../views/Resolver.ts"
-import { summarize } from "../../views/Summary.ts"
+import { summarize } from "../../views/utils/summarize.ts"
 import { Sources } from "../Sources.ts"
 import { Who } from "../Who.ts"
 

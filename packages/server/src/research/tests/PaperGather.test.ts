@@ -7,11 +7,14 @@ import { TestClock } from "effect/testing"
 
 import { Step } from "../../platform/Step.ts"
 import { fingerprint } from "../../utils/fingerprint.ts"
-import { Work } from "../archive.ts"
+import { Work } from "../archive.schemas.ts"
 import { Bucket } from "../Bucket.ts"
-import { keyed, type Limits, Outcome, paced, run, sources, type Topic } from "../Gather.ts"
-import { Held, Papers } from "../Papers.ts"
-import { PaperId } from "../store.ts"
+import { Outcome, type Topic } from "../Gather.schemas.ts"
+import { keyed, paced, run, sources } from "../Gather.ts"
+import { type Limits } from "../Gather.types.ts"
+import { Held } from "../Papers.schemas.ts"
+import { Papers } from "../Papers.ts"
+import { PaperId } from "../store.schemas.ts"
 import {
   bibliography,
   papersBucket,

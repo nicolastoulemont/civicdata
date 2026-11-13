@@ -2,7 +2,6 @@ import { expect, it } from "@effect/vitest"
 import { Effect, Schema } from "effect"
 import type { NonEmptyReadonlyArray } from "effect/Array"
 
-import { model, rubric } from "../../src/research/annotation.ts"
 import {
   Attempt,
   Content,
@@ -11,10 +10,15 @@ import {
   Paper,
   type Passage,
   Seed,
-} from "../../src/research/archive.ts"
-import { Held, Papers } from "../../src/research/Papers.ts"
+} from "../../src/research/archive.schemas.ts"
+import { model } from "../../src/research/constants/model.ts"
+import { rubric } from "../../src/research/constants/rubric.ts"
+import { Held } from "../../src/research/Papers.schemas.ts"
+import { Papers } from "../../src/research/Papers.ts"
 import { withdraw } from "../../src/research/publication.ts"
-import { annotationKey, objectsOf, PaperId } from "../../src/research/store.ts"
+import { PaperId } from "../../src/research/store.schemas.ts"
+import { annotationKey } from "../../src/research/store.ts"
+import { objectsOf } from "../../src/research/utils/objectsOf.ts"
 import { fingerprint } from "../../src/utils/fingerprint.ts"
 import { Publication, publish } from "./publish.ts"
 import { annotate, corpus, stage } from "./testing.ts"

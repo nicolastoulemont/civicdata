@@ -5,7 +5,7 @@ import { SqlClient, SqlSchema } from "effect/sql"
 
 import { orUnbuilt } from "../platform/built.ts"
 import { fingerprint } from "../utils/fingerprint.ts"
-import { Release } from "./Adapter.ts"
+import { Release } from "./Adapter.schemas.ts"
 import { ledger } from "./GatherLedger.ts"
 
 const Manifest = Schema.Struct({

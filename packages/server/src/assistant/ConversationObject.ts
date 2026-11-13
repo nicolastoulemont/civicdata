@@ -7,6 +7,7 @@ import { HttpApiBuilder } from "effect/http-api"
 import { Catalog } from "../catalog/Catalog.ts"
 import { Directions } from "../catalog/Directions.ts"
 import * as Traces from "../platform/Traces.ts"
+import type { ServeOptions } from "../platform/Traces.types.ts"
 import { Politics } from "../politics/Politics.ts"
 import { Papers } from "../research/Papers.ts"
 import { Notes } from "../sources/Notes.ts"
@@ -75,7 +76,7 @@ interface DurableObject {
 // answer's spans go with the request that asked it, until its reader leaves.
 export const open = (
   layer: Layer.Layer<Agent | AskLimit | Transcript | Answers | Papers>,
-  { tracer = Traces.layer }: Traces.ServeOptions = {},
+  { tracer = Traces.layer }: ServeOptions = {},
 ): DurableObject => {
   const runtime = ManagedRuntime.make(Conversation.layer.pipe(Layer.provideMerge(layer)))
 

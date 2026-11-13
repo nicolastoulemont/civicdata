@@ -3,7 +3,7 @@ import { DateTime, Option, Schema } from "effect"
 import { describe, expect, it } from "vitest"
 
 import events from "../../politics/assets/official/events.json"
-import { cite } from "../Citations.ts"
+import { cite } from "../utils/cite.ts"
 
 // Mariano Rajoy's government of the People's Party, and the financial crisis
 // as events.json records it.

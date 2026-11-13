@@ -4,17 +4,9 @@ import { Array as Arr, Context, Effect, Layer, Option, Record, Schedule, Schema 
 import { SqlClient, SqlError, SqlSchema } from "effect/sql"
 
 import { orUnbuilt } from "../platform/built.ts"
-import { Dimension, Outline } from "../series/Outline.ts"
+import { Dimension, Outline } from "../series/Outline.schemas.ts"
+import type { Labelled } from "./Catalog.types.ts"
 import { Vectors } from "./Vectors.ts"
-
-// A dataset's outline as search hands it over: each code of its dimensions
-// with its label, or the code itself while it has none.
-export interface Labelled extends Omit<Outline, "dimensions"> {
-  readonly dimensions: ReadonlyArray<{
-    readonly id: Dimension["id"]
-    readonly codes: Arr.NonEmptyReadonlyArray<{ readonly code: string; readonly label: string }>
-  }>
-}
 
 interface Interface {
   // The entries that best match the text, best first, of one source when
@@ -176,7 +168,7 @@ export const tables = Effect.gen(function* () {
       model TEXT NOT NULL
     )
   `
-  // The outline of each Eurostat dataset and OECD dataflow (series/Outline.ts): its
+  // The outline of each Eurostat dataset and OECD dataflow (series/Outline.schemas.ts): its
   // dimensions with their codes and codelists, whether it has annual values,
   // our countries it covers and its first and last year, kept apart from the
   // generations since the source's listing does not hold them. `fingerprint`

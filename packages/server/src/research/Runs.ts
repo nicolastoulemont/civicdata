@@ -16,18 +16,9 @@ import { SqlClient } from "effect/sql"
 import { Pace } from "../platform/Pace.ts"
 import { Step } from "../platform/Step.ts"
 import { Bucket } from "./Bucket.ts"
-import {
-  anonymous,
-  keyed,
-  type Cap,
-  type Fetched,
-  Outcome,
-  type Report,
-  run,
-  type Searched,
-  sources,
-  type Topic,
-} from "./Gather.ts"
+import { Outcome, type Topic } from "./Gather.schemas.ts"
+import { anonymous, keyed, run, sources } from "./Gather.ts"
+import { type Cap, type Fetched, type Report, type Searched } from "./Gather.types.ts"
 
 const megabyte = 1024 * 1024
 

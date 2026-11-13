@@ -21,9 +21,10 @@ import {
 } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
 
-import { type Adapter, Policy } from "../series/Adapter.ts"
-import { Outline } from "../series/Outline.ts"
-import { type Query, choose } from "../series/Series.ts"
+import { type Adapter, Policy } from "../series/Adapter.types.ts"
+import { Outline } from "../series/Outline.schemas.ts"
+import { choose } from "../series/Series.ts"
+import { type Query } from "../series/Series.types.ts"
 import { cached } from "./Api.ts"
 
 const base = "https://api.insee.fr/melodi"

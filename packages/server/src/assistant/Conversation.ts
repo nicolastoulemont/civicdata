@@ -53,9 +53,12 @@ import {
 import { Chat } from "effect/ai"
 
 import { Papers } from "../research/Papers.ts"
-import { Agent, type Changed } from "./Agent.ts"
+import { Agent } from "./Agent.ts"
+import { type Changed } from "./Agent.types.ts"
 import { Answers } from "./Answers.ts"
-import { type Edit, type Saved, Transcript } from "./Transcript.ts"
+import { type Edit } from "./Transcript.schemas.ts"
+import { Transcript } from "./Transcript.ts"
+import { type Saved } from "./Transcript.types.ts"
 
 // Why an answer stopped short.
 type Failure = AgentUnavailable | CatalogUnavailable

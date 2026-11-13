@@ -6,11 +6,7 @@
 import { SourceUnavailable } from "@repo/domain"
 import { Context, DateTime, Effect, Layer, Option, Schema } from "effect"
 
-// What the cache needs from an R2 bucket binding.
-export interface Bucket {
-  readonly get: (key: string) => Promise<{ readonly text: () => Promise<string> } | null>
-  readonly put: (key: string, value: string) => Promise<{ readonly key: string } | null>
-}
+import type { Bucket } from "./Cache.types.ts"
 
 interface Interface {
   readonly get: (key: string) => Effect.Effect<Option.Option<string>>

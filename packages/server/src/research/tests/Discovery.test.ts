@@ -5,9 +5,12 @@ import { Array as Arr, Effect, Schema } from "effect"
 import { SqlClient } from "effect/sql"
 
 import run from "../../../../../docs/research/papers/corpus-run.json"
-import { Discovery, listsReferences, Match, QueryInvalid } from "../Discovery.ts"
-import { PapersUnavailable } from "../Papers.ts"
-import { PaperId, tables } from "../store.ts"
+import { Match, QueryInvalid } from "../Discovery.schemas.ts"
+import { Discovery } from "../Discovery.ts"
+import { PapersUnavailable } from "../Papers.schemas.ts"
+import { PaperId } from "../store.schemas.ts"
+import { tables } from "../store.ts"
+import { listsReferences } from "../utils/listsReferences.ts"
 import { bibliography, body, entries, list, papersDb, publish, stored, withdraw } from "./papers.ts"
 
 // Search as the Worker builds it, over its PAPERS_DB binding.

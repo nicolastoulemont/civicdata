@@ -29,7 +29,7 @@ const lifeExpectancy = {
 
 const population = {
   worldBank: ["SP.POP.TOTL"],
-  // On 1 January rather than at mid-year, as Counterparts.ts groups them.
+  // On 1 January rather than at mid-year, as views/utils/counterparts.ts groups them.
   eurostat: [{ indicator: "ESTAT,TPS00001,1.0", dimensions: {} }],
   oecd: [
     {

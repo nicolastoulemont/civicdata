@@ -1,7 +1,7 @@
 import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai"
 import { Layer, Redacted } from "effect"
 
-import { defaultModel } from "./model.ts"
+import { defaultModel } from "./constants/defaultModel.ts"
 
 interface Options {
   // The model the deployment names in OPENAI_MODEL.

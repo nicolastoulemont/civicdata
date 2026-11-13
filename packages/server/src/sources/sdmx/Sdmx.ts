@@ -26,13 +26,20 @@ import {
 import { HttpClient, HttpClientRequest } from "effect/http"
 
 import { Cache } from "../../platform/Cache.ts"
-import { type Adapter, Policy } from "../../series/Adapter.ts"
-import { Answer, type Query, widen } from "../../series/Series.ts"
-import { geo } from "../geo.ts"
+import { type Adapter, Policy } from "../../series/Adapter.types.ts"
+import { Answer } from "../../series/Series.schemas.ts"
+import { widen } from "../../series/Series.ts"
+import { type Query } from "../../series/Series.types.ts"
+import { geo } from "../constants/geo.ts"
 import { plain } from "../utils/text.ts"
-import * as Csv from "./Csv.ts"
-import { eurostat, oecd, type SdmxSource } from "./SdmxSource.ts"
+import { areas } from "./constants/areas.ts"
+import { eurostat } from "./constants/eurostat.ts"
+import { oecd } from "./constants/oecd.ts"
+import { type SdmxSource } from "./SdmxSource.types.ts"
 import { Structures, discovery } from "./Structures.ts"
+import { observations as csvObservations } from "./utils/observations.ts"
+import { options as csvOptions } from "./utils/options.ts"
+import { parts } from "./utils/parts.ts"
 
 // A dataflow's name and description, and for the OECD the order of its
 // dimensions, which its data URLs spell out key by key.
@@ -53,19 +60,10 @@ const Options = Schema.Struct({
 
 type Options = typeof Options.Type
 
-export { eurostat, oecd } from "./SdmxSource.ts"
-
 // Each SDMX source's adapter. Nothing of theirs is stored yet.
 type Interface = { readonly [source in SdmxSource]: Adapter }
 
 const sdmxCsv = "application/vnd.sdmx.data+csv;version=2.0.0"
-
-// "agency,id,version", as IndicatorId checks it.
-export const parts = (indicator: IndicatorId) => {
-  const [agency = "", id = "", version = ""] = indicator.split(",")
-
-  return { agency, id, version }
-}
 
 // Eurostat's dataflow query answers JSON-stat with a label and, for most
 // dataflows, a description; its SDMX structures come as XML only.
@@ -224,7 +222,7 @@ const choose = ({ dimensions, series }: Options, picked: Dimensions) => {
 }
 
 const area = (indicator: IndicatorId) =>
-  Csv.areas[sourceOf(indicator) === "Eurostat" ? "Eurostat" : "OECD"]
+  areas[sourceOf(indicator) === "Eurostat" ? "Eurostat" : "OECD"]
 
 const make = (remember: Remember) =>
   Effect.gen(function* () {
@@ -463,7 +461,7 @@ const make = (remember: Remember) =>
       })
 
       const listing =
-        csv === undefined ? { dimensions: [], series: [] } : Csv.options(csv, area(query.indicator))
+        csv === undefined ? { dimensions: [], series: [] } : csvOptions(csv, area(query.indicator))
 
       if (listing === undefined)
         return yield* refuse(sourceOf(query.indicator), {
@@ -498,7 +496,7 @@ const make = (remember: Remember) =>
 
       if (csv === undefined) return { observations: [], url, retrievedAt, dimensions: listed }
 
-      const parsed = Csv.observations(csv, area(query.indicator))
+      const parsed = csvObservations(csv, area(query.indicator))
 
       if (parsed === undefined)
         return yield* refuse(sourceOf(query.indicator), { url, answer: { status: 200, body: csv } })

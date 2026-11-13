@@ -1,7 +1,7 @@
 import { Country, Year, Qualification, SourceUnavailable } from "@repo/domain"
 import { Effect, Schema } from "effect"
 
-import { Stored } from "../src/series/Store.ts"
+import { Stored } from "../src/series/Store.schemas.ts"
 import { growth } from "../src/sources/Imf.ts"
 import { table } from "../src/utils/Table.ts"
 

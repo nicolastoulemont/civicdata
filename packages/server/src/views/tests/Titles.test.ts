@@ -1,6 +1,6 @@
 import { describe, expect, it } from "@effect/vitest"
 
-import { fits } from "../Titles.ts"
+import { fits } from "../utils/fits.ts"
 
 const name = "GDP per capita, PPP (constant 2021 international $)"
 

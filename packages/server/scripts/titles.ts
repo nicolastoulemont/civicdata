@@ -15,11 +15,11 @@ import { Array as Arr, Config, Effect, Layer, Option, Schema } from "effect"
 import { LanguageModel } from "effect/ai"
 import { FetchHttpClient } from "effect/http"
 
-import { about } from "../src/assistant/model.ts"
 import { languageModel } from "../src/assistant/OpenAi.ts"
+import { about } from "../src/assistant/utils/about.ts"
 import { Cache } from "../src/platform/Cache.ts"
 import { WorldBank } from "../src/sources/WorldBank.ts"
-import { fits } from "../src/views/Titles.ts"
+import { fits } from "../src/views/utils/fits.ts"
 
 const target = new URL("../src/views/titles.gen.ts", import.meta.url)
 

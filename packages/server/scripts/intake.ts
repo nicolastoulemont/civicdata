@@ -6,7 +6,7 @@ import { Effect, Layer, Schema } from "effect"
 import { FileSystem } from "effect/FileSystem"
 
 import * as Fetch from "../src/platform/Fetch.ts"
-import { Content } from "../src/research/archive.ts"
+import { Content } from "../src/research/archive.schemas.ts"
 import { Licences } from "../src/research/Licences.ts"
 import { OpenAlex } from "../src/research/OpenAlex.ts"
 import { intake, Source } from "./papers/intake.ts"

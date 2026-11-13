@@ -6,8 +6,12 @@ import { database } from "../platform/built.ts"
 import * as Fetch from "../platform/Fetch.ts"
 import { Step } from "../platform/Step.ts"
 import { fingerprint } from "../utils/fingerprint.ts"
-import { ArchiveUnavailable, Archives, ElectionRecord, GovernmentRecord } from "./Archives.ts"
-import { Dataset, datasets, politicsTables } from "./Politics.ts"
+import { ArchiveUnavailable, ElectionRecord, GovernmentRecord } from "./Archives.schemas.ts"
+import { Archives } from "./Archives.ts"
+import { datasets } from "./constants/datasets.ts"
+import { Dataset } from "./Politics.schemas.ts"
+import { politicsTables } from "./Politics.ts"
+import { PoliticsBuildFailed } from "./PoliticsBuild.schemas.ts"
 
 // Each insert binds one JSON array of records, unpacked by SQLite's
 // json_each. 500 governments is about 150 KB, under D1's 2 MB limit for one
@@ -42,14 +46,6 @@ interface Interface {
   // published, and drops the dataset's older generations.
   readonly publish: (dataset: Dataset, generation: number) => Effect.Effect<void>
 }
-
-// A build that left some datasets on their previous generation.
-export class PoliticsBuildFailed extends Schema.TaggedError<
-  PoliticsBuildFailed,
-  { readonly brand: unique symbol }
->()("PoliticsBuildFailed", {
-  datasets: Schema.Array(Dataset),
-}) {}
 
 // Stores each publisher's governments and elections in D1 for Politics to
 // read, in the same Workflow as the indicator catalog (CatalogWorkflow.ts).

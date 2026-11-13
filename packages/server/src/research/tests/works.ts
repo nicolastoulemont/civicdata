@@ -1,4 +1,4 @@
-import { Work } from "../archive.ts"
+import { Work } from "../archive.schemas.ts"
 
 // A work OpenAlex lists, valid by default: one CC BY copy on a host of its
 // own, whose PDF carries a CC BY notice.

@@ -1,7 +1,7 @@
 import { Context, Effect, Layer, Option, Schema } from "effect"
 import { FileSystem } from "effect/FileSystem"
 
-import { Content, Paper, PaperUnavailable, type Seed } from "../../src/research/archive.ts"
+import { Content, Paper, PaperUnavailable, type Seed } from "../../src/research/archive.schemas.ts"
 import { fingerprint } from "../../src/utils/fingerprint.ts"
 
 interface Interface {

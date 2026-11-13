@@ -15,8 +15,11 @@ import { unzipSync } from "fflate"
 
 import { Cache } from "../platform/Cache.ts"
 import { Pace } from "../platform/Pace.ts"
-import * as Csv from "./sdmx/Csv.ts"
-import { eurostat, oecd, parts } from "./sdmx/Sdmx.ts"
+import { areas } from "./sdmx/constants/areas.ts"
+import { eurostat } from "./sdmx/constants/eurostat.ts"
+import { oecd } from "./sdmx/constants/oecd.ts"
+import { parts } from "./sdmx/utils/parts.ts"
+import { records } from "./sdmx/utils/records.ts"
 import { plain } from "./utils/text.ts"
 
 // The part of a dataflow a chart shows. The OECD writes notes on single
@@ -127,9 +130,9 @@ const decodeDimensions = Schema.decodeUnknownOption(Dimensions)
 // the sections OecdNote keeps. Records about a group of countries, such as
 // the euro area, are left out: charts show single countries.
 const oecdNotes = (csv: string): ReadonlyArray<OecdNote> =>
-  Csv.records(csv).flatMap((record) => {
+  records(csv).flatMap((record) => {
     const area = record.get("REF_AREA")
-    const country = notOpen(area) ? Csv.areas.OECD.country.get(area) : null
+    const country = notOpen(area) ? areas.OECD.country.get(area) : null
     const frequency = record.get("FREQ")
 
     const names = [...record.keys()]

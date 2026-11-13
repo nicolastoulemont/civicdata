@@ -1,10 +1,6 @@
-import { Effect, Result, Schema } from "effect"
+import { Effect, Result } from "effect"
 
-// A CSV file whose cells cannot be read, at its first unreadable line.
-class Malformed extends Schema.TaggedError<Malformed, { readonly brand: unique symbol }>()(
-  "Malformed",
-  { line: Schema.Int },
-) {}
+import { Malformed } from "./Table.schemas.ts"
 
 // One RFC 4180 field and what ends it: a comma, a line break, or the end of
 // the file. A quoted field may hold commas, line breaks and doubled quotes.

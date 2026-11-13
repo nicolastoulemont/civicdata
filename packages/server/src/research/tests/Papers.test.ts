@@ -3,8 +3,10 @@ import { reset } from "cloudflare:test"
 import { Cause, Effect } from "effect"
 import { SqlClient, type SqlError } from "effect/sql"
 
-import { Held, PaperCorrupt, PaperMissing, Papers, PapersUnavailable } from "../Papers.ts"
-import { PaperId, tables } from "../store.ts"
+import { Held, PaperCorrupt, PaperMissing, PapersUnavailable } from "../Papers.schemas.ts"
+import { Papers } from "../Papers.ts"
+import { PaperId } from "../store.schemas.ts"
+import { tables } from "../store.ts"
 import { bibliography, body, list, papersDb, passages, publish, withdraw } from "./papers.ts"
 
 // The reader as the Worker builds it, over its PAPERS_DB and PAPERS bindings.

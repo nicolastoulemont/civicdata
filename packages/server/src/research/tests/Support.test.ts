@@ -4,7 +4,8 @@ import { Cited, Paper, Text } from "@repo/domain"
 import { Effect, Layer, Redacted } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
 
-import { Checked, Support, SupportUnavailable, Verdict } from "../Support.ts"
+import { Checked, SupportUnavailable, Verdict } from "../Support.schemas.ts"
+import { Support } from "../Support.ts"
 import { paper } from "./papers.ts"
 
 const recorded = () => {

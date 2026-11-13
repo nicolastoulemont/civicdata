@@ -1,7 +1,9 @@
 import { Year } from "@repo/domain"
 import { describe, expect, it } from "vitest"
 
-import { divide, growth, indexed } from "../transforms.ts"
+import { divide } from "../utils/divide.ts"
+import { growth } from "../utils/growth.ts"
+import { indexed } from "../utils/indexed.ts"
 
 const year = (value: number) => Year.make(value)
 

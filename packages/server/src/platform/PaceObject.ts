@@ -1,6 +1,9 @@
 import { Option, Schema } from "effect"
 
-import { empty, Key, Ledger, refuse, Slot, take } from "./Pace.ts"
+import { empty } from "./constants/empty.ts"
+import { Key, Ledger, Slot } from "./Pace.schemas.ts"
+import { refuse } from "./utils/refuse.ts"
+import { take } from "./utils/take.ts"
 
 const LedgerJson = Schema.fromJsonString(Ledger)
 const SlotJson = Schema.fromJsonString(Slot)

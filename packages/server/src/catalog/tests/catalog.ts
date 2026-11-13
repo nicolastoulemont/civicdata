@@ -5,8 +5,9 @@ import { Effect, Layer } from "effect"
 import { gzipSync, strToU8 } from "fflate"
 
 import { Step } from "../../platform/Step.ts"
-import { type Adapter, Policy } from "../../series/Adapter.ts"
-import { eurostat, oecd } from "../../sources/sdmx/Sdmx.ts"
+import { type Adapter, Policy } from "../../series/Adapter.types.ts"
+import { eurostat } from "../../sources/sdmx/constants/eurostat.ts"
+import { oecd } from "../../sources/sdmx/constants/oecd.ts"
 import { discovery, Structures } from "../../sources/sdmx/Structures.ts"
 import { Sources } from "../../sources/Sources.ts"
 import { http } from "../../tests/fakes.ts"
@@ -21,7 +22,8 @@ import { CatalogBuild } from "../CatalogBuild.ts"
 import { Classifier } from "../Classifier.ts"
 import { Directions } from "../Directions.ts"
 import { Outlines } from "../Outlines.ts"
-import { type Ai, type Index, Vectors } from "../Vectors.ts"
+import { Vectors } from "../Vectors.ts"
+import { type Ai, type Index } from "../Vectors.types.ts"
 
 export const entry = (indicator: string, name: string, definition = ""): CatalogEntry => ({
   indicator: IndicatorId.make(indicator),

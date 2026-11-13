@@ -17,11 +17,14 @@ import {
 import { Array as Arr, Context, Effect, Layer, Match, Option } from "effect"
 
 import { Directions } from "../catalog/Directions.ts"
-import type { Query } from "../series/Series.ts"
+import type { Query } from "../series/Series.types.ts"
 import { Sources } from "../sources/Sources.ts"
-import { counterparts, disagreeing } from "./Counterparts.ts"
-import { titleOf } from "./Titles.ts"
-import { divide, growth, indexed } from "./transforms.ts"
+import { counterparts } from "./utils/counterparts.ts"
+import { disagreeing } from "./utils/disagreeing.ts"
+import { divide } from "./utils/divide.ts"
+import { growth } from "./utils/growth.ts"
+import { indexed } from "./utils/indexed.ts"
+import { titleOf } from "./utils/titleOf.ts"
 
 interface Interface {
   readonly resolve: (
@@ -46,7 +49,7 @@ const missing = (countries: View["countries"], series: ReadonlyArray<ReadonlyArr
     (country) => !series.every((values) => values.some((value) => value.country === country)),
   )
 
-const credit = (dataset: string, fetched: import("../series/Series.ts").Answer) => {
+const credit = (dataset: string, fetched: import("../series/Series.schemas.ts").Answer) => {
   if ((fetched.qualifications?.length ?? 0) === 0) return dataset
   const versions = fetched.version === undefined ? [] : [`version ${fetched.version}`]
 

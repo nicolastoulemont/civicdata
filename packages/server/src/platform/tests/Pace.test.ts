@@ -7,8 +7,12 @@ import { Sdmx } from "../../sources/sdmx/Sdmx.ts"
 import { http, memory } from "../../tests/fakes.ts"
 import population from "../../tests/fixtures/eurostat/population-flow.json"
 import oecdFlow from "../../tests/fixtures/oecd/unemployment-flow.json"
-import { empty, type Ledger, Pace, refuse, Slot, take } from "../Pace.ts"
+import { empty } from "../constants/empty.ts"
+import { type Ledger, Slot } from "../Pace.schemas.ts"
+import { Pace } from "../Pace.ts"
 import { PaceObject } from "../PaceObject.ts"
+import { refuse } from "../utils/refuse.ts"
+import { take } from "../utils/take.ts"
 
 const minute = 60_000
 

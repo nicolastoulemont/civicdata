@@ -4,7 +4,8 @@ import { Effect, Exit, Option } from "effect"
 import { TestClock } from "effect/testing"
 
 import { memoryStorage } from "../../tests/fakes.ts"
-import { keep, Transcript } from "../Transcript.ts"
+import { keep } from "../constants/keep.ts"
+import { Transcript } from "../Transcript.ts"
 
 const saved = {
   chat: "[]",

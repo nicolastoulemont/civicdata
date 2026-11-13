@@ -1,13 +1,11 @@
-import { isRefusal, Locale } from "@repo/domain"
+import { Locale } from "@repo/domain"
 import {
-  Cause,
   Config,
   ConfigProvider,
   Context,
   Effect,
   Exit,
   Layer,
-  Match,
   Option,
   Schema,
   Scope,
@@ -22,6 +20,10 @@ import {
   HttpServerResponse,
 } from "effect/http"
 import { OtlpProxy, OtlpSerialization, OtlpTracer } from "effect/observability"
+
+import { path } from "./constants/path.ts"
+import type { ServeOptions } from "./Traces.types.ts"
+import { settled } from "./utils/settled.ts"
 
 // Spans go to one OTLP endpoint: Grafana Cloud on deployed stages, a local
 // Grafana in `pnpm dev`, nowhere when the stage has none (docs/traces.md).
@@ -84,39 +86,6 @@ const destination = Effect.gen(function* () {
 
 const url = (endpoint: string) => `${endpoint.replace(/\/$/, "")}/v1/traces`
 
-// A span that ends refusing a View (isRefusal) ends as a success, with the
-// refusal's tag as `openfacts.refusal`: the agent sends the call back to the
-// model and the page asks the person to pick, so `status = error` keeps to
-// what failed. Every other span ends as it would.
-export const settled = (tracer: Tracer.Tracer): Tracer.Tracer =>
-  Tracer.make({
-    span: (options) => {
-      const span = tracer.span(options)
-      const end = span.end.bind(span)
-
-      span.end = (endTime, exit) => {
-        const refusal = Exit.isFailure(exit)
-          ? Option.filter(Cause.findErrorOption(exit.cause), isRefusal)
-          : Option.none()
-
-        if (Option.isNone(refusal)) return end(endTime, exit)
-
-        span.attribute(
-          "openfacts.refusal",
-          Match.valueTags(refusal.value, {
-            IndicatorNotFound: () => "IndicatorNotFound",
-            DimensionsMissing: () => "DimensionsMissing",
-            TransformNotApplicable: () => "TransformNotApplicable",
-          }),
-        )
-        end(endTime, Exit.void)
-      }
-
-      return span
-    },
-    context: tracer.context,
-  })
-
 // The tracer in context, settled.
 const settling = Layer.effect(Tracer.Tracer, Effect.map(Effect.service(Tracer.Tracer), settled))
 
@@ -149,11 +118,6 @@ export const layer: Layer.Layer<never> = Layer.unwrap(
 const unkept: (promise: Promise<unknown>) => void = () => {}
 
 type Handler = (request: Request, context?: Context.Context<never>) => Promise<Response>
-
-export interface ServeOptions {
-  // Where each request's spans go: `layer` unless a test records them.
-  readonly tracer?: Layer.Layer<never>
-}
 
 // Serves each request with a tracer of its own, closed once the response's
 // body ends, which exports the request's spans after the response through
@@ -226,10 +190,6 @@ export class TraceLimit extends Context.Service<TraceLimit, Limit>()(
     ),
   )
 }
-
-// Where the browser sends its spans: this origin, so the vendor's key stays
-// on the server (apps/web/src/traces.ts).
-export const path = "/api/otlp/v1/traces"
 
 // Accepts a batch of spans the browser sends and passes it on with the
 // destination's headers, up to 64 KiB, a browser's keepalive limit. A visitor

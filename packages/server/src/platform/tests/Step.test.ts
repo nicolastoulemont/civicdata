@@ -2,7 +2,8 @@ import { describe, expect, it } from "@effect/vitest"
 import { Effect, Layer, Option } from "effect"
 
 import { recording } from "../../tests/fakes.ts"
-import { Step, type WorkflowStep } from "../Step.ts"
+import { Step } from "../Step.ts"
+import { type WorkflowStep } from "../Step.types.ts"
 
 // Workflows' side of a step: runs its body and saves nothing.
 const workflow: WorkflowStep = {

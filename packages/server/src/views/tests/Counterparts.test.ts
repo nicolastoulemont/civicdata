@@ -2,7 +2,8 @@ import { Dimensions, IndicatorId, Ranking, Trend, Year } from "@repo/domain"
 import { Schema } from "effect"
 import { describe, expect, it } from "vitest"
 
-import { counterparts, disagreeing } from "../Counterparts.ts"
+import { counterparts } from "../utils/counterparts.ts"
+import { disagreeing } from "../utils/disagreeing.ts"
 
 const unemployment = Trend.make({
   indicator: IndicatorId.make("SL.UEM.TOTL.ZS"),

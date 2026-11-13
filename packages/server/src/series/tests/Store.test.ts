@@ -3,9 +3,12 @@ import { countries, Dimensions, IndicatorId, Year } from "@repo/domain"
 import { reset } from "cloudflare:test"
 import { DateTime, Effect, Exit, Option, Schema, Stream } from "effect"
 
-import { record, indicator as iloIndicator } from "../../sources/Ilostat.ts"
+import { indicator as iloIndicator } from "../../sources/constants/ilostat/indicator.ts"
+import { record } from "../../sources/Ilostat.ts"
 import { bucket } from "../../sources/tests/series.ts"
-import { type Offer, Outcome, type Stored, Store } from "../Store.ts"
+import { type Stored } from "../Store.schemas.ts"
+import { Store } from "../Store.ts"
+import { type Offer, Outcome } from "../Store.types.ts"
 
 beforeEach(() => reset())
 

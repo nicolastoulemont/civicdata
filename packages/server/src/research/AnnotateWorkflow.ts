@@ -4,7 +4,9 @@ import { Effect, Layer, Schema } from "effect"
 
 import { Step } from "../platform/Step.ts"
 import * as Traces from "../platform/Traces.ts"
-import { Annotate, Params, retries } from "./Annotate.ts"
+import { Params } from "./Annotate.schemas.ts"
+import { Annotate } from "./Annotate.ts"
+import { retries } from "./constants/retries.ts"
 
 // The Workflow that annotates stored paper versions, or retires their
 // annotations under older settings (docs/papers.md#annotation). Only a stage

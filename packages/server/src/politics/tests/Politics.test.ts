@@ -18,9 +18,10 @@ import { steps } from "../../tests/fakes.ts"
 import parlgovCabinets from "../../tests/fixtures/parlgov/data_cabinet.csv?raw"
 import ppegGovernments from "../../tests/fixtures/ppeg/governments.csv?raw"
 import { snapshot } from "../../tests/tables.ts"
-import { ArchiveUnavailable } from "../Archives.ts"
+import { ArchiveUnavailable } from "../Archives.schemas.ts"
 import { Politics, PoliticsRoutes } from "../Politics.ts"
-import { PoliticsBuild, PoliticsBuildFailed } from "../PoliticsBuild.ts"
+import { PoliticsBuildFailed } from "../PoliticsBuild.schemas.ts"
+import { PoliticsBuild } from "../PoliticsBuild.ts"
 import {
   build,
   dropFingerprints,

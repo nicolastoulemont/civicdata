@@ -6,8 +6,8 @@ import { HttpClient, HttpClientRequest } from "effect/http"
 import { SqlClient } from "effect/sql"
 
 import { collect } from "../src/gather/Inputs.ts"
-import { AssetId, Release } from "../src/series/Adapter.ts"
-import { Stored } from "../src/series/Store.ts"
+import { AssetId, Release } from "../src/series/Adapter.schemas.ts"
+import { Stored } from "../src/series/Store.schemas.ts"
 import { growth, ImfArchive } from "../src/sources/Imf.ts"
 import { record } from "./imf-record.ts"
 

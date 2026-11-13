@@ -9,6 +9,7 @@ import {
 } from "effect/http"
 
 import { recording } from "../../tests/fakes.ts"
+import { path } from "../constants/path.ts"
 import * as Traces from "../Traces.ts"
 
 // A batch of spans as the browser's exporter sends it: OTLP protobuf bytes.
@@ -76,7 +77,7 @@ const send = (
     ({ handler }) =>
       Effect.promise(() =>
         handler(
-          new Request(`http://localhost${Traces.path}`, {
+          new Request(`http://localhost${path}`, {
             method: "POST",
             headers: {
               "content-type": "application/x-protobuf",

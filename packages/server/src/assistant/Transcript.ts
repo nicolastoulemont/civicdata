@@ -1,49 +1,9 @@
-import { ChartIndex, chartsOf, Turn, TurnIndex, View } from "@repo/domain"
-import {
-  Array as Arr,
-  Clock,
-  Context,
-  type DateTime,
-  Effect,
-  Layer,
-  Option,
-  Ref,
-  Schema,
-  Struct,
-} from "effect"
+import { ChartIndex, chartsOf, Turn, TurnIndex } from "@repo/domain"
+import { Array as Arr, Clock, Context, Effect, Layer, Option, Ref, Schema, Struct } from "effect"
 
-// A chart a person changed since the model last heard of it: its turn, its
-// place among the turn's charts, and the chart the model knows there.
-const Edit = Schema.Struct({ turn: TurnIndex, chart: ChartIndex, known: View })
-
-export interface Edit extends Schema.Schema.Type<typeof Edit> {}
-
-// What a conversation keeps: the model's chat history as Effect AI exports it,
-// the turns shown to people, the charts a person changed since the model last
-// heard of them, in the order they changed, and the question being answered,
-// if any.
-export interface Saved {
-  readonly chat: string
-  readonly turns: ReadonlyArray<Turn>
-  readonly edits?: Arr.NonEmptyReadonlyArray<Edit>
-  readonly answering?: { readonly question: string; readonly started: DateTime.Utc }
-}
-
-// The writes a save makes in one storage transaction.
-export interface Writes {
-  readonly put: (key: string, value: string) => Promise<void>
-  readonly setAlarm: (time: number) => Promise<void>
-}
-
-// The part of a Durable Object's storage a transcript uses. A transaction
-// commits all its writes or, when its closure rejects, none of them.
-export interface Storage {
-  readonly get: (key: string) => Promise<string | undefined>
-  readonly put: (key: string, value: string) => Promise<void>
-  readonly getAlarm: () => Promise<number | null>
-  readonly transaction: (closure: (txn: Writes) => Promise<void>) => Promise<void>
-  readonly deleteAll: () => Promise<void>
-}
+import { keep } from "./constants/keep.ts"
+import { Edit } from "./Transcript.schemas.ts"
+import type { Saved, Storage } from "./Transcript.types.ts"
 
 interface Interface {
   readonly load: Effect.Effect<Option.Option<Saved>>
@@ -93,9 +53,6 @@ const savedOf = ({ changed, ...saved }: typeof Stored.Type): Saved => {
 // Conversations saved before turns kept how their answer ended sit under
 // "transcript"; they read as not found until their alarm deletes them.
 const key = "conversation"
-
-// A conversation is deleted this long after its last question.
-export const keep = 30 * 24 * 60 * 60 * 1000
 
 // One conversation's saved state.
 export class Transcript extends Context.Service<Transcript, Interface>()(

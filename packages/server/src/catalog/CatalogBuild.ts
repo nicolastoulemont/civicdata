@@ -17,7 +17,8 @@ import { database } from "../platform/built.ts"
 import { Cache } from "../platform/Cache.ts"
 import { Pace } from "../platform/Pace.ts"
 import { Step } from "../platform/Step.ts"
-import { searchable, Outline } from "../series/Outline.ts"
+import { Outline } from "../series/Outline.schemas.ts"
+import { searchable } from "../series/utils/searchable.ts"
 import { Faostat } from "../sources/Faostat.ts"
 import { Ilostat } from "../sources/Ilostat.ts"
 import { Imf } from "../sources/Imf.ts"
@@ -30,9 +31,12 @@ import { Wid } from "../sources/Wid.ts"
 import { WorldBank } from "../sources/WorldBank.ts"
 import { fingerprint } from "../utils/fingerprint.ts"
 import { tables } from "./Catalog.ts"
-import { Classifier, Classifying } from "./Classifier.ts"
+import { BuildFailed } from "./CatalogBuild.schemas.ts"
+import { Classifier } from "./Classifier.ts"
+import { Classifying } from "./Classifier.types.ts"
 import { Outlines } from "./Outlines.ts"
-import { Vectors, type VectorsUnavailable } from "./Vectors.ts"
+import { type VectorsUnavailable } from "./Vectors.schemas.ts"
+import { Vectors } from "./Vectors.ts"
 
 // Each insert binds one JSON array of entries, unpacked by SQLite's json_each,
 // so a write is a handful of round trips instead of one per 20 rows (D1 binds
@@ -110,7 +114,7 @@ interface Interface {
   // Lists the source's indicators into the generation, replacing what an
   // earlier attempt wrote there, and answers how many it wrote. It leaves
   // out the datasets search does not show, those with no annual values or
-  // none of our countries (series/Outline.ts). It writes nothing and answers null
+  // none of our countries (`searchable` in series/utils/searchable.ts). It writes nothing and answers null
   // when the published generation holds the same entries, with the same
   // labels, embedded by the same model, or is newer. An empty list is the
   // source failing, so it never replaces a published one.
@@ -140,14 +144,6 @@ interface Interface {
   // so the next build asks again, and never fails the build.
   readonly classify: (source: Source, after: number) => Effect.Effect<number | null>
 }
-
-// A build that left some sources on their previous generation.
-export class BuildFailed extends Schema.TaggedError<
-  BuildFailed,
-  { readonly brand: unique symbol }
->()("BuildFailed", {
-  sources: Schema.Array(Source),
-}) {}
 
 // Builds a new generation of the catalog: writes, embeds and publishes the
 // entries of every source, then classifies which way their values are

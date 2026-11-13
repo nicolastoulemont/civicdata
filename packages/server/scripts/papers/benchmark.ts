@@ -1,9 +1,12 @@
 import { Schema } from "effect"
 
-import { Category, keyOf, rubric } from "../../src/research/annotation.ts"
-import { Paper, Passage } from "../../src/research/archive.ts"
-import type { Entry } from "../../src/research/entry.ts"
-import { questionOf, search } from "../../src/research/search.ts"
+import { Category } from "../../src/research/annotation.schemas.ts"
+import { Paper, Passage } from "../../src/research/archive.schemas.ts"
+import { rubric } from "../../src/research/constants/rubric.ts"
+import type { Entry } from "../../src/research/entry.schemas.ts"
+import { keyOf } from "../../src/research/utils/keyOf.ts"
+import { questionOf } from "../../src/research/utils/questionOf.ts"
+import { search } from "../../src/research/utils/search.ts"
 
 export const Sample = Schema.Struct({
   rubric: Schema.Literal(rubric),

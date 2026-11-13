@@ -1,5 +1,8 @@
 import type { CloudflareWorkersModule, Rpc } from "@cloudflare/workers-types"
-import { Context, Duration, Effect, Layer, Schema } from "effect"
+import { Context, Duration, Effect, Layer } from "effect"
+
+import { StepFailed } from "./Step.schemas.ts"
+import type { WorkflowStep } from "./Step.types.ts"
 
 // What a step hands back, which Workflows saves: a count, a cursor, a few of
 // them, whether the build holds the lease, or nothing, never rows, so a
@@ -12,31 +15,12 @@ type Saved =
   | void
   | { readonly [key: string]: number | string | null }
 
-// A step that still failed after its retries.
-export class StepFailed extends Schema.TaggedError<StepFailed, { readonly brand: unique symbol }>()(
-  "StepFailed",
-  {
-    step: Schema.String,
-    cause: Schema.Defect(),
-  },
-) {}
-
 // Each step retries alone: about half an hour of retries outlasts the OECD's
 // five-minute cooldown after it refuses the Workers' shared IP.
 const retried = {
   retries: { limit: 5, delay: "1 minute", backoff: "exponential" },
   timeout: "5 minutes",
 } satisfies CloudflareWorkersModule.WorkflowStepConfig
-
-// What a build uses of a Workflow's step.
-export interface WorkflowStep {
-  readonly do: <T extends Rpc.Serializable<T>>(
-    name: string,
-    config: CloudflareWorkersModule.WorkflowStepConfig,
-    callback: () => Promise<T>,
-  ) => Promise<T>
-  readonly sleep: (name: string, duration: number) => Promise<void>
-}
 
 // Runs one named step of a build. Workflows saves the result of each step
 // that completes; when a build resumes after a failure, a completed step

@@ -21,27 +21,23 @@ import {
 import { FetchHttpClient } from "effect/http"
 import { SqlClient, SqlSchema } from "effect/sql"
 
-import { Step, type StepFailed } from "../platform/Step.ts"
+import { type StepFailed } from "../platform/Step.schemas.ts"
+import { Step } from "../platform/Step.ts"
 import { fingerprint } from "../utils/fingerprint.ts"
-import {
-  Classification,
-  complete,
-  excerptsComplete,
-  grounded,
-  Scope,
-  Settings,
-} from "./annotation.ts"
-import { AnnotationInvalid, Annotator, ProviderFailed, Usage } from "./Annotator.ts"
-import { Digest, Passage } from "./archive.ts"
+import { Outcome, Params, Report, Stage, VersionId } from "./Annotate.schemas.ts"
+import type { AnnotateBinding } from "./Annotate.types.ts"
+import { Classification, Scope } from "./annotation.schemas.ts"
+import { Settings } from "./annotation.ts"
+import { AnnotationInvalid, ProviderFailed, Usage } from "./Annotator.schemas.ts"
+import { Annotator } from "./Annotator.ts"
+import { Digest, Passage } from "./archive.schemas.ts"
 import { Demand } from "./Demand.ts"
-import {
-  annotationKey,
-  Body,
-  objectsOf,
-  tables as store,
-  Text as Passages,
-  Version,
-} from "./store.ts"
+import { Body, Text as Passages, Version } from "./store.schemas.ts"
+import { annotationKey, tables as store } from "./store.ts"
+import { complete } from "./utils/complete.ts"
+import { excerptsComplete } from "./utils/excerptsComplete.ts"
+import { grounded } from "./utils/grounded.ts"
+import { objectsOf } from "./utils/objectsOf.ts"
 
 // The Annotate Workflow's work: claims each annotation key of a list of paper
 // versions, saves its scope and labels, and publishes its annotation as the
@@ -63,62 +59,10 @@ export const Limits = Context.Reference<{
   defaultValue: () => ({ papers: 20, concurrent: 4, tokens: 3_000_000, attempts: 3 }),
 })
 
-// Each stage retries a provider or store failure three times, 10, 20 and
-// then 40 seconds apart. Invalid output does not throw, so it never retries.
-export const retries = {
-  retries: { limit: 3, delay: "10 seconds", backoff: "exponential" },
-  timeout: "5 minutes",
-} as const
-
-const VersionId = Version.fields.id
-
 // How far back a Demand run reads what questions asked for.
 const recent = { days: 30 }
 
-// What a run is started with. Annotate annotates the listed versions' keys;
-// `retry` lets it claim an Abandoned one again. Demand annotates the versions
-// questions asked for, as the daily run does. Retire clears a listed
-// version's active annotation when that annotation is under other settings.
-export const Params = Schema.TaggedUnion({
-  Annotate: {
-    versions: Schema.NonEmptyArray(VersionId),
-    retry: Schema.optionalKey(Schema.Boolean),
-  },
-  Demand: {},
-  Retire: { versions: Schema.NonEmptyArray(VersionId) },
-})
-
-export type Params = typeof Params.Type
-
-const Stage = Schema.Literals(["Claim", "Load", "Scope", "Labels", "Publish"])
-
 type Stage = typeof Stage.Type
-
-// What a run did with one listed version.
-// - Annotated: its key is Ready, by this run or an earlier one.
-// - Failed: a stage gave up. Invalid output, unavailable source text and a
-//   provider that kept failing count as one of the key's attempts.
-// - Skipped: the version's text changed, its key's settings are not the
-//   current ones (Stale), it was withdrawn, another run holds its key
-//   (Held), or its key is Abandoned. Not an attempt.
-// - NotStarted: the run reached a cap before claiming its key.
-export const Outcome = Schema.TaggedUnion({
-  Annotated: { key: Digest },
-  Failed: {
-    stage: Stage,
-    reason: Schema.Literals(["Invalid", "Unavailable", "Provider", "Store"]),
-    problem: Schema.String,
-  },
-  Skipped: { reason: Schema.Literals(["Stale", "Withdrawn", "Held", "Abandoned"]) },
-  NotStarted: {},
-})
-
-export type Outcome = typeof Outcome.Type
-
-// A run's report on one listed version.
-export const Report = Schema.Struct({ version: VersionId, outcome: Outcome })
-
-export interface Report extends Schema.Schema.Type<typeof Report> {}
 
 // An annotation key's state. Only this Workflow writes it.
 // - Running: `run` claimed the key.
@@ -211,13 +155,6 @@ class InstancesUnavailable extends Schema.TaggedError<
   InstancesUnavailable,
   { readonly brand: unique symbol }
 >()("InstancesUnavailable", { problem: Schema.String }) {}
-
-// What the Workflow uses of the ANNOTATE binding.
-export interface AnnotateBinding {
-  readonly get: (id: string) => Promise<{
-    readonly status: () => Promise<{ readonly status: string }>
-  }>
-}
 
 // What the Workflow uses of the PAPERS bucket.
 interface TextBucket {

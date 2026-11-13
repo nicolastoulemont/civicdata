@@ -1,21 +1,10 @@
-import { Failure, Source, SourceUnavailable } from "@repo/domain"
+import { Source } from "@repo/domain"
 import { DateTime, Effect, Option, Schema } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
-import { AssetId, Versions } from "./Adapter.ts"
-import { failureOf } from "./Failure.ts"
-import { layout } from "./Store.ts"
-
-// Why an asset failed: what its source did, or something on our side, such
-// as the store, the database, or a Workflow step that lost its error's type.
-const Internal = Schema.TaggedStruct("Internal", {})
-
-export const Reason = Schema.Union([Failure, Internal])
-
-export type Reason = typeof Reason.Type
-
-export const reasonOf = (error: { readonly _tag: string }): Reason =>
-  error instanceof SourceUnavailable ? failureOf(error) : Internal.make({})
+import { AssetId, Versions } from "./Adapter.schemas.ts"
+import { layout } from "./constants/layout.ts"
+import { Gathered, GatheredJson, type Reason, Wanted } from "./GatherLedger.schemas.ts"
 
 // The reasons that say the publisher will answer the same way again: it
 // refused the request, or sent what we cannot read. After three failed runs
@@ -23,32 +12,6 @@ export const reasonOf = (error: { readonly _tag: string }): Reason =>
 // week. Any other failure (no answer, a 5xx, a 429, our side) is retried on
 // the next run.
 const lasting = JSON.stringify(["Refused", "Unreadable"] satisfies ReadonlyArray<Reason["_tag"]>)
-
-// Kept as a tagged union so later policies can add an Unstorable decision.
-// A failure recorded before reasons were classified holds a string, which
-// never starts a backoff.
-const Gathered = Schema.TaggedUnion({
-  Stored: { version: Schema.String, at: Schema.DateTimeUtcFromString },
-  Failed: {
-    wanted: Schema.String,
-    stored: Schema.OptionFromNullOr(Schema.String),
-    failures: Schema.Int,
-    reason: Schema.Union([Reason, Schema.String]),
-    at: Schema.DateTimeUtcFromString,
-  },
-})
-
-const GatheredJson = Schema.fromJsonString(Gathered)
-
-// An asset a run still wants, at the version it wants, with what the ledger
-// last recorded for it.
-const Wanted = Schema.Struct({
-  asset: AssetId,
-  version: Schema.NonEmptyString,
-  state: Schema.OptionFromNullOr(GatheredJson),
-})
-
-export interface Wanted extends Schema.Schema.Type<typeof Wanted> {}
 
 // Only Gather constructs this ledger, on the build's CATALOG_DB connection.
 export const ledger = Effect.fn("GatherLedger.open")(function* (namespace = "") {

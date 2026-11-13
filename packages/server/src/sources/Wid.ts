@@ -1,9 +1,10 @@
 import { Country, Dimension, IndicatorId, IndicatorNotFound, SourceUnavailable } from "@repo/domain"
 import { Context, DateTime, Effect, Layer, Option, Schema, Stream } from "effect"
 
-import { type Adapter, Policy, type Release } from "../series/Adapter.ts"
-import { Outline } from "../series/Outline.ts"
-import { type Stored } from "../series/Store.ts"
+import { type Release } from "../series/Adapter.schemas.ts"
+import { type Adapter, Policy } from "../series/Adapter.types.ts"
+import { Outline } from "../series/Outline.schemas.ts"
+import { type Stored } from "../series/Store.schemas.ts"
 
 const indicator = IndicatorId.make("WID:sptinc992j")
 const name = "Pre-tax national income share (equal-split adults, fraction)"

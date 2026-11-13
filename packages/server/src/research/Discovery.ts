@@ -7,34 +7,11 @@ import { D1Client } from "@effect/sql-d1"
 import { Context, Effect, Layer, Schema } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
-import { Passage } from "./archive.ts"
-import { PapersUnavailable } from "./Papers.ts"
-import { Bibliography, Holding, PaperId, Reason, Version } from "./store.ts"
-
-// A paper the store holds that a query's words found, for discovery only: it
-// is not evidence and carries no citation. A match with text has the version
-// it was read from, whether that version has an annotation, and up to three
-// of its passages the words found, best first, each on its physical page. A
-// metadata-only match has the bibliography alone and never a passage.
-export const Match = Schema.TaggedUnion({
-  Text: {
-    paper: Bibliography,
-    copy: Holding,
-    version: Version,
-    annotated: Schema.Boolean,
-    excerpts: Schema.Array(Passage),
-  },
-  Metadata: { paper: Bibliography, reason: Reason },
-})
-
-export type Match = typeof Match.Type
-
-// A query search refuses: it has no word to search for once common words are
-// dropped, or more text or words than a query needs.
-export class QueryInvalid extends Schema.TaggedError<
-  QueryInvalid,
-  { readonly brand: unique symbol }
->()("QueryInvalid", { reason: Schema.Literals(["Empty", "Long"]) }) {}
+import { Passage } from "./archive.schemas.ts"
+import { Match, QueryInvalid } from "./Discovery.schemas.ts"
+import { PapersUnavailable } from "./Papers.schemas.ts"
+import { Bibliography, Holding, PaperId, Reason, Version } from "./store.schemas.ts"
+import { listsReferences } from "./utils/listsReferences.ts"
 
 const limits = { characters: 1000, words: 16, papers: 10, excerpts: 3, hits: 100 }
 
@@ -65,25 +42,6 @@ const matchOf = (text: string) =>
 
     return `{title text} : (${[...words].map((word) => `"${word}"`).join(" OR ")})`
   })
-
-// A reference list cites titles that share a query's words without being
-// about them. It reads as dense citations: author initials, years followed
-// by a title, volumes with issues, page numbers and DOIs. Measured on the 502
-// labelled passages of the corpus fixture in src/tests/fixtures/papers, this
-// finds 34 of the 42 reference passages and 6 of the 460 others, mostly
-// tables and title pages.
-const citations = [
-  /\b\p{Lu}[\p{L}'’-]+,? (?:\p{Lu}\.? ?){1,3}(?:,|and\b|\(|&)/gu,
-  /(?:\(\d{4}[a-z]?\)|\b\d{4}[a-z]?)\.?\s+[‘“"]?\p{Lu}/gu,
-  /\b\d+\s?\(\d+\)/g,
-  /\bpp?\.\s?\d|doi\.org|\bdoi:/g,
-]
-
-export const listsReferences = (text: string) => {
-  const found = citations.reduce((sum, pattern) => sum + (text.match(pattern)?.length ?? 0), 0)
-
-  return found >= 3 && found / text.split(/\s+/).length >= 0.04
-}
 
 // One row the index matched: a paper's title, or a passage of the paper's
 // active version. FTS5's bm25 is lower for a better match.

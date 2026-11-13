@@ -21,7 +21,8 @@ openfacts charts public data about countries from the World Bank, Eurostat and t
 
 - `packages/server/src` groups files by domain. The root holds only the Worker's entry, `index.ts`, and `cloudflare.d.ts`, which collects the binding types each domain declares. `platform/` and `utils/` form the foundation: every folder may import them, and they import nothing from the domain folders. A domain imports only the foundation and the domains before it in this order: `visitors`, `series`, `sources`, `politics`, `catalog`, `gather`, `views`, `research`, `assistant`, `api`, `workflows`. Fallow enforces both rules with zones in `.fallowrc.json`, so a new domain folder needs a zone and a rule there.
 - A domain keeps its tests in `tests/` and its data files in `assets/`. Fakes and fixtures that several domains share live in `src/tests/`.
-- A helper goes in `utils/` when it imports nothing from `src/`, holds no service or binding, and at least two files use it: the domain's own `utils/` while its users sit in one domain, `src/utils/` once they span two.
+- A module's exports leave it by kind, into files beside it: schemas with their derived types and tagged errors into `<Module>.schemas.ts`, plain types and tagged enums into `<Module>.types.ts`, each pure function into `utils/<function>.ts`, each plain constant into `constants/<constant>.ts`. Services, layers, Effect values and functions that return an Effect stay in the module, and so does every private declaration. A constant that belongs to one source goes in a folder named after it, such as `sources/constants/ilostat/`, so the file name stays the constant's own.
+- `src/utils/` holds pure helpers that several domains use; a helper that one domain uses stays in that domain's `utils/`.
 
 ## State machines
 

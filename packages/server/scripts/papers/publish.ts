@@ -3,7 +3,8 @@
 // It runs on a machine and asks no model: annotations come from the corpus.
 import { Data, Effect, Match } from "effect"
 
-import { type Failure, Published, write } from "../../src/research/publication.ts"
+import { write } from "../../src/research/publication.ts"
+import { type Failure, Published } from "../../src/research/publication.types.ts"
 import { tables } from "../../src/research/store.ts"
 import { type CorpusInvalid, recordOf, records } from "./corpus.ts"
 

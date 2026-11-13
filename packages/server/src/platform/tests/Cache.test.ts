@@ -2,7 +2,8 @@ import { describe, expect, it } from "@effect/vitest"
 import { env } from "cloudflare:workers"
 import { Effect, Option } from "effect"
 
-import { type Bucket, Cache } from "../Cache.ts"
+import { Cache } from "../Cache.ts"
+import { type Bucket } from "../Cache.types.ts"
 
 const failing: Bucket = {
   get: () => Promise.reject(new Error("R2 is down")),

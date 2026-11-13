@@ -1,18 +1,13 @@
 import { Effect } from "effect"
 
-import { Attempt, Content, type Copy, type Work } from "./archive.ts"
-import { Licences, PageCheck, supported } from "./Licences.ts"
-import { copiesOf, OpenAlex } from "./OpenAlex.ts"
+import { Attempt, Content, type Copy, type Work } from "./archive.schemas.ts"
+import { admitted } from "./constants/admitted.ts"
+import { PageCheck } from "./Licences.schemas.ts"
+import { Licences } from "./Licences.ts"
+import { OpenAlex } from "./OpenAlex.ts"
 import { textOf } from "./pdf.ts"
-
-// OpenAlex licence labels that make a copy worth downloading. The text is
-// admitted only with copy-specific evidence: the item's repository page or
-// a notice in the PDF itself (`textOf`).
-const admitted = new Set(["cc-by", "cc0", "public-domain"])
-
-// A copy worth downloading: one OpenAlex labels CC BY or public domain, or
-// an EconStor item whose page may give its licence.
-export const qualifies = (copy: Copy) => admitted.has(copy.license ?? "") || supported(copy)
+import { copiesOf } from "./utils/copiesOf.ts"
+import { qualifies } from "./utils/qualifies.ts"
 
 // How likely a copy is to serve its PDF to a script, most likely first: a
 // labelled repository copy, which OpenAlex harvested over OAI-PMH (PubMed

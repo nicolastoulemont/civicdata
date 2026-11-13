@@ -8,9 +8,10 @@ import {
 } from "@repo/domain"
 import { Context, DateTime, Effect, Layer, Option, Schema, Stream } from "effect"
 
-import { AssetId, type Adapter, Policy, Release } from "../series/Adapter.ts"
-import { Outline } from "../series/Outline.ts"
-import type { Stored } from "../series/Store.ts"
+import { AssetId, Release } from "../series/Adapter.schemas.ts"
+import { type Adapter, Policy } from "../series/Adapter.types.ts"
+import { Outline } from "../series/Outline.schemas.ts"
+import type { Stored } from "../series/Store.schemas.ts"
 
 const indicator = IndicatorId.make("V-Dem:v2x_polyarchy")
 const commit = "f4dd26922e658442524dfd954bf14f7ebe622d5d"
