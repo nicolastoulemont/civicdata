@@ -133,6 +133,12 @@ export const tables = Effect.gen(function* () {
       PRIMARY KEY (indicator, source, generation)
     ) WITHOUT ROWID
   `
+  // A build clears a generation's rows by this index: the primary key starts
+  // with the indicator, so without it each clear reads every source's rows.
+  yield* sql`
+    CREATE INDEX IF NOT EXISTS catalog_indicator_generation
+    ON catalog_indicator (source, generation)
+  `
   // A catalog an earlier version built has no rows here until a source
   // changes, so they come from what it holds. A catalog built since is
   // empty only before its first publish, with nothing to read.
