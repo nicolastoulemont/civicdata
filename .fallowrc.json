@@ -34,7 +34,7 @@
     // through the `workerd` condition of @repo/server/workflow, which
     // Fallow does not resolve.
     {
-      "file": "packages/server/src/workflows.ts",
+      "file": "packages/server/src/workflows/workerd.ts",
       "exports": ["AnnotateWorkflow", "CatalogWorkflow", "GatherWorkflow", "PaperGatherWorkflow"]
     }
   ],
@@ -66,6 +66,10 @@
   // depend on domain, and web consumes their compiled public API. Infra
   // deploys the app and nothing imports it. A new package needs a zone before
   // CI passes.
+  // Inside the server, each domain imports only the domains before it in the
+  // order its zones are listed (AGENTS.md, Server layout). A file takes the
+  // first zone that matches it, so tests, which may import any domain, come
+  // before the domains that hold them.
   "boundaries": {
     "zones": [
       { "name": "lint", "patterns": ["tools/oxlint/i18n/**"] },
@@ -73,7 +77,34 @@
       { "name": "domain", "patterns": ["packages/domain/**"] },
       { "name": "machine", "patterns": ["packages/machine/**"] },
       { "name": "maps", "patterns": ["packages/maps/**"] },
-      { "name": "server", "patterns": ["packages/server/**"] },
+      { "name": "server-tests", "patterns": ["packages/server/src/**/tests/**"] },
+      {
+        "name": "server-tools",
+        "patterns": [
+          "packages/server/scripts/**",
+          "packages/server/eval/**",
+          "packages/server/vitest.config.ts",
+          "packages/server/vitest.eval.config.ts",
+          "packages/server/vitest.scripts.config.ts"
+        ]
+      },
+      { "name": "server-utils", "patterns": ["packages/server/src/utils/**"] },
+      { "name": "server-platform", "patterns": ["packages/server/src/platform/**"] },
+      { "name": "server-visitors", "patterns": ["packages/server/src/visitors/**"] },
+      { "name": "server-series", "patterns": ["packages/server/src/series/**"] },
+      { "name": "server-sources", "patterns": ["packages/server/src/sources/**"] },
+      { "name": "server-politics", "patterns": ["packages/server/src/politics/**"] },
+      { "name": "server-catalog", "patterns": ["packages/server/src/catalog/**"] },
+      { "name": "server-gather", "patterns": ["packages/server/src/gather/**"] },
+      { "name": "server-views", "patterns": ["packages/server/src/views/**"] },
+      { "name": "server-research", "patterns": ["packages/server/src/research/**"] },
+      { "name": "server-assistant", "patterns": ["packages/server/src/assistant/**"] },
+      { "name": "server-api", "patterns": ["packages/server/src/api/**"] },
+      { "name": "server-workflows", "patterns": ["packages/server/src/workflows/**"] },
+      {
+        "name": "server",
+        "patterns": ["packages/server/src/index.ts", "packages/server/src/cloudflare.d.ts"]
+      },
       { "name": "web", "patterns": ["apps/web/**"] },
       { "name": "infra", "patterns": ["packages/infra/**"] }
     ],
@@ -83,8 +114,217 @@
       { "from": "domain", "allow": [] },
       { "from": "machine", "allow": [] },
       { "from": "maps", "allow": ["domain"] },
-      { "from": "server", "allow": ["domain", "machine"] },
-      { "from": "web", "allow": ["server", "domain", "machine", "maps"] },
+      { "from": "server-utils", "allow": [] },
+      { "from": "server-platform", "allow": ["domain", "machine", "server-utils"] },
+      {
+        "from": "server-visitors",
+        "allow": ["domain", "machine", "server-utils", "server-platform"]
+      },
+      {
+        "from": "server-series",
+        "allow": ["domain", "machine", "server-utils", "server-platform", "server-visitors"]
+      },
+      {
+        "from": "server-sources",
+        "allow": [
+          "domain",
+          "machine",
+          "server-utils",
+          "server-platform",
+          "server-visitors",
+          "server-series"
+        ]
+      },
+      {
+        "from": "server-politics",
+        "allow": [
+          "domain",
+          "machine",
+          "server-utils",
+          "server-platform",
+          "server-visitors",
+          "server-series",
+          "server-sources"
+        ]
+      },
+      {
+        "from": "server-catalog",
+        "allow": [
+          "domain",
+          "machine",
+          "server-utils",
+          "server-platform",
+          "server-visitors",
+          "server-series",
+          "server-sources",
+          "server-politics"
+        ]
+      },
+      {
+        "from": "server-gather",
+        "allow": [
+          "domain",
+          "machine",
+          "server-utils",
+          "server-platform",
+          "server-visitors",
+          "server-series",
+          "server-sources",
+          "server-politics",
+          "server-catalog"
+        ]
+      },
+      {
+        "from": "server-views",
+        "allow": [
+          "domain",
+          "machine",
+          "server-utils",
+          "server-platform",
+          "server-visitors",
+          "server-series",
+          "server-sources",
+          "server-politics",
+          "server-catalog",
+          "server-gather"
+        ]
+      },
+      {
+        "from": "server-research",
+        "allow": [
+          "domain",
+          "machine",
+          "server-utils",
+          "server-platform",
+          "server-visitors",
+          "server-series",
+          "server-sources",
+          "server-politics",
+          "server-catalog",
+          "server-gather",
+          "server-views"
+        ]
+      },
+      {
+        "from": "server-assistant",
+        "allow": [
+          "domain",
+          "machine",
+          "server-utils",
+          "server-platform",
+          "server-visitors",
+          "server-series",
+          "server-sources",
+          "server-politics",
+          "server-catalog",
+          "server-gather",
+          "server-views",
+          "server-research"
+        ]
+      },
+      {
+        "from": "server-api",
+        "allow": [
+          "domain",
+          "machine",
+          "server-utils",
+          "server-platform",
+          "server-visitors",
+          "server-series",
+          "server-sources",
+          "server-politics",
+          "server-catalog",
+          "server-gather",
+          "server-views",
+          "server-research",
+          "server-assistant"
+        ]
+      },
+      {
+        "from": "server-workflows",
+        "allow": [
+          "domain",
+          "machine",
+          "server-utils",
+          "server-platform",
+          "server-visitors",
+          "server-series",
+          "server-sources",
+          "server-politics",
+          "server-catalog",
+          "server-gather",
+          "server-views",
+          "server-research",
+          "server-assistant",
+          "server-api"
+        ]
+      },
+      {
+        "from": "server",
+        "allow": [
+          "domain",
+          "machine",
+          "server-utils",
+          "server-platform",
+          "server-visitors",
+          "server-series",
+          "server-sources",
+          "server-politics",
+          "server-catalog",
+          "server-gather",
+          "server-views",
+          "server-research",
+          "server-assistant",
+          "server-api",
+          "server-workflows"
+        ]
+      },
+      {
+        "from": "server-tests",
+        "allow": [
+          "domain",
+          "machine",
+          "server",
+          "server-utils",
+          "server-tests",
+          "server-tools",
+          "server-platform",
+          "server-visitors",
+          "server-series",
+          "server-sources",
+          "server-politics",
+          "server-catalog",
+          "server-gather",
+          "server-views",
+          "server-research",
+          "server-assistant",
+          "server-api",
+          "server-workflows"
+        ]
+      },
+      {
+        "from": "server-tools",
+        "allow": [
+          "domain",
+          "machine",
+          "server",
+          "server-utils",
+          "server-tests",
+          "server-platform",
+          "server-visitors",
+          "server-series",
+          "server-sources",
+          "server-politics",
+          "server-catalog",
+          "server-gather",
+          "server-views",
+          "server-research",
+          "server-assistant",
+          "server-api",
+          "server-workflows"
+        ]
+      },
+      { "from": "web", "allow": ["server", "server-workflows", "domain", "machine", "maps"] },
       { "from": "infra", "allow": [] }
     ],
     "coverage": { "requireAllFiles": true }

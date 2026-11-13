@@ -4,7 +4,7 @@ import { Array as Arr, Context, Effect, Layer, Option, Record, Schedule, Schema 
 import { SqlClient, SqlError, SqlSchema } from "effect/sql"
 
 import { orUnbuilt } from "../platform/built.ts"
-import { Dimension, Outline } from "../series/Outlines.ts"
+import { Dimension, Outline } from "../series/Outline.ts"
 import { Vectors } from "./Vectors.ts"
 
 // A dataset's outline as search hands it over: each code of its dimensions
@@ -176,7 +176,7 @@ export const tables = Effect.gen(function* () {
       model TEXT NOT NULL
     )
   `
-  // The outline of each Eurostat dataset and OECD dataflow (Outlines.ts): its
+  // The outline of each Eurostat dataset and OECD dataflow (series/Outline.ts): its
   // dimensions with their codes and codelists, whether it has annual values,
   // our countries it covers and its first and last year, kept apart from the
   // generations since the source's listing does not hold them. `fingerprint`

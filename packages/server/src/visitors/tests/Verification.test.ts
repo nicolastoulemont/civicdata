@@ -4,8 +4,8 @@ import { Effect, Layer, Redacted } from "effect"
 import { HttpEffect, type HttpServerRequest, HttpServerResponse } from "effect/http"
 import { TestClock } from "effect/testing"
 
+import { http } from "../../tests/fakes.ts"
 import { Verification } from "../Verification.ts"
-import { http } from "./fakes.ts"
 
 const accepted = () =>
   Response.json({ success: true, hostname: "openfacts.app", action: verificationAction })

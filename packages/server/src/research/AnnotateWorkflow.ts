@@ -12,7 +12,7 @@ import { Annotate, Params, retries } from "./Annotate.ts"
 // Demand run every day at 06:00 UTC; a person starts any other run with
 // scripts/annotate.ts or .github/workflows/annotate.yml. Its output is each
 // listed version's outcome. Workers only: package.json resolves
-// `@repo/server/workflow` to `workflow.node.ts` outside workerd.
+// `@repo/server/workflow` to `workflows/node.ts` outside workerd.
 export class AnnotateWorkflow extends WorkflowEntrypoint {
   override async run(
     event: Readonly<CloudflareWorkersModule.WorkflowEvent<unknown>>,

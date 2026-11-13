@@ -3,14 +3,14 @@ import { Effect, Layer } from "effect"
 import { HttpServerRequest, HttpServerResponse } from "effect/http"
 import { HttpApiBuilder } from "effect/http-api"
 
-import { Agent } from "./assistant/Agent.ts"
-import { AskLimit } from "./assistant/AskLimit.ts"
-import { Conversations } from "./assistant/Conversations.ts"
-import { Catalog } from "./catalog/Catalog.ts"
-import { PoliticsRoutes } from "./politics/Politics.ts"
-import { Notes } from "./sources/Notes.ts"
-import { Verification } from "./Verification.ts"
-import { Resolver } from "./views/Resolver.ts"
+import { Agent } from "../assistant/Agent.ts"
+import { Conversations } from "../assistant/Conversations.ts"
+import { Catalog } from "../catalog/Catalog.ts"
+import { PoliticsRoutes } from "../politics/Politics.ts"
+import { Notes } from "../sources/Notes.ts"
+import { Resolver } from "../views/Resolver.ts"
+import { AskLimit } from "../visitors/AskLimit.ts"
+import { Verification } from "../visitors/Verification.ts"
 
 const System = HttpApiBuilder.group(
   Api,

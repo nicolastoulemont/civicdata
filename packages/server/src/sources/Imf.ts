@@ -2,7 +2,7 @@ import { Country, Dimension, IndicatorId, IndicatorNotFound, SourceUnavailable }
 import { Context, DateTime, Effect, Layer, Option, Schema, Stream } from "effect"
 
 import { type Adapter, Policy, type Release } from "../series/Adapter.ts"
-import { Outline } from "../series/Outlines.ts"
+import { Outline } from "../series/Outline.ts"
 import { type Stored } from "../series/Store.ts"
 
 const indicator = IndicatorId.make("IMF:NGDP_RPCH")

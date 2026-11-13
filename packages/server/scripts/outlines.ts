@@ -19,8 +19,8 @@ import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } fr
 import { SqlClient } from "effect/sql"
 
 import { tables } from "../src/catalog/Catalog.ts"
-import { Outlines } from "../src/series/Outlines.ts"
-import { fill, Structures } from "../src/sources/sdmx/Structures.ts"
+import { fill, Outlines } from "../src/catalog/Outlines.ts"
+import { Structures } from "../src/sources/sdmx/Structures.ts"
 import { d1 } from "./d1.ts"
 
 const Profile = Schema.fromJsonString(

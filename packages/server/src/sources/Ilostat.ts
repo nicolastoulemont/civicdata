@@ -14,7 +14,7 @@ import { Context, DateTime, Effect, Layer, Option, Schema, Stream } from "effect
 import { HttpClient } from "effect/http"
 
 import { AssetId, type Adapter, Policy } from "../series/Adapter.ts"
-import { Outline } from "../series/Outlines.ts"
+import { Outline } from "../series/Outline.ts"
 import { type Stored } from "../series/Store.ts"
 import { table } from "../utils/Table.ts"
 import surveys from "./assets/ilostat.json" with { type: "json" }

@@ -1,5 +1,6 @@
-import { locate } from "@repo/domain"
 import { describe, expect, it } from "vitest"
+
+import { locate } from "../src/Country.ts"
 
 const codes = (name: string) => locate(name).map((country) => country.code)
 

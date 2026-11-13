@@ -11,7 +11,7 @@ import * as Runs from "./Runs.ts"
 // elsewhere only when started by hand (scripts/weekly.ts,
 // .github/workflows/paper-gather.yml). Only a stage that owns its paper store
 // binds it. Its output is the run's record. Workers only: package.json
-// resolves `@repo/server/workflow` to `workflow.node.ts` outside workerd.
+// resolves `@repo/server/workflow` to `workflows/node.ts` outside workerd.
 export class PaperGatherWorkflow extends WorkflowEntrypoint {
   override async run(
     event: Readonly<CloudflareWorkersModule.WorkflowEvent<unknown>>,

@@ -9,7 +9,7 @@ import { Gather } from "./Gather.ts"
 // The Workflow that gathers each source's series into the store: in
 // production every day at 05:00 UTC, elsewhere only when started by hand
 // (packages/infra). Workers only: package.json resolves
-// `@repo/server/workflow` to `workflow.node.ts` outside workerd.
+// `@repo/server/workflow` to `workflows/node.ts` outside workerd.
 export class GatherWorkflow extends WorkflowEntrypoint {
   override async run(
     event: Readonly<CloudflareWorkersModule.WorkflowEvent<unknown>>,

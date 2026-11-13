@@ -8,7 +8,7 @@ import {
 } from "@repo/domain"
 import { Data, type Effect, Schema, type Stream } from "effect"
 
-import type { Codelist, Outline } from "./Outlines.ts"
+import type { Codelist, Outline } from "./Outline.ts"
 import type { Answer, Described, Query } from "./Series.ts"
 import type { Stored } from "./Store.ts"
 

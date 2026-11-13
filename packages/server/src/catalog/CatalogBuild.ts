@@ -17,7 +17,7 @@ import { database } from "../platform/built.ts"
 import { Cache } from "../platform/Cache.ts"
 import { Pace } from "../platform/Pace.ts"
 import { Step } from "../platform/Step.ts"
-import { searchable, Outline, Outlines } from "../series/Outlines.ts"
+import { searchable, Outline } from "../series/Outline.ts"
 import { Faostat } from "../sources/Faostat.ts"
 import { Ilostat } from "../sources/Ilostat.ts"
 import { Imf } from "../sources/Imf.ts"
@@ -31,6 +31,7 @@ import { WorldBank } from "../sources/WorldBank.ts"
 import { fingerprint } from "../utils/fingerprint.ts"
 import { tables } from "./Catalog.ts"
 import { Classifier, Classifying } from "./Classifier.ts"
+import { Outlines } from "./Outlines.ts"
 import { Vectors, type VectorsUnavailable } from "./Vectors.ts"
 
 // Each insert binds one JSON array of entries, unpacked by SQLite's json_each,
@@ -109,7 +110,7 @@ interface Interface {
   // Lists the source's indicators into the generation, replacing what an
   // earlier attempt wrote there, and answers how many it wrote. It leaves
   // out the datasets search does not show, those with no annual values or
-  // none of our countries (Outlines.ts). It writes nothing and answers null
+  // none of our countries (series/Outline.ts). It writes nothing and answers null
   // when the published generation holds the same entries, with the same
   // labels, embedded by the same model, or is newer. An empty list is the
   // source failing, so it never replaces a published one.

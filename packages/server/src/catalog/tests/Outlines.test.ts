@@ -12,8 +12,14 @@ import { reset } from "cloudflare:test"
 import { env } from "cloudflare:workers"
 import { Effect, Schema, Stream } from "effect"
 
-import { Catalog } from "../../catalog/Catalog.ts"
-import { CatalogBuild } from "../../catalog/CatalogBuild.ts"
+import { type Adapter, type Discovery, Policy } from "../../series/Adapter.ts"
+import { Outline } from "../../series/Outline.ts"
+import { constraints, Constraints, DataStructures } from "../../sources/sdmx/parse.ts"
+import oecdConstraints from "../../tests/fixtures/structures/oecd-constraints.json"
+import oecdStructures from "../../tests/fixtures/structures/oecd-structures.json"
+import { Catalog } from "../Catalog.ts"
+import { CatalogBuild } from "../CatalogBuild.ts"
+import { fill, Outlines } from "../Outlines.ts"
 import {
   build,
   catalogOver,
@@ -23,13 +29,7 @@ import {
   recordings,
   unstructured,
   vectorize,
-} from "../../catalog/tests/catalog.ts"
-import { fill } from "../../sources/sdmx/Structures.ts"
-import oecdConstraints from "../../tests/fixtures/structures/oecd-constraints.json"
-import oecdStructures from "../../tests/fixtures/structures/oecd-structures.json"
-import { type Adapter, type Discovery, Policy } from "../Adapter.ts"
-import { Outline, Outlines } from "../Outlines.ts"
-import { constraints, Constraints, DataStructures } from "../Outlines.ts"
+} from "./catalog.ts"
 
 // Every test starts from empty bindings: the test Worker's D1 database is
 // shared by the file's tests.

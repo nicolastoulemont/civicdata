@@ -4,8 +4,8 @@ import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
 import { Gunzip } from "fflate"
 
 import type { Discovery } from "../../series/Adapter.ts"
+import type { Codelist, Outline } from "../../series/Outline.ts"
 import {
-  type Codelist,
   Constraints,
   constraints,
   DataStructures,
@@ -15,9 +15,7 @@ import {
   metabase,
   OecdCodelists,
   oecdLabels,
-  type Outline,
-  Outlines,
-} from "../../series/Outlines.ts"
+} from "./parse.ts"
 import { eurostat, oecd, type SdmxSource } from "./SdmxSource.ts"
 
 const structure = "application/vnd.sdmx.structure+json;version=1.0"
@@ -188,33 +186,6 @@ export class Structures extends Context.Service<Structures, Interface>()(
     }),
   )
 }
-
-// A stage's first fill of one source's outlines and labels: what a build
-// stores, with every label read from the source's bulk file instead of one
-// request per codelist. The OECD's 50 requests an hour would take weeks of
-// builds to label its 1,500 dataflows. Runs outside Workers, where the bulk
-// files fit (scripts/outlines.ts). Answers how many outlines, labels and texts it
-// wrote.
-export const fill = Effect.fn("Structures.fill")(function* (source: SdmxSource) {
-  const structures = yield* Structures
-  const outlines = yield* Outlines
-
-  const outlined = yield* outlines.write(source, structures.outlines(source))
-  const labels = yield* structures.labels(source)
-  const unlabelled = yield* outlines.unlabelled(source, { after: "", limit: 100_000 })
-
-  const labelled = yield* Effect.forEach(
-    unlabelled,
-    (codelist) => outlines.label(source, { codelist, labels: labels.get(codelist) ?? new Map() }),
-    { concurrency: 8 },
-  )
-
-  return {
-    outlines: outlined,
-    labels: labelled.reduce((sum, count) => sum + count, 0),
-    texts: yield* outlines.describe(source),
-  }
-})
 
 // SDMX adapters keep their own request limits; orchestration only sees a capability.
 export const discovery = (structures: Interface, source: SdmxSource): Discovery => ({

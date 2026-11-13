@@ -15,7 +15,7 @@ import { HttpClient } from "effect/http"
 
 import { AssetId, type Adapter, Policy } from "../series/Adapter.ts"
 import { unavailable } from "../series/Failure.ts"
-import { Outline } from "../series/Outlines.ts"
+import { Outline } from "../series/Outline.ts"
 import type { Stored } from "../series/Store.ts"
 import areas from "./assets/faostat.json" with { type: "json" }
 

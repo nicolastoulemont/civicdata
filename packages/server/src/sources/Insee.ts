@@ -22,7 +22,7 @@ import {
 import { HttpClient, HttpClientResponse } from "effect/http"
 
 import { type Adapter, Policy } from "../series/Adapter.ts"
-import { Outline } from "../series/Outlines.ts"
+import { Outline } from "../series/Outline.ts"
 import { type Query, choose } from "../series/Series.ts"
 import { cached } from "./Api.ts"
 

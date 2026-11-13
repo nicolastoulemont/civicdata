@@ -9,7 +9,7 @@ import {
 import { Context, DateTime, Effect, Layer, Option, Schema, Stream } from "effect"
 
 import { AssetId, type Adapter, Policy, Release } from "../series/Adapter.ts"
-import { Outline } from "../series/Outlines.ts"
+import { Outline } from "../series/Outline.ts"
 import type { Stored } from "../series/Store.ts"
 
 const indicator = IndicatorId.make("V-Dem:v2x_polyarchy")
