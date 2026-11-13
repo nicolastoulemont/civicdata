@@ -266,8 +266,10 @@ const encodeFailure = Schema.encodeSync(
 
 const message = (step: Step) => `event: message\ndata: ${encodeStep(step)}\n\n`
 
-const failure = (error: AgentUnavailable | CatalogUnavailable) =>
-  `event: effect/http-api/stream/failure\ndata: ${encodeFailure(Cause.fail(error))}\n\n`
+const failed = (cause: Cause.Cause<AgentUnavailable | CatalogUnavailable>) =>
+  `event: effect/http-api/stream/failure\ndata: ${encodeFailure(cause)}\n\n`
+
+const failure = (error: AgentUnavailable | CatalogUnavailable) => failed(Cause.fail(error))
 
 const events = (text: string) =>
   new HttpResponse(
@@ -2646,6 +2648,20 @@ describe("Conversation", () => {
     expect(within(alert).getByRole("button", { name: "Ask again" })).toBeDefined()
     expect(await findQuestion("Life expectancy in Brazil")).toBeDefined()
     expect(screen.queryByRole("button", { name: "Dismiss error" })).toBeNull()
+  })
+
+  it("keeps an answer the server died giving under its question as unavailable", async () => {
+    const reply = answer()
+    network.use(turns([]), reply.handler)
+    show("Life expectancy in Brazil")
+    reply.send(message(searching()))
+    reply.send(failed(Cause.die(new Error("D1_ERROR: D1 DB is overloaded"))))
+    reply.end()
+
+    const alert = await screen.findByRole("alert")
+    expect(within(alert).getByText("The assistant is not available")).toBeDefined()
+    expect(within(alert).getByRole("button", { name: "Ask again" })).toBeDefined()
+    expect(screen.queryByText("Thinking…")).toBeNull()
   })
 
   it("explains a busy conversation", async () => {
