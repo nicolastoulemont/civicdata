@@ -10,13 +10,14 @@ Deploys run only after the `check` job passes. Fork pull requests run `check` wi
 
 Only `prod` runs Workflows on a schedule. Pacing is per stage (`packages/server/src/Pace.ts`), so every stage that gathered on its own schedule would add a full stage's requests against the World Bank and the other publishers.
 
-A stage that owns its catalog and paper store binds three Workflows:
+A stage that owns its catalog and paper store binds four Workflows:
 
-| Workflow   | Class              | Writes                                        | Starts                                                                              |
-| ---------- | ------------------ | --------------------------------------------- | ----------------------------------------------------------------------------------- |
-| `CATALOG`  | `CatalogWorkflow`  | the catalog, political records and directions | after each deploy, and in `prod` every Monday at 04:00 UTC                          |
-| `GATHER`   | `GatherWorkflow`   | the stored series                             | by hand ([series](series.md#start-a-run-by-hand)), and in `prod` daily at 05:00 UTC |
-| `ANNOTATE` | `AnnotateWorkflow` | paper annotations and their keys' states      | by hand ([papers](papers.md#start-a-run-by-hand)), and in `prod` daily at 06:00 UTC |
+| Workflow       | Class                 | Writes                                               | Starts                                                                                        |
+| -------------- | --------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `PAPER_GATHER` | `PaperGatherWorkflow` | gathered papers, the gather's ledger and run records | by hand ([papers](papers.md#start-a-gather-by-hand)), and in `prod` every Monday at 03:00 UTC |
+| `CATALOG`      | `CatalogWorkflow`     | the catalog, political records and directions        | after each deploy, and in `prod` every Monday at 04:00 UTC                                    |
+| `GATHER`       | `GatherWorkflow`      | the stored series                                    | by hand ([series](series.md#start-a-run-by-hand)), and in `prod` daily at 05:00 UTC           |
+| `ANNOTATE`     | `AnnotateWorkflow`    | paper annotations and their keys' states             | by hand ([papers](papers.md#start-a-run-by-hand)), and in `prod` daily at 06:00 UTC           |
 
 ### Closing a pull request
 
@@ -77,7 +78,7 @@ and [Turnstile validation](https://developers.cloudflare.com/turnstile/get-start
 
 ## What a preview shares with production
 
-A pull request's preview reads production's catalog, stored series and papers: the catalog's D1 tables (the catalog, the political records, the directions and the series' bookkeeping), the `Vectors` index, the `Series` bucket, and the paper store: the `PapersDatabase` database and `Papers` bucket ([papers](papers.md)). Its search answers on its first request and its World Bank charts read the store, with no build of its own. It deploys no Catalog, Gather or Annotate Workflow, and CI starts no catalog build for it.
+A pull request's preview reads production's catalog, stored series and papers: the catalog's D1 tables (the catalog, the political records, the directions and the series' bookkeeping), the `Vectors` index, the `Series` bucket, and the paper store: the `PapersDatabase` database and `Papers` bucket ([papers](papers.md)). Its search answers on its first request and its World Bank charts read the store, with no build of its own. It deploys no Catalog, Gather, PaperGather or Annotate Workflow, and CI starts no catalog build for it.
 
 The Worker reads the catalog's tables through the `CATALOG_DB` binding, and binds `DB` to the stage's own database for anything a request writes. Everywhere else both bindings name the stage's own database. Requests only read what `CATALOG_DB`, `VECTORS`, `SERIES`, `PAPERS_DB` and `PAPERS` bind: readers never create, alter or drop a table (`packages/server/src/built.ts`), and a reader that meets a missing table answers "unavailable". Only the Workflows write, and a build stops before writing in a Worker that binds no Workflow (`database` in `packages/server/src/CatalogBuild.ts`). D1 has no read-only binding, so that code path is the protection.
 

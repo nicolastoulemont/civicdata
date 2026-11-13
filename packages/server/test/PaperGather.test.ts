@@ -14,6 +14,7 @@ import { Held, Papers } from "../src/research/Papers.ts"
 import { PaperId } from "../src/research/store.ts"
 import { bibliography, papersBucket, papersDb, publish, withdrawCopy } from "./papers.ts"
 import { pdf } from "./pdf.ts"
+import { copy, work } from "./works.ts"
 
 // The paper gather inside workerd, against PAPERS_DB and PAPERS, with
 // OpenAlex, the publishers and EconStor faked at the HTTP client. The PDFs
@@ -22,33 +23,6 @@ import { pdf } from "./pdf.ts"
 beforeEach(() => reset())
 
 const topic: Topic = { area: "labour", query: "minimum wage employment" }
-
-// A work OpenAlex lists, valid by default: one CC BY copy on a host of its
-// own, whose PDF carries a CC BY notice.
-const work = (n: number, delta: Partial<Work> = {}) =>
-  Work.make({
-    id: `https://openalex.org/W${n}`,
-    type: "article",
-    authorships: [{ author: { display_name: "Anne Example" } }],
-    doi: `https://doi.org/10.1234/w${n}`,
-    title: `Minimum wages and employment ${n}`,
-    publication_year: 2020,
-    updated_date: "2026-11-01T00:00:00",
-    is_retracted: false,
-    locations: [copy(n)],
-    ...delta,
-  })
-
-const copy = (n: number, delta: Partial<Work["locations"][number]> = {}) => ({
-  id: `doi:10.1234/w${n}`,
-  doi: `https://doi.org/10.1234/w${n}`,
-  raw_source_name: "Example University",
-  landing_page_url: `https://w${n}.example.org/paper`,
-  pdf_url: `https://w${n}.example.org/paper.pdf`,
-  license: "cc-by",
-  version: "publishedVersion",
-  ...delta,
-})
 
 // An EconStor item: its repository copy, whose licence only its item page
 // gives, and that page with EconStor's item-level metadata fields.
@@ -225,6 +199,10 @@ const pdfs = (urls: ReadonlyArray<string>) => urls.filter((url) => url.endsWith(
 
 const byText = (a: string | null, b: string | null) => String(a).localeCompare(String(b))
 
+// Work `n`, whose copy sits on a host it shares with others.
+const shared = (n: number) =>
+  work(n, { locations: [copy(n, { pdf_url: `https://a.example.org/${n}.pdf` })] })
+
 // When each request to `host` went, in order.
 const times = (
   requests: ReadonlyArray<{ readonly url: string; readonly at: number }>,
@@ -253,7 +231,7 @@ describe("the paper gather", () => {
           .filter((url) => url.includes("search="))
           .map((url) => new URL(url).searchParams.get("cursor")),
       ).toEqual(["*", "1", "*", "1"])
-      expect(report.topics).toEqual([
+      expect(report.topics).toMatchObject([
         { query: topic.query, found: 2, skipped: 1, wanted: 2, problem: null },
         { query: "minimum wage", found: 2, skipped: 0, wanted: 1, problem: null },
       ])
@@ -393,8 +371,8 @@ describe("the paper gather", () => {
       const report = yield* gather()
 
       expect(report.works).toEqual([])
-      expect(report.topics).toEqual([
-        { query: topic.query, found: 2, skipped: 0, wanted: 0, problem: null },
+      expect(report.topics).toMatchObject([
+        { query: topic.query, found: 2, skipped: 0, unchanged: 2, wanted: 0, problem: null },
       ])
       expect(place.urls(from).every((url) => url.includes("search="))).toBe(true)
       expect(yield* contents).toEqual(before)
@@ -547,9 +525,6 @@ describe("the paper gather", () => {
   })
 
   it.live("paces requests to each host and lets other hosts go meanwhile", () => {
-    const shared = (n: number) =>
-      work(n, { locations: [copy(n, { pdf_url: `https://a.example.org/${n}.pdf` })] })
-
     const place = world({ searches: { [topic.query]: [[shared(1), shared(2), work(3)]] } })
 
     return Effect.gen(function* () {

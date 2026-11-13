@@ -18,11 +18,13 @@ interface Page {
   readonly next: string | null
 }
 
-// What a search asks OpenAlex: its words, and whether it keeps to EconStor's
-// repository copies.
+// What a search asks OpenAlex: its words, whether it keeps to EconStor's
+// repository copies, and the day from which works must have been created or
+// updated, if any.
 interface Query {
   readonly query: string
   readonly repository?: boolean | undefined
+  readonly since?: string | null | undefined
 }
 
 interface Interface {
@@ -50,10 +52,13 @@ export const metadataUrl = (identity: string) =>
 const select = "id,type,authorships,doi,title,publication_year,updated_date,is_retracted,locations"
 
 // Open access, not retracted, in English, published from 1990; EconStor's
-// repository (S4306401696) when the query keeps to it.
-const filterOf = ({ repository }: Query) =>
+// repository (S4306401696) when the query keeps to it; updated from `since`
+// when the query gives a day. OpenAlex moves a work's updated date whenever
+// its record changes, citation counts included.
+const filterOf = ({ repository, since }: Query) =>
   "is_oa:true,is_retracted:false,language:en,from_publication_date:1990-01-01" +
-  (repository === true ? ",locations.source.id:S4306401696" : "")
+  (repository === true ? ",locations.source.id:S4306401696" : "") +
+  (since === null || since === undefined ? "" : `,from_updated_date:${since}`)
 
 const searchUrl = (query: Query, { cursor, size }: { cursor: string; size: number }) => {
   const url = new URL("https://api.openalex.org/works")

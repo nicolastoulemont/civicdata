@@ -18,3 +18,9 @@ export class AnnotateWorkflow {
     throw new Error("Papers are annotated only inside Workers")
   }
 }
+
+export class PaperGatherWorkflow {
+  run(): never {
+    throw new Error("The weekly paper gather runs only inside Workers")
+  }
+}

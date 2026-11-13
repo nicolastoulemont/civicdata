@@ -1,5 +1,5 @@
-import type { Source } from "@repo/domain"
-import { Clock, Context, Duration, Effect, Layer, Ref, Schema } from "effect"
+import { Source } from "@repo/domain"
+import { Clock, Context, Duration, Effect, Layer, Option, Ref, Schema } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
 
 import * as Fetch from "./Fetch.ts"
@@ -38,13 +38,47 @@ const budgets = {
   "World Bank": { windows: [{ count: 120, period: minute }], cooldown: minute },
 } satisfies Record<string, Budget>
 
+// A host the paper gather asks (research/Gather.ts), by its hostname. A
+// hostname has a dot and a source name never does, so one limiter's name
+// never stands for both.
+const Host = Schema.String.check(Schema.isPattern(/^[a-z0-9-]+(?:\.[a-z0-9-]+)+$/))
+
+// What one limiter paces: a series source, or a host the paper gather asks.
+export const Key = Schema.Union([Source, Host])
+
+export type Key = typeof Key.Type
+
+// How often the paper gather asks one host: OpenAlex at most once a second,
+// any other host at most once every two seconds.
+export interface Gaps {
+  readonly gap: Duration.Duration
+  readonly hosts: Readonly<Record<string, Duration.Duration>>
+}
+
+export const gaps: Gaps = {
+  gap: Duration.seconds(2),
+  hosts: { "api.openalex.org": Duration.seconds(1) },
+}
+
+const isHost = Schema.is(Host)
+
 // New API adapters must choose and register their measured budget here.
-// Unregistered publishers are paced conservatively until then.
-const budget = (source: Source): Budget =>
-  Object.entries(budgets).find(([name]) => name === source)?.[1] ?? {
-    windows: [{ count: 1, period: minute }],
-    cooldown: minute,
-  }
+// Unregistered publishers are paced conservatively until then. A host gets
+// one request per gap, and a minute's rest after it refuses one.
+const budget = (key: Key): Budget => {
+  if (isHost(key))
+    return {
+      windows: [{ count: 1, period: Duration.toMillis(gaps.hosts[key] ?? gaps.gap) }],
+      cooldown: minute,
+    }
+
+  return (
+    Object.entries(budgets).find(([name]) => name === key)?.[1] ?? {
+      windows: [{ count: 1, period: minute }],
+      cooldown: minute,
+    }
+  )
+}
 
 // What a source's limiter remembers: when it let each recent request go,
 // oldest first, and until when the source is refusing us.
@@ -67,13 +101,13 @@ export const Slot = Schema.TaggedUnion({
 export type Slot = typeof Slot.Type
 
 // Grants the earliest time at or after `now` that keeps every window of the
-// source's budget, if it is no more than `patience` away. Grants never go
+// limiter's budget, if it is no more than `patience` away. Grants never go
 // back in time, so concurrent callers queue behind one another.
 export const take = (
-  source: Source,
+  key: Key,
   { ledger, now, patience }: { ledger: Ledger; now: number; patience: number },
 ): { readonly slot: Slot; readonly ledger: Ledger } => {
-  const { windows } = budget(source)
+  const { windows } = budget(key)
   const longest = Math.max(...windows.map((window) => window.period))
   const sent = ledger.sent.filter((at) => at > now - longest)
 
@@ -94,20 +128,18 @@ export const take = (
       }
 }
 
-// The source refused a request: ask it nothing until its cooldown is over.
-export const refuse = (
-  source: Source,
-  { ledger, now }: { ledger: Ledger; now: number },
-): Ledger => ({
+// The source or host refused a request: ask it nothing until its cooldown
+// is over.
+export const refuse = (key: Key, { ledger, now }: { ledger: Ledger; now: number }): Ledger => ({
   sent: ledger.sent,
-  blockedUntil: Math.max(ledger.blockedUntil, now + budget(source).cooldown),
+  blockedUntil: Math.max(ledger.blockedUntil, now + budget(key).cooldown),
 })
 
 interface Interface {
-  // A slot for one request to `source`, waiting at most `patience`.
-  readonly take: (source: Source, patience: Duration.Duration) => Effect.Effect<Slot>
-  // Reports that `source` refused a request with a 429.
-  readonly refused: (source: Source) => Effect.Effect<void>
+  // A slot for one request to `key`, waiting at most `patience`.
+  readonly take: (key: Key, patience: Duration.Duration) => Effect.Effect<Slot>
+  // Reports that `key` refused a request with a 429.
+  readonly refused: (key: Key) => Effect.Effect<void>
 }
 
 // What a limiter needs from the PACE Durable Object namespace binding.
@@ -138,57 +170,58 @@ export class Pace extends Context.Service<Pace, Interface>()("@repo/server/Pace"
   static readonly memory = Layer.effect(
     Pace,
     Effect.gen(function* () {
-      const ledgers = yield* Ref.make(new Map<Source, Ledger>())
+      const ledgers = yield* Ref.make(new Map<Key, Ledger>())
 
       return Pace.of({
-        take: (source, patience) =>
+        take: (key, patience) =>
           Effect.flatMap(Clock.currentTimeMillis, (now) =>
             Ref.modify(ledgers, (all) => {
-              const next = take(source, {
-                ledger: all.get(source) ?? empty,
+              const next = take(key, {
+                ledger: all.get(key) ?? empty,
                 now,
                 patience: Duration.toMillis(patience),
               })
 
-              return [next.slot, new Map(all).set(source, next.ledger)]
+              return [next.slot, new Map(all).set(key, next.ledger)]
             }),
           ),
-        refused: (source) =>
+        refused: (key) =>
           Effect.flatMap(Clock.currentTimeMillis, (now) =>
             Ref.update(ledgers, (all) =>
-              new Map(all).set(source, refuse(source, { ledger: all.get(source) ?? empty, now })),
+              new Map(all).set(key, refuse(key, { ledger: all.get(key) ?? empty, now })),
             ),
           ),
       })
     }),
   )
 
-  // One PaceObject per source, shared by every Worker. A limiter that fails
-  // lets the request through: a broken counter should not take a source down.
+  // One PaceObject per source or host, shared by every Worker. A limiter
+  // that fails lets the request through: a broken counter should not take a
+  // source down.
   static readonly durable = (namespace: Namespace) => {
-    const ask = (source: Source, path: string) =>
+    const ask = (key: Key, path: string) =>
       Effect.tryPromise(() =>
         namespace
-          .get(namespace.idFromName(source))
+          .get(namespace.idFromName(key))
           .fetch(new Request(`https://pace${path}`, { method: "POST" })),
       )
 
     return Layer.succeed(
       Pace,
       Pace.of({
-        take: (source, patience) =>
+        take: (key, patience) =>
           ask(
-            source,
-            `/take?source=${encodeURIComponent(source)}&patience=${Duration.toMillis(patience)}`,
+            key,
+            `/take?source=${encodeURIComponent(key)}&patience=${Duration.toMillis(patience)}`,
           ).pipe(
             Effect.flatMap((response) => Effect.tryPromise(() => response.text())),
             Effect.flatMap(Schema.decodeEffect(SlotJson)),
-            Effect.tapError((error) => Effect.logWarning("Pace failed", source, error)),
+            Effect.tapError((error) => Effect.logWarning("Pace failed", key, error)),
             Effect.orElseSucceed(() => Slot.cases.Granted.make({ wait: 0 })),
           ),
-        refused: (source) =>
-          ask(source, `/refused?source=${encodeURIComponent(source)}`).pipe(
-            Effect.tapError((error) => Effect.logWarning("Pace failed", source, error)),
+        refused: (key) =>
+          ask(key, `/refused?source=${encodeURIComponent(key)}`).pipe(
+            Effect.tapError((error) => Effect.logWarning("Pace failed", key, error)),
             Effect.ignore,
           ),
       }),
@@ -203,11 +236,16 @@ export class Pace extends Context.Service<Pace, Interface>()("@repo/server/Pace"
     ),
   )
 
-  // Wraps the HttpClient the adapters use. A request waits for its source's
-  // slot; when none is free within `hold`, it gets a 429 without leaving the
-  // Worker, which the adapters already read as the source refusing. A real
-  // 429 from the source starts its cooldown.
-  static readonly paced = (hold: Duration.Duration) =>
+  // Wraps the HttpClient the adapters use. A request waits for its
+  // limiter's slot; when none is free within `hold`, it gets a 429 without
+  // leaving the Worker, which the adapters already read as the source
+  // refusing. A real 429 from the source starts its cooldown. `limiter`
+  // names the limiter of a request's hostname, or none to send it unpaced;
+  // by default each series source's hosts share the source's.
+  static readonly paced = (
+    hold: Duration.Duration,
+    limiter: (hostname: string) => Key | undefined = (hostname) => hosts.get(hostname),
+  ) =>
     Layer.effect(
       HttpClient.HttpClient,
       Effect.gen(function* () {
@@ -215,7 +253,7 @@ export class Pace extends Context.Service<Pace, Interface>()("@repo/server/Pace"
         const pace = yield* Pace
 
         return HttpClient.transform(client, (send, request) => {
-          const source = hosts.get(new URL(request.url).host)
+          const source = limiter(new URL(request.url).hostname)
 
           if (source === undefined) return send
 
@@ -255,4 +293,12 @@ export class Pace extends Context.Service<Pace, Interface>()("@repo/server/Pace"
     Layer.provide(Fetch.layer),
     Layer.provide(Pace.live),
   )
+
+  // Paces each host on its own, as the paper gather asks them: every Worker
+  // and every run shares one limiter per host. A request waits up to a
+  // minute for a slot, about 30 requests queued ahead of it on one
+  // publisher.
+  static readonly hosts = Pace.paced(Duration.minutes(1), (hostname) =>
+    Option.getOrUndefined(Schema.decodeOption(Host)(hostname)),
+  ).pipe(Layer.provide(Pace.live))
 }

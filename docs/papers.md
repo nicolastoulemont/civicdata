@@ -9,7 +9,7 @@ Research papers live in a store of their own: a D1 database bound as `PAPERS_DB`
 Requests only read the store. Three writers fill it, and only they create its tables (`tables` in `store.ts`):
 
 - the publication command, run from a machine, which publishes a corpus directory and withdraws copies;
-- the gather, which finds papers on OpenAlex for the reviewed topics and writes them as the publication command writes a corpus record ([gather](#gather));
+- the gather, which finds papers on OpenAlex for the reviewed topics and writes them as the publication command writes a corpus record ([gather](#gather)); the PaperGather Workflow runs it every week, and a machine runs it by hand;
 - the annotation Workflow, which writes annotations and points versions at them.
 
 The publication command and the gather write through one writer, `write` in `packages/server/src/research/publication.ts`, so both write the same rows in the same order.
@@ -32,7 +32,7 @@ A production destroy keeps the papers database, because annotations cost model c
 | `passage`    | page-bound passage of a version, for search                                     |
 | `annotation` | annotation of one text, under its annotation key                                |
 
-The gather keeps its ledger, `work_gathered`, in the same database ([ledger](#ledger)). No reader touches it.
+The gather keeps its ledger, `work_gathered`, and its claims, `work_claim`, in the same database ([ledger](#ledger)), and the PaperGather Workflow its run records, `gather_run` and `gather_topic` ([run records](#read-run-records)). No reader touches them.
 
 A paper's id is its seed's id. A fetched copy's id is the hash of its location, source version and PDF SHA-256 (`packages/server/src/research/pdf.ts`), so a different file at the same URL is a different copy. A copy never fetched, such as one whose licence was not admitted, hashes its paper, location and source version: two records of one work list the same locations, and each keeps its own row. A version's PDF and text sit at `objectsOf(version)` in the bucket. Its `text` column is the SHA-256 of the text object's bytes: a JSON array of the version's passages in page order.
 
@@ -88,7 +88,7 @@ Withdrawing a copy that is already withdrawn with the same reason writes nothing
 
 ## Gather
 
-The gather finds works on OpenAlex for each reviewed topic, checks each work's copies and licences, extracts the admitted text with `unpdf` and publishes each work through the shared writer. `run` in `packages/server/src/research/Gather.ts` holds it. It runs in Workers and in Node, reads no file and calls no model: it needs no `OPENAI_API_KEY`, and a gathered paper waits for the annotation Workflow like any other. The caller supplies the steps, as for series ([stored series](series.md#what-a-run-does)): a Workflow provides `Step.workflow`, the local gather `Step.immediate`. No Workflow runs it yet; NTO-250 wraps it in a weekly one.
+The gather finds works on OpenAlex for each reviewed topic, checks each work's copies and licences, extracts the admitted text with `unpdf` and publishes each work through the shared writer. `run` in `packages/server/src/research/Gather.ts` holds it. It runs in Workers and in Node, reads no file and calls no model: it needs no `OPENAI_API_KEY`, and a gathered paper waits for the annotation Workflow like any other. The caller supplies the steps, as for series ([stored series](series.md#what-a-run-does)): the PaperGather Workflow provides `Step.workflow` ([weekly gather](#weekly-gather)), the local gather `Step.immediate`.
 
 ### Topics
 
@@ -101,9 +101,11 @@ Every search asks for open-access works, not retracted, in English and published
 For each topic, page by page, a run:
 
 1. asks OpenAlex for the page and keeps the works the ledger wants: works it never asked for, works whose record changed, and works whose last attempt on the same record failed under the attempt limit (3);
-2. asks OpenAlex for the wanted works' current records, at most `batch` at once, and gathers them, `concurrency` at once.
+2. asks OpenAlex for the wanted works' current records, at most `batch` at once, claims them ([claims](#claims)), asks the ledger again under the claim, and gathers the works still wanted, `concurrency` at once.
 
 Each page and each batch is one step. A page that fails ends its topic; a batch that fails leaves its works out of the ledger, so the next run asks for them again, and the topic goes on. A work the run already asked for under an earlier topic is not asked for again.
+
+A run may be given, per topic, the day the topic was last searched in full. It then asks OpenAlex only for works created or updated from that day (`from_updated_date`), and searches topics without a day first, then the one searched longest ago. The local gather gives none and searches every topic over every year. A run may also be given caps on what it fetches ([run caps](#run-caps)); the local gather has none.
 
 For one work, the gather:
 
@@ -140,9 +142,13 @@ FROM work_gathered WHERE json_extract(outcome, '$._tag') = 'Failed' ORDER BY at 
 
 To gather a work again although its record has not changed, delete its row.
 
+### Claims
+
+Two runs never gather the same work at once. Before a batch, a run claims its works in `work_claim` with one `INSERT ... ON CONFLICT DO UPDATE ... WHERE ... RETURNING` statement, which takes a work no run holds, one this run already holds (a step that Workflows retried), or one whose claim lapsed 15 minutes after it was taken, well past a step's 5-minute timeout. A work another run holds is left `Held`: it gets no ledger row and no request. After the claim the run asks the ledger again, so a work that another run, or an earlier attempt of the same step, already gathered from the same record is not gathered twice. The batch gives its claims back when it ends; a run that stops without doing so holds them until they lapse. The Workflow claims under its instance id, the local gather under a fresh id per run.
+
 ### Pacing
 
-Every request goes through `paced` in `Gather.ts`, which waits between two requests to the same host: 1 second for `api.openalex.org` and 2 seconds for any other host. Other hosts go on meanwhile, so one slow publisher holds back only its own works. Requests name the client `papers-gather/1.0`, with no email, `mailto` or API key: OpenAlex's anonymous limits apply, and a run stays far under them.
+Every request waits between two requests to the same host: 1 second for `api.openalex.org` and 2 seconds for any other host (`gaps` in `packages/server/src/Pace.ts`). Other hosts go on meanwhile, so one slow publisher holds back only its own works. The PaperGather Workflow paces each host through its own `PaceObject`, the Durable Object the series gather paces each source through (`Pace.hosts`), so every run and every Worker of a stage shares one pace per host. A request waits up to a minute for its slot; past that, or after the host answers 429, it fails as a 429 and the host rests for a minute. The local gather paces in its own process (`paced` in `Gather.ts`). Requests name the client `papers-gather/1.0`, with no email, `mailto` or API key: OpenAlex's anonymous limits apply, and a run stays far under them.
 
 ### Local gather
 
@@ -153,6 +159,92 @@ To fill a stage the first time, label its pull request `own-catalog` and name th
 The command prints counts per outcome, each topic's counts, and every work that failed or that the store refused, with its id, title and problem, never a passage. It exits 1 when a work failed, the store refused one, or a topic stopped early; a rerun asks only for what failed.
 
 `packages/server/test/PaperGather.test.ts` runs the gather inside workerd against D1 and R2, with OpenAlex, publishers and EconStor faked at the HTTP client and real PDFs: paging, admission and exclusion, a rerun with nothing changed, a changed record, a failed PDF host, the attempt limit, the refusal to drop served text, a hand-audited copy and per-host pacing. `packages/server/scripts/papers/gather.test.ts` runs the local gather over Cloudflare's wire after publishing the corpus record of the same work.
+
+### Weekly gather
+
+`PaperGatherWorkflow` (`packages/server/src/PaperGatherWorkflow.ts`, bound as `PAPER_GATHER`) runs the gather with Workflow steps and records each run. `packages/server/src/research/Runs.ts` holds its work. Like the other Workflows, it exists only in a stage that owns its paper store: production and previews with the `own-catalog` label. A shared preview binds none. It calls no model.
+
+In production, a native Workflow schedule (`0 3 * * 1` in `packages/infra/alchemy.run.ts`, no Cron Trigger) starts a run every Monday at 03:00 UTC, an hour before the catalog build. An `own-catalog` preview has no schedule and runs only when someone starts a run.
+
+A run takes these steps:
+
+1. `plan`: reads, for each topic, when the last run that completed it started.
+2. The gather's steps: `tables`, then per topic `discover <topic> <page>` and `gather <topic> <page> <batch>`. A topic with a day asks only for works created or updated from it. A topic new to the topic file, or one no run has completed, has none and gets a backfill: its search over every year, within the run's caps.
+3. `record`: writes the run record in one D1 batch.
+
+A topic is complete when its search ran to its last page or its page limit, with no failed page, batch or work, no work held by another run and no cap reached. Only then does the next run search it from this run's start day. A work that failed, or that a cap left waiting, therefore comes up again in the next run's search, which the day of an incomplete topic does not narrow. OpenAlex moves `updated_date` whenever a record changes, citation counts included, so an incremental search lists many works the store already holds. The ledger's hash leaves them alone: they cost search pages, never a PDF.
+
+A step retries 5 times, from 1 minute apart, as the series gather's do. A run that fails partway can be restarted from the Cloudflare dashboard: its completed steps replay their saved answers, so the topics and batches it finished stay finished and nothing is fetched again. Within a batch that failed partway, the works already in the ledger are not gathered again ([claims](#claims)). Such a work counts as unchanged in the run record.
+
+#### Run caps
+
+`Caps` in `Runs.ts` holds what one run may fetch: 250 requests to OpenAlex (search pages and batches of records), 300 works gathered, 100 PDFs and 200 MB of PDF. The gather checks the caps before each step and before each work, so a run passes a cap by at most the works already in flight, 2 per batch. Once a cap is reached, the run fetches nothing more: the rest of the current topic and every later topic wait for the next run, which takes them first.
+
+The numbers come from the topic file and the Worker's limits. 61 topics of at most 2 pages take at most 122 search requests, which leaves room for 128 batches of 10 records. Extracting a PDF's text with `unpdf` is the costly part of a step: a batch holds 10 works and tries at most 3 copies each, and 100 PDFs of 200 MB in all stay within the Worker's 5 minutes of CPU (`limits.cpuMs`) even if every step of a run counted against one invocation. That bound is an estimate, not a measurement: no run has recorded CPU time yet.
+
+A weekly run should make about 122 search requests, at one a second, and a few batches of records: only works OpenAlex added or whose copies, licences, titles or retraction changed are wanted. It downloads a PDF only for those works with a licensed copy, likely tens a week, at most 100. A first run after the local fill finds every topic without a day: it searches each over every year, finds the works unchanged, and downloads nothing that the fill stored.
+
+#### Start a gather by hand
+
+Run the `Gather papers` GitHub workflow with the stage, from the Actions tab or with:
+
+```sh
+gh workflow run paper-gather.yml -f stage=pr-123
+```
+
+It refuses a pull request without the `own-catalog` label. From a machine with `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` set:
+
+```sh
+pnpm --filter @repo/server run papers:weekly --stage pr-123
+```
+
+A run started by hand is the same run the schedule starts. One started while another runs claims its works through the same statement, so each work is gathered once; each run adds up to one run's caps.
+
+#### Read run records
+
+The instance's output is its run record: the Cloudflare dashboard shows it under Workers & Pages, Workflows, and the API returns it at `/accounts/<account>/workflows/civicdata-<stage>-paper-gather/instances/<id>`. The stage's `PapersDatabase` keeps the records after the instance is gone. `gather_run` holds one row per run:
+
+| Column      | Holds                                                                                    |
+| ----------- | ---------------------------------------------------------------------------------------- |
+| `seen`      | works the searches listed                                                                |
+| `admitted`  | works whose text the store now serves (`Text`)                                           |
+| `metadata`  | works kept as metadata only                                                              |
+| `unchanged` | listed works the ledger already held under the same record                               |
+| `covered`   | works a hand-audited copy holds                                                          |
+| `refused`   | works the store refused                                                                  |
+| `failed`    | works whose copy host, PDF or store write failed                                         |
+| `held`      | works another run was gathering                                                          |
+| `waiting`   | wanted works a cap left for the next run                                                 |
+| `requests`  | requests to OpenAlex, `pdfs` PDFs downloaded and `bytes` their size                      |
+| `stopped`   | the cap that stopped the run, or null                                                    |
+| `reasons`   | metadata-only works by reason, and each failed or refused work with its problem, as JSON |
+
+`gather_topic` holds one row per run and topic: its key, query, the day it searched from (null for every year), its counts, whether it completed and why a page or batch failed. To see what recent runs did, newest first:
+
+```sql
+SELECT run, started, ended, seen, admitted, metadata, unchanged, failed, waiting, stopped,
+  requests, pdfs, bytes
+FROM gather_run ORDER BY started DESC LIMIT 10;
+```
+
+To see why works failed in one run:
+
+```sql
+SELECT json_extract(value, '$.work') AS work, json_extract(value, '$.operation') AS operation,
+  json_extract(value, '$.problem') AS problem
+FROM gather_run, json_each(gather_run.reasons, '$.failed') WHERE run = '<instance id>';
+```
+
+To see each topic's day, the one the next run searches from:
+
+```sql
+SELECT query, substr(max(started), 1, 10) AS since
+FROM gather_topic JOIN gather_run USING (run) WHERE complete = 1 GROUP BY topic;
+```
+
+To search a topic over every year again, delete its `gather_topic` rows.
+
+`packages/server/test/Runs.test.ts` runs the Workflow's work inside workerd against D1 and R2, with OpenAlex and the publishers faked at the HTTP client and a fake Workflows step runner: incremental selection, a new topic's backfill, the caps, a failed host, a resumed run and two runs at once.
 
 ## Local reproduction
 
