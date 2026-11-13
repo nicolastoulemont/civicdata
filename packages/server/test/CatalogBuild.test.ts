@@ -15,6 +15,7 @@ import {
   entry,
   exec,
   listings,
+  planned,
   published,
   stored,
   vectorize,
@@ -330,6 +331,30 @@ describe("CatalogBuild", () => {
 
       expect(upserts().slice(embedded)).toHaveLength(3)
     })
+  })
+
+  it.effect("clears a generation's rows by its source and generation", () => {
+    const reads = planned()
+
+    return Effect.gen(function* () {
+      yield* build(1)
+
+      // The write step's clear of the generation it rewrites, and the
+      // publish step's of the generations before it.
+      const clears = (yield* reads.plans).filter(({ query }) =>
+        query.includes("DELETE FROM catalog_indicator"),
+      )
+
+      expect(new Set(clears.map(({ query }) => query)).size).toBe(2)
+
+      // The primary key starts with the indicator, so without the index
+      // each clear reads every source's rows.
+      for (const clear of clears) {
+        expect(clear.steps.join("\n")).toMatch(
+          /SEARCH catalog_indicator USING .*INDEX catalog_indicator_generation \(source=\? AND generation[=<]\?\)/,
+        )
+      }
+    }).pipe(Effect.provide(catalogOver(listings(), { database: reads.database })))
   })
 
   it.effect("keeps a changed source's old generation when Workers AI is down mid-build", () => {
