@@ -148,3 +148,5 @@ export {
 } from "./Verification.ts"
 
 export { default as ilostatNotes } from "./ilostat.json" with { type: "json" }
+
+export { Paper } from "./Paper.ts"

@@ -190,5 +190,19 @@
   "WHO estimate {{estimate}}; 95% uncertainty bounds {{lower}}–{{upper}} ({{version}}).": "Estimation OMS {{estimate}} ; bornes d’incertitude à 95 % {{lower}}–{{upper}} ({{version}}).",
   "WEO {{vintage}}; {{status}}; latest actual {{year}}.": "PEM {{vintage}} ; {{status}} ; dernière donnée effective {{year}}.",
   "Publisher actual (revisable)": "Donnée effective de l’éditeur (révisable)",
-  "IMF estimate/projection": "Estimation/projection du FMI"
+  "IMF estimate/projection": "Estimation/projection du FMI",
+  "Descriptive result": "Résultat descriptif",
+  "Association, not a causal estimate": "Association, pas une estimation causale",
+  "Author-reported causal estimate": "Estimation causale selon les auteurs",
+  "Study population not identified": "Population étudiée non identifiée",
+  "Page {{page}}": "Page {{page}}",
+  "Limitations were not identified in the retrieved passages": "Aucune limite identifiée dans les passages retrouvés",
+  "Published copy": "Version publiée",
+  "Accepted manuscript": "Manuscrit accepté",
+  "Submitted manuscript": "Manuscrit soumis",
+  "Reuse licence": "Licence de réutilisation",
+  "Study design not identified": "Plan d’étude non identifié",
+  "Descriptive study": "Étude descriptive",
+  "Observational study": "Étude observationnelle",
+  "Author-reported causal identification": "Identification causale selon les auteurs"
 }

@@ -190,5 +190,19 @@
   "WHO estimate {{estimate}}; 95% uncertainty bounds {{lower}}–{{upper}} ({{version}}).": "WHO-Schätzung {{estimate}}; 95%-Unsicherheitsgrenzen {{lower}}–{{upper}} ({{version}}).",
   "WEO {{vintage}}; {{status}}; latest actual {{year}}.": "WEO {{vintage}}; {{status}}; letzter Istwert {{year}}.",
   "Publisher actual (revisable)": "Istwert des Herausgebers (revidierbar)",
-  "IMF estimate/projection": "IWF-Schätzung/Projektion"
+  "IMF estimate/projection": "IWF-Schätzung/Projektion",
+  "Descriptive result": "Deskriptives Ergebnis",
+  "Association, not a causal estimate": "Zusammenhang, keine kausale Schätzung",
+  "Author-reported causal estimate": "Von den Autoren berichtete kausale Schätzung",
+  "Study population not identified": "Untersuchungsgruppe nicht ermittelt",
+  "Page {{page}}": "Seite {{page}}",
+  "Limitations were not identified in the retrieved passages": "In den gefundenen Passagen wurden keine Einschränkungen ermittelt",
+  "Published copy": "Veröffentlichte Fassung",
+  "Accepted manuscript": "Angenommenes Manuskript",
+  "Submitted manuscript": "Eingereichtes Manuskript",
+  "Reuse licence": "Lizenz zur Weiterverwendung",
+  "Study design not identified": "Studiendesign nicht ermittelt",
+  "Descriptive study": "Deskriptive Studie",
+  "Observational study": "Beobachtungsstudie",
+  "Author-reported causal identification": "Kausale Identifikation laut Autoren"
 }

@@ -26,6 +26,7 @@ import {
   type Government,
   IndicatorId,
   Politics,
+  Paper,
   Ranking,
   Read,
   RecordId,
@@ -86,6 +87,7 @@ import { beforeAll, describe, expect, it, onTestFinished, vi } from "vitest"
 import { SidebarProvider } from "@/components/ui/sidebar"
 
 import { line, typed } from "../../test/composer.ts"
+import recordedPaper from "../../test/fixtures/paper.json"
 import { exportedSpans, network } from "../../test/network.ts"
 import { createI18n } from "../locale.tsx"
 import { Conversation } from "./Conversation.tsx"
@@ -2920,4 +2922,35 @@ it("changes saved conversation controls and work logs while keeping the original
   expect(screen.getByRole("list", { name: "Passos" })).toBeDefined()
   expect(screen.getByText(statement)).toBeDefined()
   expect(screen.getAllByText(question).length).toBeGreaterThan(0)
+})
+
+it("shows a cited paper's source passage, design, population, limitations and physical PDF page", async () => {
+  const user = userEvent.setup()
+  const paper = Schema.decodeUnknownSync(Paper)(recordedPaper)
+  const text = `A study reports a reduction in emissions [${paper.study.title}](cite:0).`
+  network.use(
+    ...kept([
+      {
+        question: "What research supports the explanation?",
+        answer: charted(Text.make({ text, cites: [Cited.cases.Paper.make({ paper })] })),
+      },
+    ]).handlers,
+  )
+  show()
+  const link = await screen.findByRole("link", { name: paper.study.title })
+  expect(link.getAttribute("href")).toBe(paper.url)
+  await user.hover(link)
+  expect(await screen.findByText("Author-reported causal estimate")).toBeDefined()
+  expect(screen.getByText(paper.quote)).toBeDefined()
+
+  expect(screen.getByText("Author-reported causal identification")).toBeDefined()
+  expect(screen.getByText(recordedPaper.population)).toBeDefined()
+  expect(screen.getByText("Published copy")).toBeDefined()
+  expect(screen.getByRole("link", { name: /Page [0-9]+/ }).getAttribute("href")).toBe(paper.url)
+  expect(screen.getByRole("link", { name: "Reuse licence" }).getAttribute("href")).toBe(
+    paper.licences[0],
+  )
+
+  for (const item of paper.context)
+    expect(screen.getByText((value) => value.includes(item.text))).toBeDefined()
 })

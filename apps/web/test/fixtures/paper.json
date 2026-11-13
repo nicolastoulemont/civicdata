@@ -1,0 +1,39 @@
+{
+  "id": "0dbe5e990e6b148ef74431623acb1b0b6e4479d2dde4b1ad086c7d602c481a3c",
+  "study": {
+    "authors": ["Klaus Peter Gugler", "Adhurim Haxhimusa", "Mario Liebensteiner"],
+    "year": 2023,
+    "title": "Carbon pricing and emissions: Causal effects of Britain's carbon tax",
+    "publisher": "Energy Economics",
+    "doi": "10.1016/j.eneco.2023.106655",
+    "url": "https://www.wu.ac.at/fileadmin/wu/d/economics/Department_of_Economics/AE_Gugler_Quantitative_VWL_VW6/Gugler_Publikationen/Artikel/ghl_ee_2023.pdf"
+  },
+  "quote": "We estimate that Britain's introduction of the carbon tax and its two subsequent increments reduced emissions from the power sector by 38.6 MtCO2 within three years, which accords to a cumulative abatement of 26.2% relative to pre-treatment emissions.",
+  "kind": "AuthorCausalEstimate",
+  "design": "AuthorCausalEstimate",
+  "population": "Data We utilize high-frequency data on hourly electricity generation of all British thermal power plant units (i.e. turbines) to calculate CO2 emis- sions at the turbine level over time.",
+  "countries": ["GBR"],
+  "periods": [
+    {
+      "from": 2012,
+      "to": 2016
+    }
+  ],
+  "page": 3,
+  "url": "https://www.wu.ac.at/fileadmin/wu/d/economics/Department_of_Economics/AE_Gugler_Quantitative_VWL_VW6/Gugler_Publikationen/Artikel/ghl_ee_2023.pdf#page=3",
+  "sha256": "f9e9a0f8f864ecbe93814124543a7a10242ecdc2e62651efecd27d966d1f16d2",
+  "version": "publishedVersion",
+  "licences": ["https://creativecommons.org/licenses/by/4.0/"],
+  "context": [
+    {
+      "page": 2,
+      "text": "Our identification of the tax effects thus relies on a regression- discontinuity-in-time (RDiT) approach to estimate causal effects of the discontinuous carbon tax adjustments (“jumps”) on carbon emissions.",
+      "role": "Method"
+    },
+    {
+      "page": 7,
+      "text": "of which 6 are not in our sample because of inactivity during our estimation windows.14 Hence, three coal plants that opted out appear in our sam- ple. Two coal plants reduced their production activity over time and phased out production during our sample period, whereas production cessation was not discontinuous and can thus not be directly related to a CPS hike. One coal plant remained active until the end of our estimation period. We cannot credibly assess a date when these plants quit pro- duction, because we observe a rather smooth reduction in output over time with partly temporal inactivity over days and even weeks. This is, however, evidence that the influence of the LCPD cannot be directly related to the effects of the CPS hikes. In our estimations, we focus on discontinuous changes around the treatment dates, so that we can largely rule out confounding bias from the LCPD. Furthermore, we are certain that the conditional independence assumption, which requires no self-selection into or out of treatment, is fulfilled, because all fossil-fueled power plants are subject to the CPS hikes. Another potential threat to identification would be anticipation ef- fects, which we can largely rule out in our case. In power markets, generation decisions are short-run decisions because electricity cannot be stored at a large scale. Generators usually decide one day in advance whether they can compete in wholesale markets and be “in the merit order” or not. These two arguments imply that CO2 emissions should react immediately to the policy changes. Thus, despite knowing in advance about significant jumps in the effective carbon price, power plant owners could not act in anticipation of the policy changes to avoid the negative policy effects (e.g. by producing electricity at cheaper carbon prices before the CPS hikes and selling it at",
+      "role": "Limitation"
+    }
+  ]
+}

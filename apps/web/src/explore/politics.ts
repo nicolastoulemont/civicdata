@@ -12,6 +12,7 @@ import {
   type Government,
   type Moment,
   type PartyColor,
+  type Paper,
   type Publisher,
   type Reform,
   Scope,
@@ -480,6 +481,54 @@ const describe = (t: TFunction<"explore">, format: ReturnType<typeof useFormat>)
           lines: reformed([reform], { country: reform.country, shown: yearOf(reform.date), pages }),
           pages,
           link: reform.sources[0].url,
+        }
+      },
+      Paper: ({ paper }) => {
+        const versions: Record<Paper["version"], string> = {
+          publishedVersion: t(($) => $["Published copy"]),
+          acceptedVersion: t(($) => $["Accepted manuscript"]),
+          submittedVersion: t(($) => $["Submitted manuscript"]),
+        }
+
+        return {
+          lines: [
+            Match.value(paper.kind).pipe(
+              Match.when("Description", () => t(($) => $["Descriptive result"])),
+              Match.when("Association", () => t(($) => $["Association, not a causal estimate"])),
+              Match.when("AuthorCausalEstimate", () =>
+                t(($) => $["Author-reported causal estimate"]),
+              ),
+              Match.exhaustive,
+            ),
+            Match.value(paper.design).pipe(
+              Match.when("Unknown", () => t(($) => $["Study design not identified"])),
+              Match.when("Description", () => t(($) => $["Descriptive study"])),
+              Match.when("Association", () => t(($) => $["Observational study"])),
+              Match.when("AuthorCausalEstimate", () =>
+                t(($) => $["Author-reported causal identification"]),
+              ),
+              Match.exhaustive,
+            ),
+            paper.population ?? t(($) => $["Study population not identified"]),
+            `${paper.countries.map(countryName).join(", ")} · ${paper.periods.map(({ from, to }) => `${from}–${to}`).join(", ")}`,
+            paper.quote,
+            ...paper.context.map(
+              ({ page, text, role }) =>
+                `${role === "Limitation" ? t(($) => $["Limitations"]) : t(($) => $["Methodology"])} (${t(($) => $["Page {{page}}"], { page })}): ${text}`,
+            ),
+            ...(paper.context.some(({ role }) => role === "Limitation")
+              ? []
+              : [t(($) => $["Limitations were not identified in the retrieved passages"])]),
+            versions[paper.version],
+          ],
+          pages: [
+            {
+              title: `${bylineOf(paper.study)} · ${t(($) => $["Page {{page}}"], { page: paper.page })}`,
+              url: paper.url,
+            },
+            ...paper.licences.map((url) => ({ title: t(($) => $["Reuse licence"]), url })),
+          ],
+          link: paper.url,
         }
       },
       Finding: ({ finding }) => {

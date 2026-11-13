@@ -79,7 +79,7 @@ export const keyOf = ({ page, part }: Pick<typeof Passage.Type, "page" | "part">
 
 const normalize = (text: string) => text.replace(/\s+/g, " ").trim()
 
-const evidenceOf = (design: Scope["design"]) =>
+export const evidenceOf = (design: Scope["design"]) =>
   Scope.fields.design.match(design, {
     Unknown: () => [],
     Description: ({ evidence }) => [evidence],

@@ -1,6 +1,7 @@
 import { Schema } from "effect"
 
 import { Finding } from "./Finding.ts"
+import { Paper } from "./Paper.ts"
 import { type Ballot, Election, Event, Government, Reform } from "./Politics.ts"
 
 // A record's id, as the agent reads it in a lookup:
@@ -8,7 +9,7 @@ import { type Ballot, Election, Event, Government, Reform } from "./Politics.ts"
 // "event:financial-crisis", "reform:fr-pensions-2010-woerth",
 // "finding:euro-crisis-multipliers".
 export const RecordId = Schema.String.check(
-  Schema.isPattern(/^(?:government|election|event|reform|finding):\S+$/),
+  Schema.isPattern(/^(?:government|election|event|reform|finding|paper):\S+$/),
 ).pipe(Schema.brand("RecordId"))
 
 export type RecordId = typeof RecordId.Type
@@ -21,6 +22,7 @@ export const Cited = Schema.TaggedUnion({
   Event: { event: Event },
   Reform: { reform: Reform },
   Finding: { finding: Finding },
+  Paper: { paper: Paper },
 })
 
 export type Cited = typeof Cited.Type
@@ -37,6 +39,7 @@ export const idOf = (cited: Cited): RecordId =>
       Event: ({ event }) => `event:${event.id}`,
       Reform: ({ reform }) => `reform:${reform.id}`,
       Finding: ({ finding }) => `finding:${finding.id}`,
+      Paper: ({ paper }) => `paper:${paper.id}`,
     }),
   )
 
@@ -58,4 +61,5 @@ export const nameOf = (cited: Cited) =>
     Event: ({ event }) => event.name,
     Reform: ({ reform }) => reform.name,
     Finding: ({ finding }) => finding.name,
+    Paper: ({ paper }) => paper.study.title,
   })

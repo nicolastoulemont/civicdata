@@ -5,8 +5,8 @@ openfacts charts public data about countries from the World Bank, Eurostat and t
 ## Product rules
 
 - Every charted value comes from a fetched observation that carries its provenance: source, dataset, URL, retrieval time. Code never computes a charted value from memory or model output. The assistant's prose sits beside the charts, unchecked against the data.
-- Every cause the assistant gives for a change in a figure cites a research finding from `packages/server/src/research/findings.json`; with no finding, it states no cause. Events stay causeless: a summary says what happened, never what it did to a chart.
-- A finding holds our own wording and each study's bibliographic data, never a paper's text, and links each study to an open-access copy that someone read before adding it. Read `packages/server/src/research/README.md` before adding or editing a finding.
+- Every cause the assistant gives cites a reviewed finding from `packages/server/src/research/findings.json` or a retrieved paper with an author-reported causal estimate and identification strategy. Research prose passes the sentence-support check before display; unsupported or uncertain prose states no cause. Events stay causeless: a summary says what happened, never what it did to a chart.
+- A finding holds our own wording and each study's bibliographic data, never a paper's text, and links each study to an open-access copy that someone read before adding it. Read `packages/server/src/research/README.md` before changing findings, paper retrieval, support checks or research citations.
 - Source attribution stays visible on every chart, including shared and embedded ones: the World Bank, Eurostat and the OECD all require it.
 
 - A gather records what it stored per unit it fetched. A run asks only for units whose version differs. A failure never causes another unit to be fetched again.
