@@ -148,14 +148,21 @@ const Since = Schema.Array(Schema.Struct({ topic: Schema.String, since: Schema.S
 
 const SinceJson = Schema.fromJsonString(Since)
 
-// Each topic's day: when the last run that completed it started.
+// How far before the last complete run a weekly search reaches back.
+// OpenAlex often lists a work weeks after its publication date, so a search
+// from the last run's own day would miss it. Works the store already holds
+// cost a search page, never a PDF (the ledger's hash).
+const lookback = "-90 days"
+
+// Each topic's day: `lookback` before the start of the last run that
+// completed it.
 const sinceOf = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient
 
   yield* tables
 
   return yield* sql`SELECT gather_topic.topic AS topic,
-      substr(max(gather_run.started), 1, 10) AS since
+      date(max(gather_run.started), ${lookback}) AS since
     FROM gather_topic JOIN gather_run ON gather_run.run = gather_topic.run
     WHERE gather_topic.complete = 1
     GROUP BY gather_topic.topic`.pipe(Effect.flatMap(Schema.decodeUnknownEffect(Since)))

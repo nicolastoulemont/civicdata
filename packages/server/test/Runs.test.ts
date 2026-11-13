@@ -28,12 +28,14 @@ const served: (url: string) => Effect.Effect<Response | undefined> = () => Effec
 
 // OpenAlex and the publishers on the wire. Each query lists its works in
 // order, paged by `per-page`, with no cursor after its last page; a search
-// with `from_updated_date` lists only the works updated from that day, as
-// OpenAlex does. A publisher serves the fixture PDF unless `respond`
+// with a `from_publication_date` lists only the works published from that
+// day, as OpenAlex does; every work is published on 2026-11-01 unless
+// `list` says otherwise. A publisher serves the fixture PDF unless `respond`
 // answers first.
 const world = (listed: Readonly<globalThis.Record<string, ReadonlyArray<Work>>>) => {
   const urls: Array<string> = []
   const records = new Map(Object.values(listed).flatMap((works) => works.map((w) => [w.id, w])))
+  const published = new Map<string, string>()
 
   const lists = new Map(
     Object.entries(listed).map(([query, works]) => [query, works.map((w) => w.id)]),
@@ -57,7 +59,7 @@ const world = (listed: Readonly<globalThis.Record<string, ReadonlyArray<Work>>>)
       })
     }
 
-    const since = /from_updated_date:([^,]+)/.exec(filter)?.[1]
+    const since = /from_publication_date:([^,]+)/.exec(filter)?.[1]
     const size = Number(url.searchParams.get("per-page"))
     const cursor = url.searchParams.get("cursor")
     const index = cursor === "*" ? 0 : Number(cursor)
@@ -65,7 +67,8 @@ const world = (listed: Readonly<globalThis.Record<string, ReadonlyArray<Work>>>)
     const matching = (lists.get(url.searchParams.get("search") ?? "") ?? []).flatMap((id) => {
       const record = records.get(id)
 
-      return record !== undefined && (since === undefined || record.updated_date >= since)
+      return record !== undefined &&
+        (since === undefined || (published.get(id) ?? "2026-11-01") >= since)
         ? [record]
         : []
     })
@@ -104,11 +107,21 @@ const world = (listed: Readonly<globalThis.Record<string, ReadonlyArray<Work>>>)
 
         return query === null
           ? []
-          : [[query, /from_updated_date:([^,]+)/.exec(params.get("filter") ?? "")?.[1] ?? null]]
+          : [
+              [
+                query,
+                [/from_publication_date:([^,]+)/.exec(params.get("filter") ?? "")?.[1]].find(
+                  (day) => day !== undefined && day !== "1990-01-01",
+                ) ?? null,
+              ],
+            ]
       }),
     // OpenAlex adds a work to a query's results, or updates its record.
-    list: (query: string, record: Work) => {
+    // `day` is its publication date.
+    list: (query: string, record: Work, day?: string) => {
       records.set(record.id, record)
+
+      if (day !== undefined) published.set(record.id, day)
       const ids = lists.get(query) ?? []
 
       if (!ids.includes(record.id)) lists.set(query, [...ids, record.id])
@@ -205,28 +218,33 @@ const touched = (n: number, day: number) =>
   work(n, { updated_date: `2026-11-${String(day).padStart(2, "0")}T12:00:00` })
 
 describe("the PaperGather Workflow", () => {
-  it.effect("asks for works updated since the last run and gathers a new one once", () => {
+  it.effect("searches the last 90 days of publications and gathers a new work once", () => {
     const place = world({ [wages.query]: [work(1), work(2)] })
 
     return Effect.gen(function* () {
+      // A work published years ago: the first run's search over every year
+      // finds it, and the weekly window leaves it out.
+      place.list(wages.query, work(4), "2019-05-01")
+
       const first = yield* running(place, { run: "run-1", started: monday(2) })
 
       expect(place.searches()).toEqual([[wages.query, null]])
-      expect(counts(first)).toMatchObject({ seen: 2, admitted: 2, unchanged: 0 })
+      expect(counts(first)).toMatchObject({ seen: 3, admitted: 3, unchanged: 0 })
 
-      // OpenAlex adds a work, and moves another's updated date alone.
-      place.list(wages.query, work(3, { updated_date: "2026-11-05T00:00:00" }))
+      // OpenAlex adds a work published this week, and moves another's
+      // updated date alone.
+      place.list(wages.query, work(3), "2026-11-05")
       place.list(wages.query, touched(1, 6))
       const from = place.urls().length
 
       const second = yield* running(place, { run: "run-2", started: monday(9) })
 
-      expect(place.searches(from)).toEqual([[wages.query, "2026-11-02"]])
+      expect(place.searches(from)).toEqual([[wages.query, "2026-08-04"]])
       expect(counts(second)).toEqual({
-        seen: 2,
+        seen: 3,
         admitted: 1,
         metadata: 0,
-        unchanged: 1,
+        unchanged: 2,
         failed: 0,
         held: 0,
         waiting: 0,
@@ -240,8 +258,8 @@ describe("the PaperGather Workflow", () => {
 
       const third = yield* running(place, { run: "run-3", started: monday(16) })
 
-      expect(place.searches(again)).toEqual([[wages.query, "2026-11-09"]])
-      expect(counts(third)).toMatchObject({ seen: 1, admitted: 0, unchanged: 1 })
+      expect(place.searches(again)).toEqual([[wages.query, "2026-08-11"]])
+      expect(counts(third)).toMatchObject({ seen: 3, admitted: 0, unchanged: 3 })
       expect(pdfs(place.urls(again))).toEqual([])
       expect(yield* store).toEqual(before)
       expect((yield* records).runs).toHaveLength(3)
@@ -263,14 +281,14 @@ describe("the PaperGather Workflow", () => {
 
       expect(place.searches(from)).toEqual([
         [pensions.query, null],
-        [wages.query, "2026-11-02"],
+        [wages.query, "2026-08-04"],
       ])
       expect(pdfs(place.urls(from))).toEqual([copy(2).pdf_url])
       expect(
         second.topics.map(({ query, seen, wanted, complete }) => [query, seen, wanted, complete]),
       ).toEqual([
         [pensions.query, 2, 1, true],
-        [wages.query, 0, 0, true],
+        [wages.query, 1, 0, true],
       ])
     })
   })
@@ -361,7 +379,7 @@ describe("the PaperGather Workflow", () => {
       const last = place.urls().length
       yield* running(place, { run: "run-3", started: monday(16) })
 
-      expect(place.searches(last)).toEqual([[wages.query, "2026-11-09"]])
+      expect(place.searches(last)).toEqual([[wages.query, "2026-08-11"]])
     })
   })
 

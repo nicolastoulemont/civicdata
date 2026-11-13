@@ -105,7 +105,7 @@ For each topic, page by page, a run:
 
 Each page and each batch is one step. A page that fails ends its topic; a batch that fails leaves its works out of the ledger, so the next run asks for them again, and the topic goes on. A work the run already asked for under an earlier topic is not asked for again.
 
-A run may be given, per topic, the day the topic was last searched in full. It then asks OpenAlex only for works created or updated from that day (`from_updated_date`), and searches topics without a day first, then the one searched longest ago. The local gather gives none and searches every topic over every year. A run may also be given caps on what it fetches ([run caps](#run-caps)); the local gather has none.
+A run may be given, per topic, the day the topic was last searched in full. It then asks OpenAlex only for works published from that day (`from_publication_date`), and searches topics without a day first, then the one searched longest ago. OpenAlex refuses `from_updated_date` and `from_created_date` without a paid plan, so publication date is the only window an anonymous client gets. The local gather gives none and searches every topic over every year. A run may also be given caps on what it fetches ([run caps](#run-caps)); the local gather has none.
 
 For one work, the gather:
 
@@ -169,10 +169,10 @@ In production, a native Workflow schedule (`0 3 * * 1` in `packages/infra/alchem
 A run takes these steps:
 
 1. `plan`: reads, for each topic, when the last run that completed it started.
-2. The gather's steps: `tables`, then per topic `discover <topic> <page>` and `gather <topic> <page> <batch>`. A topic with a day asks only for works created or updated from it. A topic new to the topic file, or one no run has completed, has none and gets a backfill: its search over every year, within the run's caps.
+2. The gather's steps: `tables`, then per topic `discover <topic> <page>` and `gather <topic> <page> <batch>`. A topic with a day asks only for works published from it. A topic new to the topic file, or one no run has completed, has none and gets a backfill: its search over every year, within the run's caps.
 3. `record`: writes the run record in one D1 batch.
 
-A topic is complete when its search ran to its last page or its page limit, with no failed page, batch or work, no work held by another run and no cap reached. Only then does the next run search it from this run's start day. A work that failed, or that a cap left waiting, therefore comes up again in the next run's search, which the day of an incomplete topic does not narrow. OpenAlex moves `updated_date` whenever a record changes, citation counts included, so an incremental search lists many works the store already holds. The ledger's hash leaves them alone: they cost search pages, never a PDF.
+A topic is complete when its search ran to its last page or its page limit, with no failed page, batch or work, no work held by another run and no cap reached. Only then does the next run search it from 90 days before this run's start day (`lookback` in `Runs.ts`): OpenAlex often lists a work weeks after its publication date, and a search from the run's own day would miss it. A work that failed, or that a cap left waiting, therefore comes up again in the next run's search, which the day of an incomplete topic does not narrow. The 90-day window lists many works the store already holds. The ledger's hash leaves them alone: they cost search pages, never a PDF. The window also means a weekly run never sees a work published long ago that OpenAlex adds or opens later, or an old work whose copy or licence changes; running the local gather (`papers:gather`), which searches every year, catches those.
 
 A step retries 5 times, from 1 minute apart, as the series gather's do. A run that fails partway can be restarted from the Cloudflare dashboard: its completed steps replay their saved answers, so the topics and batches it finished stay finished and nothing is fetched again. Within a batch that failed partway, the works already in the ledger are not gathered again ([claims](#claims)). Such a work counts as unchanged in the run record.
 

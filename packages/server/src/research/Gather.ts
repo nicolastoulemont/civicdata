@@ -711,8 +711,8 @@ const keyOf = (topic: Topic) =>
 // Gathers every topic of the reviewed topic file, or the topics given. A
 // run asks only for works the ledger says changed or failed under the
 // attempt limit, so a run after an unchanged one fetches no copy. A topic
-// with a day in `since` asks only for works OpenAlex created or updated from
-// that day; topics without one go first, then the longest unsearched, so a
+// with a day in `since` asks only for works published from that day;
+// topics without one go first, then the longest unsearched, so a
 // run that stops at a cap leaves the most recently searched topics for the
 // next. `run` names who claims the works, a fresh id by default.
 export const run = Effect.fn("Papers.gather")(function* (
