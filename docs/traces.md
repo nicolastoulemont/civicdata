@@ -128,6 +128,15 @@ For a question the dashboard does not answer, Explore with Tempo runs TraceQL qu
 
 Open a trace from any result to see its waterfall: each round, what the model wrote, each tool it called with its arguments and result, and the source requests behind it.
 
+## Research checks
+
+`Library.search` searches the packaged licensed corpus. `Support.review` records
+the work of checking research prose, including its `LanguageModel.generateObject`
+request. That request includes the proposed sentences and public source passages.
+The generator's raw output, including prose later withheld, can remain in the
+model trace for its normal retention period. Saved answers and conversation history
+keep the checked output and verification notice instead.
+
 ## From Claude Code
 
 `.mcp.json` adds Grafana Cloud's hosted MCP server to every checkout, so an agent can run these queries and read the dashboard itself, and `.claude/settings.json` approves it. Set it up once per person:

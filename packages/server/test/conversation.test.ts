@@ -8,6 +8,8 @@ import {
   Asked,
   type Block,
   CatalogUnavailable,
+  Cited,
+  idOf,
   Change,
   Chart,
   ChartIndex,
@@ -116,6 +118,8 @@ import { Imf } from "../src/Imf.ts"
 import { Insee } from "../src/Insee.ts"
 import { Notes } from "../src/Notes.ts"
 import { Politics } from "../src/Politics.ts"
+import { Library, Found as PaperResults } from "../src/research/Library.ts"
+import { Support, Verdict } from "../src/research/Support.ts"
 import { Resolver } from "../src/Resolver.ts"
 import { Sdmx } from "../src/Sdmx.ts"
 import { Sources } from "../src/Sources.ts"
@@ -321,6 +325,7 @@ type Name =
   | "find_countries"
   | "find_politics"
   | "find_research"
+  | "search_papers"
   | "find_years"
   | "show_chart"
   | "ask_user"
@@ -370,16 +375,47 @@ const silent = Effect.succeed([finish])
 
 // A model that answers each request from a script, in order, and keeps the
 // prompts it was sent. Past the script it answers with the takeaway.
-const scripted = (turns: ReadonlyArray<Turn>) => {
+const scripted = (
+  turns: ReadonlyArray<Turn>,
+  { verdict = Verdict.cases.NotResearch.make({}) }: { readonly verdict?: typeof Verdict.Type } = {},
+) => {
   const prompts: Array<string> = []
+  const reviews: Array<string> = []
   let turn = 0
 
   const layer = Layer.effect(
     LanguageModel.LanguageModel,
     LanguageModel.make({
-      generateText: ({ prompt }) => {
-        const next = turns[turn] ?? Effect.succeed(words(takeaway))
+      generateText: ({ prompt, responseFormat }) => {
+        if (responseFormat.type === "json" && responseFormat.objectName === "research_support") {
+          reviews.push(JSON.stringify(prompt))
 
+          const input =
+            prompt.content
+              .flatMap((message) =>
+                message.role === "user"
+                  ? message.content.flatMap((part) => (part.type === "text" ? [part.text] : []))
+                  : [],
+              )
+              .at(-1) ?? ""
+
+          return Schema.decodeEffect(
+            Schema.fromJsonString(
+              Schema.Struct({ sentences: Schema.Array(Schema.Struct({ sentence: Schema.Int })) }),
+            ),
+          )(input).pipe(
+            Effect.orDie,
+            Effect.map(({ sentences }) => [
+              ...words(
+                JSON.stringify({
+                  sentences: sentences.map(({ sentence }) => ({ sentence, judgement: verdict })),
+                }),
+              ),
+            ]),
+          )
+        }
+
+        const next = turns[turn] ?? Effect.succeed(words(takeaway))
         prompts.push(JSON.stringify(prompt))
         turn += 1
 
@@ -389,7 +425,7 @@ const scripted = (turns: ReadonlyArray<Turn>) => {
     }),
   )
 
-  return { layer, prompts }
+  return { layer, prompts, reviews }
 }
 
 // The rounds of the nth question: a search the model reasoned before, a
@@ -527,6 +563,7 @@ const serveApi = (
   const catalog = catalogOf({ outlined })
 
   const agent = Agent.layer.pipe(
+    Layer.provide(Layer.mergeAll(Library.layer, Support.layer)),
     Layer.provide(model),
     Layer.provide(findings),
     Layer.provide(notes),
@@ -3418,10 +3455,13 @@ describe("research findings", () => {
   })
 
   it.effect("streams words citing a finding by its name, and keeps the finding", () => {
-    const model = scripted([
-      Effect.succeed(research()),
-      Effect.succeed(words("Studies found [[finding:hartz-reforms]].")),
-    ])
+    const model = scripted(
+      [
+        Effect.succeed(research()),
+        Effect.succeed(words("Studies found [[finding:hartz-reforms]].")),
+      ],
+      { verdict: Verdict.cases.Supported.make({ kind: "Cause", evidence: [0] }) },
+    )
 
     const text = "Studies found [the Hartz reforms' effect on unemployment](cite:0)."
 
@@ -4130,5 +4170,124 @@ describe("INSEE chart tools", () => {
       expect(JSON.stringify(steps.at(-1))).toContain('"indicator":"INSEE:DD_CNA_AGREGATS"')
       expect(JSON.stringify(steps.at(-1))).toContain('"GEO":"2025-FRANCE-F"')
     }).pipe(Effect.provide(serveApi(model.layer, { insee })))
+  })
+})
+
+describe("paper research", () => {
+  const question = {
+    text: "carbon tax emissions",
+    countries: ["GBR"],
+    period: null,
+    intent: "Cause",
+  } as const
+
+  it.effect(
+    "searches papers and persists a checked claim with the exact passage and PDF citation",
+    () =>
+      Effect.gen(function* () {
+        const result = yield* Effect.flatMap(Library, (library) => library.search(question)).pipe(
+          Effect.provide(Library.layer),
+        )
+
+        if (!PaperResults.guards.Passages(result) || result.papers[0] === undefined)
+          throw new Error("Missing corpus evidence")
+        const paper = result.papers[0]
+        const reference = idOf(Cited.cases.Paper.make({ paper }))
+
+        const model = scripted(
+          [
+            Effect.succeed(call("search_papers", question)),
+            Effect.succeed(
+              words(
+                `The study estimates that Britain's carbon tax reduced power-sector emissions [[${reference}]].`,
+              ),
+            ),
+          ],
+          { verdict: Verdict.cases.Supported.make({ kind: "Cause", evidence: [0] }) },
+        )
+
+        yield* Effect.gen(function* () {
+          const steps = yield* answer("What evidence supports the effects of Britain's carbon tax?")
+          expect(steps.findLast(isRendered)?.block).toMatchObject({
+            cites: [
+              {
+                paper: { id: paper.id, page: paper.page, sha256: paper.sha256, quote: paper.quote },
+              },
+            ],
+          })
+          expect((yield* turns).answered[0]?.answer).toMatchObject({
+            blocks: [{ cites: [{ paper: { id: paper.id } }] }],
+          })
+          expect(model.reviews[0]).toContain(paper.quote)
+        }).pipe(Effect.provide(serveApi(model.layer)))
+      }),
+  )
+
+  it.effect("withholds uncertain prose from the response, kept turn and later model context", () =>
+    Effect.gen(function* () {
+      const result = yield* Effect.flatMap(Library, (library) => library.search(question)).pipe(
+        Effect.provide(Library.layer),
+      )
+
+      if (!PaperResults.guards.Passages(result) || result.papers[0] === undefined)
+        throw new Error("Missing corpus evidence")
+      const reference = idOf(Cited.cases.Paper.make({ paper: result.papers[0] }))
+      const bad = "This tax ended every recession everywhere"
+
+      const model = scripted(
+        [
+          Effect.succeed(call("search_papers", question)),
+          Effect.succeed(words(`${bad} [[${reference}]].`)),
+          Effect.succeed(words("The evidence does not establish that claim.")),
+        ],
+        { verdict: Verdict.cases.Uncertain.make({}) },
+      )
+
+      yield* Effect.gen(function* () {
+        const steps = yield* answer("Did the tax end every recession?")
+        expect(JSON.stringify(steps)).not.toContain(bad)
+        expect(JSON.stringify((yield* turns).answered)).not.toContain(bad)
+        expect(JSON.stringify(steps)).toContain("couldn't verify the research explanation")
+        yield* answer("What can you say instead?")
+        expect(model.prompts[2]).not.toContain(bad)
+      }).pipe(Effect.provide(serveApi(model.layer)))
+    }),
+  )
+
+  it.effect("withholds unsupported causes after an empty search", () => {
+    const model = scripted(
+      [
+        Effect.succeed(
+          call("search_papers", {
+            text: "universal recession cure",
+            countries: ["BRA"],
+            period: null,
+            intent: "Cause",
+          }),
+        ),
+        Effect.succeed(words("Training ended every recession everywhere.")),
+      ],
+      { verdict: Verdict.cases.Unsupported.make({}) },
+    )
+
+    return Effect.gen(function* () {
+      const steps = yield* answer("What caused recessions to disappear?")
+      expect(JSON.stringify(steps)).not.toContain("Training ended every recession everywhere")
+      expect(JSON.stringify(steps)).toContain("couldn't verify the research explanation")
+      expect(model.prompts[1]).toContain("NoEvidence")
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect("checks uncited causal prose even when the generator skips research tools", () => {
+    const model = scripted([Effect.succeed(words("Training ended every recession everywhere."))], {
+      verdict: Verdict.cases.Unsupported.make({}),
+    })
+
+    return Effect.gen(function* () {
+      const steps = yield* answer("Why did recessions disappear?")
+      expect(JSON.stringify(steps)).not.toContain("Training ended every recession everywhere")
+      expect(model.reviews).toHaveLength(1)
+      expect(JSON.stringify((yield* turns).answered)).toContain("couldn't verify")
+    }).pipe(Effect.provide(serveApi(model.layer)))
   })
 })

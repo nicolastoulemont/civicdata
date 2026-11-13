@@ -35,6 +35,12 @@ Under each answer that ended on its own (answered, unanswered or cut short, not 
 
 Few people vote, but every answer can show what the person did next. `show` adds one to `changes` each time it keeps a changed chart. Once the answer is kept, the CSV link and Copy link in its chart send `POST /api/conversations/<id>/turns/<turn>/actions` with `download` or `share`; on `/explore` they send nothing. The page shows nothing about these counts, and a count that fails to arrive is dropped. They are hints for triage, not a score: changing a chart can just mean exploring.
 
+Paper research citations in an ending include licensed source excerpts, study scope,
+copy version, physical page, PDF hash and reuse licence. The ending and rendered
+steps hold only prose that passed the support check, or the verification notice.
+Raw rejected model output can still occur in the short-lived model traces described
+in [traces](traces.md); it is removed from conversation history and the kept turn.
+
 ## Scrubbing
 
 `scrub` in `packages/server/src/Answers.ts` replaces, in each question:

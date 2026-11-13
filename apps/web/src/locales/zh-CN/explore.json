@@ -190,5 +190,19 @@
   "WHO estimate {{estimate}}; 95% uncertainty bounds {{lower}}–{{upper}} ({{version}}).": "世卫组织估计值 {{estimate}}；95% 不确定性界限 {{lower}}–{{upper}}（{{version}}）。",
   "WEO {{vintage}}; {{status}}; latest actual {{year}}.": "WEO {{vintage}}；{{status}}；最新实际数据年份 {{year}}。",
   "Publisher actual (revisable)": "发布方实际数据（可修订）",
-  "IMF estimate/projection": "IMF估计/预测"
+  "IMF estimate/projection": "IMF估计/预测",
+  "Descriptive result": "描述性结果",
+  "Association, not a causal estimate": "相关关系，并非因果估计",
+  "Author-reported causal estimate": "作者报告的因果估计",
+  "Study population not identified": "未确定研究人群",
+  "Page {{page}}": "第 {{page}} 页",
+  "Limitations were not identified in the retrieved passages": "检索到的段落中未识别出局限性",
+  "Published copy": "已发表版本",
+  "Accepted manuscript": "已接受稿件",
+  "Submitted manuscript": "已投稿件",
+  "Reuse licence": "再利用许可",
+  "Study design not identified": "未识别研究设计",
+  "Descriptive study": "描述性研究",
+  "Observational study": "观察性研究",
+  "Author-reported causal identification": "作者报告的因果识别"
 }

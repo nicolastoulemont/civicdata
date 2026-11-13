@@ -1,4 +1,43 @@
-# Research findings, reviewed by hand
+# Research in answers
+
+The assistant uses two sources: the existing reviewed findings below, and the
+licensed paper corpus packaged in `corpus.json`. The corpus is built offline;
+answer requests search the packaged records without downloading or annotating
+papers. See [the build and quality runbook](../../../../docs/research/papers/expanded/README.md).
+
+`Library` returns original source passages, study population, countries, periods,
+methods and limitations where identified. Descriptions and associations do not
+justify causal wording. A causal passage requires both a causal result label and
+an author-reported identification strategy; this records the authors' estimate,
+not proof that their assumptions hold.
+
+`Support` checks every generated text block before it is rendered, including
+answers where the generator skipped research tools. Chart-only explanations pass
+through the same check. The judge identifies non-research observations and checks
+research claims against their citations. Code rejects missing verdicts, missing citation links, invented
+evidence indices and causal claims backed only by descriptive or associative
+paper evidence. An uncertain judgement or provider failure removes the block and
+shows a verification notice. Rejected text is also removed from model history.
+The checker is a model judgement, not a guarantee of scientific correctness.
+This also catches uncited research claims after an empty lookup; the generator's
+instructions alone are not the gate. Every text block adds one support-model
+request, bounded to 20,000 characters, 64 sentences and 30 seconds. Descriptive
+chart prose is classified as non-research here; its figures are not checked by
+this judge.
+
+Paper text is untrusted input. It stays in source excerpts and quotes; it never
+becomes an instruction or an automatically accepted causal finding. Adding a
+source does not require a per-paper human approval step. Rights proof, exact-copy
+identity, input hashes and complete annotations are required before packaging.
+Source audits and labelled quality samples test those rules.
+
+The `Paper` citation is separate from `Finding`. It preserves the source quote,
+physical PDF page, SHA-256, copy version, bibliography and licence. Citation cards
+show evidence kind, study population, scope, source text, available methods and
+limitations, version and links to the page and reuse licence. A missing limitation
+is shown as missing, never as an assertion that the paper has no limitations.
+
+## Legacy findings, reviewed by hand
 
 `findings.json` holds the findings the agent may cite when it says why a figure moved. `Findings.ts` decodes it with the domain's `Finding` schema and `find_research` reads it. Nothing here is fetched at runtime.
 
