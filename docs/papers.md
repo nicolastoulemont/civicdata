@@ -168,7 +168,7 @@ A step retries a provider or store failure 3 times, 10, 20 and 40 seconds apart.
 | State       | Meaning                                                                                                                            |
 | ----------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `Running`   | the run in `run` holds the key                                                                                                     |
-| `Ready`     | the run in `run` published the annotation                                                                                          |
+| `Ready`     | the run in `run` published the annotation, or found one the publication command imported                                           |
 | `Failed`    | a run gave up after `attempts` attempts, or gave the key back as stale or withdrawn; a run may claim it while attempts are below 3 |
 | `Abandoned` | three runs failed; only a run started with retry claims it                                                                         |
 
@@ -180,7 +180,7 @@ A claim is checked where it is used. Every step that calls the model reads the k
 
 Each run records one row per listed version in `annotation_run`: its outcome, the key's attempts after the run, when the run claimed and finished the key, and the model requests and tokens the provider reported. It holds no prompt, answer or key. The outcome is one of:
 
-- `Annotated { key }`: the key is `Ready`, by this run or an earlier one.
+- `Annotated { key }`: the key is `Ready`, by this run or an earlier one. A key whose annotation the publication command imported becomes `Ready` on its first claim, with no model call.
 - `Failed { stage, reason, problem }`: a stage gave up with `Invalid` output, `Unavailable` source text, a `Provider` that kept failing, or a `Store` that kept failing. All but a failed claim count as an attempt.
 - `Skipped { reason }`: the text or the settings changed since the key was computed (`Stale`), the version was `Withdrawn`, another run holds the key (`Held`), or the key is `Abandoned`. None of these is an attempt.
 - `NotStarted`: the run reached a cap before claiming the key.

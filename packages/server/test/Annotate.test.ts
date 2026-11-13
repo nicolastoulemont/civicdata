@@ -712,6 +712,27 @@ describe("the Annotate Workflow", () => {
     }),
   )
 
+  it.effect(
+    "takes an annotation the publication command imported as ready, with no model call",
+    () =>
+      Effect.gen(function* () {
+        const test = world()
+
+        const { paper: id, version } = yield* publish({
+          paper: bibliography({ id: PaperId.make("1".repeat(64)) }),
+          passages: textOf(1),
+          annotation: body(textOf(1)),
+        }).pipe(Effect.provide(papersDb))
+
+        const results = yield* annotating(test, annotate(version))
+
+        expect(done(results)).toEqual(["Annotated"])
+        expect([test.provider.scopes(), test.provider.labels()]).toEqual([0, 0])
+        expect(yield* keyState(keyOf(results))).toMatchObject({ state: "Ready" })
+        expect((yield* read(id)).annotation).toEqual(body(textOf(1)))
+      }),
+  )
+
   it.effect("keeps an annotation under older settings active until its replacement is ready", () =>
     Effect.gen(function* () {
       const test = world()

@@ -115,7 +115,8 @@ export interface Report extends Schema.Schema.Type<typeof Report> {}
 
 // An annotation key's state. Only this Workflow writes it.
 // - Running: `run` claimed the key.
-// - Ready: `run` published its annotation.
+// - Ready: `run` published its annotation, or found it already published
+//   by the publication command (docs/papers.md#publication).
 // - Failed: a run gave up, or released the key as stale or withdrawn; a run
 //   may claim it while attempts are below the limit.
 // - Abandoned: the limit's worth of runs failed; only a run started with
@@ -340,6 +341,14 @@ export class Annotate extends Context.Service<Annotate, Interface>()(
           `,
         })
 
+        // The key's annotation, when one is published: by an earlier run, or
+        // imported by the publication command, which writes no key state.
+        const published = SqlSchema.findOneOption({
+          Request: Digest,
+          Result: Schema.Struct({ key: Digest }),
+          execute: (key) => sql`SELECT key FROM annotation WHERE key = ${key}`,
+        })
+
         const keyOf = Effect.fnUntraced(function* (version: VersionRow) {
           const { model, rubric } = yield* Settings
 
@@ -447,6 +456,19 @@ export class Annotate extends Context.Service<Annotate, Interface>()(
 
           const current = yield* stateOf(key)
           let ended: string | null = null
+
+          // An imported annotation is ready under this key's settings: record
+          // it so, and point its versions at it, with no model call.
+          if (Option.isNone(current) && Option.isSome(yield* published(key))) {
+            yield* sql`
+              INSERT INTO annotation_key (key, state, run, attempts, reason)
+              VALUES (${key}, 'Ready', ${run}, 0, NULL)
+              ON CONFLICT (key) DO NOTHING
+            `
+            yield* point(key, settings)
+
+            return Claim.cases.Ready.make({})
+          }
 
           if (Option.isSome(current)) {
             const { state } = current.value
