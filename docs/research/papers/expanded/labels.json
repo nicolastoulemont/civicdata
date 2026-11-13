@@ -1,0 +1,231 @@
+{
+  "rubric": "research-3",
+  "note": "32 original passages across five new papers. Source-labelled before any research-3 annotation outputs were seen. Includes mixed passages as declared stress cases. Independent of the original 12-label development sample. One author labelled these cases; this is not inter-rater validation. Label file fixed before the first run; threshold tuning may use Calibration only.",
+  "createdAt": "2026-11-12T17:04:57.697925+00:00",
+  "rows": [
+    {
+      "paper": "089037b64cab74294afcdd011058c99d0f1da8930e664d6f4cb0f42f32f0b7a7",
+      "page": 16,
+      "part": 0,
+      "category": "Method",
+      "split": "Calibration"
+    },
+    {
+      "paper": "089037b64cab74294afcdd011058c99d0f1da8930e664d6f4cb0f42f32f0b7a7",
+      "page": 8,
+      "part": 0,
+      "category": "Method",
+      "split": "Holdout"
+    },
+    {
+      "paper": "089037b64cab74294afcdd011058c99d0f1da8930e664d6f4cb0f42f32f0b7a7",
+      "page": 22,
+      "part": 0,
+      "category": "Description",
+      "split": "Calibration"
+    },
+    {
+      "paper": "089037b64cab74294afcdd011058c99d0f1da8930e664d6f4cb0f42f32f0b7a7",
+      "page": 24,
+      "part": 0,
+      "category": "Description",
+      "split": "Holdout"
+    },
+    {
+      "paper": "089037b64cab74294afcdd011058c99d0f1da8930e664d6f4cb0f42f32f0b7a7",
+      "page": 29,
+      "part": 0,
+      "category": "Reference",
+      "split": "Calibration"
+    },
+    {
+      "paper": "089037b64cab74294afcdd011058c99d0f1da8930e664d6f4cb0f42f32f0b7a7",
+      "page": 30,
+      "part": 0,
+      "category": "Reference",
+      "split": "Holdout"
+    },
+    {
+      "paper": "c4b61da3ea56374102a9604b9e8185d9582a19ba119dff298cbff7afbb291b4c",
+      "page": 3,
+      "part": 0,
+      "category": "Background",
+      "split": "Calibration"
+    },
+    {
+      "paper": "c4b61da3ea56374102a9604b9e8185d9582a19ba119dff298cbff7afbb291b4c",
+      "page": 10,
+      "part": 0,
+      "category": "Method",
+      "split": "Holdout"
+    },
+    {
+      "paper": "c4b61da3ea56374102a9604b9e8185d9582a19ba119dff298cbff7afbb291b4c",
+      "page": 11,
+      "part": 0,
+      "category": "Method",
+      "split": "Calibration"
+    },
+    {
+      "paper": "c4b61da3ea56374102a9604b9e8185d9582a19ba119dff298cbff7afbb291b4c",
+      "page": 15,
+      "part": 0,
+      "category": "AuthorCausalEstimate",
+      "split": "Holdout"
+    },
+    {
+      "paper": "c4b61da3ea56374102a9604b9e8185d9582a19ba119dff298cbff7afbb291b4c",
+      "page": 17,
+      "part": 0,
+      "category": "Reference",
+      "split": "Calibration"
+    },
+    {
+      "paper": "c4b61da3ea56374102a9604b9e8185d9582a19ba119dff298cbff7afbb291b4c",
+      "page": 16,
+      "part": 0,
+      "category": "Background",
+      "split": "Holdout"
+    },
+    {
+      "paper": "c4b61da3ea56374102a9604b9e8185d9582a19ba119dff298cbff7afbb291b4c",
+      "page": 8,
+      "part": 0,
+      "category": "Association",
+      "split": "Calibration"
+    },
+    {
+      "paper": "cf63281cd93c2987130bfe70f68632ae0375dd22ad494a4e4e06767ca43e6adf",
+      "page": 4,
+      "part": 0,
+      "category": "Background",
+      "split": "Calibration"
+    },
+    {
+      "paper": "cf63281cd93c2987130bfe70f68632ae0375dd22ad494a4e4e06767ca43e6adf",
+      "page": 6,
+      "part": 1,
+      "category": "Method",
+      "split": "Holdout"
+    },
+    {
+      "paper": "cf63281cd93c2987130bfe70f68632ae0375dd22ad494a4e4e06767ca43e6adf",
+      "page": 7,
+      "part": 1,
+      "category": "Method",
+      "split": "Calibration"
+    },
+    {
+      "paper": "cf63281cd93c2987130bfe70f68632ae0375dd22ad494a4e4e06767ca43e6adf",
+      "page": 24,
+      "part": 0,
+      "category": "Reference",
+      "split": "Holdout"
+    },
+    {
+      "paper": "cf63281cd93c2987130bfe70f68632ae0375dd22ad494a4e4e06767ca43e6adf",
+      "page": 3,
+      "part": 0,
+      "category": "Limitation",
+      "split": "Calibration"
+    },
+    {
+      "paper": "76009032c5f9d51912ec3bf42bcccf13124e9ad131d24955361b77f9ef6b83e4",
+      "page": 12,
+      "part": 0,
+      "category": "Method",
+      "split": "Calibration"
+    },
+    {
+      "paper": "76009032c5f9d51912ec3bf42bcccf13124e9ad131d24955361b77f9ef6b83e4",
+      "page": 13,
+      "part": 0,
+      "category": "Method",
+      "split": "Holdout"
+    },
+    {
+      "paper": "76009032c5f9d51912ec3bf42bcccf13124e9ad131d24955361b77f9ef6b83e4",
+      "page": 20,
+      "part": 0,
+      "category": "Association",
+      "split": "Calibration"
+    },
+    {
+      "paper": "76009032c5f9d51912ec3bf42bcccf13124e9ad131d24955361b77f9ef6b83e4",
+      "page": 35,
+      "part": 0,
+      "category": "Association",
+      "split": "Holdout"
+    },
+    {
+      "paper": "76009032c5f9d51912ec3bf42bcccf13124e9ad131d24955361b77f9ef6b83e4",
+      "page": 37,
+      "part": 0,
+      "category": "Reference",
+      "split": "Calibration"
+    },
+    {
+      "paper": "76009032c5f9d51912ec3bf42bcccf13124e9ad131d24955361b77f9ef6b83e4",
+      "page": 10,
+      "part": 0,
+      "category": "Background",
+      "split": "Holdout"
+    },
+    {
+      "paper": "2ac931d9dba6f14b6d72a5ded917de0aa7c42713e4836fa0ed3d5fa9ecf946c4",
+      "page": 2,
+      "part": 1,
+      "category": "Method",
+      "split": "Calibration"
+    },
+    {
+      "paper": "2ac931d9dba6f14b6d72a5ded917de0aa7c42713e4836fa0ed3d5fa9ecf946c4",
+      "page": 5,
+      "part": 0,
+      "category": "Method",
+      "split": "Holdout"
+    },
+    {
+      "paper": "2ac931d9dba6f14b6d72a5ded917de0aa7c42713e4836fa0ed3d5fa9ecf946c4",
+      "page": 7,
+      "part": 0,
+      "category": "Limitation",
+      "split": "Calibration"
+    },
+    {
+      "paper": "2ac931d9dba6f14b6d72a5ded917de0aa7c42713e4836fa0ed3d5fa9ecf946c4",
+      "page": 9,
+      "part": 0,
+      "category": "Limitation",
+      "split": "Holdout"
+    },
+    {
+      "paper": "2ac931d9dba6f14b6d72a5ded917de0aa7c42713e4836fa0ed3d5fa9ecf946c4",
+      "page": 10,
+      "part": 0,
+      "category": "AuthorCausalEstimate",
+      "split": "Calibration"
+    },
+    {
+      "paper": "2ac931d9dba6f14b6d72a5ded917de0aa7c42713e4836fa0ed3d5fa9ecf946c4",
+      "page": 11,
+      "part": 0,
+      "category": "AuthorCausalEstimate",
+      "split": "Holdout"
+    },
+    {
+      "paper": "2ac931d9dba6f14b6d72a5ded917de0aa7c42713e4836fa0ed3d5fa9ecf946c4",
+      "page": 21,
+      "part": 0,
+      "category": "Reference",
+      "split": "Calibration"
+    },
+    {
+      "paper": "2ac931d9dba6f14b6d72a5ded917de0aa7c42713e4836fa0ed3d5fa9ecf946c4",
+      "page": 19,
+      "part": 0,
+      "category": "Other",
+      "split": "Holdout"
+    }
+  ]
+}

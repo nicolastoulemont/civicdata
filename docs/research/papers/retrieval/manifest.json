@@ -1,0 +1,95 @@
+{
+  "format": 1,
+  "date": "2026-11-12",
+  "rubric": "research-2",
+  "model": "gpt-6-luna",
+  "documents": [
+    {
+      "paper": "424e4d77864c4923223882924712acd717b8b1a5878c824ad82871715e53a894",
+      "title": "A study of minimum wage employment in Ireland using online job vacancy data",
+      "authors": ["Paul H. Redmond", "Lorcan Kelly", "Elisa Staffa"],
+      "url": "https://www.esri.ie/pubs/RS209.pdf",
+      "sha256": "3bf28617b633b81d9b60968f5378fcec01d83e166c190b78861fa204f93dae4d",
+      "licences": [
+        {
+          "_tag": "Pdf",
+          "url": "https://www.esri.ie/pubs/RS209.pdf",
+          "sha256": "3bf28617b633b81d9b60968f5378fcec01d83e166c190b78861fa204f93dae4d",
+          "page": 2,
+          "licence": "https://creativecommons.org/licenses/by/4.0/",
+          "retrievedAt": "2026-11-12T15:15:38.702Z"
+        }
+      ],
+      "annotation": "78af8be388f123470ebca9adf2ebc70a0d1064bc4c3e9cfb430b3645bab37eb6.json",
+      "design": "Description",
+      "passages": 70,
+      "selectedResults": 8
+    },
+    {
+      "paper": "fd99324201ce47ed2e4e9602659de79d1aa051908c3207c0b0d6448ce4729f91",
+      "title": "Democracy, economic growth, and income inequality: Evidence from province level data",
+      "authors": [
+        "Irwan Trinugroho",
+        "Aldy Fariz Achsanta",
+        "Putra Pamungkas",
+        "Nugroho Saputro",
+        "Sari Yuniarti"
+      ],
+      "url": "https://www.econstor.eu/bitstream/10419/304100/1/10.1080_23322039.2023.2220244.pdf",
+      "sha256": "047736a83b4ab499bc4c17376f584b0608025f2922344f70127b1db6a81d3b13",
+      "licences": [
+        {
+          "_tag": "Page",
+          "url": "https://www.econstor.eu/handle/10419/304100",
+          "sha256": "7fc110077a2fb206580a3e7215bde493c8a9918a85ebda237c8c373095bb9e37",
+          "record": "10419/304100",
+          "pdf": "https://www.econstor.eu/bitstream/10419/304100/1/10.1080_23322039.2023.2220244.pdf",
+          "licence": "https://creativecommons.org/licenses/by/4.0/",
+          "retrievedAt": "2026-11-12T15:15:40.477Z"
+        },
+        {
+          "_tag": "Pdf",
+          "url": "https://www.econstor.eu/bitstream/10419/304100/1/10.1080_23322039.2023.2220244.pdf",
+          "sha256": "047736a83b4ab499bc4c17376f584b0608025f2922344f70127b1db6a81d3b13",
+          "page": 1,
+          "licence": "https://creativecommons.org/licenses/by/4.0/",
+          "retrievedAt": "2026-11-12T15:15:40.814Z"
+        }
+      ],
+      "annotation": "4acb907435b53977de7d47e9b74862bbe093175f6799f03b3a73bd5a834e0259.json",
+      "design": "Association",
+      "passages": 26,
+      "selectedResults": 8
+    },
+    {
+      "paper": "044ad0ae7f444c988bdd489fc29ebc822fec116a1c16e06cf28f53b2710af8b4",
+      "title": "A comparative assessment of minimum wage employment in Europe",
+      "authors": [
+        "ESRI",
+        "Paul H. Redmond",
+        "Bertrand Ma\u00eetre",
+        "ESRI",
+        "S\u00e9amus McGuinness",
+        "ESRI",
+        "Konstantina Maragkou",
+        "ESRI"
+      ],
+      "url": "https://www.esri.ie/pubs/RS123.pdf",
+      "sha256": "542500f7d8e5e9231397b64c5028a2083a81aa55ee525526f39c1d3675139d9c",
+      "licences": [
+        {
+          "_tag": "Pdf",
+          "url": "https://www.esri.ie/pubs/RS123.pdf",
+          "sha256": "542500f7d8e5e9231397b64c5028a2083a81aa55ee525526f39c1d3675139d9c",
+          "page": 2,
+          "licence": "https://creativecommons.org/licenses/by/4.0/",
+          "retrievedAt": "2026-11-12T15:15:38.038Z"
+        }
+      ],
+      "annotation": "c43acb4dcba25fc7c4fae070d100c92d9926ae40ab5bbdae46e1a44bff8b8e22.json",
+      "design": "Association",
+      "passages": 90,
+      "selectedResults": 8
+    }
+  ]
+}

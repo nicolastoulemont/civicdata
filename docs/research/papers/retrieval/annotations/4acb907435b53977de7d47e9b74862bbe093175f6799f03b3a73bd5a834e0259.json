@@ -1,0 +1,287 @@
+{
+  "stamp": {
+    "rubric": "research-2",
+    "model": "gpt-6-luna",
+    "input": "4acb907435b53977de7d47e9b74862bbe093175f6799f03b3a73bd5a834e0259",
+    "createdAt": "2026-11-12T15:54:51.148Z"
+  },
+  "scope": {
+    "findings": [
+      {
+        "page": 13,
+        "quote": "Our findings show democracy is instead detrimental to regional growth while, on the other hand, promoting income equality."
+      },
+      {
+        "page": 7,
+        "quote": "Empirical result Our results, as shown in Table 3 indicates that democracy is instead detrimental to economic growth."
+      },
+      {
+        "page": 7,
+        "quote": "On the other hand, it is negatively associated with income inequality."
+      },
+      {
+        "page": 6,
+        "quote": "On average, the growth of regional GDP is 4.9%."
+      },
+      {
+        "page": 6,
+        "quote": "Regarding income inequality, on average, the Gini index for urban areas is 0.373, implicating that, on average, income inequality is considered low to medium."
+      },
+      {
+        "page": 6,
+        "quote": "The Gini index for rural areas is 0.316, implicating that income inequality is considerably lower in the rural area compared to urban areas."
+      },
+      {
+        "page": 6,
+        "quote": "The index, on average, shows a reasonably good level of democracy, with the lowest in Sulawesi Tenggara in 2013, with the highest in DKI Jakarta in 2019. 3.4."
+      },
+      {
+        "page": 12,
+        "quote": "These findings imply that our results are robust and are not driven by a specific sample. 6."
+      }
+    ],
+    "countries": [
+      {
+        "code": "IDN",
+        "evidence": {
+          "page": 3,
+          "quote": "In this paper, we, therefore, empirically examine the impact of democracy on economic growth and income inequality at the regional level by studying provinces in Indonesia."
+        }
+      }
+    ],
+    "regions": [
+      {
+        "name": "Java",
+        "evidence": {
+          "page": 12,
+          "quote": "We also exclude provinces in Java as most provinces in Java are more developed compared to the rest of provinces in Indonesia."
+        }
+      }
+    ],
+    "periods": [
+      {
+        "from": 2010,
+        "to": 2020,
+        "evidence": {
+          "page": 4,
+          "quote": "We obtain 335 province-year observations for the period 2010–2020."
+        }
+      }
+    ],
+    "design": {
+      "_tag": "Association",
+      "evidence": {
+        "page": 6,
+        "quote": "Thus, we employ panel data using fixed effect technique to estimate our empirical model as it allows us to control time-invariant omitted variables."
+      }
+    }
+  },
+  "labels": [
+    {
+      "page": 1,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.81
+    },
+    {
+      "page": 2,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.91
+    },
+    {
+      "page": 3,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.3
+    },
+    {
+      "page": 3,
+      "part": 1,
+      "category": "Background",
+      "confidence": 0.95
+    },
+    {
+      "page": 4,
+      "part": 0,
+      "category": "Background",
+      "confidence": 0.95
+    },
+    {
+      "page": 4,
+      "part": 1,
+      "category": "Association",
+      "confidence": 0.42
+    },
+    {
+      "page": 4,
+      "part": 2,
+      "category": "Other",
+      "confidence": 0.5
+    },
+    {
+      "page": 5,
+      "part": 0,
+      "category": "Background",
+      "confidence": 0.94
+    },
+    {
+      "page": 5,
+      "part": 1,
+      "category": "Background",
+      "confidence": 0.91
+    },
+    {
+      "page": 5,
+      "part": 2,
+      "category": "Reference",
+      "confidence": 0.51
+    },
+    {
+      "page": 6,
+      "part": 0,
+      "category": "Method",
+      "confidence": 0.89
+    },
+    {
+      "page": 6,
+      "part": 1,
+      "category": "Method",
+      "confidence": 0.84
+    },
+    {
+      "page": 7,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.33
+    },
+    {
+      "page": 7,
+      "part": 1,
+      "category": "Description",
+      "confidence": 0.53
+    },
+    {
+      "page": 8,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.63
+    },
+    {
+      "page": 9,
+      "part": 0,
+      "category": "Association",
+      "confidence": 0.78
+    },
+    {
+      "page": 10,
+      "part": 0,
+      "category": "Association",
+      "confidence": 0.92
+    },
+    {
+      "page": 11,
+      "part": 0,
+      "category": "Association",
+      "confidence": 0.98
+    },
+    {
+      "page": 12,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.76
+    },
+    {
+      "page": 12,
+      "part": 1,
+      "category": "Association",
+      "confidence": 0.47
+    },
+    {
+      "page": 12,
+      "part": 2,
+      "category": "Background",
+      "confidence": 0.99
+    },
+    {
+      "page": 13,
+      "part": 0,
+      "category": "Association",
+      "confidence": 0.54
+    },
+    {
+      "page": 13,
+      "part": 1,
+      "category": "Other",
+      "confidence": 0.52
+    },
+    {
+      "page": 13,
+      "part": 2,
+      "category": "Reference",
+      "confidence": 0.93
+    },
+    {
+      "page": 14,
+      "part": 0,
+      "category": "Reference",
+      "confidence": 0.94
+    },
+    {
+      "page": 14,
+      "part": 1,
+      "category": "Reference",
+      "confidence": 0.86
+    }
+  ],
+  "results": [
+    {
+      "page": 13,
+      "quote": "Our findings show democracy is instead detrimental to regional growth while, on the other hand, promoting income equality.",
+      "category": "Association",
+      "confidence": 0.55
+    },
+    {
+      "page": 7,
+      "quote": "Empirical result Our results, as shown in Table 3 indicates that democracy is instead detrimental to economic growth.",
+      "category": "Association",
+      "confidence": 0.92
+    },
+    {
+      "page": 7,
+      "quote": "On the other hand, it is negatively associated with income inequality.",
+      "category": "Association",
+      "confidence": 0.95
+    },
+    {
+      "page": 6,
+      "quote": "On average, the growth of regional GDP is 4.9%.",
+      "category": "Description",
+      "confidence": 0.94
+    },
+    {
+      "page": 6,
+      "quote": "Regarding income inequality, on average, the Gini index for urban areas is 0.373, implicating that, on average, income inequality is considered low to medium.",
+      "category": "Description",
+      "confidence": 0.98
+    },
+    {
+      "page": 6,
+      "quote": "The Gini index for rural areas is 0.316, implicating that income inequality is considerably lower in the rural area compared to urban areas.",
+      "category": "Description",
+      "confidence": 0.99
+    },
+    {
+      "page": 6,
+      "quote": "The index, on average, shows a reasonably good level of democracy, with the lowest in Sulawesi Tenggara in 2013, with the highest in DKI Jakarta in 2019. 3.4.",
+      "category": "Description",
+      "confidence": 0.98
+    },
+    {
+      "page": 12,
+      "quote": "These findings imply that our results are robust and are not driven by a specific sample. 6.",
+      "category": "Association",
+      "confidence": 0.25
+    }
+  ]
+}
