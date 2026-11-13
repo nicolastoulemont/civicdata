@@ -3,3 +3,5 @@
 export { CatalogWorkflow } from "./CatalogWorkflow.ts"
 
 export { GatherWorkflow } from "./GatherWorkflow.ts"
+
+export { AnnotateWorkflow } from "./AnnotateWorkflow.ts"

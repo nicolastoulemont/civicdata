@@ -1,16 +1,14 @@
 import { fileURLToPath } from "node:url"
 import { parseArgs } from "node:util"
 
-import { OpenAiClient, OpenAiLanguageModel } from "@effect/ai-openai"
 import { NodeFileSystem } from "@effect/platform-node"
 import { Config, Effect, Layer, Schema } from "effect"
 import { FileSystem } from "effect/FileSystem"
 import { FetchHttpClient } from "effect/http"
 
-import { model } from "../src/research/annotation.ts"
+import { Annotator } from "../src/research/Annotator.ts"
 import { Entry } from "../src/research/entry.ts"
 import { Question, questionOf, search } from "../src/research/search.ts"
-import { Annotator } from "./papers/annotator.ts"
 import { benchmark, Sample, Questions } from "./papers/benchmark.ts"
 import { Retrieval } from "./papers/retrieval.ts"
 import { Papers } from "./papers/storage.ts"
@@ -53,17 +51,7 @@ const remote = Layer.unwrap(
   Effect.gen(function* () {
     const apiKey = yield* Config.Redacted("OPENAI_API_KEY")
 
-    return Annotator.live(apiKey).pipe(
-      Layer.provide(
-        OpenAiLanguageModel.model(model, {
-          reasoning: { effort: "low" },
-          max_output_tokens: 6000,
-          store: false,
-        }),
-      ),
-      Layer.provide(OpenAiClient.layer({ apiKey })),
-      Layer.provide(FetchHttpClient.layer),
-    )
+    return Annotator.openAi(apiKey).pipe(Layer.provide(FetchHttpClient.layer))
   }),
 )
 

@@ -10,6 +10,14 @@ Deploys run only after the `check` job passes. Fork pull requests run `check` wi
 
 Only `prod` runs Workflows on a schedule. Pacing is per stage (`packages/server/src/Pace.ts`), so every stage that gathered on its own schedule would add a full stage's requests against the World Bank and the other publishers.
 
+A stage that owns its catalog and paper store binds three Workflows:
+
+| Workflow   | Class              | Writes                                        | Starts                                                                              |
+| ---------- | ------------------ | --------------------------------------------- | ----------------------------------------------------------------------------------- |
+| `CATALOG`  | `CatalogWorkflow`  | the catalog, political records and directions | after each deploy, and in `prod` every Monday at 04:00 UTC                          |
+| `GATHER`   | `GatherWorkflow`   | the stored series                             | by hand ([series](series.md#start-a-run-by-hand)), and in `prod` daily at 05:00 UTC |
+| `ANNOTATE` | `AnnotateWorkflow` | paper annotations and their keys' states      | only by hand ([papers](papers.md#start-a-run-by-hand))                              |
+
 ### Closing a pull request
 
 The `cleanup` job destroys the stage when the pull request closes. `alchemy destroy` deletes what the stage's state lists: the Worker with its Durable Objects and custom domain, the Workflows, the D1 database, both buckets and the index. A pull request merged while its last push's `check` still runs closes before that push's preview deploys: `cleanup` finds an empty state and deletes nothing, then the `preview` job would deploy a stage nothing removes. So the `preview` job reads the pull request when it starts and, once it has closed, destroys the stage instead of deploying it, and the comment says "Removed". Both jobs share the `deploy-pr-<n>` concurrency group, so whichever runs last sees the closed pull request.
@@ -69,7 +77,7 @@ and [Turnstile validation](https://developers.cloudflare.com/turnstile/get-start
 
 ## What a preview shares with production
 
-A pull request's preview reads production's catalog, stored series and papers: the catalog's D1 tables (the catalog, the political records, the directions and the series' bookkeeping), the `Vectors` index, the `Series` bucket, and the paper store: the `PapersDatabase` database and `Papers` bucket ([papers](papers.md)). Its search answers on its first request and its World Bank charts read the store, with no build of its own. It deploys no Catalog or Gather Workflow, and CI starts no catalog build for it.
+A pull request's preview reads production's catalog, stored series and papers: the catalog's D1 tables (the catalog, the political records, the directions and the series' bookkeeping), the `Vectors` index, the `Series` bucket, and the paper store: the `PapersDatabase` database and `Papers` bucket ([papers](papers.md)). Its search answers on its first request and its World Bank charts read the store, with no build of its own. It deploys no Catalog, Gather or Annotate Workflow, and CI starts no catalog build for it.
 
 The Worker reads the catalog's tables through the `CATALOG_DB` binding, and binds `DB` to the stage's own database for anything a request writes. Everywhere else both bindings name the stage's own database. Requests only read what `CATALOG_DB`, `VECTORS`, `SERIES`, `PAPERS_DB` and `PAPERS` bind: readers never create, alter or drop a table (`packages/server/src/built.ts`), and a reader that meets a missing table answers "unavailable". Only the Workflows write, and a build stops before writing in a Worker that binds no Workflow (`database` in `packages/server/src/CatalogBuild.ts`). D1 has no read-only binding, so that code path is the protection.
 

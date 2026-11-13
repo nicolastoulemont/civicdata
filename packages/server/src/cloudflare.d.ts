@@ -28,6 +28,9 @@ declare module "cloudflare:workers" {
     // its catalog. A build runs only where both are bound (CatalogBuild.ts).
     readonly CATALOG?: unknown
     readonly GATHER?: unknown
+    // The annotation Workflow, bound only where the stage owns its paper
+    // store (research/Annotate.ts).
+    readonly ANNOTATE?: import("./research/Annotate.ts").AnnotateBinding
     readonly ASK_LIMIT?: {
       readonly limit: (options: { readonly key: string }) => Promise<{ readonly success: boolean }>
     }

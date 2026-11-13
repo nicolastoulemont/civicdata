@@ -5,6 +5,6 @@ import entry from "@tanstack/react-start/server-entry"
 // entry's exports.
 export { ConversationObject, PaceObject } from "@repo/server"
 
-export { CatalogWorkflow, GatherWorkflow } from "@repo/server/workflow"
+export { AnnotateWorkflow, CatalogWorkflow, GatherWorkflow } from "@repo/server/workflow"
 
 export default entry

@@ -1,10 +1,17 @@
 import { Country } from "@repo/domain"
-import { Schema } from "effect"
+import { Context, Schema } from "effect"
 
 import { Paper, Passage } from "./archive.ts"
 
 export const rubric = "research-3"
 export const model = "gpt-6-luna"
+
+// The model and rubric new annotations use. An annotation key names both, so
+// changing either gives every paper a new key (store.ts).
+export const Settings = Context.Reference<{ readonly model: string; readonly rubric: string }>(
+  "@repo/server/research/Settings",
+  { defaultValue: () => ({ model, rubric }) },
+)
 
 const Anchor = Schema.Struct({ page: Passage.fields.page, quote: Schema.NonEmptyString })
 const Year = Schema.Int.check(Schema.isBetween({ minimum: 1800, maximum: 2100 }))

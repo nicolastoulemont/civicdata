@@ -12,3 +12,9 @@ export class GatherWorkflow {
     throw new Error("Series are gathered only inside Workers")
   }
 }
+
+export class AnnotateWorkflow {
+  run(): never {
+    throw new Error("Papers are annotated only inside Workers")
+  }
+}

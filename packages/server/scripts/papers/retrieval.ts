@@ -13,9 +13,9 @@ import {
   Scope,
   Stamp,
 } from "../../src/research/annotation.ts"
+import { Annotator } from "../../src/research/Annotator.ts"
 import { Content, Paper } from "../../src/research/archive.ts"
 import { Document, type Entry } from "../../src/research/entry.ts"
-import { Annotator } from "./annotator.ts"
 import { Papers } from "./storage.ts"
 
 const Scoped = Schema.Struct({ stamp: Stamp, scope: Scope })
@@ -116,16 +116,21 @@ export class Retrieval extends Context.Service<Retrieval, Interface>()("papers/R
               ? yield* fs
                   .readFileString(`${path}.scope.json`)
                   .pipe(Effect.flatMap(Schema.decodeUnknownEffect(Schema.fromJsonString(Scoped))))
-              : Scoped.make({ stamp, scope: yield* annotator.scope(paper.content.passages) })
+              : Scoped.make({
+                  stamp,
+                  scope: (yield* annotator.scope(paper.content.passages)).scope,
+                })
 
             if (scoped.stamp.input !== input || !grounded(scoped.scope, paper.content.passages))
               return yield* Effect.fail("Scope checkpoint is stale or ungrounded")
             yield* fs.writeFileString(`${path}.scope.json.tmp`, JSON.stringify(scoped))
             yield* fs.rename(`${path}.scope.json.tmp`, `${path}.scope.json`)
 
-            const classified = yield* annotator.labels(paper.content.passages, {
+            const { labels, excerpts } = yield* annotator.labels(paper.content.passages, {
               excerpts: scoped.scope.excerpts,
             })
+
+            const classified = { labels, excerpts }
 
             if (
               !complete(classified.labels, paper.content.passages) ||

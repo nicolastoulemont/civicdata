@@ -142,6 +142,95 @@ WHERE last >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-1 day')
 ORDER BY count DESC
 ```
 
+## Annotation
+
+`AnnotateWorkflow` (`packages/server/src/AnnotateWorkflow.ts`, bound as `ANNOTATE`) annotates a list of paper versions. `packages/server/src/research/Annotate.ts` holds its work and `Annotator.ts` its model calls, which the local annotator in `scripts/papers` shares. Like the Catalog and Gather Workflows, it exists only in a stage that owns its paper store: production and previews with the `own-catalog` label. A shared preview binds none, and no stage runs it on a schedule.
+
+### What a run does
+
+A run first groups its list by annotation key: two versions with identical text share one key, and a version the store no longer holds is `Skipped { Withdrawn }`. Then, for each key, at most 4 at once, it runs these steps:
+
+1. Claim the key.
+2. Load: check that a listed version still has the key's text under the current settings and that its text object in `PAPERS` matches its hash.
+3. Scope: ask the Responses API for the scope and excerpts, check every quote against its page, and save the scope.
+4. Labels: ask the Decisions API to label every passage and excerpt, check that every one has exactly one label, and save the labels.
+5. Publish: check the saved scope and labels against the text again, then in one D1 batch add the annotation, mark the key `Ready` and point the versions at it.
+6. Finish: give the key back or count the attempt, and record each version's outcome.
+
+Each step is a Workflow step. Its answer is a small JSON value; the scope, the labels and the text stay in `PAPERS_DB` and `PAPERS`, and each step reads them by key or version. A run makes two model requests per paper, one per stage, and none for a stage whose output is already saved: a later run for the same key reuses the saved scope and labels, so a failed classification or publication never repeats the scope call.
+
+A step retries a provider or store failure 3 times, 10, 20 and 40 seconds apart. Invalid output does not retry: malformed JSON, an unknown sentence, an ungrounded quote or period, or missing or duplicate labels fails the paper for this run and counts as an attempt. The checks, prompts and rubric are the local annotator's.
+
+### Key states
+
+`annotation_key` holds one state per key, and only this Workflow writes it:
+
+| State       | Meaning                                                                                                                            |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `Running`   | the run in `run` holds the key                                                                                                     |
+| `Ready`     | the run in `run` published the annotation                                                                                          |
+| `Failed`    | a run gave up after `attempts` attempts, or gave the key back as stale or withdrawn; a run may claim it while attempts are below 3 |
+| `Abandoned` | three runs failed; only a run started with retry claims it                                                                         |
+
+A run claims a key with one `INSERT ... ON CONFLICT DO UPDATE ... WHERE` statement, which succeeds only if the key is new, `Failed` under 3 attempts, already `Running` under this run (a claim step that Workflows retried after its write landed), `Running` under a run whose instance has ended, or `Abandoned` on a retry. Before taking another run's claim over, the run asks the Workflow API for that instance's status: a running, waiting or paused instance keeps its claim however old it is, and an instance the API no longer knows has ended. Two runs with overlapping lists therefore annotate each key once.
+
+A claim is checked where it is used. Every step that calls the model reads the key's state first and stops if another run holds it, and every write carries `WHERE run = ?` and treats no changed row as a lost claim. An errored instance restarted after another run took over its claim stops at its next model call or write without spending. A lost provider response can still repeat one paid call; the saved stages and the attempt limit bound that.
+
+### Outcomes
+
+Each run records one row per listed version in `annotation_run`: its outcome, the key's attempts after the run, when the run claimed and finished the key, and the model requests and tokens the provider reported. It holds no prompt, answer or key. The outcome is one of:
+
+- `Annotated { key }`: the key is `Ready`, by this run or an earlier one.
+- `Failed { stage, reason, problem }`: a stage gave up with `Invalid` output, `Unavailable` source text, a `Provider` that kept failing, or a `Store` that kept failing. All but a failed claim count as an attempt.
+- `Skipped { reason }`: the text or the settings changed since the key was computed (`Stale`), the version was `Withdrawn`, another run holds the key (`Held`), or the key is `Abandoned`. None of these is an attempt.
+- `NotStarted`: the run reached a cap before claiming the key.
+
+### Caps
+
+`Limits` in `Annotate.ts` holds every cap: 20 keys per run, 4 at once, 3 attempts per key, and 3,000,000 tokens per run. Once the tokens the provider reported reach the cap, the run claims no new key, and the rest are `NotStarted`.
+
+No usage record exists for the eight papers annotated locally: the expanded corpus run did not measure tokens ([retrieval notes](research/papers/retrieval/README.md)). The cap is an estimate from their size instead. The eight papers have 502 passages of at most 300 words, about 400 tokens each. The scope request sends a paper's text once, and the classification request sends it twice, plus about 170 tokens of choices per question. The largest paper, 90 passages, needs about 130,000 tokens, so 20 such papers need about 2.6 million. The Decisions API may report no usage; a run then counts only the scope requests' tokens. Replace the estimate with the recorded usage once runs have filled `annotation_run`.
+
+### Active annotation
+
+A version points to one active annotation (`version.annotation`). Publication points every version with the key's text and extraction at the new annotation, and the statement itself requires that the key is `Ready` and the annotation's model and rubric are the current settings (`Settings` in `annotation.ts`). Changing the model or rubric gives every paper a new key, and its annotation under the older settings stays active until the replacement is ready or someone retires it. A run never points a version at an annotation under other settings, so a run restarted after a settings change finds its keys `Stale` and publishes nothing. `Papers.read` serves the active annotation.
+
+### Start a run by hand
+
+Run the `Annotate papers` GitHub workflow with the stage, the version ids and a command, from the Actions tab or with:
+
+```sh
+gh workflow run annotate.yml -f stage=pr-123 -f versions="<version> <version>"
+```
+
+It refuses a pull request without the `own-catalog` label. From a machine with `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN` set:
+
+```sh
+pnpm --filter @repo/server run annotate --stage pr-123 <version> <version>
+```
+
+A version's id is `version.id`. Each run costs up to two model requests per listed key, so list only the versions that need an annotation.
+
+### Retry an Abandoned key
+
+Start a run with the `retry` command, or `--command retry`, listing a version of the key. That run may claim the key's `Abandoned` state and resets its attempts to 0. It reuses the key's saved scope and labels; a person who wants new ones deletes the key's `annotation_stage` rows first.
+
+### Retire an older annotation
+
+Start a run with the `retire` command, or `--command retire`, listing the versions. It clears each listed version's active annotation when that annotation is under settings other than the current ones, and leaves a current one in place. The annotation row stays, as a withdrawal leaves it.
+
+### Read run outcomes
+
+The Workflow instance's output lists each version's outcome: the Cloudflare dashboard shows it under Workers & Pages, Workflows, and the API returns it at `/accounts/<account>/workflows/civicdata-<stage>-annotate/instances/<id>`. The stage's `PapersDatabase` keeps them after the instance is gone:
+
+```sql
+SELECT version, json_extract(outcome, '$._tag') AS outcome, outcome AS detail, attempts,
+  requests, input_tokens, output_tokens, started_at, ended_at
+FROM annotation_run WHERE run = '<instance id>';
+```
+
+`packages/server/test/Annotate.test.ts` runs the Workflow's work against D1 and R2 inside workerd, with OpenAI faked on the wire and a fake Workflows step runner that saves, replays, retries, loses and crashes steps.
+
 ## Tests
 
 `packages/server/test/papers.ts` fills a test store the way the writers must: `publish` for a paper with text, `list` for a metadata-only paper, `withdraw` for a withdrawn one. Each is valid by default and takes only what a test changes. `packages/server/test/Papers.test.ts` runs the reader against D1 and R2 inside workerd.

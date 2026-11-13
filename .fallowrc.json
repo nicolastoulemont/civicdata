@@ -35,7 +35,7 @@
     // Fallow does not resolve.
     {
       "file": "packages/server/src/workflows.ts",
-      "exports": ["CatalogWorkflow", "GatherWorkflow"]
+      "exports": ["AnnotateWorkflow", "CatalogWorkflow", "GatherWorkflow"]
     }
   ],
   // Cloudflare calls a Durable Object's handlers.
