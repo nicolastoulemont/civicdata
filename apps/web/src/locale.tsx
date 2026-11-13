@@ -123,11 +123,14 @@ export const LocaleProvider = ({ instance, children }: LocaleProviderProps) => {
 
     active = { instance, locale }
 
-    instance.on("languageChanged", remember)
+    // i18next announces languageChanged only once the new locale's messages
+    // load. The choice applies the moment the reader makes it: requests sent
+    // while those messages load carry it, and storage keeps it.
+    instance.on("languageChanging", remember)
     void instance.changeLanguage(locale)
 
     return () => {
-      instance.off("languageChanged", remember)
+      instance.off("languageChanging", remember)
 
       if (active?.instance === instance) active = undefined
     }
