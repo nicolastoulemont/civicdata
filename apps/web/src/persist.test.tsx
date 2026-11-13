@@ -166,7 +166,7 @@ const show = (store: Store) => {
 
   const root = createRootRoute({
     component: () => (
-      <Layout>
+      <Layout size={undefined}>
         <Conversation id={id} first={undefined} />
       </Layout>
     ),
