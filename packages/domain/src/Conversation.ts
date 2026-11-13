@@ -11,6 +11,7 @@ import {
   SourceUnavailable,
 } from "./Errors.ts"
 import { IndicatorId } from "./Indicator.ts"
+import { Reading } from "./Paper.ts"
 import { Overlays } from "./Politics.ts"
 import { Source } from "./Source.ts"
 import { View, Year } from "./View.ts"
@@ -242,8 +243,16 @@ export const Chart = Schema.TaggedStruct("Chart", {
 
 export type Chart = typeof Chart.Type
 
-// A block of an answer, in the order the agent wrote it: its words or a chart.
-export const Block = Schema.Union([Text, Chart])
+// Papers to read, at most three, that a search found and no reviewed
+// annotation covers yet. They sit under the answer, labelled as not
+// reviewed, and the agent's words never cite or describe them.
+export const Readings = Schema.TaggedStruct("Readings", {
+  readings: Schema.NonEmptyArray(Reading).check(Schema.isMaxLength(3)),
+})
+
+// A block of an answer, in the order the agent wrote it: its words or a
+// chart, and last the papers to read, if any.
+export const Block = Schema.Union([Text, Chart, Readings])
 
 export type Block = typeof Block.Type
 

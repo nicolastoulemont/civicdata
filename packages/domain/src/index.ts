@@ -34,6 +34,7 @@ export {
   put,
   Question,
   Read,
+  Readings,
   Reason,
   Recorded,
   Records,
@@ -149,4 +150,4 @@ export {
 
 export { default as ilostatNotes } from "./ilostat.json" with { type: "json" }
 
-export { Paper } from "./Paper.ts"
+export { Paper, Reading, Withdrawal } from "./Paper.ts"

@@ -178,5 +178,10 @@
   "searched": "Searched for “{{text}}”: {{count}} found",
   "searchedSource": "Searched {{source}} for “{{text}}”: {{count}} found",
   "noMatches": "Searched for “{{text}}”: none found",
-  "noMatchesSource": "Searched {{source}} for “{{text}}”: none found"
+  "noMatchesSource": "Searched {{source}} for “{{text}}”: none found",
+  "Papers to read": "Papers to read",
+  "Not reviewed": "Not reviewed",
+  "Search found these papers, but no review has read them yet. The answer does not draw on them.": "Search found these papers, but no review has read them yet. The answer does not draw on them.",
+  "Page {{page}}": "Page {{page}}",
+  "Reuse licence": "Reuse licence"
 }

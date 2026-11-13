@@ -178,5 +178,10 @@
   "searched": "Risultati per «{{text}}»: {{count}}",
   "searchedSource": "Risultati per «{{text}}» ({{source}}): {{count}}",
   "noMatches": "Nessun risultato per «{{text}}»",
-  "noMatchesSource": "Nessun risultato per «{{text}}» in {{source}}"
+  "noMatchesSource": "Nessun risultato per «{{text}}» in {{source}}",
+  "Papers to read": "Articoli da leggere",
+  "Not reviewed": "Non verificato",
+  "Search found these papers, but no review has read them yet. The answer does not draw on them.": "La ricerca ha trovato questi articoli, ma nessuna verifica li ha ancora letti. La risposta non si basa su di essi.",
+  "Page {{page}}": "Pagina {{page}}",
+  "Reuse licence": "Licenza di riutilizzo"
 }

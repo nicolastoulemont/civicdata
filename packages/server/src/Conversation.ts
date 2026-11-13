@@ -2,9 +2,11 @@ import {
   type Action,
   type AgentUnavailable,
   type Block,
+  blocksOf,
   type CatalogUnavailable,
   type ChartIndex,
   chartsOf,
+  Cited,
   type Country,
   ConversationBusy,
   ConversationNotFound,
@@ -16,10 +18,12 @@ import {
   Rendered,
   type Step,
   Stopped,
+  Text,
   type Turn,
   type TurnIndex,
   TurnNotFound,
   type Turns,
+  type Withdrawal,
   type View,
   type Vote,
   withShown,
@@ -35,6 +39,7 @@ import {
   Effect,
   Equal,
   Layer,
+  Match,
   Option,
   Predicate,
   PubSub,
@@ -49,6 +54,7 @@ import { Chat } from "effect/ai"
 
 import { Agent, type Changed } from "./Agent.ts"
 import { Answers } from "./Answers.ts"
+import { Papers } from "./research/Papers.ts"
 import { type Edit, type Saved, Transcript } from "./Transcript.ts"
 
 // Why an answer stopped short.
@@ -182,6 +188,62 @@ const unheardOf = (saved: Saved, heard: ReadonlyArray<Unheard>): Saved["edits"] 
   return Arr.isReadonlyArrayNonEmpty(left) ? left : undefined
 }
 
+const isText = Schema.is(Text)
+
+// The papers a turn's words cite, by the copy each quotes.
+const quotedIn = (turn: Turn) =>
+  blocksOf(turn.answer).flatMap((block) =>
+    isText(block)
+      ? (block.cites ?? []).flatMap((cited) =>
+          Cited.guards.Paper(cited) && cited.paper.copy !== undefined ? [cited.paper.copy] : [],
+        )
+      : [],
+  )
+
+// An ending with each of its blocks rewritten by `rewrite`.
+const rewritten = (ending: Ending, rewrite: (block: Block) => Block): Ending =>
+  Match.valueTags(ending, {
+    Answered: (answered) => Struct.assign(answered, { blocks: Arr.map(answered.blocks, rewrite) }),
+    Asked: (asked) =>
+      asked.blocks === undefined
+        ? asked
+        : Struct.assign(asked, { blocks: Arr.map(asked.blocks, rewrite) }),
+    Exhausted: (exhausted) =>
+      exhausted.blocks === undefined
+        ? exhausted
+        : Struct.assign(exhausted, { blocks: Arr.map(exhausted.blocks, rewrite) }),
+    Stopped: (stopped) =>
+      stopped.blocks === undefined
+        ? stopped
+        : Struct.assign(stopped, { blocks: Arr.map(stopped.blocks, rewrite) }),
+    Unanswered: (unanswered) => unanswered,
+  })
+
+// The turn with each cited paper whose copy was withdrawn shown as
+// Withdrawn: its study and why, without the quote. The words stay as the
+// agent wrote them, and so does the turn as saved.
+const unquoted = (turn: Turn, withdrawn: ReadonlyMap<string, Withdrawal>): Turn =>
+  Struct.assign(turn, {
+    answer: rewritten(turn.answer, (block) => {
+      if (!isText(block) || block.cites === undefined) return block
+
+      const cites = Arr.map(block.cites, (cited) => {
+        if (!Cited.guards.Paper(cited)) return cited
+
+        const { paper } = cited
+        const reason = paper.copy === undefined ? undefined : withdrawn.get(paper.copy)
+
+        return reason === undefined
+          ? cited
+          : Cited.cases.Withdrawn.make({
+              paper: { id: paper.id, study: paper.study, url: paper.url, reason },
+            })
+      })
+
+      return Struct.assign(block, { cites })
+    }),
+  })
+
 // Steps kept for whoever follows an answer late: more than an answer has.
 const replay = 256
 
@@ -271,13 +333,14 @@ const isExpiring = Phase.$is("Expiring")
 export class Conversation extends Context.Service<Conversation, Interface>()(
   "@repo/server/Conversation",
 ) {
-  // Needs an Agent, a Transcript and Answers.
+  // Needs an Agent, a Transcript, Answers and Papers.
   static readonly layer = Layer.effect(
     Conversation,
     Effect.gen(function* () {
       const agent = yield* Agent
       const transcript = yield* Transcript
       const answers = yield* Answers
+      const papers = yield* Papers
       // Answers run in the conversation's scope, not the request's, so a
       // visitor leaving does not stop them.
       const scope = yield* Effect.scope
@@ -286,6 +349,24 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
       // reader never sees a question both answered and still being answered,
       // and an answer is kept either as it ended or as stopped, never both.
       const lock = yield* Semaphore.make(1)
+
+      // The turns with the citations of copies withdrawn since shown as
+      // Withdrawn, read outside the lock. A store that cannot say shows
+      // them as saved.
+      const withdrawnIn = (answered: ReadonlyArray<Turn>) => {
+        const copies = answered.flatMap(quotedIn)
+
+        if (copies.length === 0) return Effect.succeed(answered)
+
+        return papers.withdrawn(copies).pipe(
+          Effect.map((withdrawn) =>
+            withdrawn.size === 0 ? answered : answered.map((turn) => unquoted(turn, withdrawn)),
+          ),
+          Effect.catchTag("PapersUnavailable", (error) =>
+            Effect.logWarning("Withdrawn papers not checked", error).pipe(Effect.as(answered)),
+          ),
+        )
+      }
 
       const turns = Effect.gen(function* () {
         const saved = yield* transcript.load
@@ -304,7 +385,12 @@ export class Conversation extends Context.Service<Conversation, Interface>()(
         const lost = Option.getOrUndefined(saved)?.answering
 
         return lost === undefined ? { answered } : { answered, lost }
-      }).pipe(Semaphore.withPermit(lock))
+      }).pipe(
+        Semaphore.withPermit(lock),
+        Effect.flatMap((read) =>
+          Effect.map(withdrawnIn(read.answered), (answered) => Struct.assign(read, { answered })),
+        ),
+      )
 
       // Saves an empty conversation with the agent's opening chat, which
       // also sets its deletion alarm, so a first question refused over the

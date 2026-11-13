@@ -6,7 +6,7 @@ complete local steps 1–4. The measured three-paper run below is historical.
 [NTO-224](https://linear.app/ntoulemont-personal/issue/NTO-224) now has a bounded
 local discovery and gathering pipeline. It finds candidate documents, identifies
 copies, records licence evidence, and retains admitted PDFs and page-bound text.
-The current assistant also searches the packaged corpus with `search_papers`;
+The current assistant searches the paper store with `search_papers`;
 `find_research` continues to serve the existing reviewed findings.
 
 ## The measured run

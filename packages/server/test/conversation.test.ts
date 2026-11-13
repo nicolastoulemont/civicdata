@@ -46,6 +46,7 @@ import {
   Records,
   Rejected,
   Rejection,
+  Readings,
   Rendered,
   Research,
   Researched,
@@ -98,6 +99,7 @@ import {
 import { AiError, LanguageModel, type Response } from "effect/ai"
 import { HttpServer } from "effect/http"
 import { HttpApiTest } from "effect/http-api"
+import type { SqlClient } from "effect/sql"
 import { TestClock } from "effect/testing"
 import { strToU8, zipSync } from "fflate"
 
@@ -118,7 +120,11 @@ import { Imf } from "../src/Imf.ts"
 import { Insee } from "../src/Insee.ts"
 import { Notes } from "../src/Notes.ts"
 import { Politics } from "../src/Politics.ts"
-import { Library, Found as PaperResults } from "../src/research/Library.ts"
+import { Demand } from "../src/research/Demand.ts"
+import { Discovery } from "../src/research/Discovery.ts"
+import { Found as PaperResults, Lead, Library } from "../src/research/Library.ts"
+import { Papers } from "../src/research/Papers.ts"
+import { Question as PaperQuestion } from "../src/research/search.ts"
 import { Support, Verdict } from "../src/research/Support.ts"
 import { Resolver } from "../src/Resolver.ts"
 import { Sdmx } from "../src/Sdmx.ts"
@@ -141,6 +147,7 @@ import inseeCatalog from "./fixtures/insee/catalog.json"
 import inseePage1 from "./fixtures/insee/page1.json"
 import inseePage2 from "./fixtures/insee/page2.json"
 import inseeRange from "./fixtures/insee/range.json"
+import { annotate, bodyOf, entry, list, papersDb, stored, withdrawCopy } from "./papers.ts"
 import { build, politicsOver, recorded as archived } from "./politics.ts"
 
 const lifeExpectancy = IndicatorId.make("SP.DYN.LE00.IN")
@@ -381,6 +388,9 @@ const scripted = (
 ) => {
   const prompts: Array<string> = []
   const reviews: Array<string> = []
+  // Requests for anything but an answer's rounds and its support review,
+  // such as the annotation model's: each fails the answer.
+  const others: Array<string> = []
   let turn = 0
 
   const layer = Layer.effect(
@@ -415,6 +425,12 @@ const scripted = (
           )
         }
 
+        if (responseFormat.type === "json") {
+          others.push(responseFormat.objectName)
+
+          return Effect.die(`The answer asked the model for ${responseFormat.objectName}`)
+        }
+
         const next = turns[turn] ?? Effect.succeed(words(takeaway))
         prompts.push(JSON.stringify(prompt))
         turn += 1
@@ -425,7 +441,7 @@ const scripted = (
     }),
   )
 
-  return { layer, prompts, reviews }
+  return { layer, prompts, reviews, others }
 }
 
 // The rounds of the nth question: a search the model reasoned before, a
@@ -510,10 +526,13 @@ interface ServeOptions {
   readonly sdmx?: Layer.Layer<Sdmx>
   // The political records. Without them, none are available.
   readonly politics?: Layer.Layer<Politics>
-  // The research findings. Without them, there are none.
   readonly insee?: Layer.Layer<Insee>
+  // The research findings. Without them, there are none.
   readonly findings?: Layer.Layer<Findings>
   readonly notes?: Layer.Layer<Notes>
+  // Where questions record the papers they asked for. Without it, the test
+  // Worker's DB.
+  readonly demand?: Layer.Layer<Demand>
   // Whether the catalog can read its outlines. It can unless a test says not.
   readonly outlined?: boolean
   // The conversations' Durable Object storage. Without it, each conversation
@@ -554,6 +573,7 @@ const serveApi = (
     politics = Politics.unavailable,
     findings = Findings.holding([]),
     notes = recordedNotes,
+    demand = Demand.layer,
     traces = Layer.empty,
     answers = Answers.none,
     country,
@@ -563,7 +583,8 @@ const serveApi = (
   const catalog = catalogOf({ outlined })
 
   const agent = Agent.layer.pipe(
-    Layer.provide(Layer.mergeAll(Library.layer, Support.layer)),
+    Layer.provide(Layer.mergeAll(Library.layer, Support.layer, demand)),
+    Layer.provide(Layer.mergeAll(Papers.layer, Discovery.layer)),
     Layer.provide(model),
     Layer.provide(findings),
     Layer.provide(notes),
@@ -588,7 +609,7 @@ const serveApi = (
   return Layer.unwrap(
     Effect.clockWith((clock) => {
       const conversation = open(
-        Layer.mergeAll(transcript, agent, limit, answers).pipe(
+        Layer.mergeAll(transcript, agent, limit, answers, Papers.layer).pipe(
           Layer.provideMerge(Layer.succeed(Clock.Clock, clock)),
         ),
         { tracer: traces },
@@ -4173,7 +4194,17 @@ describe("INSEE chart tools", () => {
   })
 })
 
+// Writes to the test's paper store.
+const store = <A, E>(effect: Effect.Effect<A, E, SqlClient.SqlClient>) =>
+  Effect.provide(effect, papersDb)
+
+const isAnswered = Schema.is(Answered)
+
 describe("paper research", () => {
+  beforeEach(() => reset())
+
+  const carbon = entry("2ac931")
+
   const question = {
     text: "carbon tax emissions",
     countries: ["GBR"],
@@ -4181,57 +4212,282 @@ describe("paper research", () => {
     intent: "Cause",
   } as const
 
+  // The lookup as the agent runs it, for the ids its answer cites.
+  const lookup = Effect.flatMap(Library, (library) =>
+    library.search(PaperQuestion.make(question)),
+  ).pipe(
+    Effect.provide(
+      Library.layer.pipe(Layer.provide(Layer.mergeAll(Discovery.layer, Papers.layer))),
+    ),
+  )
+
+  // The passage the lookup found as evidence.
+  const evidence = Effect.map(lookup, (found) => {
+    const [lead] = PaperResults.guards.Papers(found) ? found.papers : []
+
+    if (lead === undefined || !Lead.guards.Evidence(lead)) throw new Error("Missing evidence")
+
+    return lead.paper
+  })
+
+  // The papers questions asked for, as the daily annotation run reads them.
+  const demanded = Effect.flatMap(Demand, (demand) => demand.since(DateTime.makeUnsafe(0))).pipe(
+    Effect.provide(Demand.layer),
+  )
+
+  const isReadings = Schema.is(Readings)
+
+  const readingsIn = (steps: ReadonlyArray<Step>) =>
+    steps.flatMap((step) => (isRendered(step) && isReadings(step.block) ? [step.block] : []))
+
+  it.effect("cites a stored annotation's passage, checked, and keeps its copy and page", () =>
+    Effect.gen(function* () {
+      const { copy } = yield* store(stored(carbon))
+      const paper = yield* evidence
+      const reference = idOf(Cited.cases.Paper.make({ paper }))
+
+      const model = scripted(
+        [
+          Effect.succeed(call("search_papers", question)),
+          Effect.succeed(
+            words(
+              `The study estimates that Britain's carbon tax reduced power-sector emissions [[${reference}]].`,
+            ),
+          ),
+        ],
+        { verdict: Verdict.cases.Supported.make({ kind: "Cause", evidence: [0] }) },
+      )
+
+      yield* Effect.gen(function* () {
+        const steps = yield* answer("What evidence supports the effects of Britain's carbon tax?")
+
+        expect(steps.findLast(isRendered)?.block).toMatchObject({
+          cites: [{ paper: { id: paper.id, copy, page: paper.page, quote: paper.quote } }],
+        })
+        expect(readingsIn(steps)).toEqual([])
+        expect((yield* turns).answered[0]?.answer).toMatchObject({
+          blocks: [{ cites: [{ paper: { id: paper.id, copy } }] }],
+        })
+        expect(model.prompts[1]).toContain(paper.quote)
+        expect(model.prompts[1]).toContain('"suggested":0')
+        expect(model.reviews[0]).toContain(paper.quote)
+        expect(yield* demanded).toEqual([])
+      }).pipe(Effect.provide(serveApi(model.layer)))
+    }),
+  )
+
   it.effect(
-    "searches papers and persists a checked claim with the exact passage and PDF citation",
+    "suggests unannotated papers under the answer, records demand, and tells the model only how many",
+    () => {
+      const model = scripted([
+        Effect.succeed(call("search_papers", question)),
+        Effect.succeed(words("The research we have does not cover why.")),
+      ])
+
+      return Effect.gen(function* () {
+        const { version } = yield* store(stored(carbon, { annotated: false }))
+
+        const steps = yield* answer("Why did Britain's emissions fall?")
+
+        const [shown] = readingsIn(steps)
+
+        expect(shown?.readings.map(({ study }) => study.title)).toEqual([
+          carbon.paper.seed.study.title,
+        ])
+        expect(steps.at(-1)).toEqual(
+          Answered.make({ blocks: [said("The research we have does not cover why."), shown!] }),
+        )
+        expect((yield* turns).answered[0]?.answer).toEqual(steps.at(-1))
+
+        // The model hears how many, never what: no title, no excerpt.
+        expect(model.prompts[1]).toContain(
+          '"_tag":"NoEvidence","reason":"not-reviewed","suggested":1',
+        )
+        expect(model.prompts[1]).not.toContain(carbon.paper.seed.study.title)
+        expect(model.prompts[1]).not.toContain(shown?.readings[0]?.copy?.excerpt?.text)
+
+        expect((yield* demanded).map(({ version: asked, count }) => ({ asked, count }))).toEqual([
+          { asked: version, count: 1 },
+        ])
+        // Nothing asked the annotation model.
+        expect(model.others).toEqual([])
+      }).pipe(Effect.provide(serveApi(model.layer)))
+    },
+  )
+
+  it.effect("removes words that cite a paper suggested for reading", () => {
+    const model = scripted([
+      Effect.succeed(call("search_papers", question)),
+      Effect.succeed(words(`Carbon taxes cut emissions [[paper:${carbon.paper.seed.id}]].`)),
+    ])
+
+    return Effect.gen(function* () {
+      yield* store(stored(carbon, { annotated: false }))
+
+      const steps = yield* answer("Why did Britain's emissions fall?")
+
+      expect(JSON.stringify(steps)).not.toContain("Carbon taxes cut emissions")
+      expect(steps.at(-1)).toEqual(Answered.make({ blocks: [readingsIn(steps)[0]!] }))
+      expect(JSON.stringify((yield* turns).answered)).not.toContain("Carbon taxes cut emissions")
+    }).pipe(Effect.provide(serveApi(model.layer)))
+  })
+
+  it.effect(
+    "tells the model there is no evidence, and shows no suggestion, when nothing matches",
+    () => {
+      const model = scripted([
+        Effect.succeed(call("search_papers", question)),
+        Effect.succeed(words("The research we have does not cover why.")),
+      ])
+
+      return Effect.gen(function* () {
+        // The store holds one paper, about something else.
+        yield* store(list())
+
+        const steps = yield* answer("Why did Britain's emissions fall?")
+
+        expect(model.prompts[1]).toContain('"reason":"no-matching-paper","suggested":0')
+        expect(readingsIn(steps)).toEqual([])
+        expect(yield* demanded).toEqual([])
+      }).pipe(Effect.provide(serveApi(model.layer)))
+    },
+  )
+
+  it.effect("answers with its suggestions when the demand write fails", () => {
+    const model = scripted([
+      Effect.succeed(call("search_papers", question)),
+      Effect.succeed(words("The research we have does not cover why.")),
+    ])
+
+    return Effect.gen(function* () {
+      yield* store(stored(carbon, { annotated: false }))
+
+      const steps = yield* answer("Why did Britain's emissions fall?")
+
+      expect(readingsIn(steps)).toHaveLength(1)
+      expect(isAnswered(steps.at(-1))).toBe(true)
+    }).pipe(Effect.provide(serveApi(model.layer, { demand: Demand.none })))
+  })
+
+  it.effect("answers after a second when the demand write hangs", () => {
+    const model = scripted([
+      Effect.succeed(call("search_papers", question)),
+      Effect.succeed(words("The research we have does not cover why.")),
+    ])
+
+    return Effect.gen(function* () {
+      const started = yield* Deferred.make<void>()
+
+      const hanging = Layer.succeed(
+        Demand,
+        Demand.of({
+          record: () => Deferred.succeed(started, undefined).pipe(Effect.andThen(Effect.never)),
+          since: () => Effect.succeed([]),
+        }),
+      )
+
+      yield* store(stored(carbon, { annotated: false }))
+
+      yield* Effect.gen(function* () {
+        const answering = yield* Effect.forkChild(answer("Why did Britain's emissions fall?"))
+
+        yield* Deferred.await(started)
+        yield* TestClock.adjust("1 second")
+
+        const steps = yield* Fiber.join(answering)
+
+        expect(readingsIn(steps)).toHaveLength(1)
+        expect(isAnswered(steps.at(-1))).toBe(true)
+      }).pipe(Effect.provide(serveApi(model.layer, { demand: hanging })))
+    })
+  })
+
+  it.effect("cites a paper annotated since, and leaves the earlier answer as it was", () => {
+    return Effect.gen(function* () {
+      const { version } = yield* store(stored(carbon, { annotated: false }))
+
+      // The paper the second answer cites, once its annotation exists.
+      const cited = { id: "" }
+
+      const model = scripted(
+        [
+          Effect.succeed(call("search_papers", question)),
+          Effect.succeed(words("The research we have does not cover why.")),
+          Effect.succeed(call("search_papers", question)),
+          Effect.suspend(() => Effect.succeed(words(`Studies found it [[${cited.id}]].`))),
+        ],
+        { verdict: Verdict.cases.Supported.make({ kind: "Cause", evidence: [0] }) },
+      )
+
+      yield* Effect.gen(function* () {
+        yield* answer("Why did Britain's emissions fall?")
+        const before = (yield* turns).answered[0]
+
+        yield* store(annotate({ version, annotation: bodyOf(carbon) }))
+        cited.id = idOf(Cited.cases.Paper.make({ paper: yield* evidence }))
+
+        const steps = yield* answer("And now?")
+
+        expect(steps.findLast(isRendered)?.block).toMatchObject({
+          cites: [{ paper: { copy: expect.any(String) } }],
+        })
+        expect(model.prompts[3]).toContain('"suggested":0')
+        expect((yield* turns).answered[0]).toEqual(before)
+      }).pipe(Effect.provide(serveApi(model.layer)))
+    })
+  })
+
+  it.effect(
+    "shows a withdrawn copy's citation without its quote, and keeps the quote from the model",
     () =>
       Effect.gen(function* () {
-        const result = yield* Effect.flatMap(Library, (library) => library.search(question)).pipe(
-          Effect.provide(Library.layer),
-        )
-
-        if (!PaperResults.guards.Passages(result) || result.papers[0] === undefined)
-          throw new Error("Missing corpus evidence")
-        const paper = result.papers[0]
-        const reference = idOf(Cited.cases.Paper.make({ paper }))
+        const { copy } = yield* store(stored(carbon))
+        const paper = yield* evidence
+        const text = `The study estimates that Britain's carbon tax reduced emissions [[${idOf(Cited.cases.Paper.make({ paper }))}]].`
 
         const model = scripted(
           [
             Effect.succeed(call("search_papers", question)),
-            Effect.succeed(
-              words(
-                `The study estimates that Britain's carbon tax reduced power-sector emissions [[${reference}]].`,
-              ),
-            ),
+            Effect.succeed(words(text)),
+            Effect.succeed(words("Nothing more.")),
           ],
           { verdict: Verdict.cases.Supported.make({ kind: "Cause", evidence: [0] }) },
         )
 
         yield* Effect.gen(function* () {
-          const steps = yield* answer("What evidence supports the effects of Britain's carbon tax?")
-          expect(steps.findLast(isRendered)?.block).toMatchObject({
-            cites: [
+          yield* answer("What evidence supports the effects of Britain's carbon tax?")
+
+          yield* store(withdrawCopy({ copy, reason: "Rights" }))
+
+          const [turn] = (yield* turns).answered
+
+          expect(turn?.answer).toMatchObject({
+            blocks: [
               {
-                paper: { id: paper.id, page: paper.page, sha256: paper.sha256, quote: paper.quote },
+                text: expect.stringContaining("Britain's carbon tax reduced emissions"),
+                cites: [
+                  Cited.cases.Withdrawn.make({
+                    paper: { id: paper.id, study: paper.study, url: paper.url, reason: "Rights" },
+                  }),
+                ],
               },
             ],
           })
-          expect((yield* turns).answered[0]?.answer).toMatchObject({
-            blocks: [{ cites: [{ paper: { id: paper.id } }] }],
-          })
-          expect(model.reviews[0]).toContain(paper.quote)
+          expect(JSON.stringify(turn)).not.toContain(paper.quote)
+
+          yield* answer("Tell me more")
+
+          expect(model.prompts[2]).not.toContain(paper.quote)
+          expect(model.prompts[2]).toContain('"withdrawn":"Rights"')
+          expect(model.prompts[2]).toContain("Britain's carbon tax reduced emissions")
         }).pipe(Effect.provide(serveApi(model.layer)))
       }),
   )
 
   it.effect("withholds uncertain prose from the response, kept turn and later model context", () =>
     Effect.gen(function* () {
-      const result = yield* Effect.flatMap(Library, (library) => library.search(question)).pipe(
-        Effect.provide(Library.layer),
-      )
-
-      if (!PaperResults.guards.Passages(result) || result.papers[0] === undefined)
-        throw new Error("Missing corpus evidence")
-      const reference = idOf(Cited.cases.Paper.make({ paper: result.papers[0] }))
+      yield* store(stored(carbon))
+      const reference = idOf(Cited.cases.Paper.make({ paper: yield* evidence }))
       const bad = "This tax ended every recession everywhere"
 
       const model = scripted(
@@ -4253,30 +4509,6 @@ describe("paper research", () => {
       }).pipe(Effect.provide(serveApi(model.layer)))
     }),
   )
-
-  it.effect("withholds unsupported causes after an empty search", () => {
-    const model = scripted(
-      [
-        Effect.succeed(
-          call("search_papers", {
-            text: "universal recession cure",
-            countries: ["BRA"],
-            period: null,
-            intent: "Cause",
-          }),
-        ),
-        Effect.succeed(words("Training ended every recession everywhere.")),
-      ],
-      { verdict: Verdict.cases.Unsupported.make({}) },
-    )
-
-    return Effect.gen(function* () {
-      const steps = yield* answer("What caused recessions to disappear?")
-      expect(JSON.stringify(steps)).not.toContain("Training ended every recession everywhere")
-      expect(JSON.stringify(steps)).toContain("couldn't verify the research explanation")
-      expect(model.prompts[1]).toContain("NoEvidence")
-    }).pipe(Effect.provide(serveApi(model.layer)))
-  })
 
   it.effect("checks uncited causal prose even when the generator skips research tools", () => {
     const model = scripted([Effect.succeed(words("Training ended every recession everywhere."))], {

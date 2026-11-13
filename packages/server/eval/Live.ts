@@ -12,6 +12,7 @@ import { Outlines } from "../src/Outlines.ts"
 import { Pace } from "../src/Pace.ts"
 import { Politics } from "../src/Politics.ts"
 import { PoliticsBuild } from "../src/PoliticsBuild.ts"
+import { Papers } from "../src/research/Papers.ts"
 import { Resolver } from "../src/Resolver.ts"
 import { Structures } from "../src/Structures.ts"
 import { Transcript } from "../src/Transcript.ts"
@@ -91,7 +92,11 @@ export const answer = Effect.fn("eval.answer")(
     return (yield* conversation.turns).answered
   },
   Effect.provide(
-    Conversation.layer.pipe(Layer.provide(Transcript.memory), Layer.provide(Answers.none)),
+    Conversation.layer.pipe(
+      Layer.provide(Transcript.memory),
+      Layer.provide(Answers.none),
+      Layer.provide(Papers.layer),
+    ),
   ),
   // A run that asks the OECD what no recording answers can spend the budget
   // in src/Pace.ts, which fails the answer with SourceUnavailable. That

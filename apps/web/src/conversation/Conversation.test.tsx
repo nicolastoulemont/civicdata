@@ -29,6 +29,8 @@ import {
   Paper,
   Ranking,
   Read,
+  Reading,
+  Readings,
   RecordId,
   Recorded,
   Records,
@@ -2953,4 +2955,108 @@ it("shows a cited paper's source passage, design, population, limitations and ph
 
   for (const item of paper.context)
     expect(screen.getByText((value) => value.includes(item.text))).toBeDefined()
+})
+
+it("lists papers to read under the answer, labelled as not reviewed, with their sources and licences", async () => {
+  const held = Reading.make({
+    id: "a".repeat(64),
+    study: {
+      authors: ["Gugler, Klaus", "Haxhimusa, Adhurim"],
+      year: 2023,
+      title: "Carbon pricing and emissions",
+      publisher: "Energy Economics",
+      doi: "10.1016/j.eneco.2023.106655",
+      url: "https://example.org/carbon.pdf",
+    },
+    copy: {
+      url: "https://example.org/carbon.pdf#page=4",
+      licences: ["https://creativecommons.org/licenses/by/4.0/"],
+      excerpt: { page: 4, text: "The carbon price floor reduced emissions from power plants." },
+    },
+  })
+
+  const listed = Reading.make({
+    id: "b".repeat(64),
+    study: {
+      authors: [],
+      year: 2019,
+      title: "Carbon taxes in Europe",
+      publisher: null,
+      doi: null,
+      url: "https://openalex.org/W2",
+    },
+    copy: null,
+  })
+
+  network.use(
+    ...kept([
+      {
+        question: "Why did Britain's emissions fall?",
+        answer: charted(
+          said("The research we have does not cover why."),
+          Readings.make({ readings: [held, listed] }),
+        ),
+      },
+    ]).handlers,
+  )
+  show()
+
+  const section = await screen.findByRole("region", { name: "Papers to read" })
+  const papers = within(section).getAllByRole("listitem")
+
+  expect(within(section).getByText("Not reviewed")).toBeDefined()
+  expect(papers).toHaveLength(2)
+
+  expect(
+    within(papers[0]!).getByRole("link", { name: held.study.title }).getAttribute("href"),
+  ).toBe("https://example.org/carbon.pdf#page=4")
+  expect(
+    within(papers[0]!).getByText("Gugler, Klaus, Haxhimusa, Adhurim · 2023 · Energy Economics"),
+  ).toBeDefined()
+  expect(within(papers[0]!).getByText(held.copy!.excerpt!.text)).toBeDefined()
+  expect(within(papers[0]!).getByText("Page 4")).toBeDefined()
+  expect(within(papers[0]!).getByRole("link", { name: "Reuse licence" }).getAttribute("href")).toBe(
+    "https://creativecommons.org/licenses/by/4.0/",
+  )
+
+  expect(
+    within(papers[1]!).getByRole("link", { name: listed.study.title }).getAttribute("href"),
+  ).toBe("https://openalex.org/W2")
+  expect(within(papers[1]!).queryByRole("link", { name: "Reuse licence" })).toBeNull()
+})
+
+it("shows a citation of a withdrawn copy with why, and without its quote", async () => {
+  const user = userEvent.setup()
+  const paper = Schema.decodeUnknownSync(Paper)(recordedPaper)
+  const text = `A study reports a reduction in emissions [${paper.study.title}](cite:0).`
+
+  network.use(
+    ...kept([
+      {
+        question: "What research supports the explanation?",
+        answer: charted(
+          Text.make({
+            text,
+            cites: [
+              Cited.cases.Withdrawn.make({
+                paper: { id: paper.id, study: paper.study, url: paper.url, reason: "Rights" },
+              }),
+            ],
+          }),
+        ),
+      },
+    ]).handlers,
+  )
+  show()
+
+  const link = await screen.findByRole("link", { name: paper.study.title })
+
+  expect(screen.getByText(/A study reports a reduction in emissions/)).toBeDefined()
+
+  await user.hover(link)
+
+  expect(
+    await screen.findByText("Quote withdrawn: the rights to reuse this copy ended"),
+  ).toBeDefined()
+  expect(screen.queryByText(paper.quote)).toBeNull()
 })

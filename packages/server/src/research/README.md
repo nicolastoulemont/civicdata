@@ -1,9 +1,11 @@
 # Research in answers
 
 The assistant uses two sources: the existing reviewed findings below, and the
-licensed paper corpus packaged in `corpus.json`. The corpus is built offline;
-answer requests search the packaged records without downloading or annotating
-papers. See [the build and quality runbook](../../../../docs/research/papers/expanded/README.md).
+paper store ([docs/papers.md](../../../../docs/papers.md#conversations)).
+Answer requests read the store without downloading or annotating papers. A
+paper with an annotation gives evidence; one without is only suggested as
+reading, and the model never sees its text. See [the build and quality
+runbook](../../../../docs/research/papers/expanded/README.md).
 
 `Library` returns original source passages, study population, countries, periods,
 methods and limitations where identified. Descriptions and associations do not

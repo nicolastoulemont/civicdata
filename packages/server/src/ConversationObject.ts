@@ -12,6 +12,7 @@ import { Conversation } from "./Conversation.ts"
 import { Directions } from "./Directions.ts"
 import { Notes } from "./Notes.ts"
 import { Politics } from "./Politics.ts"
+import { Papers } from "./research/Papers.ts"
 import { Resolver } from "./Resolver.ts"
 import { Sources } from "./Sources.ts"
 import * as Traces from "./Traces.ts"
@@ -68,12 +69,12 @@ interface DurableObject {
 }
 
 // One conversation's requests and alarm, given an Agent, an AskLimit, a
-// Transcript and Answers. Both reach the same Conversation, so the alarm
+// Transcript, Answers and Papers. Both reach the same Conversation, so the alarm
 // knows whether an answer is running. It is built on first use. Each request
 // and alarm sends its spans to a tracer of its own (Traces.serve); an
 // answer's spans go with the request that asked it, until its reader leaves.
 export const open = (
-  layer: Layer.Layer<Agent | AskLimit | Transcript | Answers>,
+  layer: Layer.Layer<Agent | AskLimit | Transcript | Answers | Papers>,
   { tracer = Traces.layer }: Traces.ServeOptions = {},
 ): DurableObject => {
   const runtime = ManagedRuntime.make(Conversation.layer.pipe(Layer.provideMerge(layer)))
@@ -111,6 +112,7 @@ export class ConversationObject implements DurableObject {
         Agent.live({ conversation: this.#state.id.toString() }).pipe(Layer.provide(Resolver.layer)),
         AskLimit.live,
         Answers.live(this.#state.id.toString()),
+        Papers.layer,
       ).pipe(
         Layer.provide(Catalog.live),
         Layer.provide(Politics.live),

@@ -5,12 +5,10 @@ import { Array as Arr, Effect, Schema } from "effect"
 import { SqlClient } from "effect/sql"
 
 import run from "../../../docs/research/papers/corpus-run.json"
-import corpus from "../src/research/corpus.json"
 import { Discovery, listsReferences, Match, QueryInvalid } from "../src/research/Discovery.ts"
-import { Entry } from "../src/research/entry.ts"
 import { PapersUnavailable } from "../src/research/Papers.ts"
 import { PaperId, tables } from "../src/research/store.ts"
-import { bibliography, body, list, papersDb, publish, withdraw } from "./papers.ts"
+import { bibliography, body, entries, list, papersDb, publish, stored, withdraw } from "./papers.ts"
 
 // Search as the Worker builds it, over its PAPERS_DB binding.
 const searcher = Discovery.layer
@@ -293,32 +291,18 @@ describe("paper search", () => {
   )
 })
 
-// A reproducible sample: the eight papers corpus.json packages, unannotated,
+// A reproducible sample: the eight papers of the corpus fixture, unannotated,
 // and the metadata of the other 93 records the corpus run discovered, many
 // of them about the same topics. Each query names the papers a reader who
 // knows the corpus would want first. A match only says the words are there,
 // never that the paper supports anything.
 describe("paper search on the packaged sample", () => {
-  const entries = corpus.map((entry) => Schema.decodeUnknownSync(Entry)(entry))
   const held = new Set(entries.map(({ paper }) => paper.seed.id))
 
   const fill = Effect.gen(function* () {
-    yield* Effect.forEach(
-      entries,
-      ({ paper }) =>
-        publish({
-          paper: bibliography({
-            id: PaperId.make(paper.seed.id),
-            openalex: paper.seed.openalex,
-            study: paper.seed.study,
-            metadataUrl: paper.metadataUrl,
-            retrievedAt: paper.retrievedAt,
-          }),
-          passages: paper.content.passages,
-          annotation: null,
-        }),
-      { discard: true },
-    )
+    yield* Effect.forEach(entries, (each) => stored(each, { annotated: false }), {
+      discard: true,
+    })
 
     yield* Effect.forEach(
       run.results.filter(({ id }) => !held.has(id)),
