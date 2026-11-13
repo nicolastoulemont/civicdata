@@ -14,6 +14,7 @@ openfacts makes data about the economy and public policy easier to read and unde
 ## What you can do
 
 - Ask about one country or several. The answer is a line over the years, a ranking of countries in one year as bars or a map (of the narrowest region holding every country, such as Europe, North Africa or East Asia, else the world), the change between two years, or one indicator plotted against another.
+- Country maps show subdivisions for 212 countries and economies, including states, provinces, districts and regions. The UK uses explicitly labelled ONS statistical regions; Ireland uses current local authority areas from Tailte Éireann, and Estonia uses current official county boundaries. Named insets cover remote or small areas; colours and data tables still show national values. Country comparisons keep their existing geographic frame. [Boundary coverage and regeneration](packages/maps/scripts/sources/README.md) describe every map’s divisions, island coverage and sources.
 - Read what the assistant writes before, between and after the charts, as much as the question needs. Once you change a chart, the answer's words grey out, and "Explain this chart" asks what the changed chart shows.
 - Change the chart where it is: add countries, pick the years, switch the chart type, or show the values per person, as yearly growth, as an index or as a ratio of another indicator. None of these changes calls the assistant.
 - Follow up in the same conversation, such as "add Portugal" or "now per person". A follow-up starts from the chart as you last changed it.
@@ -64,6 +65,7 @@ PPEG and ParlGov ask for no credit under CC0; the chart cites them as they ask t
 | Path              | What it holds                                                                          |
 | ----------------- | -------------------------------------------------------------------------------------- |
 | `apps/web`        | TanStack Start app. `src/routes/api/$.ts` hands every `/api` request to Effect         |
+| `packages/maps`   | Projected maps, boundary sources, offline generation and country-map contracts         |
 | `packages/domain` | Schemas and the `HttpApi` definition, shared by the server and the web client          |
 | `packages/server` | Effect `HttpApi` handlers, exposed as a web `handle(request)`                          |
 | `packages/infra`  | Alchemy stack: the Worker, D1, R2 and Vectorize. The only package that imports Alchemy |
@@ -75,7 +77,7 @@ The app deploys as one Cloudflare Worker. Alchemy builds `apps/web` with its own
 - Node 24 and pnpm 12. The pnpm version comes from `packageManager`.
 - TypeScript 7 with the Effect language service (`@effect/tsgo`). Effect diagnostics such as `floatingEffect` fail `typecheck`.
 - Oxlint with type-aware rules, oxfmt, and Fallow for dead code, duplication and complexity.
-- Turborepo runs `typecheck`, `test` and `build` per package.
+- Turborepo runs `typecheck`, `test` and `build` per package. [Maps](packages/maps/README.md) also own cached lint and format checks; CI restores the Turbo cache so web-only changes reuse these checks.
 - Vitest 5 with `@effect/vitest`. Server tests run inside workerd through `@cloudflare/vitest-plugin`, with the same compatibility date as the deployed Worker.
 
 ```sh

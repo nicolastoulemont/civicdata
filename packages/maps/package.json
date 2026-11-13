@@ -1,0 +1,57 @@
+{
+  "name": "@repo/maps",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./labels": {
+      "types": "./dist/labels.d.ts",
+      "default": "./dist/labels.js"
+    },
+    "./vite": {
+      "types": "./dist/vite.d.ts",
+      "default": "./dist/vite.js"
+    },
+    "./archive": {
+      "types": "./dist/archive.d.ts",
+      "default": "./dist/archive.js"
+    }
+  },
+  "scripts": {
+    "build": "effect-tsgo tsc -p tsconfig.build.json",
+    "typecheck": "effect-tsgo tsc --noEmit",
+    "test": "vitest run",
+    "generate": "node scripts/archive.ts restore && node scripts/maps.ts",
+    "lint": "oxlint --deny-warnings",
+    "format:check": "oxfmt --check src scripts test package.json tsconfig.json tsconfig.build.json README.md",
+    "archive": "node scripts/archive.ts"
+  },
+  "dependencies": {
+    "@repo/domain": "workspace:*",
+    "effect": "catalog:"
+  },
+  "devDependencies": {
+    "@duckdb/node-api": "2.0.0-r.1",
+    "@types/d3-geo": "^3.1.1",
+    "@types/geojson": "^7946.0.16",
+    "@types/node": "^26.6.6",
+    "@types/shpjs": "^3.4.7",
+    "@types/topojson-client": "^3.1.5",
+    "@types/topojson-server": "^3.0.4",
+    "@types/topojson-specification": "^1.0.5",
+    "d3-geo": "^3.1.2",
+    "fflate": "^0.8.3",
+    "i18n-iso-countries": "^7.14.0",
+    "msw": "^3.0.4",
+    "polyclip-ts": "^0.16.8",
+    "shpjs": "^6.2.0",
+    "topojson-client": "^3.1.0",
+    "topojson-server": "^3.0.1",
+    "vite": "^8.3.0",
+    "vitest": "catalog:",
+    "world-atlas": "^2.0.2"
+  }
+}

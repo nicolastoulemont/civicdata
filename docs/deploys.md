@@ -83,6 +83,20 @@ With the label, the preview gets its own catalog database binding, `Vectors` ind
 
 R2 refuses to delete a bucket that holds objects. Every stage but `prod` sets `forceDestroy` on its two buckets, so `alchemy destroy` empties them first; on `prod` the destroy fails instead. A destroy reads `forceDestroy` from the stage's last deploy, not from the code it runs.
 
+## Map archive
+
+Map source snapshots and licensed downloads belong to `packages/infra/maps.run.ts`,
+a separate `openfacts-maps` stack with the fixed `archive` stage. The bucket is
+retained, force deletion is disabled, and app preview cleanup does not own it.
+Its custom domain is `maps.openfacts.app`; the rate-limited `r2.dev` endpoint stays
+disabled. Deploy it with `pnpm --filter @repo/infra run deploy:maps`.
+
+Map objects use SHA-256 keys. The committed manifest pins each object's byte
+length and checksum; publishing reads each object back before success. Ordinary
+web builds and checks need neither R2 credentials nor archive downloads. Boundary
+links redirect to the pinned public objects. See the
+[map archive workflow](../packages/maps/README.md).
+
 ## Eval archive
 
 The private `civicdata-evals` bucket belongs to `packages/infra/evals.run.ts`, a separate stack deployed by `deploy:evals` with the fixed `archive` stage. Its removal policy retains the bucket, and force deletion is disabled. Preview deploys and cleanup do not own it. [Eval archive operations](evals.md#pack-upload-and-restore) cover transfers and verification.
