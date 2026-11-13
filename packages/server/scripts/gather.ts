@@ -17,12 +17,15 @@ if (pages.pages !== undefined && !(Number.isInteger(pages.pages) && pages.pages 
   throw new Error("--pages takes a positive whole number")
 
 const program = Effect.gen(function* () {
-  const { usage, layer } = local({
-    account: yield* Config.String("CLOUDFLARE_ACCOUNT_ID"),
-    token: yield* Config.Redacted("CLOUDFLARE_API_TOKEN"),
-    database: yield* Config.String("PAPERS_D1_ID"),
-    bucket: yield* Config.String("PAPERS_R2_BUCKET"),
-  })
+  const { usage, layer } = local(
+    {
+      account: yield* Config.String("CLOUDFLARE_ACCOUNT_ID"),
+      token: yield* Config.Redacted("CLOUDFLARE_API_TOKEN"),
+      database: yield* Config.String("PAPERS_D1_ID"),
+      bucket: yield* Config.String("PAPERS_R2_BUCKET"),
+    },
+    { openalex: yield* Config.option(Config.Redacted("OPENALEX_API_KEY")) },
+  )
 
   const report = yield* run({ limits: { ...limits, ...pages } }).pipe(
     Effect.provide(layer.pipe(Layer.provide(FetchHttpClient.layer))),

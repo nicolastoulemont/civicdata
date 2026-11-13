@@ -4,7 +4,18 @@
 // runs the same in a Workflow and in a local runner, with no filesystem and
 // no model call: the caller supplies the `Step` runner, the store's SQL
 // client and bucket, and an HTTP client (docs/papers.md#gather).
-import { Clock, Duration, Effect, Layer, Ref, Result, Schema, Struct } from "effect"
+import {
+  Clock,
+  Duration,
+  Effect,
+  Layer,
+  Option,
+  type Redacted,
+  Ref,
+  Result,
+  Schema,
+  Struct,
+} from "effect"
 import { HttpClient, HttpClientRequest } from "effect/http"
 import { SqlClient } from "effect/sql"
 
@@ -63,7 +74,7 @@ export interface Limits {
   readonly attempts: number
 }
 
-const defaults: Limits = { pages: 2, size: 50, batch: 10, concurrency: 2, attempts: 3 }
+const defaults: Limits = { pages: 2, size: 100, batch: 10, concurrency: 2, attempts: 3 }
 
 // What a run fetched, and the most it may fetch: requests to OpenAlex
 // (search pages and batches of records), works gathered, PDFs downloaded and
@@ -784,6 +795,30 @@ export const anonymous = Layer.effect(
   HttpClient.HttpClient,
   Effect.map(HttpClient.HttpClient, named),
 )
+
+// The caller's HTTP client, signing OpenAlex's requests with the stage's
+// API key and no other host's. Without a key OpenAlex refuses to page past
+// a search's first page and shares one small daily budget among every
+// client on the same address, Cloudflare's included. The key goes in the
+// Authorization header, which traces redact, never in the URL, which errors,
+// the ledger and run records keep.
+export const keyed = (key: Option.Option<Redacted.Redacted>) =>
+  Layer.effect(
+    HttpClient.HttpClient,
+    Effect.map(HttpClient.HttpClient, (http) =>
+      Option.match(key, {
+        onNone: () => http,
+        onSome: (value) =>
+          http.pipe(
+            HttpClient.mapRequest((request) =>
+              new URL(request.url).host === "api.openalex.org"
+                ? HttpClientRequest.bearerToken(request, value)
+                : request,
+            ),
+          ),
+      }),
+    ),
+  )
 
 // Waits between requests to one host in this process, so no publisher sees
 // more than one request per gap from us (`gaps` in Pace.ts), and names the

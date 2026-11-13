@@ -9,7 +9,7 @@
 /// <reference path="../cloudflare.d.ts" />
 
 import { D1Client } from "@effect/sql-d1"
-import { Clock, Context, Effect, Layer, Schema } from "effect"
+import { Clock, Context, Effect, Layer, Option, Redacted, Schema } from "effect"
 import { FetchHttpClient } from "effect/http"
 import { SqlClient } from "effect/sql"
 
@@ -18,6 +18,7 @@ import { Pace } from "../Pace.ts"
 import { Bucket } from "./Bucket.ts"
 import {
   anonymous,
+  keyed,
   type Cap,
   type Fetched,
   Outcome,
@@ -301,15 +302,20 @@ export const gather = Effect.fn("Papers.run")(function* (
 })
 
 // The paper gather's requests: each host paced through its shared limiter,
-// under the project's client name.
-const http = Pace.hosts.pipe(Layer.provide(anonymous), Layer.provide(FetchHttpClient.layer))
+// under the project's client name, OpenAlex's signed with the stage's key.
+const http = (key: Option.Option<Redacted.Redacted>) =>
+  Pace.hosts.pipe(
+    Layer.provide(anonymous),
+    Layer.provide(keyed(key)),
+    Layer.provide(FetchHttpClient.layer),
+  )
 
 // Inside Workers: PAPERS_DB, PAPERS and the PACE limiters. A Worker without
 // the store binds no PaperGather Workflow, so this never runs there.
 export const live = Layer.unwrap(
   Effect.promise(() => import("cloudflare:workers")).pipe(
     Effect.flatMap(({ env }) => {
-      const { PAPERS_DB, PAPERS } = env
+      const { PAPERS_DB, PAPERS, OPENALEX_API_KEY } = env
 
       if (PAPERS_DB === undefined || PAPERS === undefined)
         return Effect.die("The PaperGather Workflow needs PAPERS_DB and PAPERS")
@@ -318,7 +324,16 @@ export const live = Layer.unwrap(
         Layer.mergeAll(
           D1Client.layer({ db: PAPERS_DB }).pipe(Layer.orDie),
           Bucket.binding(PAPERS),
-          sources.pipe(Layer.provide(http)),
+          sources.pipe(
+            Layer.provide(
+              http(
+                Option.fromUndefinedOr(OPENALEX_API_KEY).pipe(
+                  Option.filter((key) => key !== ""),
+                  Option.map(Redacted.make),
+                ),
+              ),
+            ),
+          ),
         ),
       )
     }),

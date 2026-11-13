@@ -194,6 +194,13 @@ export default Alchemy.Stack(
       (key) => Redacted.value(key) !== "",
     )
 
+    // The paper gather's OpenAlex key (docs/papers.md#openalex-key). Without
+    // it OpenAlex refuses to page past a search's first page.
+    const openAlexKey = Option.filter(
+      yield* Config.option(Config.Redacted("OPENALEX_API_KEY")),
+      (key) => Redacted.value(key) !== "",
+    )
+
     const openAiModel = Option.filter(
       yield* Config.option(Config.String("OPENAI_MODEL")),
       (model) => model !== "",
@@ -262,6 +269,10 @@ export default Alchemy.Stack(
         // build, so its maps colour the hand-checked indicators only; a
         // shared preview reads production's directions.
         CLASSIFY_DIRECTIONS: stage === "prod" ? "on" : "off",
+        ...Option.match(openAlexKey, {
+          onNone: () => ({}),
+          onSome: (key) => ({ OPENALEX_API_KEY: key }),
+        }),
         ...Option.match(openAiModel, {
           onNone: () => ({}),
           onSome: (model) => ({ OPENAI_MODEL: model }),

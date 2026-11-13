@@ -1,6 +1,6 @@
 import { assert, beforeEach, describe, expect, it } from "@effect/vitest"
 import { reset } from "cloudflare:test"
-import { Duration, Effect, Layer, Schema } from "effect"
+import { Duration, Effect, Layer, Option, Redacted, Schema } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
 import { SqlClient } from "effect/sql"
 import { TestClock } from "effect/testing"
@@ -9,7 +9,15 @@ import { Step } from "../src/CatalogBuild.ts"
 import { fingerprint } from "../src/fingerprint.ts"
 import { Work } from "../src/research/archive.ts"
 import { Bucket } from "../src/research/Bucket.ts"
-import { type Limits, Outcome, paced, run, sources, type Topic } from "../src/research/Gather.ts"
+import {
+  keyed,
+  type Limits,
+  Outcome,
+  paced,
+  run,
+  sources,
+  type Topic,
+} from "../src/research/Gather.ts"
 import { Held, Papers } from "../src/research/Papers.ts"
 import { PaperId } from "../src/research/store.ts"
 import { bibliography, papersBucket, papersDb, publish, withdrawCopy } from "./papers.ts"
@@ -65,7 +73,12 @@ interface World {
 // OpenAlex and the publishers on the wire. OpenAlex sends a next cursor on
 // every page, as it does, and an empty page past the last.
 const world = ({ searches, respond = () => undefined }: World) => {
-  const requests: Array<{ readonly url: string; readonly at: number; readonly agent: string }> = []
+  const requests: Array<{
+    readonly url: string
+    readonly at: number
+    readonly agent: string
+    readonly authorization: string | undefined
+  }> = []
 
   // Each work's current record; a search page lists works by id.
   const records = new Map(
@@ -107,6 +120,7 @@ const world = ({ searches, respond = () => undefined }: World) => {
         url: request.url,
         at: Date.now(),
         agent: request.headers["user-agent"] ?? "",
+        authorization: request.headers["authorization"],
       })
       const url = new URL(request.url)
 
@@ -141,10 +155,17 @@ const world = ({ searches, respond = () => undefined }: World) => {
 // requests unless a test sets one.
 const layerOf = (
   http: Layer.Layer<HttpClient.HttpClient>,
-  { gap = Duration.zero }: { readonly gap?: Duration.Duration } = {},
+  {
+    gap = Duration.zero,
+    key = Option.none(),
+  }: { readonly gap?: Duration.Duration; readonly key?: Option.Option<Redacted.Redacted> } = {},
 ) =>
   Layer.mergeAll(
-    sources.pipe(Layer.provide(paced({ gap, hosts: {} })), Layer.provide(http)),
+    sources.pipe(
+      Layer.provide(paced({ gap, hosts: {} })),
+      Layer.provide(keyed(key)),
+      Layer.provide(http),
+    ),
     papersDb,
     Bucket.binding(papersBucket),
     Step.immediate,
@@ -694,5 +715,24 @@ describe("the paper gather", () => {
       expect(second - first).toBeGreaterThanOrEqual(290)
       expect(other).toBeLessThan(second)
     }).pipe(Effect.provide(layerOf(place.http, { gap: Duration.millis(300) })))
+  })
+
+  it.effect("signs OpenAlex's requests with the key, and no publisher's", () => {
+    const place = world({ searches: { [topic.query]: [[work(1)]] } })
+
+    return Effect.gen(function* () {
+      yield* gather()
+
+      const signed = (host: string) =>
+        place.requests.flatMap(({ url, authorization }) =>
+          new URL(url).host === host ? [authorization ?? null] : [],
+        )
+
+      expect(new Set(signed("api.openalex.org"))).toEqual(new Set(["Bearer openalex-key"]))
+      expect(signed("w1.example.org")).toEqual([null])
+      expect(place.urls().some((url) => url.includes("openalex-key"))).toBe(false)
+    }).pipe(
+      Effect.provide(layerOf(place.http, { key: Option.some(Redacted.make("openalex-key")) })),
+    )
   })
 })
