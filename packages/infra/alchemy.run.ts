@@ -104,7 +104,7 @@ export default Alchemy.Stack(
         // search never queues behind catalog searches, and each version's
         // PDF and text in a bucket. Annotations cost model calls to redo, so
         // a production destroy keeps the database.
-        papersDatabase: yield* Cloudflare.D1.Database("Papers").pipe(
+        papersDatabase: yield* Cloudflare.D1.Database("PapersDatabase").pipe(
           Alchemy.RemovalPolicy.retain(stage === "prod"),
         ),
         papers: yield* Cloudflare.R2.Bucket("Papers", { forceDestroy }),
@@ -148,7 +148,7 @@ export default Alchemy.Stack(
         catalogDatabase: yield* Cloudflare.D1.Database.ref("Database", prod),
         series: yield* Cloudflare.R2.Bucket.ref("Series", prod),
         vectors: yield* Cloudflare.Vectorize.Index.ref("Vectors", prod),
-        papersDatabase: yield* Cloudflare.D1.Database.ref("Papers", prod),
+        papersDatabase: yield* Cloudflare.D1.Database.ref("PapersDatabase", prod),
         papers: yield* Cloudflare.R2.Bucket.ref("Papers", prod),
         // None: their schedules would rebuild production's catalog and store
         // with the pull request's code.
