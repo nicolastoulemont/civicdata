@@ -29,7 +29,7 @@ A production destroy keeps the papers database, because annotations cost model c
 | `passage`    | page-bound passage of a version, for search                                     |
 | `annotation` | annotation of one text, under its annotation key                                |
 
-A paper's id is its seed's id. A fetched copy's id is the hash of its location, source version and PDF SHA-256 (`scripts/papers/pdf.ts`), so a different file at the same URL is a different copy. A copy never fetched, such as one whose licence was not admitted, hashes its location and source version alone. A version's PDF and text sit at `objectsOf(version)` in the bucket. Its `text` column is the SHA-256 of the text object's bytes: a JSON array of the version's passages in page order.
+A paper's id is its seed's id. A fetched copy's id is the hash of its location, source version and PDF SHA-256 (`scripts/papers/pdf.ts`), so a different file at the same URL is a different copy. A copy never fetched, such as one whose licence was not admitted, hashes its paper, location and source version: two records of one work list the same locations, and each keeps its own row. A version's PDF and text sit at `objectsOf(version)` in the bucket. Its `text` column is the SHA-256 of the text object's bytes: a JSON array of the version's passages in page order.
 
 The annotation key is the SHA-256 of the text's hash, the extraction version, the model and the rubric (`annotationKey`). Copy identity stays out of the key, so copies with the same text share one annotation, and each copy keeps its own URL, licence and version for citations.
 
@@ -43,6 +43,49 @@ D1 enforces foreign keys, and the store's rules are foreign keys and checks, so 
 - A paper with a metadata-only reason has no active version.
 
 Withdrawing a copy for rights or a retraction therefore runs in this order: clear `paper.active` if it points to one of the copy's versions, delete the copy's objects and versions (their passages go with them), then set the copy's admission to `Withdrawn` with its reason. An annotation stays, since another copy with the same text may point to it.
+
+## Publication
+
+`pnpm --filter @repo/server run papers:publish` copies a gathered corpus directory into one stage's store. `--corpus` names the directory, `.papers/corpus-v4` by default. The command runs on a machine, never in the Worker, and calls no model: it needs no `OPENAI_API_KEY`, and annotations come from the corpus.
+
+It reaches the store through Cloudflare's API, like `packages/server/scripts/d1.ts`, with four variables the person running it supplies:
+
+- `CLOUDFLARE_ACCOUNT_ID` and `CLOUDFLARE_API_TOKEN`, a token with D1 and R2 write access;
+- `PAPERS_D1_ID`, the id of the stage's `PapersDatabase`;
+- `PAPERS_R2_BUCKET`, the name of the stage's `Papers` bucket.
+
+A publication writes to the stage those two name, and to no other. A `pr-<n>` preview without the `own-catalog` label, and `alchemy dev` without `OWN_CATALOG=true`, read production's store, so they show what production holds. To try a corpus on a preview, label its pull request `own-catalog` and name the preview's own database and bucket. Publish to production only with the owner's approval.
+
+For each record of the corpus, in the writer order above:
+
+1. A `paper` row with the bibliography, and the metadata reason when the record has no text.
+2. A `Restricted` copy, with no evidence, for each copy the gather tried and excluded. A failed attempt gets no row: it decided nothing, and the next gather retries it.
+3. For a record with text, its `Admitted` copy with the licence evidence, and a version under the extraction `unpdf-2.1.0/300-words` (`extraction` in `scripts/papers/pdf.ts`).
+4. The record's saved annotation, when one still fits the record (`fits` in `scripts/papers/retrieval.ts`), stored under `annotationKey` and made the version's active annotation. When the corpus has none for a version, an annotation the Workflow wrote stays.
+5. The version's passages and its PDF and text objects. The command uploads each object and reads it back, and sets `paper.active`, last, only when R2 holds bytes with the expected SHA-256.
+
+Before writing, a run reads the store's paper, copy and version rows once and compares them with the rows it would write. A paper whose rows match gets no write. Publishing an unchanged corpus therefore writes nothing, and a run after a failure writes only the papers that failed or changed. One paper's failure never stops another's. The report counts the papers per outcome and lists each written or failed one, never a passage, and the command exits 1 when a paper failed.
+
+A paper fails, and keeps whatever the store held, when:
+
+- its record does not decode, its file name or copy id does not match, or its PDF is missing or has another hash;
+- an upload fails, or R2 holds other bytes after it;
+- the corpus lists as metadata-only a paper whose text the store serves: withdraw its copy first, with the reason;
+- the store holds one of its copies for another paper, or holds other text under the same version: change `extraction` whenever the parser or the passage cut changes.
+
+Publication never admits a withdrawn copy's text again. A new copy of the paper, with another PDF, is a different copy and publishes as usual. When a paper's active version moves to a new copy, the old copy and its version stay, inactive.
+
+## Withdrawal
+
+`pnpm --filter @repo/server run papers:publish --withdraw <copy> --reason Rights` (or `Retraction`) removes one copy's text, with the same variables. The copy's id is `content.id` in its record and `copy.id` in the reader's `Text` answer. The command runs the order the rules above give: it clears `paper.active` if it points to one of the copy's versions, deletes the versions' objects, deletes the versions (their passages and annotation pointers go with them), and sets the copy to `Withdrawn` with its reason. The annotation row stays for any other copy with the same text. From then on the reader answers `Withdrawn` with that reason until another copy of the paper becomes active.
+
+Withdrawing a copy that is already withdrawn with the same reason writes nothing. A copy that was never admitted has no text to withdraw, and the command refuses it.
+
+## Local reproduction
+
+The corpus archive is kept outside Git and published nowhere; the owner supplies it by hand. To rebuild the corpus directory from it, check it against the committed SHA-256 and extract it into an empty directory, as the [expanded corpus runbook](research/papers/expanded/README.md#build-search-and-replay) shows, then pass that directory to `--corpus`.
+
+`packages/server/scripts/papers/publish.test.ts` runs publication, a no-op rerun, a partial failure, withdrawal and annotation import against SQLite behind D1's HTTP API and an in-memory R2, and reads each paper back through `Papers.read`. It needs neither Cloudflare nor the archive: `pnpm --filter @repo/server test`.
 
 ## Reading
 

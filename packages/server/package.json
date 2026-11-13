@@ -24,7 +24,8 @@
     "imf": "node scripts/imf.ts",
     "papers": "node scripts/papers.ts",
     "research": "node scripts/research.ts",
-    "papers:intake": "node scripts/intake.ts"
+    "papers:intake": "node scripts/intake.ts",
+    "papers:publish": "node scripts/publish.ts"
   },
   "dependencies": {
     "@effect/ai-openai": "4.1.2",

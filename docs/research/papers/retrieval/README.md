@@ -63,10 +63,12 @@ snapshots and extraction records. This folder adds three completed annotations.
 The [manifest](manifest.json) records their papers, authors, rights evidence,
 PDF hashes, provider versions through the original records and annotation files.
 
+The v3 corpus archive is kept outside Git and published nowhere: the owner
+supplies it by hand. Put it at `.papers/v3/corpus.tar.gz`; the first command
+checks it against the committed SHA-256 before anything reads it.
+
 ```sh
-mkdir -p .papers/v3 .papers/retrieval-replay/annotations
-curl -fL -o .papers/v3/corpus.tar.gz \
-  https://github.com/nicolastoulemont/openfacts/releases/download/papers-corpus-v3/corpus.tar.gz
+mkdir -p .papers/retrieval-replay/annotations
 (cd .papers/v3 && shasum -a 256 -c ../../docs/research/papers/corpus.sha256)
 tar -xzf .papers/v3/corpus.tar.gz -C .papers/retrieval-replay
 cp docs/research/papers/retrieval/annotations/*.json .papers/retrieval-replay/annotations/

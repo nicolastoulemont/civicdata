@@ -20,6 +20,21 @@ import { Papers } from "./storage.ts"
 
 const Scoped = Schema.Struct({ stamp: Stamp, scope: Scope })
 
+// The hash a saved annotation's stamp names: the whole paper record, the
+// model and the rubric, so a changed record needs a new annotation.
+export const inputOf = (paper: Document) => fingerprint(JSON.stringify({ rubric, model, paper }))
+
+// Whether a saved annotation still describes its paper: stamped with its
+// input, every quote on its page, every passage and excerpt labelled.
+export const fits = (
+  annotation: typeof Annotation.Type,
+  { paper, input }: { readonly paper: Document; readonly input: string },
+) =>
+  annotation.stamp.input === input &&
+  grounded(annotation.scope, paper.content.passages) &&
+  complete(annotation.labels, paper.content.passages) &&
+  excerptsComplete(annotation, annotation.scope)
+
 interface Interface {
   readonly documents: Effect.Effect<ReadonlyArray<Document>, ResearchUnavailable>
   readonly annotate: (paper: Document) => Effect.Effect<Entry, ResearchUnavailable, Annotator>
@@ -35,7 +50,7 @@ export class Retrieval extends Context.Service<Retrieval, Interface>()("papers/R
         const papers = yield* Papers
 
         const pathOf = Effect.fn("Retrieval.path")(function* (paper: Document) {
-          const input = yield* fingerprint(JSON.stringify({ rubric, model, paper }))
+          const input = yield* inputOf(paper)
 
           return { input, path: `${directory}/annotations/${input}` }
         })
@@ -76,12 +91,7 @@ export class Retrieval extends Context.Service<Retrieval, Interface>()("papers/R
             .readFileString(`${path}.json`)
             .pipe(Effect.flatMap(Schema.decodeUnknownEffect(Schema.fromJsonString(Annotation))))
 
-          if (
-            annotation.stamp.input !== input ||
-            !grounded(annotation.scope, paper.content.passages) ||
-            !complete(annotation.labels, paper.content.passages) ||
-            !excerptsComplete(annotation, annotation.scope)
-          )
+          if (!fits(annotation, { paper, input }))
             return yield* Effect.fail("Annotation is stale, incomplete or ungrounded")
 
           return { paper, annotation }
