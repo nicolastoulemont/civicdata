@@ -119,7 +119,7 @@ Read [docs/evals.md](docs/evals.md) to run, retry, review, archive or restore re
 - [docs/catalog.md](docs/catalog.md): how the weekly Workflow builds the indicator catalog and stores the political records, and how to rebuild a stage by hand.
 - [docs/series.md](docs/series.md): how the daily Workflow stores every World Bank indicator, holds back an answer that drops values, and how charts read the store.
 - [docs/deploys.md](docs/deploys.md): stages per pull request and for `main`, the one-time setup, deploying your own stage, and upgrading Alchemy.
-- [docs/papers.md](docs/papers.md): the paper store, its database and bucket, the rules its tables enforce, how a corpus is published and a copy withdrawn, and how a preview reads production's papers.
+- [docs/papers.md](docs/papers.md): the paper store, its database and bucket, the rules its tables enforce, how a corpus is published, papers are gathered from OpenAlex and a copy withdrawn, and how a preview reads production's papers.
 - [docs/traces.md](docs/traces.md): the OpenTelemetry traces each question, request and Workflow run records, from the browser through the agent's tool calls to the sources, and how to read them in a local Grafana or Grafana Cloud.
 
 ## Frontend languages

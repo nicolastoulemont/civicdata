@@ -20,15 +20,15 @@ const snapshotOf = (paper: Paper, directory: string) =>
     Text: ({ sha256 }) => `${directory}/${paper.seed.id}-${sha256}.pdf`,
   })
 
-export class Papers extends Context.Service<Papers, Interface>()("papers/Papers") {
+export class Folder extends Context.Service<Folder, Interface>()("papers/Folder") {
   static readonly files = (directory: string) =>
     Layer.effect(
-      Papers,
+      Folder,
       Effect.gen(function* () {
         const fs = yield* FileSystem
         const codec = Schema.fromJsonString(Paper)
 
-        const read = Effect.fn("Papers.read")(
+        const read = Effect.fn("Folder.read")(
           function* (seed: Seed) {
             if (!(yield* fs.exists(fileOf(seed, directory)))) return Option.none()
 
@@ -52,7 +52,7 @@ export class Papers extends Context.Service<Papers, Interface>()("papers/Papers"
           Effect.mapError((cause) => new PaperUnavailable({ operation: "read", cause })),
         )
 
-        const write = Effect.fn("Papers.write")(
+        const write = Effect.fn("Folder.write")(
           function* (paper: Paper, { pdf }: { pdf: Uint8Array | null }) {
             const previous = yield* read(paper.seed)
             const snapshot = snapshotOf(paper, directory)
@@ -77,7 +77,7 @@ export class Papers extends Context.Service<Papers, Interface>()("papers/Papers"
           Effect.mapError((cause) => new PaperUnavailable({ operation: "write", cause })),
         )
 
-        return Papers.of({ read, write })
+        return Folder.of({ read, write })
       }),
     )
 }

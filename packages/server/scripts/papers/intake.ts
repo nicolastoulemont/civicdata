@@ -3,10 +3,10 @@ import { FileSystem } from "effect/FileSystem"
 
 import { fingerprint } from "../../src/fingerprint.ts"
 import { Content, Copy, Paper, PaperUnavailable, Seed } from "../../src/research/archive.ts"
-import { Licences, PageCheck } from "./licences.ts"
-import { metadataUrl, OpenAlex } from "./openalex.ts"
-import { textOf } from "./pdf.ts"
-import { Papers } from "./storage.ts"
+import { Licences, PageCheck } from "../../src/research/Licences.ts"
+import { metadataUrl, OpenAlex } from "../../src/research/OpenAlex.ts"
+import { textOf } from "../../src/research/pdf.ts"
+import { Folder } from "./storage.ts"
 
 export const Source = Schema.Struct({
   doi: Schema.NonEmptyString.check(Schema.isPattern(/^10\.\d{4,9}\/\S+$/)),
@@ -36,7 +36,7 @@ export const intake = Effect.fn("Papers.intake")(
     options: { readonly directory: string; readonly refresh?: boolean },
   ) {
     const fs = yield* FileSystem
-    const papers = yield* Papers
+    const papers = yield* Folder
     const id = yield* fingerprint(`${source.doi}|${source.url}`)
     const path = `${options.directory}/${id}.json`
 

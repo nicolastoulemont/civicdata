@@ -1,5 +1,5 @@
-// A stage's PAPERS bucket over Cloudflare's R2 API, for the publication
-// command, which runs on a machine. Inside Workers the binding answers.
+// A stage's PAPERS bucket, as the store's writers use it: through the
+// Worker's binding, or over Cloudflare's R2 API from a machine.
 import { Context, Effect, Layer, Option, Redacted, Schema } from "effect"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
 
@@ -31,7 +31,48 @@ interface Target {
   readonly token: Redacted.Redacted
 }
 
+// What a writer uses of an R2 bucket binding.
+interface Binding {
+  readonly get: (
+    key: string,
+  ) => Promise<{ readonly arrayBuffer: () => Promise<ArrayBuffer> } | null>
+  readonly put: (key: string, body: Uint8Array) => Promise<object | null>
+  readonly delete: (key: string) => Promise<void>
+}
+
+const thrown = (operation: string, key: string) => (cause: unknown) =>
+  new BucketUnavailable({
+    operation,
+    key,
+    problem: cause instanceof Error ? cause.message : "R2 failed",
+  })
+
 export class Bucket extends Context.Service<Bucket, Interface>()("papers/Bucket") {
+  // The Worker's PAPERS binding.
+  static readonly binding = (bucket: Binding) =>
+    Layer.succeed(
+      Bucket,
+      Bucket.of({
+        get: (key) =>
+          Effect.tryPromise({
+            try: async () => {
+              const object = await bucket.get(key)
+
+              return object === null
+                ? Option.none()
+                : Option.some(new Uint8Array(await object.arrayBuffer()))
+            },
+            catch: thrown("get", key),
+          }),
+        put: (key, body) =>
+          Effect.tryPromise({ try: () => bucket.put(key, body), catch: thrown("put", key) }).pipe(
+            Effect.asVoid,
+          ),
+        remove: (key) =>
+          Effect.tryPromise({ try: () => bucket.delete(key), catch: thrown("remove", key) }),
+      }),
+    )
+
   // No retry: a failed request fails its paper, and the next run retries
   // that paper alone.
   static readonly r2 = ({ account, bucket, token }: Target) =>

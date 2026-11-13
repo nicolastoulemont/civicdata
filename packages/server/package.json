@@ -22,8 +22,8 @@
     "vdem": "node scripts/vdem.ts",
     "wid": "node scripts/wid.ts",
     "imf": "node scripts/imf.ts",
-    "papers": "node scripts/papers.ts",
     "research": "node scripts/research.ts",
+    "papers:gather": "node scripts/gather.ts",
     "papers:intake": "node scripts/intake.ts",
     "papers:publish": "node scripts/publish.ts",
     "annotate": "node scripts/annotate.ts"
@@ -37,7 +37,8 @@
     "effect": "catalog:",
     "entities": "7.0.1",
     "fflate": "0.8.3",
-    "stemmer": "2.0.1"
+    "stemmer": "2.0.1",
+    "unpdf": "2.1.0"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.6.0",
@@ -45,8 +46,6 @@
     "@effect/platform-node": "4.1.2",
     "@effect/vitest": "catalog:",
     "@types/node": "^24.19.2",
-    "linkedom": "0.18.15",
-    "unpdf": "2.1.0",
     "vitest": "catalog:"
   }
 }

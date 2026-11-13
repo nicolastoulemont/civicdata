@@ -8,10 +8,11 @@ import { NodeFileSystem } from "@effect/platform-node"
 import { Config, Console, Effect, Layer, Schema } from "effect"
 
 import * as Fetch from "../src/Fetch.ts"
+import { Bucket } from "../src/research/Bucket.ts"
+import { withdraw } from "../src/research/publication.ts"
 import { Withdrawal } from "../src/research/store.ts"
 import { d1 } from "./d1.ts"
-import { Bucket } from "./papers/bucket.ts"
-import { Outcome, publish, withdraw } from "./papers/publish.ts"
+import { Publication, publish } from "./papers/publish.ts"
 
 const { values } = parseArgs({
   options: {
@@ -49,7 +50,7 @@ const corpus = (directory: string) =>
     const results = yield* publish(directory).pipe(Effect.provide(layer))
 
     const count = (tag: "Unchanged" | "Written" | "Failed") =>
-      results.filter(({ outcome }) => Outcome.$is(tag)(outcome)).length
+      results.filter(({ outcome }) => Publication.$is(tag)(outcome)).length
 
     const report = {
       papers: results.length,
@@ -57,7 +58,7 @@ const corpus = (directory: string) =>
       written: count("Written"),
       failed: count("Failed"),
       rows: usage,
-      changes: results.filter(({ outcome }) => !Outcome.$is("Unchanged")(outcome)),
+      changes: results.filter(({ outcome }) => !Publication.$is("Unchanged")(outcome)),
     }
 
     yield* Console.log(JSON.stringify(report, null, 2))

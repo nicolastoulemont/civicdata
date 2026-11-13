@@ -7,10 +7,10 @@ import { FileSystem } from "effect/FileSystem"
 
 import * as Fetch from "../src/Fetch.ts"
 import { Content } from "../src/research/archive.ts"
+import { Licences } from "../src/research/Licences.ts"
+import { OpenAlex } from "../src/research/OpenAlex.ts"
 import { intake, Source } from "./papers/intake.ts"
-import { Licences } from "./papers/licences.ts"
-import { OpenAlex } from "./papers/openalex.ts"
-import { Papers } from "./papers/storage.ts"
+import { Folder } from "./papers/storage.ts"
 
 const { values } = parseArgs({
   options: {
@@ -71,7 +71,7 @@ await Effect.runPromise(
   program.pipe(
     Effect.provide(
       Layer.mergeAll(
-        Papers.files(values.corpus),
+        Folder.files(values.corpus),
         Layer.mergeAll(OpenAlex.layer, Licences.layer).pipe(Layer.provide(Fetch.layer)),
       ).pipe(Layer.provideMerge(NodeFileSystem.layer)),
     ),

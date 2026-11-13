@@ -16,7 +16,7 @@ import {
 import { Annotator } from "../../src/research/Annotator.ts"
 import { Content, Paper } from "../../src/research/archive.ts"
 import { Document, type Entry } from "../../src/research/entry.ts"
-import { Papers } from "./storage.ts"
+import { Folder } from "./storage.ts"
 
 const Scoped = Schema.Struct({ stamp: Stamp, scope: Scope })
 
@@ -47,7 +47,7 @@ export class Retrieval extends Context.Service<Retrieval, Interface>()("papers/R
       Retrieval,
       Effect.gen(function* () {
         const fs = yield* FileSystem
-        const papers = yield* Papers
+        const papers = yield* Folder
 
         const pathOf = Effect.fn("Retrieval.path")(function* (paper: Document) {
           const input = yield* inputOf(paper)

@@ -10,7 +10,7 @@ import { Annotator } from "../src/research/Annotator.ts"
 import { Question, questionOf, search } from "../src/research/search.ts"
 import { benchmark, Sample, Questions } from "./papers/benchmark.ts"
 import { Retrieval } from "./papers/retrieval.ts"
-import { Papers } from "./papers/storage.ts"
+import { Folder } from "./papers/storage.ts"
 
 const { values } = parseArgs({
   options: {
@@ -35,7 +35,7 @@ if ((values.from === undefined) !== (values.to === undefined))
   throw new Error("Supply both --from and --to")
 
 const files = Retrieval.files(values.corpus).pipe(
-  Layer.provide(Papers.files(values.corpus)),
+  Layer.provide(Folder.files(values.corpus)),
   Layer.provide(NodeFileSystem.layer),
 )
 

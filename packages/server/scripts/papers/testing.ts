@@ -1,11 +1,29 @@
-import { Effect, Layer } from "effect"
-import * as FileSystem from "effect/FileSystem"
-import { HttpClient, HttpClientResponse } from "effect/http"
+import { DatabaseSync } from "node:sqlite"
 
-import { Seed, Work } from "../../src/research/archive.ts"
-import { Licences } from "./licences.ts"
-import { OpenAlex } from "./openalex.ts"
-import { Papers } from "./storage.ts"
+import { Effect, Layer, Redacted, Schema } from "effect"
+import * as FileSystem from "effect/FileSystem"
+import { FetchHttpClient, HttpClient, HttpClientResponse } from "effect/http"
+
+import { Annotation, model, rubric, Scope } from "../../src/research/annotation.ts"
+import { Copy, Paper, Seed, Work } from "../../src/research/archive.ts"
+import { Bucket } from "../../src/research/Bucket.ts"
+import { Document } from "../../src/research/entry.ts"
+import { Licences } from "../../src/research/Licences.ts"
+import { OpenAlex } from "../../src/research/OpenAlex.ts"
+import { Papers } from "../../src/research/Papers.ts"
+import { textOf } from "../../src/research/pdf.ts"
+import { pdf } from "../../test/pdf.ts"
+import { d1 } from "../d1.ts"
+import { inputOf } from "./retrieval.ts"
+import { Folder } from "./storage.ts"
+
+// The names directly under `path` among a fake filesystem's paths.
+const namesUnder = (paths: Iterable<string>, path: string) =>
+  [...paths].flatMap((name) =>
+    name.startsWith(`${path}/`) && !name.slice(path.length + 1).includes("/")
+      ? [name.slice(path.length + 1)]
+      : [],
+  )
 
 export const seed = Seed.make({
   id: "a".repeat(64),
@@ -43,44 +61,6 @@ export const work = (license: string | null = "cc-by") =>
     locations: [location(license)],
   })
 
-// A real two-page PDF, built here so the fixture's text and rights are ours.
-// The gather uses the real PDF parser; only HTTP and the filesystem are fake.
-const stream = (text: string) => {
-  const content = `BT /F1 12 Tf 40 700 Td (${text}) Tj ET\n`
-
-  return `<< /Length ${content.length} >>\nstream\n${content}endstream`
-}
-
-export const pdf = (notice = "https://creativecommons.org/licenses/by/4.0/") => {
-  const objects = [
-    "<< /Type /Catalog /Pages 2 0 R >>",
-    "<< /Type /Pages /Kids [3 0 R 5 0 R] /Count 2 >>",
-    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 800] /Resources << /Font << /F1 7 0 R >> >> /Contents 4 0 R >>",
-    stream(`Employment rose in France. ${notice}`),
-    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 800] /Resources << /Font << /F1 7 0 R >> >> /Contents 6 0 R >>",
-    stream("The estimate is uncertain."),
-    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-  ]
-
-  let text = "%PDF-1.4\n"
-  const offsets = [0]
-
-  for (const [index, object] of objects.entries()) {
-    offsets.push(text.length)
-    text += `${index + 1} 0 obj\n${object}\nendobj\n`
-  }
-
-  const xref = text.length
-  text += `xref\n0 8\n0000000000 65535 f \n`
-  text += offsets
-    .slice(1)
-    .map((offset) => `${String(offset).padStart(10, "0")} 00000 n \n`)
-    .join("")
-  text += `trailer\n<< /Size 8 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`
-
-  return text
-}
-
 export const recorded = (
   options: {
     metadata?: Work
@@ -112,14 +92,7 @@ export const recorded = (
   )
 
   const fs = FileSystem.layerNoop({
-    readDirectory: (path) =>
-      Effect.succeed(
-        [...files.keys()].flatMap((name) =>
-          name.startsWith(`${path}/`) && !name.slice(path.length + 1).includes("/")
-            ? [name.slice(path.length + 1)]
-            : [],
-        ),
-      ),
+    readDirectory: (path) => Effect.succeed(namesUnder(files.keys(), path)),
     exists: (path) => Effect.succeed(files.has(path) || snapshots.has(path)),
     readFile: (path) => Effect.succeed(snapshots.get(path) ?? new Uint8Array()),
     writeFile: (path, bytes) =>
@@ -164,10 +137,199 @@ export const recorded = (
       status = 200
     },
     layer: Layer.mergeAll(
-      Papers.files("/papers").pipe(Layer.provide(fs)),
+      Folder.files("/papers").pipe(Layer.provide(fs)),
       OpenAlex.layer.pipe(Layer.provide(http)),
       Licences.layer.pipe(Layer.provide(http)),
       fs,
     ),
   }
 }
+
+// Saves the fixture paper's licensed text in the corpus folder, as a
+// gather of the PDF fixture writes it, without a request.
+export const saved = Effect.gen(function* () {
+  const bytes = new TextEncoder().encode(pdf())
+  const retrievedAt = "2026-11-01T00:00:00.000Z"
+  const copy = Copy.make({ ...location(), version: "publishedVersion" })
+
+  const content = yield* textOf({ bytes, url: copy.pdf_url, retrievedAt }, { copy, evidence: [] })
+
+  const paper = Paper.make({
+    format: 3,
+    seed,
+    metadataUrl: null,
+    retrievedAt,
+    work: work(),
+    content,
+    attempts: [],
+  })
+
+  yield* (yield* Folder).write(paper, { pdf: bytes })
+
+  return paper
+})
+
+// A stage's paper store on the wire: D1's HTTP API answered by SQLite with
+// foreign keys on, as D1 runs them, and R2's object API by a map. `web`
+// answers every other request, such as OpenAlex's and a publisher's. The
+// corpus directory is an in-memory filesystem.
+
+const Query = Schema.Struct({
+  sql: Schema.String,
+  params: Schema.Array(Schema.Union([Schema.String, Schema.Finite, Schema.Null])),
+})
+
+// Lets every request through to the store.
+const accept = (): Response | undefined => undefined
+
+// Answers no request outside Cloudflare's API.
+const offline = () => new Response("No such host", { status: 404 })
+
+export const stage = ({
+  web = offline,
+}: { readonly web?: (request: Request) => Response | Promise<Response> } = {}) => {
+  const db = new DatabaseSync(":memory:")
+  db.exec("PRAGMA foreign_keys = ON")
+  const objects = new Map<string, Uint8Array>()
+  const files = new Map<string, string | Uint8Array>()
+  const requests: Array<{ method: string; url: string; sql?: string }> = []
+  let refuse: (request: Request) => Response | undefined = accept
+
+  const d1Answer = async (request: Request) => {
+    const { sql, params } = Schema.decodeUnknownSync(Query)(await request.json())
+    requests.push({ method: request.method, url: request.url, sql })
+
+    try {
+      const results = db.prepare(sql).all(...params)
+
+      return Response.json({
+        result: [{ results, meta: { rows_read: results.length, rows_written: 0, size_after: 0 } }],
+      })
+    } catch {
+      return new Response("SQLite refused the statement", { status: 400 })
+    }
+  }
+
+  const r2Answer = async (request: Request) => {
+    requests.push({ method: request.method, url: request.url })
+    const key = decodeURIComponent(new URL(request.url).pathname.split("/objects/")[1] ?? "")
+    const held = objects.get(key)
+
+    if (request.method === "PUT") objects.set(key, new Uint8Array(await request.arrayBuffer()))
+
+    if (request.method === "DELETE") objects.delete(key)
+
+    if (request.method === "GET")
+      return held === undefined
+        ? new Response(null, { status: 404 })
+        : new Response(Uint8Array.from(held))
+
+    return Response.json({ success: true })
+  }
+
+  const wire: typeof fetch = async (input, init) => {
+    const request = new Request(input, init)
+    const refused = refuse(request)
+
+    if (refused !== undefined) {
+      requests.push({ method: request.method, url: request.url })
+
+      return refused
+    }
+
+    if (!request.url.startsWith("https://api.cloudflare.com/")) {
+      requests.push({ method: request.method, url: request.url })
+
+      return web(request)
+    }
+
+    return request.url.includes("/d1/database/") ? d1Answer(request) : r2Answer(request)
+  }
+
+  const http = FetchHttpClient.layer.pipe(Layer.provide(Layer.succeed(FetchHttpClient.Fetch, wire)))
+  const target = { account: "account", token: Redacted.make("token") }
+
+  const store = Layer.mergeAll(
+    d1({ ...target, database: "papers" }).layer,
+    Bucket.r2({ ...target, bucket: "papers" }),
+  ).pipe(Layer.provide(http))
+
+  // The Worker's reader, over the same store.
+  const reader = Papers.make({
+    get: async (key) => {
+      const bytes = objects.get(key)
+
+      return bytes === undefined ? null : { text: async () => new TextDecoder().decode(bytes) }
+    },
+  })
+
+  // The corpus directory, which publication only reads.
+  const fs = FileSystem.layerNoop({
+    exists: (path) => Effect.succeed(files.has(path)),
+    readFile: (path) => {
+      const value = files.get(path) ?? ""
+
+      return Effect.succeed(value instanceof Uint8Array ? value : new TextEncoder().encode(value))
+    },
+    readFileString: (path) => Effect.succeed(String(files.get(path) ?? "")),
+    readDirectory: (path) => Effect.succeed(namesUnder(files.keys(), path)),
+  })
+
+  return {
+    db,
+    objects,
+    files,
+    requests,
+    refuse: (rule: typeof refuse) => {
+      refuse = rule
+    },
+    // What one run sent: its statements that write, and its R2 writes.
+    writes: (from: number) =>
+      requests
+        .slice(from)
+        .filter(({ method, sql }) =>
+          sql === undefined ? method !== "GET" : /^\s*(INSERT|UPDATE|DELETE)/i.test(sql),
+        ),
+    // The stage's names, and the wire every client sends through.
+    target: { ...target, database: "papers", bucket: "papers" },
+    http,
+    layer: Layer.mergeAll(reader.pipe(Layer.provide(store)), store, fs),
+  }
+}
+
+// The corpus directory a stage's filesystem holds.
+export const corpus = "/corpus"
+
+// Saves an annotation that fits the record, as the research script does.
+export const annotate = (
+  place: ReturnType<typeof stage>,
+  paper: Paper,
+  { input }: { readonly input?: string } = {},
+) =>
+  Effect.gen(function* () {
+    const document = yield* Schema.decodeUnknownEffect(Document)(paper)
+    const fits = yield* inputOf(document)
+
+    const annotation = Annotation.make({
+      stamp: { rubric, model, input: input ?? fits, createdAt: "2026-11-12T00:00:00.000Z" },
+      scope: {
+        population: null,
+        excerpts: [],
+        countries: [],
+        regions: [],
+        periods: [],
+        design: Scope.fields.design.cases.Unknown.make({}),
+      },
+      labels: document.content.passages.map(({ page, part }) => ({
+        page,
+        part,
+        category: "Association",
+        confidence: 0.95,
+      })),
+      excerpts: [],
+    })
+
+    place.files.set(`${corpus}/annotations/${fits}.json`, JSON.stringify(annotation))
+
+    return annotation
+  })

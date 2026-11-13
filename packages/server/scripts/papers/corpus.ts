@@ -1,12 +1,13 @@
 // A gathered corpus directory, as the publication command reads it: one
 // record per paper, the PDF of each retained copy, and saved annotations.
-import { Data, Effect, Schema } from "effect"
+import { Effect, Schema } from "effect"
 import { FileSystem } from "effect/FileSystem"
 
 import { fingerprint } from "../../src/fingerprint.ts"
 import { Annotation } from "../../src/research/annotation.ts"
 import { Content, Paper } from "../../src/research/archive.ts"
 import { Document } from "../../src/research/entry.ts"
+import { Record } from "../../src/research/publication.ts"
 import { fits, inputOf } from "./retrieval.ts"
 
 // A record that does not decode, does not match its file name or copy
@@ -15,19 +16,6 @@ export class CorpusInvalid extends Schema.TaggedError<
   CorpusInvalid,
   { readonly brand: unique symbol }
 >()("CorpusInvalid", { file: Schema.String, problem: Schema.String }) {}
-
-// One paper of the corpus: its metadata alone, or its retained copy's text
-// with that copy's PDF and the saved annotation that still fits it.
-export type Gathered = Data.TaggedEnum<{
-  Metadata: { readonly paper: Paper }
-  Text: {
-    readonly paper: Document
-    readonly pdf: Uint8Array
-    readonly annotation: typeof Annotation.Type | null
-  }
-}>
-
-export const Gathered = Data.taggedEnum<Gathered>()
 
 const PaperJson = Schema.fromJsonString(Paper)
 const AnnotationJson = Schema.fromJsonString(Annotation)
@@ -73,7 +61,7 @@ const textOf = Effect.fnUntraced(function* (paper: Paper, directory: string) {
 
   if ((yield* fingerprint(pdf)) !== sha256) return yield* Effect.fail("PDF hash differs")
 
-  return Gathered.Text({
+  return Record.Text({
     paper: document,
     pdf,
     annotation: yield* annotationOf(document, directory),
@@ -91,7 +79,7 @@ export const recordOf = Effect.fn("Corpus.record")(
 
     if (file !== `${paper.seed.id}.json`) return yield* Effect.fail("File name is not the paper id")
 
-    if (Content.guards.Metadata(paper.content)) return Gathered.Metadata({ paper })
+    if (Content.guards.Metadata(paper.content)) return Record.Metadata({ paper })
 
     return yield* textOf(paper, directory)
   },

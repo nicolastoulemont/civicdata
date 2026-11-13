@@ -117,19 +117,15 @@ or publication dates.
 
 ## Run and replay
 
-From the repository root:
+The `papers` command that gathered this pilot into a folder is gone. The
+gather, `papers:gather`, now writes papers straight into a stage's paper store
+([gather](../../papers.md#gather)). This section records how the folder gather
+worked.
 
-```sh
-pnpm --filter @repo/server run papers
-pnpm --filter @repo/server run papers --offline
-pnpm --filter @repo/server run papers --refresh
-```
-
-Default output is now `.papers/corpus-v4/`, ignored by Git. Use `--output
-/absolute/path` for a separate corpus. `--seeds` selects the original 36 reviewed
-study records instead of topic discovery; it still keeps unresolved identities
-as metadata. `--offline` and `--refresh` cannot be combined. Only one writer may
-use a directory. Standard output is JSON and contains no paper passages.
+It wrote `.papers/corpus-v4/`, ignored by Git, or the directory `--output`
+named. `--seeds` selected the original 36 reviewed study records instead of
+topic discovery. Only one writer could use a directory. Standard output was
+JSON and contained no paper passages.
 
 Each search query has its own atomic checkpoint. A failed query does not cause
 successful queries to run again. Each paper keeps completed copy exclusions and
@@ -156,25 +152,16 @@ metadata-only records, discovery receipts and attribution. It is kept outside
 Git and published nowhere: the owner supplies `corpus.tar.gz` by hand.
 [corpus.sha256](corpus.sha256) holds its SHA-256, and a replay checks the
 archive against it first. The standalone JSON reports contain no paper passages.
-To replay into a fresh directory, put the supplied archive at
-`.papers/v3/corpus.tar.gz`, then:
+To read it, put the supplied archive at `.papers/v3/corpus.tar.gz`, check it
+and extract it into a fresh directory:
 
 ```sh
 mkdir -p .papers/replay
 (cd .papers/v3 && shasum -a 256 -c ../../docs/research/papers/corpus.sha256)
 tar -xzf .papers/v3/corpus.tar.gz -C .papers/replay
-pnpm --filter @repo/server run papers --offline --output "$(pwd)/.papers/replay"
 ```
 
-Exit 1 is expected for the nine recorded unresolved candidates. The replay makes
-no network requests. To package a refreshed local corpus after checking its
-report and attribution, write a new archive, update the checksum here, and hand
-the archive over directly rather than uploading it:
-
-```sh
-tar -czf .papers/v3/corpus.tar.gz -C .papers/corpus-v3 .
-(cd .papers/v3 && shasum -a 256 corpus.tar.gz > ../../docs/research/papers/corpus.sha256)
-```
+The folder gather's `--offline` replay of this archive went with the command.
 
 ## Source audit
 

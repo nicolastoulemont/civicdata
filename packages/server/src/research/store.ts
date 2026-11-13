@@ -85,8 +85,8 @@ export const objectsOf = (version: string) => ({
   text: `version/${version}/text.json`,
 })
 
-// The store's tables. Only writers run this: the publication command and the
-// annotation Workflow. A reader never creates one (built.ts says why).
+// The store's tables. Only writers run this: the publication command, the
+// gather and the annotation Workflow. A reader never creates one (built.ts says why).
 //
 // The constraints carry the store's rules, so a writer cannot break them:
 // - A paper shows text only through `active`, a version of one of its own
@@ -114,6 +114,9 @@ export const tables = Effect.gen(function* () {
     CHECK (reason IS NULL OR active IS NULL),
     FOREIGN KEY (active, id) REFERENCES version (id, paper)
   )`
+
+  // The gather finds the paper a hand-audited copy holds for a work.
+  yield* sql`CREATE INDEX IF NOT EXISTS paper_openalex ON paper (openalex)`
 
   yield* sql`CREATE TABLE IF NOT EXISTS copy (
     id TEXT PRIMARY KEY,

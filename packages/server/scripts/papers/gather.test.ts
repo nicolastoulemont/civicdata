@@ -1,421 +1,188 @@
-import { expect, it } from "@effect/vitest"
-import { Effect, Schema } from "effect"
+import { assert, expect, it } from "@effect/vitest"
+import { Duration, Effect, Layer, Schema } from "effect"
 
-import { Content, Paper, PaperUnavailable, Seed } from "../../src/research/archive.ts"
-import { gather } from "./gather.ts"
-import { metadataUrl } from "./openalex.ts"
-import { location, pdf, recorded, seed, work } from "./testing.ts"
+import { fingerprint } from "../../src/fingerprint.ts"
+import { Content, Copy, Evidence, Paper, Seed } from "../../src/research/archive.ts"
+import { Outcome, run, type Topic } from "../../src/research/Gather.ts"
+import { metadataUrl } from "../../src/research/OpenAlex.ts"
+import { Held, Papers } from "../../src/research/Papers.ts"
+import { annotationKey, PaperId } from "../../src/research/store.ts"
+import { pdf } from "../../test/pdf.ts"
+import { local, summaryOf } from "./gather.ts"
+import { publish } from "./publish.ts"
+import { annotate, corpus, location, stage, work } from "./testing.ts"
 
-const mode = { mode: "Resume" } satisfies { mode: "Resume" }
+// The local gather against a stage's store on Cloudflare's wire, with
+// OpenAlex and the publisher on the same wire, after the publication
+// command published the corpus record of the same work.
 
-it.effect("gathers licensed text with its exact physical pages and copy provenance", () => {
-  const world = recorded()
+const topic: Topic = { area: "labour", query: "minimum wage employment" }
 
-  return Effect.gen(function* () {
-    const { paper } = yield* gather(seed, mode)
-    const content = yield* Schema.decodeUnknownEffect(Content.cases.Text)(paper.content)
+const extraction = "unpdf-2.1.0/300-words"
+const licence = "https://creativecommons.org/licenses/by/4.0/"
+const retrievedAt = "2026-11-12T15:15:38.038Z"
 
-    expect(content.passages).toEqual([
-      {
-        page: 1,
-        part: 0,
-        text: "Employment rose in France. https://creativecommons.org/licenses/by/4.0/",
-      },
-      { page: 2, part: 0, text: "The estimate is uncertain." },
-    ])
-    expect(content.sha256).toMatch(/^[a-f0-9]{64}$/)
-    expect(content.evidence[0].licence).toBe("https://creativecommons.org/licenses/by/4.0/")
-    expect(content.pages).toBe(2)
-    expect(content.emptyPages).toEqual([])
-    expect(
-      yield* Schema.decodeUnknownEffect(Schema.fromJsonString(Paper))(
-        world.files.get(`/papers/${seed.id}.json`),
-      ),
-    ).toEqual(paper)
+// OpenAlex lists the work, and its copy's host serves the fixture PDF.
+const web = (request: Request) => {
+  const url = new URL(request.url)
 
-    expect((yield* gather(seed, mode)).written).toBe(false)
-    expect((yield* gather(seed, { mode: "Offline" })).written).toBe(false)
-    expect(world.requests).toHaveLength(2)
-    expect(world.writes).toHaveLength(1)
-  }).pipe(Effect.provide(world.layer))
-})
+  if (url.host !== "api.openalex.org") return new Response(pdf())
 
-it.effect("keeps unlicensed papers as metadata and never requests their text", () => {
-  const world = recorded({ metadata: work(null) })
-
-  return Effect.gen(function* () {
-    expect((yield* gather(seed, mode)).paper.content).toEqual(
-      Content.cases.Metadata.make({ reason: "no-usable-copy" }),
-    )
-    expect(world.requests).toEqual([metadataUrl("10.1234/employment")])
-    expect([...world.files.values()].join("")).not.toContain("Employment rose")
-  }).pipe(Effect.provide(world.layer))
-})
-
-it.effect("never borrows one copy's licence to download another copy", () => {
-  const metadata = work(null)
-
-  const world = recorded({
-    metadata: {
-      ...metadata,
-      locations: [
-        ...metadata.locations,
-        {
-          id: "doi:10.1234/employment",
-          doi: "https://doi.org/10.1234/employment",
-          raw_source_name: "Example University",
-          landing_page_url: "http://example.org/other",
-          pdf_url: null,
-          license: "cc-by",
-          version: "submittedVersion",
-        },
-      ],
-    },
+  return Response.json({
+    meta: { next_cursor: url.searchParams.get("cursor") === "*" ? "1" : null },
+    results:
+      url.searchParams.get("cursor") === "*" || url.searchParams.has("filter") ? [work()] : [],
   })
-
-  return Effect.gen(function* () {
-    expect((yield* gather(seed, mode)).paper.content).toEqual(
-      Content.cases.Metadata.make({ reason: "no-usable-copy" }),
-    )
-    expect(world.requests).toHaveLength(1)
-  }).pipe(Effect.provide(world.layer))
-})
-
-it.effect("refreshes unchanged metadata without downloading or writing again", () => {
-  const world = recorded()
-
-  return Effect.gen(function* () {
-    yield* gather(seed, mode)
-    expect((yield* gather(seed, { mode: "Refresh" })).written).toBe(false)
-    expect(world.requests).toHaveLength(4)
-    expect(world.writes).toHaveLength(1)
-
-    world.change(work(null))
-    const refreshed = yield* gather(seed, { mode: "Refresh" })
-    expect(refreshed.paper.content).toEqual(
-      Content.cases.Metadata.make({ reason: "no-usable-copy" }),
-    )
-    expect([...world.files.values()].join("")).not.toContain("Employment rose")
-  }).pipe(Effect.provide(world.layer))
-})
-
-it.effect(
-  "preserves completed papers when another study fails, then retries only the failed study",
-  () => {
-    const world = recorded({ status: 503 })
-
-    const withoutDoi = Seed.make({
-      ...seed,
-      id: "b".repeat(64),
-      study: { ...seed.study, doi: null },
-    })
-
-    return Effect.gen(function* () {
-      yield* gather(withoutDoi, mode)
-      expect(yield* gather(seed, mode).pipe(Effect.flip)).toBeInstanceOf(PaperUnavailable)
-      expect(world.files.size).toBe(1)
-      world.recover()
-      expect((yield* gather(withoutDoi, mode)).written).toBe(false)
-      expect((yield* gather(seed, mode)).written).toBe(true)
-      expect(world.files.size).toBe(2)
-    }).pipe(Effect.provide(world.layer))
-  },
-)
-
-it.effect(
-  "keeps a different DOI as metadata rather than attributing another version's text",
-  () => {
-    const world = recorded({ metadata: { ...work(), doi: "https://doi.org/10.1234/other" } })
-
-    return Effect.gen(function* () {
-      expect((yield* gather(seed, mode)).paper.content).toEqual(
-        Content.cases.Metadata.make({ reason: "different-doi" }),
-      )
-      expect(world.requests).toHaveLength(1)
-    }).pipe(Effect.provide(world.layer))
-  },
-)
-
-it.effect("does not checkpoint an HTML error page as paper text", () => {
-  const world = recorded({ body: "<html>Please log in</html>" })
-
-  return Effect.gen(function* () {
-    const result = yield* gather(seed, mode)
-    expect(result.paper.attempts[0]?.result).toMatchObject({ operation: "download" })
-    expect(result.paper.content).toEqual(Content.cases.Metadata.make({ reason: "no-usable-copy" }))
-  }).pipe(Effect.provide(world.layer))
-})
-
-it.effect("fails closed on corrupt persisted JSON instead of refetching silently", () => {
-  const world = recorded()
-  world.files.set(`/papers/${seed.id}.json`, "{broken")
-
-  return Effect.gen(function* () {
-    expect(yield* gather(seed, mode).pipe(Effect.flip)).toBeInstanceOf(PaperUnavailable)
-    expect(world.requests).toHaveLength(0)
-    expect(world.writes).toHaveLength(0)
-  }).pipe(Effect.provide(world.layer))
-})
-
-it.effect("does not retain text when the PDF contradicts the catalogue licence", () => {
-  const world = recorded({ body: pdf("All rights reserved.") })
-
-  return Effect.gen(function* () {
-    expect((yield* gather(seed)).paper.content).toEqual(
-      Content.cases.Metadata.make({ reason: "no-usable-copy" }),
-    )
-    expect([...world.files.values()].join("")).not.toContain("Employment rose")
-  }).pipe(Effect.provide(world.layer))
-})
-
-it.effect("keeps a PDF with no matching licence notice as metadata only", () => {
-  const world = recorded({ body: pdf("") })
-
-  return Effect.gen(function* () {
-    expect((yield* gather(seed)).paper.content).toEqual(
-      Content.cases.Metadata.make({ reason: "no-usable-copy" }),
-    )
-    expect([...world.files.values()].join("")).not.toContain("Employment rose")
-  }).pipe(Effect.provide(world.layer))
-})
-
-it.effect("keeps a missing DOI record as metadata and fetches no PDF", () => {
-  const world = recorded({ status: 404 })
-
-  return Effect.gen(function* () {
-    expect((yield* gather(seed)).paper.content).toEqual(
-      Content.cases.Metadata.make({ reason: "not-found" }),
-    )
-    expect(world.requests).toHaveLength(1)
-  }).pipe(Effect.provide(world.layer))
-})
-
-it.effect("refreshes a changed seed instead of resuming its old bibliography", () => {
-  const world = recorded()
-
-  return Effect.gen(function* () {
-    yield* gather(seed)
-    const changed = Seed.make({ ...seed, study: { ...seed.study, doi: null } })
-    const result = yield* gather(changed)
-
-    expect(result.written).toBe(true)
-    expect(result.paper.seed).toEqual(changed)
-    expect(result.paper.content).toEqual(Content.cases.Metadata.make({ reason: "no-doi" }))
-    expect([...world.files.values()].join("")).not.toContain("Employment rose")
-  }).pipe(Effect.provide(world.layer))
-})
-
-const repositoryCopy = {
-  id: "pmh:oai:econstor.eu:10419/123456",
-  doi: null,
-  raw_source_name: "EconStor",
-  landing_page_url: "https://www.econstor.eu/handle/10419/123456",
-  pdf_url: "https://www.econstor.eu/bitstream/10419/123456/1/paper.pdf",
-  license: null,
-  version: "submittedVersion",
 }
 
-// Same item-level metadata fields exposed by EconStor, with our own values.
-const itemPage = (options: { licence?: string; pdf?: string; record?: string } = {}) => `
-  <meta name="DC.identifier" content="https://hdl.handle.net/${options.record ?? "10419/123456"}">
-  <meta name="citation_pdf_url" content="${options.pdf ?? repositoryCopy.pdf_url}">
-  <meta name="DC.rights" content="https://www.econstor.eu/dspace/Nutzungsbedingungen">
-  <meta name="DC.rights" content="${options.licence ?? "https://creativecommons.org/licenses/by/4.0/"}">
-`
+// The record discovery and the folder gather wrote for the work: its seed
+// hashes the OpenAlex id, and its copy id the location, version and PDF.
+const recordOf = Effect.gen(function* () {
+  const listed = work()
+  const bytes = new TextEncoder().encode(pdf())
+  const sha256 = yield* fingerprint(bytes)
+  const copy = Copy.make({ ...location(), version: "publishedVersion" })
 
-it.effect("uses repository item rights for a DOI-less copy with no PDF licence notice", () => {
-  const metadata = work(null)
-
-  const world = recorded({
-    metadata: { ...metadata, doi: null, locations: [repositoryCopy] },
-    body: pdf(""),
-    respond: (url) =>
-      url === repositoryCopy.landing_page_url ? new Response(itemPage()) : undefined,
+  const paper = Paper.make({
+    format: 3,
+    attempts: [],
+    seed: Seed.make({
+      id: yield* fingerprint(listed.id),
+      openalex: listed.id,
+      study: {
+        title: listed.title,
+        year: listed.publication_year,
+        doi: "10.1234/employment",
+        authors: ["Anne Example"],
+        publisher: "Example University",
+        url: listed.id,
+      },
+    }),
+    metadataUrl: metadataUrl(listed.id),
+    retrievedAt,
+    work: listed,
+    content: Content.cases.Text.make({
+      copy,
+      id: yield* fingerprint(`${copy.id}|${copy.version}|${sha256}`),
+      url: copy.pdf_url,
+      evidence: [
+        Evidence.cases.Pdf.make({ url: copy.pdf_url, sha256, page: 1, licence, retrievedAt }),
+      ],
+      sha256,
+      pages: 2,
+      emptyPages: [],
+      passages: [
+        { page: 1, part: 0, text: `Employment rose in France. ${licence}` },
+        { page: 2, part: 0, text: "The estimate is uncertain." },
+      ],
+    }),
   })
 
-  const candidate = Seed.make({
-    ...seed,
-    openalex: metadata.id,
-    study: { ...seed.study, doi: null },
-  })
+  return { paper, bytes, sha256 }
+})
+
+const gatherOn = (place: ReturnType<typeof stage>) =>
+  run({ topics: [topic] }).pipe(
+    Effect.provide(
+      local(place.target, { pacing: { gap: Duration.zero, hosts: {} } }).layer.pipe(
+        Layer.provide(place.http),
+      ),
+    ),
+  )
+
+it.effect("gathers a published corpus work into the same copy, version and annotation key", () => {
+  const place = stage({ web })
 
   return Effect.gen(function* () {
-    const result = yield* gather(candidate)
-    const content = yield* Schema.decodeUnknownEffect(Content.cases.Text)(result.paper.content)
+    const { paper, bytes, sha256 } = yield* recordOf
+    place.files.set(
+      `${corpus}/${paper.seed.id}.json`,
+      yield* Schema.encodeEffect(Schema.fromJsonString(Paper))(paper),
+    )
+    place.files.set(`${corpus}/${paper.seed.id}-${sha256}.pdf`, bytes)
+    const annotation = yield* annotate(place, paper)
+    yield* publish(corpus)
 
-    expect(content.copy.id).toBe(repositoryCopy.id)
-    expect(content.copy.version).toBe("submittedVersion")
-    expect(content.evidence).toMatchObject([
+    assert(Content.guards.Text(paper.content), "Expected the record's text")
+    const version = yield* fingerprint(`${paper.content.id}|${extraction}`)
+    const before = place.db.prepare("SELECT id FROM version").all()
+
+    const report = yield* gatherOn(place)
+
+    // No model: every request went to Cloudflare, OpenAlex or the copy's host.
+    expect(new Set(place.requests.map(({ url }) => new URL(url).host))).toEqual(
+      new Set(["api.cloudflare.com", "api.openalex.org", "example.org"]),
+    )
+    expect(summaryOf(report).outcomes).toEqual({
+      Text: 1,
+      Metadata: 0,
+      Covered: 0,
+      Refused: 0,
+      Failed: 0,
+    })
+    expect(report.works[0]?.outcome).toEqual(
+      Outcome.cases.Text.make({ paper: paper.seed.id, version }),
+    )
+    expect(place.db.prepare("SELECT id FROM version").all()).toEqual(before)
+    expect(place.db.prepare("SELECT id, admission FROM copy").all()).toEqual([
+      { id: paper.content.id, admission: "Admitted" },
+    ])
+
+    // The imported annotation stays the version's, under the same key.
+    const held = yield* (yield* Papers).read(PaperId.make(paper.seed.id))
+
+    assert(Held.guards.Text(held), "Expected the paper's text")
+    expect(held.version.id).toBe(version)
+    expect(held.annotation).toEqual({
+      scope: annotation.scope,
+      labels: annotation.labels,
+      excerpts: annotation.excerpts,
+    })
+    expect(place.db.prepare("SELECT key FROM annotation").all()).toEqual([
       {
-        record: "10419/123456",
-        pdf: repositoryCopy.pdf_url,
-        licence: "https://creativecommons.org/licenses/by/4.0/",
-        url: repositoryCopy.landing_page_url,
+        key: yield* annotationKey({
+          text: held.version.text,
+          extraction,
+          model: annotation.stamp.model,
+          rubric: annotation.stamp.rubric,
+        }),
       },
     ])
-    expect(content.passages[1]?.text).toBe("The estimate is uncertain.")
-    expect(world.requests[0]).toBe(metadataUrl(metadata.id))
-  }).pipe(Effect.provide(world.layer))
+  }).pipe(Effect.provide(place.layer))
 })
 
-it.effect("does not apply another PDF's page licence or a site footer to this copy", () => {
-  const world = recorded({
-    metadata: { ...work(null), locations: [repositoryCopy] },
-    respond: (url) =>
-      url === repositoryCopy.landing_page_url
-        ? new Response(
-            itemPage({ pdf: "https://www.econstor.eu/other.pdf" }) +
-              '<footer><a rel="license" href="https://creativecommons.org/licenses/by/4.0/">Site licence</a></footer>',
-          )
-        : undefined,
+it.effect("writes nothing and fetches no PDF when it runs again with nothing changed", () => {
+  const place = stage({ web })
+
+  return Effect.gen(function* () {
+    yield* gatherOn(place)
+    const from = place.requests.length
+
+    const report = yield* gatherOn(place)
+
+    expect(summaryOf(report).works).toBe(0)
+    expect(place.writes(from)).toEqual([])
+    expect(place.requests.slice(from).filter(({ url }) => !url.startsWith("https://api."))).toEqual(
+      [],
+    )
+  }).pipe(Effect.provide(place.layer))
+})
+
+it.effect("reports each work that failed, without its text", () => {
+  const place = stage({
+    web: (request) =>
+      new URL(request.url).host === "api.openalex.org"
+        ? web(request)
+        : new Response("unavailable", { status: 503 }),
   })
 
   return Effect.gen(function* () {
-    const { paper } = yield* gather(seed)
+    const summary = summaryOf(yield* gatherOn(place))
 
-    expect(Content.guards.Metadata(paper.content)).toBe(true)
-    expect(world.requests).not.toContain(repositoryCopy.pdf_url)
-  }).pipe(Effect.provide(world.layer))
+    expect(summary.outcomes.Failed).toBe(1)
+    expect(summary.problems).toMatchObject([
+      { work: work().id, title: work().title, outcome: { operation: "download" } },
+    ])
+    expect(JSON.stringify(summary)).not.toContain("Employment rose")
+  }).pipe(Effect.provide(place.layer))
 })
-
-it.effect("rejects a restrictive item licence even when OpenAlex labels the copy CC BY", () => {
-  const world = recorded({
-    metadata: { ...work(), locations: [{ ...repositoryCopy, license: "cc-by" }] },
-    respond: (url) =>
-      url === repositoryCopy.landing_page_url
-        ? new Response(itemPage({ licence: "https://creativecommons.org/licenses/by-nc/4.0/" }))
-        : undefined,
-  })
-
-  return Effect.gen(function* () {
-    const { paper } = yield* gather(seed)
-
-    expect(paper.attempts[0]?.result).toMatchObject({ reason: "licence-conflict" })
-    expect(world.requests).not.toContain(repositoryCopy.pdf_url)
-  }).pipe(Effect.provide(world.layer))
-})
-
-it.effect(
-  "falls back from a blocked publisher to an independently identified repository copy",
-  () => {
-    const metadata = work()
-    const primary = location()
-
-    const world = recorded({
-      metadata: { ...metadata, locations: [primary, repositoryCopy] },
-      respond: (url) => {
-        if (url === primary.pdf_url) return new Response("blocked", { status: 403 })
-
-        if (url === repositoryCopy.landing_page_url) return new Response(itemPage())
-
-        return undefined
-      },
-    })
-
-    return Effect.gen(function* () {
-      const { paper } = yield* gather(seed)
-      const content = yield* Schema.decodeUnknownEffect(Content.cases.Text)(paper.content)
-
-      expect(content.copy.id).toBe(repositoryCopy.id)
-      expect(content.copy.doi).toBeNull()
-      expect(paper.attempts[0]?.result).toMatchObject({ operation: "download" })
-      expect((yield* gather(seed)).written).toBe(false)
-      expect(world.requests).toHaveLength(4)
-    }).pipe(Effect.provide(world.layer))
-  },
-)
-
-it.effect("retries only failed copies and retains completed exclusions", () => {
-  let failing = true
-  const metadata = work()
-  const first = location()
-
-  const next = {
-    ...first,
-    id: "pmh:oai:example:second",
-    pdf_url: "https://example.org/second.pdf",
-    version: "acceptedVersion",
-  }
-
-  const world = recorded({
-    metadata: { ...metadata, locations: [first, next] },
-    respond: (url) => {
-      if (url === first.pdf_url) return new Response(pdf("All rights reserved."))
-
-      if (url === next.pdf_url)
-        return failing ? new Response("unavailable", { status: 503 }) : new Response(pdf())
-
-      return undefined
-    },
-  })
-
-  return Effect.gen(function* () {
-    const initial = yield* gather(seed)
-    expect(initial.paper.attempts).toHaveLength(2)
-    failing = false
-    const resumed = yield* gather(seed)
-    const content = yield* Schema.decodeUnknownEffect(Content.cases.Text)(resumed.paper.content)
-
-    expect(content.copy.id).toBe(next.id)
-    expect(content.copy.version).toBe("acceptedVersion")
-    expect(world.requests.filter((url) => url === first.pdf_url)).toHaveLength(1)
-    expect(world.requests.filter((url) => url === next.pdf_url)).toHaveLength(2)
-  }).pipe(Effect.provide(world.layer))
-})
-
-it.effect("withdraws stored text when refreshed item rights become restrictive", () => {
-  let licence = "https://creativecommons.org/licenses/by/4.0/"
-
-  const world = recorded({
-    metadata: { ...work(), locations: [repositoryCopy] },
-    body: pdf(""),
-    respond: (url) =>
-      url === repositoryCopy.landing_page_url ? new Response(itemPage({ licence })) : undefined,
-  })
-
-  return Effect.gen(function* () {
-    expect(Content.guards.Text((yield* gather(seed)).paper.content)).toBe(true)
-    licence = "https://creativecommons.org/licenses/by-nc/4.0/"
-    const refreshed = yield* gather(seed, { mode: "Refresh" })
-
-    expect(Content.guards.Metadata(refreshed.paper.content)).toBe(true)
-    expect([...world.files.values()].join("")).not.toContain("Employment rose")
-    expect(world.snapshots.size).toBe(0)
-  }).pipe(Effect.provide(world.layer))
-})
-
-it.effect(
-  "replays the retained PDF snapshot and refuses a changed snapshot without refetching",
-  () => {
-    const world = recorded()
-
-    return Effect.gen(function* () {
-      yield* gather(seed)
-      expect(world.snapshots.size).toBe(1)
-      const path = [...world.snapshots.keys()][0]
-      expect(new TextDecoder().decode(world.snapshots.get(path ?? ""))).toBe(pdf())
-      world.snapshots.set(path ?? "", new TextEncoder().encode("changed bytes"))
-
-      expect(yield* gather(seed, { mode: "Offline" }).pipe(Effect.flip)).toBeInstanceOf(
-        PaperUnavailable,
-      )
-      expect(world.requests).toHaveLength(2)
-      expect(world.writes).toHaveLength(1)
-    }).pipe(Effect.provide(world.layer))
-  },
-)
-
-it.effect(
-  "does not fetch an unreviewed host merely because a catalogue row claims an EconStor id",
-  () => {
-    const foreign = { ...repositoryCopy, landing_page_url: "https://example.org/not-an-item" }
-    const world = recorded({ metadata: { ...work(), locations: [foreign] } })
-
-    return Effect.gen(function* () {
-      const result = yield* gather(seed)
-
-      expect(Content.guards.Metadata(result.paper.content)).toBe(true)
-      expect(world.requests).not.toContain(foreign.landing_page_url)
-    }).pipe(Effect.provide(world.layer))
-  },
-)

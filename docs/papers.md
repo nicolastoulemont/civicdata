@@ -6,16 +6,19 @@ Research papers live in a store of their own: a D1 database bound as `PAPERS_DB`
 
 ## Who writes
 
-Requests only read the store. Two writers fill it, and only they create its tables (`tables` in `store.ts`):
+Requests only read the store. Three writers fill it, and only they create its tables (`tables` in `store.ts`):
 
-- the publication command, run from a machine, which publishes the locally gathered corpus and withdraws copies;
+- the publication command, run from a machine, which publishes a corpus directory and withdraws copies;
+- the gather, which finds papers on OpenAlex for the reviewed topics and writes them as the publication command writes a corpus record ([gather](#gather));
 - the annotation Workflow, which writes annotations and points versions at them.
+
+The publication command and the gather write through one writer, `write` in `packages/server/src/research/publication.ts`, so both write the same rows in the same order.
 
 A reader never creates, alters or drops a table, for the reason `packages/server/src/built.ts` gives: a preview may read production's store.
 
 ## Bindings and stages
 
-`packages/infra/alchemy.run.ts` declares the database as `PapersDatabase` and the bucket as `Papers`, since an Alchemy id names one resource of any type, and puts both in the same split as the catalog: production and a stage deployed by hand own theirs, and a `pr-<n>` preview without the `own-catalog` label, or `alchemy dev` without `OWN_CATALOG=true`, binds production's through `Resource.ref` ([deploys](deploys.md#what-a-preview-shares-with-production)). A destroy of such a stage never reaches production's papers. With the label, a preview gets an empty database and bucket of its own, which stay empty until someone publishes to that stage.
+`packages/infra/alchemy.run.ts` declares the database as `PapersDatabase` and the bucket as `Papers`, since an Alchemy id names one resource of any type, and puts both in the same split as the catalog: production and a stage deployed by hand own theirs, and a `pr-<n>` preview without the `own-catalog` label, or `alchemy dev` without `OWN_CATALOG=true`, binds production's through `Resource.ref` ([deploys](deploys.md#what-a-preview-shares-with-production)). A destroy of such a stage never reaches production's papers. With the label, a preview gets an empty database and bucket of its own, which stay empty until someone publishes or gathers into that stage.
 
 A production destroy keeps the papers database, because annotations cost model calls to redo. Every other stage's destroy deletes its database and empties and deletes its bucket.
 
@@ -29,7 +32,9 @@ A production destroy keeps the papers database, because annotations cost model c
 | `passage`    | page-bound passage of a version, for search                                     |
 | `annotation` | annotation of one text, under its annotation key                                |
 
-A paper's id is its seed's id. A fetched copy's id is the hash of its location, source version and PDF SHA-256 (`scripts/papers/pdf.ts`), so a different file at the same URL is a different copy. A copy never fetched, such as one whose licence was not admitted, hashes its paper, location and source version: two records of one work list the same locations, and each keeps its own row. A version's PDF and text sit at `objectsOf(version)` in the bucket. Its `text` column is the SHA-256 of the text object's bytes: a JSON array of the version's passages in page order.
+The gather keeps its ledger, `work_gathered`, in the same database ([ledger](#ledger)). No reader touches it.
+
+A paper's id is its seed's id. A fetched copy's id is the hash of its location, source version and PDF SHA-256 (`packages/server/src/research/pdf.ts`), so a different file at the same URL is a different copy. A copy never fetched, such as one whose licence was not admitted, hashes its paper, location and source version: two records of one work list the same locations, and each keeps its own row. A version's PDF and text sit at `objectsOf(version)` in the bucket. Its `text` column is the SHA-256 of the text object's bytes: a JSON array of the version's passages in page order.
 
 The annotation key is the SHA-256 of the text's hash, the extraction version, the model and the rubric (`annotationKey`). Copy identity stays out of the key, so copies with the same text share one annotation, and each copy keeps its own URL, licence and version for citations.
 
@@ -60,11 +65,11 @@ For each record of the corpus, in the writer order above:
 
 1. A `paper` row with the bibliography, and the metadata reason when the record has no text.
 2. A `Restricted` copy, with no evidence, for each copy the gather tried and excluded. A failed attempt gets no row: it decided nothing, and the next gather retries it.
-3. For a record with text, its `Admitted` copy with the licence evidence, and a version under the extraction `unpdf-2.1.0/300-words` (`extraction` in `scripts/papers/pdf.ts`).
+3. For a record with text, its `Admitted` copy with the licence evidence, and a version under the extraction `unpdf-2.1.0/300-words` (`extraction` in `packages/server/src/research/pdf.ts`).
 4. The record's saved annotation, when one still fits the record (`fits` in `scripts/papers/retrieval.ts`), stored under `annotationKey` and made the version's active annotation. When the corpus has none for a version, an annotation the Workflow wrote stays.
 5. The version's passages and its PDF and text objects. The command uploads each object and reads it back, and sets `paper.active`, last, only when R2 holds bytes with the expected SHA-256.
 
-Before writing, a run reads the store's paper, copy and version rows once and compares them with the rows it would write. A paper whose rows match gets no write. Publishing an unchanged corpus therefore writes nothing, and a run after a failure writes only the papers that failed or changed. One paper's failure never stops another's. The report counts the papers per outcome and lists each written or failed one, never a passage, and the command exits 1 when a paper failed.
+Before writing a paper, the writer reads that paper's rows, its copies and its version, and compares them with the rows it would write. A paper whose rows match gets no write. Publishing an unchanged corpus therefore writes nothing, and a run after a failure writes only the papers that failed or changed. One paper's failure never stops another's. The report counts the papers per outcome and lists each written or failed one, never a passage, and the command exits 1 when a paper failed.
 
 A paper fails, and keeps whatever the store held, when:
 
@@ -80,6 +85,74 @@ Publication never admits a withdrawn copy's text again. A new copy of the paper,
 `pnpm --filter @repo/server run papers:publish --withdraw <copy> --reason Rights` (or `Retraction`) removes one copy's text, with the same variables. The copy's id is `content.id` in its record and `copy.id` in the reader's `Text` answer. The command runs the order the rules above give: it clears `paper.active` if it points to one of the copy's versions, deletes the versions' objects, deletes the versions (their passages and annotation pointers go with them), and sets the copy to `Withdrawn` with its reason. The annotation row stays for any other copy with the same text. From then on the reader answers `Withdrawn` with that reason until another copy of the paper becomes active.
 
 Withdrawing a copy that is already withdrawn with the same reason writes nothing. A copy that was never admitted has no text to withdraw, and the command refuses it.
+
+## Gather
+
+The gather finds works on OpenAlex for each reviewed topic, checks each work's copies and licences, extracts the admitted text with `unpdf` and publishes each work through the shared writer. `run` in `packages/server/src/research/Gather.ts` holds it. It runs in Workers and in Node, reads no file and calls no model: it needs no `OPENAI_API_KEY`, and a gathered paper waits for the annotation Workflow like any other. The caller supplies the steps, as for series ([stored series](series.md#what-a-run-does)): a Workflow provides `Step.workflow`, the local gather `Step.immediate`. No Workflow runs it yet; NTO-250 wraps it in a weekly one.
+
+### Topics
+
+`packages/server/src/research/topics.json` lists the searches, each with the area of the app it serves: labour, prices, growth, public finance, pensions, inequality, health, education, emissions and energy, and democracy. The first eleven are the queries the folder gather ran, kept as they were. The others follow the catalog's indicators and the reviewed findings: minimum wages, short-time work and labour reforms; the inflation of the 1970s and of 2021 to 2023; fiscal multipliers, consolidation and crises; pension ages and spending; and so on. `repository: true` keeps a search to EconStor's copies, whose item pages carry their licence. The file is bundled with the Worker; change it in a pull request the owner reviews.
+
+Every search asks for open-access works, not retracted, in English and published from 1990. A topic reads at most `pages` pages of `size` works each, through OpenAlex's cursor (`Limits` in `Gather.ts`: 2 pages of 50 by default). A record that does not decode, such as a work without a title, is skipped and counted.
+
+### What a run does
+
+For each topic, page by page, a run:
+
+1. asks OpenAlex for the page and keeps the works the ledger wants: works it never asked for, works whose record changed, and works whose last attempt on the same record failed under the attempt limit (3);
+2. asks OpenAlex for the wanted works' current records, at most `batch` at once, and gathers them, `concurrency` at once.
+
+Each page and each batch is one step. A page that fails ends its topic; a batch that fails leaves its works out of the ledger, so the next run asks for them again, and the topic goes on. A work the run already asked for under an earlier topic is not asked for again.
+
+For one work, the gather:
+
+- leaves it alone when the store holds the same OpenAlex work under another paper id: a hand-audited copy from `papers:intake`, whose id hashes its DOI and URL (`Covered`);
+- keeps a retracted work as metadata with the reason `retracted`;
+- otherwise tries at most three of its copies, licensed ones first. Text is admitted only with copy-specific evidence: an EconStor item page whose own rights name CC BY or a public-domain licence for this PDF, or a CC BY or public-domain notice in the PDF's first two pages. An OpenAlex licence label alone only makes a copy worth downloading. A copy whose PDF or item page names another licence, or says "all rights reserved", keeps no text.
+
+The paper's id hashes its OpenAlex id, its copy's id its location, source version and PDF SHA-256, and its version uses the extraction `unpdf-2.1.0/300-words`, exactly as a corpus record of the same work. A paper the publication command imported therefore gathers into the same copy, version and annotation key, and its imported annotation stays active.
+
+The writer's rules hold: the gather never turns a paper whose text the store serves into metadata-only. It records `Refused` and leaves the text until someone withdraws the copy with a reason ([withdrawal](#withdrawal)).
+
+### Ledger
+
+`work_gathered` holds one row per OpenAlex work the gather asked for:
+
+| Column     | Holds                                                                                  |
+| ---------- | -------------------------------------------------------------------------------------- |
+| `work`     | the OpenAlex id                                                                        |
+| `hash`     | the SHA-256 of the record's fields the gather reads, without `updated_date`            |
+| `updated`  | the record's `updated_date`                                                            |
+| `outcome`  | `Text`, `Metadata` with its reason, `Covered`, `Refused` or `Failed`, as JSON          |
+| `attempts` | failed attempts on this record in a row; any other outcome, or a new record, resets it |
+| `at`       | when the gather last asked for the work, as ISO 8601 UTC                               |
+
+The hash leaves out `updated_date` because OpenAlex moves it whenever anything in the record changes, citation counts included: a weekly run would otherwise download most PDFs again. A new copy, licence, title or retraction changes the hash.
+
+`Failed` covers a copy whose host or PDF failed, and a store write that failed; the paper is published as metadata until a later attempt admits its text. After three failed attempts on one record the work waits for its record to change. A failure never makes the gather ask for another work again. Only the gather creates and writes the table, in its first step beside `tables`. To see what failed:
+
+```sql
+SELECT work, updated, json_extract(outcome, '$.operation') AS operation,
+  json_extract(outcome, '$.problem') AS problem, attempts, at
+FROM work_gathered WHERE json_extract(outcome, '$._tag') = 'Failed' ORDER BY at DESC;
+```
+
+To gather a work again although its record has not changed, delete its row.
+
+### Pacing
+
+Every request goes through `paced` in `Gather.ts`, which waits between two requests to the same host: 1 second for `api.openalex.org` and 2 seconds for any other host. Other hosts go on meanwhile, so one slow publisher holds back only its own works. Requests name the client `papers-gather/1.0`, with no email, `mailto` or API key: OpenAlex's anonymous limits apply, and a run stays far under them.
+
+### Local gather
+
+`pnpm --filter @repo/server run papers:gather` runs the gather on a machine against one stage's store, with the same four variables as [publication](#publication): `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN`, `PAPERS_D1_ID` and `PAPERS_R2_BUCKET`. It writes through Cloudflare's D1 and R2 APIs, as the publication command does, gathers 8 works at once in batches of 50, and also paces `api.cloudflare.com` to one request per 260 milliseconds: Cloudflare takes 1,200 requests in five minutes from one user, and D1's HTTP API sends one statement per request. `--pages <n>` reads more or fewer pages per topic.
+
+To fill a stage the first time, label its pull request `own-catalog` and name the preview's own database and bucket, as for publication. Gather into production only with the owner's approval. Running it again with nothing changed upstream reads each topic's search pages and writes nothing.
+
+The command prints counts per outcome, each topic's counts, and every work that failed or that the store refused, with its id, title and problem, never a passage. It exits 1 when a work failed, the store refused one, or a topic stopped early; a rerun asks only for what failed.
+
+`packages/server/test/PaperGather.test.ts` runs the gather inside workerd against D1 and R2, with OpenAlex, publishers and EconStor faked at the HTTP client and real PDFs: paging, admission and exclusion, a rerun with nothing changed, a changed record, a failed PDF host, the attempt limit, the refusal to drop served text, a hand-audited copy and per-host pacing. `packages/server/scripts/papers/gather.test.ts` runs the local gather over Cloudflare's wire after publishing the corpus record of the same work.
 
 ## Local reproduction
 

@@ -1,0 +1,80 @@
+{
+  "format": 1,
+  "topics": [
+    {
+      "area": "labour",
+      "query": "\"minimum wage\" OR \"fiscal multipliers\" OR \"pension reform\" OR \"democracy economic growth\"",
+      "repository": true
+    },
+    { "area": "labour", "query": "minimum wage employment" },
+    { "area": "growth", "query": "fiscal multipliers" },
+    { "area": "pensions", "query": "pension reform employment" },
+    { "area": "democracy", "query": "democracy economic growth" },
+    { "area": "emissions-energy", "query": "carbon pricing emissions synthetic control" },
+    { "area": "pensions", "query": "retirement regression discontinuity" },
+    { "area": "growth", "query": "fiscal multipliers", "repository": true },
+    { "area": "pensions", "query": "pension reform retirement employment", "repository": true },
+    { "area": "emissions-energy", "query": "carbon tax emissions", "repository": true },
+    { "area": "labour", "query": "minimum wage difference differences", "repository": true },
+
+    { "area": "labour", "query": "labour market reform unemployment" },
+    { "area": "labour", "query": "short-time work employment recession" },
+    { "area": "labour", "query": "employment protection temporary contracts" },
+    { "area": "labour", "query": "unemployment benefits duration job search" },
+    { "area": "labour", "query": "active labour market policy evaluation" },
+    { "area": "labour", "query": "female labour force participation childcare" },
+    { "area": "labour", "query": "youth unemployment" },
+
+    { "area": "prices", "query": "inflation surge energy prices supply shocks" },
+    { "area": "prices", "query": "oil price shocks inflation" },
+    { "area": "prices", "query": "monetary policy inflation expectations" },
+    { "area": "prices", "query": "euro changeover consumer prices" },
+    { "area": "prices", "query": "food prices inflation" },
+
+    { "area": "growth", "query": "fiscal consolidation output growth" },
+    { "area": "growth", "query": "financial crisis recession recovery" },
+    { "area": "growth", "query": "productivity growth slowdown" },
+    { "area": "growth", "query": "trade liberalization economic growth" },
+    { "area": "growth", "query": "pandemic lockdown economic activity" },
+    { "area": "growth", "query": "multinational profit shifting GDP" },
+
+    { "area": "public-finance", "query": "public debt economic growth" },
+    { "area": "public-finance", "query": "sovereign debt crisis austerity" },
+    { "area": "public-finance", "query": "fiscal rules budget deficits" },
+    { "area": "public-finance", "query": "tax revenue reform" },
+    { "area": "public-finance", "query": "government spending composition growth" },
+
+    { "area": "pensions", "query": "retirement age older workers employment" },
+    { "area": "pensions", "query": "pension benefits old-age poverty" },
+    { "area": "pensions", "query": "population ageing pension spending" },
+    { "area": "pensions", "query": "disability pension labour supply" },
+
+    { "area": "inequality", "query": "income inequality top incomes" },
+    { "area": "inequality", "query": "taxes transfers redistribution inequality" },
+    { "area": "inequality", "query": "wealth inequality" },
+    { "area": "inequality", "query": "poverty social transfers" },
+    { "area": "inequality", "query": "intergenerational income mobility" },
+
+    { "area": "health", "query": "health expenditure health outcomes" },
+    { "area": "health", "query": "life expectancy income mortality" },
+    { "area": "health", "query": "infant mortality health policy" },
+    { "area": "health", "query": "health insurance coverage mortality" },
+
+    { "area": "education", "query": "returns to schooling earnings" },
+    { "area": "education", "query": "education spending student achievement" },
+    { "area": "education", "query": "early childhood education outcomes" },
+    { "area": "education", "query": "compulsory schooling reform" },
+
+    { "area": "emissions-energy", "query": "emissions trading system emissions" },
+    { "area": "emissions-energy", "query": "renewable energy support policy" },
+    { "area": "emissions-energy", "query": "energy prices household consumption" },
+    { "area": "emissions-energy", "query": "economic growth carbon emissions decoupling" },
+    { "area": "emissions-energy", "query": "fuel tax gasoline demand" },
+
+    { "area": "democracy", "query": "democratization redistribution" },
+    { "area": "democracy", "query": "institutions economic development" },
+    { "area": "democracy", "query": "economic voting elections" },
+    { "area": "democracy", "query": "corruption economic growth" },
+    { "area": "democracy", "query": "democratic backsliding" }
+  ]
+}
