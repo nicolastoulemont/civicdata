@@ -26,7 +26,7 @@ import { Attempt, Content, Digest, Paper, PaperUnavailable, Seed, Work } from ".
 import type { Bucket } from "./Bucket.ts"
 import { admit, qualifies } from "./copies.ts"
 import { Licences } from "./Licences.ts"
-import { metadataUrl, OpenAlex } from "./OpenAlex.ts"
+import { hostOf, metadataUrl, OpenAlex } from "./OpenAlex.ts"
 import { extraction } from "./pdf.ts"
 import { Record, write } from "./publication.ts"
 import { Reason, tables } from "./store.ts"
@@ -343,9 +343,7 @@ const outcomeOf = Effect.fnUntraced(function* (
   const tried = gathered.attempts.filter(({ copy }) => qualifies(copy))
 
   const failed = tried.flatMap(({ copy, result }) =>
-    Attempt.fields.result.guards.Failed(result)
-      ? [{ host: new URL(copy.pdf_url).host, result }]
-      : [],
+    Attempt.fields.result.guards.Failed(result) ? [{ host: hostOf(copy), result }] : [],
   )
 
   if (failed.length === 0 || failed.length < tried.length)

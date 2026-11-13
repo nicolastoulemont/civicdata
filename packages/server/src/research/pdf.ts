@@ -48,6 +48,16 @@ const readPdf = (bytes: Uint8Array) =>
     catch: (cause) => new PaperUnavailable({ operation: "extract", cause }),
   })
 
+// A page's text with the licence URLs its layout broke over lines joined
+// again: after the scheme, and before the version, as MDPI's footer prints
+// "(https://\ncreativecommons.org/licenses/by/\n4.0/)". A URL broken
+// anywhere else stays broken, and reads as a licence the gather does not
+// know.
+const joined = (text: string) =>
+  text
+    .replace(/(https?:\/\/)\s+(?=creativecommons\.org)/gi, "$1")
+    .replace(/(creativecommons\.org\/(?:licenses|publicdomain)\/[a-z-]+\/)\s+(?=\d\.\d)/gi, "$1")
+
 export const textOf = Effect.fn("Papers.text")(function* (
   download: Omit<Download, "landing">,
   options: { readonly copy: Copy; readonly evidence: ReadonlyArray<Evidence> },
@@ -64,9 +74,9 @@ export const textOf = Effect.fn("Papers.text")(function* (
 
   const notices = cover.flatMap((text, index) =>
     [
-      ...text
-        .replace(/(https?:\/\/)\s+(?=creativecommons\.org)/gi, "$1")
-        .matchAll(/https?:\/\/creativecommons\.org\/(?:licenses|publicdomain)\/[^\s<>)]+/gi),
+      ...joined(text).matchAll(
+        /https?:\/\/creativecommons\.org\/(?:licenses|publicdomain)\/[^\s<>)]+/gi,
+      ),
     ].map(([value]) => ({ value: value.replace(/[.,;]+$/, ""), page: index + 1 })),
   )
 

@@ -58,6 +58,62 @@ const landing = (pdfUrl: string) => `<html><head>
   <meta name="citation_pdf_url" content="${pdfUrl}">
 </head><body>Download the PDF</body></html>`
 
+// PubMed Central's copy of article `n`, as OpenAlex lists it: a labelled
+// repository copy whose PDF URL is PMC's page, which answers a script with a
+// proof-of-work challenge.
+const central = (n: number, delta: Partial<Work["locations"][number]> = {}) => ({
+  id: `pmh:oai:pubmedcentral.nih.gov:${n}`,
+  doi: null,
+  raw_source_name: "PubMed Central",
+  landing_page_url: `https://pmc.ncbi.nlm.nih.gov/articles/PMC${n}/`,
+  pdf_url: `https://pmc.ncbi.nlm.nih.gov/articles/PMC${n}/pdf/paper.pdf`,
+  license: "cc-by",
+  version: "publishedVersion",
+  ...delta,
+})
+
+const challenge = `<html><head><title>Preparing to download ...</title></head>
+  <body><script type="module">window.ncbi.pmc.pow.init("challenge", "4")</script></body></html>`
+
+const bucket = "https://pmc-oa-opendata.s3.amazonaws.com"
+
+// PMC's bucket on AWS, holding article `n`'s deposits by number, each an
+// author manuscript or not; PMC's own pages answer with their challenge.
+// The bucket's PDFs are the fixture's, as for any URL ending in .pdf.
+const pmc =
+  (n: number, deposits: ReadonlyArray<{ number: number; manuscript: boolean }>) =>
+  (url: string) => {
+    const address = new URL(url)
+
+    if (address.host === "pmc.ncbi.nlm.nih.gov") return new Response(challenge)
+
+    if (address.origin !== bucket) return undefined
+
+    if (address.pathname === "/" && address.searchParams.get("prefix") === `PMC${n}.`)
+      return new Response(
+        `<?xml version="1.0" encoding="UTF-8"?><ListBucketResult><Prefix>PMC${n}.</Prefix>${deposits
+          .map(
+            ({ number }) => `<CommonPrefixes><Prefix>PMC${n}.${number}/</Prefix></CommonPrefixes>`,
+          )
+          .join("")}</ListBucketResult>`,
+        { headers: { "content-type": "application/xml" } },
+      )
+
+    const deposit = deposits.find(
+      ({ number }) => address.pathname === `/PMC${n}.${number}/PMC${n}.${number}.json`,
+    )
+
+    return deposit === undefined
+      ? undefined
+      : Response.json({
+          pmcid: `PMC${n}`,
+          version: deposit.number,
+          is_manuscript: deposit.manuscript,
+          license_code: "CC BY",
+          pdf_url: `s3://pmc-oa-opendata/PMC${n}.${deposit.number}/PMC${n}.${deposit.number}.pdf?md5=0`,
+        })
+  }
+
 // A record as OpenAlex sends it: a work, or one without a title, which the
 // gather cannot decode.
 type Listed = Work | { readonly id: string; readonly title: null }
@@ -734,5 +790,108 @@ describe("the paper gather", () => {
     }).pipe(
       Effect.provide(layerOf(place.http, { key: Option.some(Redacted.make("openalex-key")) })),
     )
+  })
+
+  it.effect(
+    "fetches a PubMed Central copy from PMC's bucket, the deposit its version names",
+    () => {
+      const record = work(7, { locations: [central(7)] })
+
+      const place = world({
+        searches: { [topic.query]: [[record]] },
+        respond: pmc(7, [
+          { number: 1, manuscript: false },
+          { number: 2, manuscript: true },
+        ]),
+      })
+
+      return Effect.gen(function* () {
+        const report = yield* gather()
+
+        expect(outcomes(report)).toEqual({ [record.id]: "Text" })
+        expect(place.urls().filter((url) => !url.startsWith("https://api."))).toEqual([
+          `${bucket}/?list-type=2&prefix=PMC7.&delimiter=%2F`,
+          `${bucket}/PMC7.2/PMC7.2.json`,
+          `${bucket}/PMC7.1/PMC7.1.json`,
+          `${bucket}/PMC7.1/PMC7.1.pdf`,
+        ])
+
+        const text = yield* held(record)
+
+        assert(Held.guards.Text(text), "Expected the bucket's copy's text")
+        expect(text.version.url).toBe(`${bucket}/PMC7.1/PMC7.1.pdf`)
+        expect(text.copy.evidence).toMatchObject([{ url: `${bucket}/PMC7.1/PMC7.1.pdf`, page: 1 }])
+      }).pipe(Effect.provide(layerOf(place.http)))
+    },
+  )
+
+  it.effect("tries a PubMed Central copy OpenAlex lists without a PDF URL", () => {
+    // The publisher refuses scripts, as MDPI does; OpenAlex gives PMC's copy
+    // no PDF URL.
+    const record = work(8, { locations: [copy(8), central(8, { pdf_url: null })] })
+
+    const place = world({
+      searches: { [topic.query]: [[record]] },
+      respond: (url) =>
+        url === copy(8).pdf_url
+          ? new Response("Access Denied", { status: 403 })
+          : pmc(8, [{ number: 1, manuscript: false }])(url),
+    })
+
+    return Effect.gen(function* () {
+      const report = yield* gather()
+
+      expect(outcomes(report)).toEqual({ [record.id]: "Text" })
+
+      const text = yield* held(record)
+
+      assert(Held.guards.Text(text), "Expected PubMed Central's text")
+      expect(text.version.url).toBe(`${bucket}/PMC8.1/PMC8.1.pdf`)
+      expect(text.copy.location).toMatchObject({
+        id: central(8).id,
+        pdf_url: "https://pmc.ncbi.nlm.nih.gov/articles/PMC8/pdf/",
+      })
+    }).pipe(Effect.provide(layerOf(place.http)))
+  })
+
+  it.effect("fails a PubMed Central copy PMC's bucket lacks, naming the bucket", () => {
+    const record = work(9, { locations: [central(9)] })
+
+    const place = world({ searches: { [topic.query]: [[record]] }, respond: pmc(9, []) })
+
+    return Effect.gen(function* () {
+      const report = yield* gather()
+
+      expect(report.works[0]?.outcome).toEqual(
+        Outcome.cases.Failed.make({
+          operation: "download",
+          problem: "pmc-oa-opendata.s3.amazonaws.com: PMC's bucket holds no PDF of this version",
+        }),
+      )
+      expect(place.urls().some((url) => new URL(url).host === "pmc.ncbi.nlm.nih.gov")).toBe(false)
+    }).pipe(Effect.provide(layerOf(place.http)))
+  })
+
+  it.effect("reads a licence notice whose URL the layout broke before its version", () => {
+    const place = world({
+      searches: { [topic.query]: [[work(1)]] },
+      respond: (url) =>
+        url === copy(1).pdf_url
+          ? new Response(
+              pdf("Attribution (CC BY) license https://\ncreativecommons.org/licenses/by/\n4.0/."),
+            )
+          : undefined,
+    })
+
+    return Effect.gen(function* () {
+      expect(outcomes(yield* gather())).toEqual({ [work(1).id]: "Text" })
+
+      const text = yield* held(work(1))
+
+      assert(Held.guards.Text(text), "Expected the paper's text")
+      expect(text.copy.evidence).toMatchObject([
+        { page: 1, licence: "https://creativecommons.org/licenses/by/4.0/" },
+      ])
+    }).pipe(Effect.provide(layerOf(place.http)))
   })
 })
