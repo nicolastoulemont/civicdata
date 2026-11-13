@@ -1,5 +1,6 @@
 import {
   type Action,
+  AgentUnavailable,
   type ChartIndex,
   chartsOf,
   type ConversationId,
@@ -64,10 +65,10 @@ interface Pending {
 
 // The steps of the answer to `pending`, asked or followed. Asking fails with
 // TooManyQuestions or ConversationBusy before the answer starts, and either
-// fails with AgentUnavailable or CatalogUnavailable during
-// it. Following an answer the server was not giving has no steps. One span
-// runs from the request to the last step; the server's spans of the answer
-// sit inside it.
+// fails with AgentUnavailable or CatalogUnavailable during it, or dies when
+// the server dies giving it. Following an answer the server was not giving
+// has no steps. One span runs from the request to the last step; the
+// server's spans of the answer sit inside it.
 const stepsOf = (id: ConversationId, { question, via }: Pending) =>
   Stream.unwrap(
     request(page, (api) =>
@@ -315,6 +316,9 @@ const answering =
         }),
         Stream.concat(last(ended)),
         Stream.catch((error) => last(failed(error))),
+        // The server died giving the answer and sent its defect down the
+        // stream: the page shows the assistant as unavailable.
+        Stream.catchDefect(() => last(failed(new AgentUnavailable()))),
       )
     })
 

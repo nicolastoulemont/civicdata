@@ -44,6 +44,7 @@ openfacts charts public data about countries from the World Bank, Eurostat and t
 - Workers forbid timers, random values and I/O at module scope. Build Effect runtimes and handlers on the first request, as `packages/server/src/index.ts` does.
 - Read each binding from `cloudflare:workers` inside its own Effect layer, importing the module dynamically and falling back when it is missing, as `Cache.layer` in `packages/server/src/Cache.ts` does. `pnpm dev:web` and the Node build run outside Workers, where the module does not exist.
 - Only `packages/infra` imports Alchemy, and `vite.config.ts` gets no Cloudflare plugin: Alchemy adds its own at build time.
+- Production's D1 database serves every search and every preview without `own-catalog`, and D1 refuses all its queries for a while once they use too much time in a 10-second window. Against it, run only `EXPLAIN QUERY PLAN` and `SELECT`s that read a few rows by an index; one unindexed join over the labels reads 35 million rows. Read what production's queries cost with `wrangler d1 insights`, and run anything heavier on a preview with `own-catalog` or locally.
 
 ## Tooling gotchas
 
