@@ -56,6 +56,9 @@ const bucket = env.PAPERS
 if (PapersDb === undefined || bucket === undefined)
   throw new Error("vitest.config.ts must bind PAPERS_DB and PAPERS")
 
+// The test's PAPERS bucket, for a reader or writer under test.
+export const papersBucket = bucket
+
 // The test's PAPERS_DB, for builders and for a reader under test.
 export const papersDb = D1Client.layer({ db: PapersDb }).pipe(Layer.orDie)
 

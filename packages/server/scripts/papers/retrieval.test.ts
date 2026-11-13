@@ -4,8 +4,8 @@ import { Effect, Layer, Redacted, Schema } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
 
 import { grounded, model, ResearchUnavailable, Scope } from "../../src/research/annotation.ts"
+import { AnnotationInvalid, Annotator } from "../../src/research/Annotator.ts"
 import { Question, questionOf, search } from "../../src/research/search.ts"
-import { Annotator } from "./annotator.ts"
 import { gather } from "./gather.ts"
 import { Retrieval } from "./retrieval.ts"
 import { recorded, seed } from "./testing.ts"
@@ -80,7 +80,7 @@ const provider = () => {
   return {
     requests,
     state,
-    layer: Annotator.live(apiKey).pipe(
+    layer: Annotator.layer(apiKey).pipe(
       Layer.provide(OpenAiLanguageModel.model(model)),
       Layer.provide(OpenAiClient.layer({ apiKey })),
       Layer.provide(http),
@@ -189,7 +189,7 @@ it.effect(
       ]
 
       remote.state.reference = { page: 99, part: 0, sentence: 0 }
-      expect(yield* annotator.scope(passages).pipe(Effect.flip)).toBeInstanceOf(ResearchUnavailable)
+      expect(yield* annotator.scope(passages).pipe(Effect.flip)).toBeInstanceOf(AnnotationInvalid)
 
       for (const answers of [
         [],
@@ -200,7 +200,7 @@ it.effect(
         remote.state.answers = answers
         expect(
           yield* annotator.labels(passages, { excerpts: scope.excerpts }).pipe(Effect.flip),
-        ).toBeInstanceOf(ResearchUnavailable)
+        ).toBeInstanceOf(AnnotationInvalid)
       }
     }).pipe(Effect.provide(remote.layer))
   },

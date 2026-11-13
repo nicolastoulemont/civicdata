@@ -25,7 +25,8 @@
     "papers": "node scripts/papers.ts",
     "research": "node scripts/research.ts",
     "papers:intake": "node scripts/intake.ts",
-    "papers:publish": "node scripts/publish.ts"
+    "papers:publish": "node scripts/publish.ts",
+    "annotate": "node scripts/annotate.ts"
   },
   "dependencies": {
     "@effect/ai-openai": "4.1.2",

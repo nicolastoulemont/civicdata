@@ -218,15 +218,19 @@ export class Step extends Context.Service<
   }
 >()("@repo/server/CatalogBuild/Step") {
   // A step's body runs with the caller's services, so its spans and logs
-  // reach the run's tracer under the span that started the step.
-  static readonly workflow = (step: WorkflowStep) =>
+  // reach the run's tracer under the span that started the step. Each step
+  // retries as `config` says, by default as a build's do.
+  static readonly workflow = (
+    step: WorkflowStep,
+    config: CloudflareWorkersModule.WorkflowStepConfig = retried,
+  ) =>
     Layer.succeed(
       Step,
       Step.of({
         run: (name, effect) =>
           Effect.flatMap(Effect.context(), (context) =>
             Effect.tryPromise({
-              try: () => step.do(name, retried, () => Effect.runPromiseWith(context)(effect)),
+              try: () => step.do(name, config, () => Effect.runPromiseWith(context)(effect)),
               catch: (cause) => new StepFailed({ step: name, cause }),
             }),
           ),

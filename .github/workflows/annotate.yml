@@ -1,0 +1,72 @@
+name: Annotate papers
+
+# Starts one run of a stage's Annotate Workflow with a list of paper
+# versions (docs/papers.md#annotation). No stage runs it on a schedule, so
+# this and packages/server/scripts/annotate.ts are the only ways a run
+# starts. A preview without the own-catalog label reads production's paper
+# store and has no Annotate Workflow, so it is refused. Each run costs model
+# calls. Run it from the Actions tab or with
+# `gh workflow run annotate.yml -f stage=pr-123 -f versions="<id> <id>"`.
+on:
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: "Stage: prod, or pr-<number>"
+        required: true
+        type: string
+      versions:
+        description: "Paper version ids, separated by spaces"
+        required: true
+        type: string
+      command:
+        description: "annotate; retry, which also claims Abandoned keys; or retire, which clears annotations under older settings"
+        required: true
+        default: annotate
+        type: choice
+        options: [annotate, retry, retire]
+
+permissions: {}
+
+jobs:
+  annotate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    # The production environment only accepts runs from main.
+    environment: ${{ inputs.stage == 'prod' && 'production' || 'preview' }}
+    env:
+      STAGE: ${{ inputs.stage }}
+      VERSIONS: ${{ inputs.versions }}
+      COMMAND: ${{ inputs.command }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Check the stage
+        run: |
+          if [[ ! "$STAGE" =~ ^(prod|pr-([0-9]+))$ ]]; then
+            echo "::error::Stage must be prod or pr-<number>"
+            exit 1
+          fi
+          pr=${BASH_REMATCH[2]}
+          if [[ -n "$pr" ]]; then
+            labels=$(gh pr view "$pr" --json labels --jq '.labels[].name')
+            if ! grep -qx own-catalog <<< "$labels"; then
+              echo "::error::#$pr has no own-catalog label: its preview reads production's paper store and has no Annotate Workflow"
+              exit 1
+            fi
+          fi
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+        with:
+          require-lockfile: true
+      - name: Start a run
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          read -ra versions <<< "$VERSIONS"
+          pnpm --filter @repo/server run annotate --stage "$STAGE" --command "$COMMAND" "${versions[@]}"

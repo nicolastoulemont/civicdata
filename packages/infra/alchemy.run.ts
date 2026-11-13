@@ -108,11 +108,11 @@ export default Alchemy.Stack(
           Alchemy.RemovalPolicy.retain(stage === "prod"),
         ),
         papers: yield* Cloudflare.R2.Bucket("Papers", { forceDestroy }),
-        // The Workflows that build the catalog and gather the series. A
-        // stage with its own catalog needs both even unscheduled: only a
-        // Workflow writes its tables and bucket, and a build refuses to run
-        // in a Worker that binds either one alone (`database` in
-        // packages/server/src/CatalogBuild.ts).
+        // The Workflows that build the catalog, gather the series and
+        // annotate papers. A stage with its own catalog needs them even
+        // unscheduled: only a Workflow writes its tables and buckets, and a
+        // build refuses to run in a Worker that binds the catalog's or the
+        // gather's alone (`database` in packages/server/src/CatalogBuild.ts).
         workflows: Option.some({
           // Builds the indicator catalog, in production every Monday at
           // 04:00 UTC: a native Workflow schedule, no Cron Trigger. CI starts
@@ -131,6 +131,14 @@ export default Alchemy.Stack(
             workflowName: `${prefix}-gather`,
             className: "GatherWorkflow",
             schedules: scheduled ? ["0 5 * * *"] : [],
+          }),
+          // Annotates a list of stored paper versions with the model
+          // (docs/papers.md#annotation), only when someone starts a run
+          // (.github/workflows/annotate.yml): each run costs model calls.
+          ANNOTATE: Cloudflare.Workflow("Annotate", {
+            workflowName: `${prefix}-annotate`,
+            className: "AnnotateWorkflow",
+            schedules: [],
           }),
         }),
       }
@@ -151,7 +159,8 @@ export default Alchemy.Stack(
         papersDatabase: yield* Cloudflare.D1.Database.ref("PapersDatabase", prod),
         papers: yield* Cloudflare.R2.Bucket.ref("Papers", prod),
         // None: their schedules would rebuild production's catalog and store
-        // with the pull request's code.
+        // with the pull request's code, and an annotation run would write
+        // production's papers.
         workflows: Option.none(),
       }
     })
