@@ -1,9 +1,9 @@
 # Paper evidence in answers
 
 Steps 1–4 now run locally: a larger licensed corpus, passage-quality checks,
-sentence-support checks, and assistant retrieval with citation cards. The corpus
-is packaged with the server. Production D1 storage, indexing and scheduled
-refresh are separate work; this change does not deploy them.
+sentence-support checks, and assistant retrieval with citation cards. The
+publication command copies the corpus into a stage's paper store, which answers
+read ([paper store](../../../papers.md)).
 
 ## Corpus and source evidence
 
@@ -73,8 +73,8 @@ explicitly missing.
 
 ## Assistant and sentence support
 
-`search_papers` searches the packaged corpus without network or annotation calls.
-It returns source passages and registers citation IDs alongside the existing
+`search_papers` searches the paper store without annotation calls ([paper
+store](../../../papers.md#conversations)). It returns source passages and registers citation IDs alongside the existing
 15 reviewed findings. Paper citations keep original source wording; reviewed
 findings keep their existing authored wording. Neither path changes chart data.
 
@@ -126,8 +126,8 @@ pnpm --filter @repo/server run research --annotate
 pnpm --filter @repo/server run research --check
 pnpm --filter @repo/server run research --query 'causal carbon tax emissions Britain'
 pnpm --filter @repo/server run research --query 'fiscal consolidation economic growth Spain'
-# Verify records/PDF hashes and atomically replace the server's packaged corpus.
-pnpm --filter @repo/server run research --pack
+# Publish the corpus to a stage's paper store (docs/papers.md#publication).
+pnpm --filter @repo/server run papers:publish
 ```
 
 All three scripts default to `.papers/corpus-v4`. `papers` takes `--output`;

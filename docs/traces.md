@@ -130,7 +130,10 @@ Open a trace from any result to see its waterfall: each round, what the model wr
 
 ## Research checks
 
-`Library.search` searches the packaged licensed corpus. `Support.review` records
+`Library.search` searches the paper store, with `Discovery.search` and
+`Papers.read` spans under it, and `Demand.record` records the demand of a
+lookup's readings; a demand write that fails or times out logs a warning on the
+tool's span. `Support.review` records
 the work of checking research prose, including its `LanguageModel.generateObject`
 request. That request includes the proposed sentences and public source passages.
 The generator's raw output, including prose later withheld, can remain in the

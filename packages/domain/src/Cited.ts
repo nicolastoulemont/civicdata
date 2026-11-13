@@ -1,7 +1,7 @@
 import { Schema } from "effect"
 
 import { Finding } from "./Finding.ts"
-import { Paper } from "./Paper.ts"
+import { Paper, Withdrawn } from "./Paper.ts"
 import { type Ballot, Election, Event, Government, Reform } from "./Politics.ts"
 
 // A record's id, as the agent reads it in a lookup:
@@ -14,8 +14,9 @@ export const RecordId = Schema.String.check(
 
 export type RecordId = typeof RecordId.Type
 
-// One record the agent's words can cite: a political record, or a research
-// finding.
+// One record the agent's words can cite: a political record, a research
+// finding or a paper. A saved turn shows a paper whose copy was withdrawn
+// since as Withdrawn, under the same id.
 export const Cited = Schema.TaggedUnion({
   Government: { government: Government },
   Election: { election: Election },
@@ -23,6 +24,7 @@ export const Cited = Schema.TaggedUnion({
   Reform: { reform: Reform },
   Finding: { finding: Finding },
   Paper: { paper: Paper },
+  Withdrawn: { paper: Withdrawn },
 })
 
 export type Cited = typeof Cited.Type
@@ -40,6 +42,7 @@ export const idOf = (cited: Cited): RecordId =>
       Reform: ({ reform }) => `reform:${reform.id}`,
       Finding: ({ finding }) => `finding:${finding.id}`,
       Paper: ({ paper }) => `paper:${paper.id}`,
+      Withdrawn: ({ paper }) => `paper:${paper.id}`,
     }),
   )
 
@@ -62,4 +65,5 @@ export const nameOf = (cited: Cited) =>
     Reform: ({ reform }) => reform.name,
     Finding: ({ finding }) => finding.name,
     Paper: ({ paper }) => paper.study.title,
+    Withdrawn: ({ paper }) => paper.study.title,
   })

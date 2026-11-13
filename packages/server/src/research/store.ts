@@ -1,3 +1,4 @@
+import { Withdrawal } from "@repo/domain"
 import { Effect, Schema, Struct } from "effect"
 import { SqlClient } from "effect/sql"
 
@@ -35,9 +36,7 @@ export type Reason = typeof Reason.Type
 // retraction removed its text.
 export type Admission = "Admitted" | "Restricted" | "Retracted" | "Unidentified" | "Withdrawn"
 
-export const Withdrawal = Schema.Literals(["Rights", "Retraction"])
-
-export type Withdrawal = typeof Withdrawal.Type
+export { Withdrawal }
 
 // One exact copy the store holds: the location it came from, under that
 // location's licence and source version, with the evidence that admitted it.

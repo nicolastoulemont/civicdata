@@ -80,10 +80,18 @@ const Row = Schema.Struct({
 
 type Row = typeof Row.Type
 
+// A copy id, as `Holding` and a cited paper's `copy` hold it.
+type CopyId = typeof Holding.fields.id.Type
+
 interface Interface {
   readonly read: (
     paper: PaperId,
   ) => Effect.Effect<Held, PaperMissing | PaperCorrupt | PapersUnavailable>
+  // Which of these copies were withdrawn, and why. A copy the store does
+  // not hold, or holds unwithdrawn, is not in the map.
+  readonly withdrawn: (
+    copies: ReadonlyArray<CopyId>,
+  ) => Effect.Effect<ReadonlyMap<CopyId, Withdrawal>, PapersUnavailable>
 }
 
 // Reads papers from PAPERS_DB and PAPERS and never writes either: a preview
@@ -176,13 +184,40 @@ export class Papers extends Context.Service<Papers, Interface>()("@repo/server/P
           return yield* heldOf(row.value)
         })
 
-        return Papers.of({ read })
+        // One statement whatever the number of copies: D1 caps a
+        // statement's bound values at 100. `copy` is read by primary key.
+        const withdrawals = SqlSchema.findAll({
+          Request: Schema.String,
+          Result: Schema.Struct({ id: Holding.fields.id, withdrawal: Withdrawal }),
+          execute: (ids) => sql`
+            SELECT copy.id, copy.withdrawal
+            FROM json_each(${ids}) AS id
+            CROSS JOIN copy ON copy.id = id.value
+            WHERE copy.withdrawal IS NOT NULL
+          `,
+        })
+
+        const withdrawn = Effect.fn("Papers.withdrawn")(
+          function* (copies: ReadonlyArray<CopyId>) {
+            if (copies.length === 0) return new Map<CopyId, Withdrawal>()
+
+            const rows = yield* withdrawals(JSON.stringify([...new Set(copies)]))
+
+            return new Map(rows.map(({ id, withdrawal }) => [id, withdrawal]))
+          },
+          Effect.mapError((cause) => new PapersUnavailable({ cause })),
+        )
+
+        return Papers.of({ read, withdrawn })
       }),
     )
 
   static readonly none = Layer.succeed(
     Papers,
-    Papers.of({ read: () => Effect.fail(new PapersUnavailable({ cause: "No paper store" })) }),
+    Papers.of({
+      read: () => Effect.fail(new PapersUnavailable({ cause: "No paper store" })),
+      withdrawn: () => Effect.fail(new PapersUnavailable({ cause: "No paper store" })),
+    }),
   )
 
   // PAPERS_DB and PAPERS inside Workers. Outside them, or with either

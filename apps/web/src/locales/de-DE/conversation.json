@@ -178,5 +178,10 @@
   "searched": "Nach „{{text}}“ gesucht: {{count}} Treffer",
   "searchedSource": "Nach „{{text}}“ in {{source}} gesucht: {{count}} Treffer",
   "noMatches": "Keine Treffer für „{{text}}“",
-  "noMatchesSource": "Keine Treffer für „{{text}}“ in {{source}}"
+  "noMatchesSource": "Keine Treffer für „{{text}}“ in {{source}}",
+  "Papers to read": "Lesenswerte Studien",
+  "Not reviewed": "Nicht geprüft",
+  "Search found these papers, but no review has read them yet. The answer does not draw on them.": "Die Suche hat diese Studien gefunden, aber noch keine Prüfung hat sie gelesen. Die Antwort stützt sich nicht auf sie.",
+  "Page {{page}}": "Seite {{page}}",
+  "Reuse licence": "Lizenz zur Weiterverwendung"
 }

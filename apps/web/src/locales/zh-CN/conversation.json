@@ -178,5 +178,10 @@
   "searched": "搜索“{{text}}”：找到 {{count}} 项结果",
   "searchedSource": "在 {{source}} 中搜索“{{text}}”：找到 {{count}} 项结果",
   "noMatches": "未找到“{{text}}”的搜索结果",
-  "noMatchesSource": "在 {{source}} 中未找到“{{text}}”的搜索结果"
+  "noMatchesSource": "在 {{source}} 中未找到“{{text}}”的搜索结果",
+  "Papers to read": "推荐阅读的论文",
+  "Not reviewed": "未经审阅",
+  "Search found these papers, but no review has read them yet. The answer does not draw on them.": "搜索找到了这些论文，但尚未经过审阅。回答没有引用它们。",
+  "Page {{page}}": "第 {{page}} 页",
+  "Reuse licence": "再利用许可"
 }

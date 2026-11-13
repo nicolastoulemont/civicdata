@@ -531,6 +531,21 @@ const describe = (t: TFunction<"explore">, format: ReturnType<typeof useFormat>)
           link: paper.url,
         }
       },
+      // A paper whose copy was withdrawn after the answer cited it: the
+      // study and why, never the quote.
+      Withdrawn: ({ paper }) => ({
+        lines: [
+          Match.value(paper.reason).pipe(
+            Match.when("Rights", () =>
+              t(($) => $["Quote withdrawn: the rights to reuse this copy ended"]),
+            ),
+            Match.when("Retraction", () => t(($) => $["Quote withdrawn: the paper was retracted"])),
+            Match.exhaustive,
+          ),
+        ],
+        pages: [studied(paper.study)],
+        link: paper.study.url,
+      }),
       Finding: ({ finding }) => {
         const pages = papers(finding.evidence)
 

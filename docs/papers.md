@@ -109,7 +109,7 @@ Ranking:
 
 - bm25 weighs a word in a title ten times one in a passage.
 - The search reads the index's 100 best rows of published papers: a title of a paper with text or a metadata reason, or a passage of a paper's active version. The index leads the join; `version` and `paper` are read by primary key.
-- A passage that reads as a reference list (dense author initials, years before titles, volumes, page ranges, DOIs) is dropped, so a paper is not found for the titles it cites. On the 502 labelled passages of `corpus.json` the check flags 34 of the 42 reference passages and 6 of the 460 others, mostly tables and title pages.
+- A passage that reads as a reference list (dense author initials, years before titles, volumes, page ranges, DOIs) is dropped, so a paper is not found for the titles it cites. On the 502 labelled passages of the corpus fixture (`packages/server/test/fixtures/papers/corpus.json`) the check flags 34 of the 42 reference passages and 6 of the 460 others, mostly tables and title pages.
 - Rows group by paper. A paper scores its title's bm25 plus that of its best three passages, and search returns the best ten papers.
 
 Each `Match` is one of:
@@ -119,7 +119,7 @@ Each `Match` is one of:
 
 A match carries no citation and does not decode as the domain's `Paper`. Search never reads an annotation's scope: an unannotated paper is found like an annotated one, and no publication year, affiliation or keyword stands in for a study's period or population. A withdrawn paper or one whose publication has not finished is not found. Search only reads `PAPERS_DB`: it never touches `CATALOG_DB` or the bucket, records no demand and schedules nothing. It fails with `PapersUnavailable` when D1 fails, the tables are missing, or the Worker binds no store.
 
-`packages/server/test/Discovery.test.ts` runs search inside workerd against D1, and against a sample: the eight papers of `corpus.json`, unannotated, and the metadata of the 93 other records the corpus run found (`docs/research/papers/corpus-run.json`). Each of its 12 queries ranks its wanted papers in the first two results.
+`packages/server/test/Discovery.test.ts` runs search inside workerd against D1, and against a sample: the eight papers of the corpus fixture, unannotated, and the metadata of the 93 other records the corpus run found (`docs/research/papers/corpus-run.json`). Each of its 12 queries ranks its wanted papers in the first two results.
 
 ## Demand
 
@@ -269,6 +269,35 @@ FROM annotation_run GROUP BY run ORDER BY ended DESC LIMIT 10;
 Demand lives in the stage's `DB`, not `PapersDatabase`: read it with the query under [Demand](#demand), with `-30 days` for what the next run considers.
 
 `packages/server/test/Annotate.test.ts` runs the Workflow's work against D1 and R2 inside workerd, with OpenAI faked on the wire and a fake Workflows step runner that saves, replays, retries, loses and crashes steps. Its `Demand` runs read the real demand record in the test's `DB`.
+
+## Conversations
+
+`search_papers` in `packages/server/src/Agent.ts` asks `Library.search` (`packages/server/src/research/Library.ts`), which reads only the store: it runs `Discovery.search` on the question's words, then `Papers.read` for each match whose version has an annotation. The Worker bundles no paper: the corpus that used to ship as `corpus.json` is now a test fixture, and a stage answers from whatever its store holds.
+
+The lookup answers, per paper, one of:
+
+- `Evidence`: a passage of the version's active annotation, as the domain's `Paper`, with its copy, page, hash, version and licences. It passes the same gates as before: the annotation's scope covers the question's countries and years, a cause needs an author-reported causal estimate in both result and design, and the quote is exact text from its page. Only evidence and the reviewed findings get citation ids, and Support still checks each sentence that cites one.
+- `Reading`: a match with no annotation, including a metadata-only paper. It has no scope: its publication year and publisher never stand in for the years or people a study covers. It gets no citation id, so words that cite it are dropped, as words citing any record the answer did not look up are.
+
+It answers `NoEvidence` when it found neither. An annotated paper whose annotation gives no passage for the question is neither evidence nor reading.
+
+The model receives evidence passages as before, and of the readings only how many the answer shows, as `suggested`. It never receives a reading's title or text: paper text is untrusted, and keeping unreviewed text out of the prompt is the one check that rests on no model judgement. Code shows up to three readings under the answer, as a `Readings` block labelled as not reviewed, with each paper's title, authors, year, source link, and for an admitted copy its reuse licences and the passage search matched. A turn saves the block with the answer, and the model never sees it.
+
+After each lookup, the answer records demand for up to three readings with admitted text, highest-ranked first, through `Demand.record`. The write has a one-second timeout; a failure or a timeout is logged as a warning and the answer goes on. A conversation never starts a Workflow or calls the annotation model: it only reads `PAPERS_DB` and `PAPERS` and writes demand to `DB`. A paper the annotation run annotates since is evidence for the next question that finds it; answers already given stay as they were.
+
+Model requests per answer are unchanged: the rounds of the answer, plus one support review per text block.
+
+### Withdrawn citations
+
+A citation keeps the store's id of the copy it quotes (`copy` on the domain's `Paper`). When a conversation's turns load, `Papers.withdrawn` reads which of the cited copies were withdrawn, in one query, and each such citation shows as `Withdrawn`: its study and the withdrawal reason, without the quote or the context. Before the next question, the agent replaces each withdrawn passage in the model's history with its id and the reason. The words the agent wrote stay as written, in the turn and in the history. A store that cannot answer leaves the citations as saved and logs a warning. Citations saved before the store have no copy id, and show as saved.
+
+### Rollout and previews
+
+A stage answers from its own store, which starts empty: until a publication fills it, every lookup answers `NoEvidence` and no reading is shown. Production's store already holds 201 papers, 8 with text and annotations and 193 metadata-only, so production answers with evidence from those 8 and suggests the rest as reading from its first deploy.
+
+A `pr-<n>` preview without the `own-catalog` label, and `alchemy dev` without `OWN_CATALOG=true`, read production's `PAPERS_DB` and `PAPERS` ([bindings and stages](#bindings-and-stages)), so they show production's evidence and readings. Their demand goes to their own `DB`, never production's. A preview with the label reads its own empty store until someone publishes to it.
+
+`packages/server/test/conversation.test.ts` runs these paths through the conversation's API inside workerd, with the model scripted and the store filled by `test/papers.ts`: evidence from an annotation, cold matches, no match, a demand write that fails or hangs, a paper annotated between two questions, and a withdrawn citation in a saved turn. Its scripted model fails any request other than an answer's round or a support review, so a test that called the annotation model would fail. These tests do not show how a real model treats the count of readings; that rests on the instructions until an eval covers it.
 
 ## Tests
 

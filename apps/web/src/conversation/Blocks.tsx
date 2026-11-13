@@ -1,11 +1,15 @@
-import { type Block, Chart } from "@repo/domain"
+import { type Block, Chart, Readings as Suggested } from "@repo/domain"
 import { Schema } from "effect"
 import { Fragment, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"
 
 import { Prose } from "@/explore/Prose"
 
+import { Readings } from "./Readings.tsx"
+
 const isChart = Schema.is(Chart)
+
+const isReadings = Schema.is(Suggested)
 
 interface BlocksProps {
   blocks: ReadonlyArray<Block>
@@ -24,7 +28,7 @@ interface BlocksProps {
 // answers, its work sits between them, in the order it happened. Each block
 // keeps its place when the work around it goes, so a chart drawn while the
 // agent answers stays as it is once the answer is kept. Once a person changes
-// a chart, the words grey out and say so.
+// a chart, the words grey out and say so. Papers to read come last.
 export const Blocks = ({ blocks, charts, work, changed = false }: BlocksProps) => {
   const { t } = useTranslation("conversation")
 
@@ -53,6 +57,8 @@ export const Blocks = ({ blocks, charts, work, changed = false }: BlocksProps) =
               >
                 {charts[place]}
               </section>
+            ) : isReadings(block) ? (
+              <Readings readings={block.readings} />
             ) : (
               <Prose
                 text={block.text}
@@ -65,7 +71,7 @@ export const Blocks = ({ blocks, charts, work, changed = false }: BlocksProps) =
         )
       })}
       {after}
-      {changed && blocks.some((block) => !isChart(block)) ? (
+      {changed && blocks.some((block) => !isChart(block) && !isReadings(block)) ? (
         <p className="text-sm text-muted-foreground">
           {t(($) => $["This answer describes the charts before your changes."])}
         </p>

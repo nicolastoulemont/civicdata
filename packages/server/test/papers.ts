@@ -1,13 +1,14 @@
 import { D1Client } from "@effect/sql-d1"
 import { Paper, Year } from "@repo/domain"
 import { env } from "cloudflare:workers"
-import { Effect, Layer } from "effect"
+import { Array as Arr, Effect, Layer, Schema, Struct } from "effect"
 import type { NonEmptyReadonlyArray } from "effect/Array"
 import { SqlClient } from "effect/sql"
 
 import { fingerprint } from "../src/fingerprint.ts"
 import { Scope } from "../src/research/annotation.ts"
 import { Evidence, type Passage } from "../src/research/archive.ts"
+import { Entry } from "../src/research/entry.ts"
 import {
   type Admission,
   annotationKey,
@@ -19,6 +20,7 @@ import {
   tables,
   type Withdrawal,
 } from "../src/research/store.ts"
+import corpus from "./fixtures/papers/corpus.json"
 
 export const paper = () =>
   Paper.make({
@@ -218,3 +220,81 @@ export const withdraw = ({
   reason = "Rights",
 }: { readonly paper?: Bibliography; readonly reason?: Withdrawal } = {}) =>
   write(entry, null).pipe(Effect.andThen(copyOf(entry, "Withdrawn", reason)), Effect.as(entry.id))
+
+// An annotation of `version`'s text, made its active one, as the annotation
+// Workflow publishes it.
+export const annotate = ({
+  version,
+  annotation,
+}: {
+  readonly version: string
+  readonly annotation: Body
+}) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient
+
+    const row = yield* Effect.fromOption(
+      Arr.head(
+        yield* sql<{ readonly text: string; readonly extraction: string }>`
+          SELECT text, extraction FROM version WHERE id = ${version}`,
+      ),
+    ).pipe(Effect.orDie)
+
+    const key = yield* annotationKey({ ...row, model: "gpt-6-luna", rubric: "research-3" })
+
+    yield* sql`INSERT INTO annotation (key, text, extraction, model, rubric, body, created_at)
+      VALUES (${key}, ${row.text}, ${row.extraction}, 'gpt-6-luna', 'research-3',
+        ${JSON.stringify(annotation)}, ${retrievedAt})`
+    yield* sql`UPDATE version SET annotation = ${key} WHERE id = ${version}`
+  })
+
+// The papers of the corpus fixture: eight gathered and annotated papers,
+// kept out of the Worker.
+export const entries = corpus.map((entry) => Schema.decodeUnknownSync(Entry)(entry))
+
+// A corpus paper by the start of its id, e.g. "2ac931" for the carbon tax
+// study.
+export const entry = (id: string) => {
+  const found = entries.find((each) => each.paper.seed.id.startsWith(id))
+
+  if (found === undefined) throw new Error(`No corpus paper ${id}`)
+
+  return found
+}
+
+// A corpus paper's annotation, as the store holds it.
+export const bodyOf = ({ annotation }: Entry): Body => Body.make(Struct.omit(annotation, ["stamp"]))
+
+// A corpus paper as publication stores it, with its annotation unless a
+// test says it has none yet.
+export const stored = (corpusEntry: Entry, { annotated = true } = {}) =>
+  publish({
+    paper: bibliography({
+      id: PaperId.make(corpusEntry.paper.seed.id),
+      openalex: corpusEntry.paper.seed.openalex,
+      study: corpusEntry.paper.seed.study,
+      metadataUrl: corpusEntry.paper.metadataUrl,
+      retrievedAt: corpusEntry.paper.retrievedAt,
+    }),
+    passages: corpusEntry.paper.content.passages,
+    annotation: annotated ? bodyOf(corpusEntry) : null,
+  })
+
+// A published copy withdrawn, in the order the publication command follows:
+// the paper's active version cleared, the copy's versions deleted, then the
+// copy marked withdrawn with its reason.
+export const withdrawCopy = ({
+  copy,
+  reason = "Rights",
+}: {
+  readonly copy: string
+  readonly reason?: Withdrawal
+}) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient
+
+    yield* sql`UPDATE paper SET active = NULL
+      WHERE active IN (SELECT id FROM version WHERE copy = ${copy})`
+    yield* sql`DELETE FROM version WHERE copy = ${copy}`
+    yield* sql`UPDATE copy SET admission = 'Withdrawn', withdrawal = ${reason} WHERE id = ${copy}`
+  })

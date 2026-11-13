@@ -2,8 +2,8 @@ import { countries, Country } from "@repo/domain"
 import { Schema } from "effect"
 import { stemmer } from "stemmer"
 
-import { Scope, keyOf } from "./annotation.ts"
-import type { Entry } from "./entry.ts"
+import { type Annotation, Scope, keyOf } from "./annotation.ts"
+import type { Copy, Evidence, Passage, Seed } from "./archive.ts"
 
 const Period = Schema.Struct({
   from: Scope.fields.periods.value.fields.from,
@@ -51,12 +51,30 @@ export const questionOf = (text: string): Question => {
   })
 }
 
+// What search reads of an annotated paper: a gathered corpus entry, or a
+// paper the store holds with its active annotation.
+export interface Annotated {
+  readonly paper: {
+    readonly seed: Pick<Seed, "id" | "study">
+    readonly content: {
+      // The copy's id in the store.
+      readonly id: string
+      readonly copy: Pick<Copy, "id" | "version">
+      readonly sha256: string
+      readonly url: string
+      readonly evidence: ReadonlyArray<Evidence>
+      readonly passages: ReadonlyArray<typeof Passage.Type>
+    }
+  }
+  readonly annotation: Pick<typeof Annotation.Type, "scope" | "labels" | "excerpts">
+}
+
 interface Options {
   readonly question: Question
   readonly confidence?: number
 }
 
-export const search = (entries: ReadonlyArray<Entry>, options: Options) => {
+export const search = (entries: ReadonlyArray<Annotated>, options: Options) => {
   const { question } = options
   const confidence = options.confidence ?? 0.9
 

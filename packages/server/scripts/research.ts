@@ -7,7 +7,6 @@ import { FileSystem } from "effect/FileSystem"
 import { FetchHttpClient } from "effect/http"
 
 import { Annotator } from "../src/research/Annotator.ts"
-import { Entry } from "../src/research/entry.ts"
 import { Question, questionOf, search } from "../src/research/search.ts"
 import { benchmark, Sample, Questions } from "./papers/benchmark.ts"
 import { Retrieval } from "./papers/retrieval.ts"
@@ -21,7 +20,6 @@ const { values } = parseArgs({
     },
     annotate: { type: "boolean", default: false },
     check: { type: "boolean", default: false },
-    pack: { type: "boolean", default: false },
     query: { type: "string" },
     country: { type: "string", multiple: true },
     from: { type: "string" },
@@ -30,14 +28,8 @@ const { values } = parseArgs({
   },
 })
 
-if (
-  Number(values.annotate) +
-    Number(values.check) +
-    Number(values.pack) +
-    Number(values.query !== undefined) !==
-  1
-)
-  throw new Error("Choose --annotate, --check, --pack or --query <text>")
+if (Number(values.annotate) + Number(values.check) + Number(values.query !== undefined) !== 1)
+  throw new Error("Choose --annotate, --check or --query <text>")
 
 if ((values.from === undefined) !== (values.to === undefined))
   throw new Error("Supply both --from and --to")
@@ -121,20 +113,8 @@ const check = Effect.gen(function* () {
     process.exitCode = 1
 })
 
-const pack = Effect.gen(function* () {
-  const entries = yield* (yield* Retrieval).entries
-  const fs = yield* FileSystem
-  const target = fileURLToPath(new URL("../src/research/corpus.json", import.meta.url))
-  const encoded = yield* Schema.encodeEffect(Schema.fromJsonString(Schema.Array(Entry)))(entries)
-  yield* fs.writeFileString(`${target}.tmp`, encoded)
-  yield* fs.rename(`${target}.tmp`, target)
-  console.log(JSON.stringify({ documents: entries.length, target }))
-})
-
 if (values.annotate)
   await Effect.runPromise(annotate.pipe(Effect.provide(Layer.mergeAll(files, remote))))
-else if (values.pack)
-  await Effect.runPromise(pack.pipe(Effect.provide(Layer.mergeAll(files, NodeFileSystem.layer))))
 else if (values.check)
   await Effect.runPromise(check.pipe(Effect.provide(Layer.mergeAll(files, NodeFileSystem.layer))))
 else await Effect.runPromise(query.pipe(Effect.provide(files)))
