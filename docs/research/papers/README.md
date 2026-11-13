@@ -152,31 +152,28 @@ prototype records. The original [source audit](#source-audit) still applies.
 ### Packaged offline corpus
 
 The archive contains the three licensed PDF snapshots and their text, 93
-metadata-only records, discovery receipts and attribution. It is the
-`corpus.tar.gz` asset of the
-[`papers-corpus-v3` release](https://github.com/nicolastoulemont/openfacts/releases/tag/papers-corpus-v3),
-kept out of Git; [corpus.sha256](corpus.sha256) holds its SHA-256. The
-standalone JSON reports contain no paper passages. To replay into a fresh
-directory:
+metadata-only records, discovery receipts and attribution. It is kept outside
+Git and published nowhere: the owner supplies `corpus.tar.gz` by hand.
+[corpus.sha256](corpus.sha256) holds its SHA-256, and a replay checks the
+archive against it first. The standalone JSON reports contain no paper passages.
+To replay into a fresh directory, put the supplied archive at
+`.papers/v3/corpus.tar.gz`, then:
 
 ```sh
-mkdir -p .papers/v3 .papers/replay
-curl -fL -o .papers/v3/corpus.tar.gz \
-  https://github.com/nicolastoulemont/openfacts/releases/download/papers-corpus-v3/corpus.tar.gz
+mkdir -p .papers/replay
 (cd .papers/v3 && shasum -a 256 -c ../../docs/research/papers/corpus.sha256)
 tar -xzf .papers/v3/corpus.tar.gz -C .papers/replay
 pnpm --filter @repo/server run papers --offline --output "$(pwd)/.papers/replay"
 ```
 
 Exit 1 is expected for the nine recorded unresolved candidates. The replay makes
-no network requests after the download. To package a refreshed local corpus
-after checking its report and attribution, publish it under a new tag and update
-the tag and checksum here:
+no network requests. To package a refreshed local corpus after checking its
+report and attribution, write a new archive, update the checksum here, and hand
+the archive over directly rather than uploading it:
 
 ```sh
 tar -czf .papers/v3/corpus.tar.gz -C .papers/corpus-v3 .
 (cd .papers/v3 && shasum -a 256 corpus.tar.gz > ../../docs/research/papers/corpus.sha256)
-gh release create <new-tag> .papers/v3/corpus.tar.gz --title "<new-tag>" --notes "Paper corpus archive"
 ```
 
 ## Source audit

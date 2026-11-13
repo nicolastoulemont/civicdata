@@ -139,21 +139,24 @@ the licence in the PDF. Refresh removes active text when a work is retracted or
 rights fail. As with the original gather, one writer owns a corpus directory.
 
 The archive includes all metadata records, discovery receipts, eight retained
-PDFs, attribution and only the eight current completed annotations. It is the
-`corpus.tar.gz` asset of the
-[`papers-corpus-v4` release](https://github.com/nicolastoulemont/openfacts/releases/tag/papers-corpus-v4),
-kept out of Git; [corpus.sha256](corpus.sha256) holds its SHA-256. It contains
-source text; retain its attribution when redistributing it.
+PDFs, attribution and only the eight current completed annotations. It is kept
+outside Git and published nowhere: the owner supplies `corpus.tar.gz` by hand.
+[corpus.sha256](corpus.sha256) holds its SHA-256, and a replay checks the
+archive against it before anything reads it. It contains source text; retain
+its attribution when passing it on. Put the supplied archive at
+`.papers/v4/corpus.tar.gz` and extract it into an empty directory:
 
 ```sh
-mkdir -p .papers/v4 .papers/replay-v4
-curl -fL -o .papers/v4/corpus.tar.gz \
-  https://github.com/nicolastoulemont/openfacts/releases/download/papers-corpus-v4/corpus.tar.gz
+mkdir -p .papers/replay-v4
 (cd .papers/v4 && shasum -a 256 -c ../../docs/research/papers/expanded/corpus.sha256)
 tar -xzf .papers/v4/corpus.tar.gz -C .papers/replay-v4
 pnpm --filter @repo/server run research --corpus "$(pwd)/.papers/replay-v4" --check
 pnpm --filter @repo/server run papers:intake --corpus "$(pwd)/.papers/replay-v4"
 ```
+
+To publish the replayed corpus to a stage's paper store, without a model call,
+run `papers:publish --corpus "$(pwd)/.papers/replay-v4"` as
+[the paper store's publication section](../../../papers.md#publication) describes.
 
 The [fresh replay receipt](replay.json) records matching benchmark output,
 zero network attempts and zero changed files for checks, annotation resume and
