@@ -1,10 +1,13 @@
 import { Effect } from "effect"
 
-import { Attempt, Content, type Copy, type Paper } from "../../src/research/archive.ts"
-import { Licences, PageCheck, supported } from "./licences.ts"
-import { copiesOf, OpenAlex } from "./openalex.ts"
+import { Attempt, Content, type Copy, type Work } from "./archive.ts"
+import { Licences, PageCheck, supported } from "./Licences.ts"
+import { copiesOf, OpenAlex } from "./OpenAlex.ts"
 import { textOf } from "./pdf.ts"
 
+// OpenAlex licence labels that make a copy worth downloading. The text is
+// admitted only with copy-specific evidence: the item's repository page or
+// a notice in the PDF itself (`textOf`).
 const admitted = new Set(["cc-by", "cc0", "public-domain"])
 
 const tryCopy = Effect.fn("Papers.copy")(function* (copy: Copy) {
@@ -37,12 +40,10 @@ const excluded = (reason: typeof Content.cases.Metadata.Type.reason) => {
   return "licence-not-admitted"
 }
 
-// Try at most three identified copies. Keep unsuccessful receipts so a
-// failed mirror retries without downloading already excluded copies again.
-export const gatherCopies = Effect.fn("Papers.copies")(function* (
-  work: NonNullable<Paper["work"]>,
-  options: { previous: Paper | null; refresh: boolean },
-) {
+// Tries at most three of a work's identified copies, licensed ones first,
+// and keeps the first whose text is admitted. Every other copy tried leaves
+// a receipt: excluded, or failed when its host or its PDF failed.
+export const admit = Effect.fn("Papers.admit")(function* (work: Work) {
   const attempts: Array<Attempt> = []
 
   const listed = copiesOf(work)
@@ -51,19 +52,6 @@ export const gatherCopies = Effect.fn("Papers.copies")(function* (
   const candidates = [...eligible, ...listed.filter((copy) => !eligibleSet.has(copy))].slice(0, 3)
 
   for (const copy of candidates) {
-    const cached = options.refresh
-      ? undefined
-      : options.previous?.attempts.find(
-          (attempt) =>
-            Attempt.fields.result.guards.Excluded(attempt.result) &&
-            JSON.stringify(attempt.copy) === JSON.stringify(copy),
-        )
-
-    if (cached !== undefined) {
-      attempts.push(cached)
-      continue
-    }
-
     const result = yield* tryCopy(copy).pipe(
       Effect.map(({ content, pdf }) => ({ content, pdf, failure: null })),
       Effect.catchTag("PaperUnavailable", (error) =>
@@ -78,14 +66,18 @@ export const gatherCopies = Effect.fn("Papers.copies")(function* (
       ),
     )
 
-    if (result.content !== null && Content.guards.Text(result.content)) {
+    if (result.content !== null && Content.guards.Text(result.content) && result.pdf !== null) {
       return { content: result.content, pdf: result.pdf, attempts }
     }
 
     const outcome =
       result.failure ??
       Attempt.fields.result.cases.Excluded.make({
-        reason: excluded(result.content?.reason ?? "no-licensed-pdf"),
+        reason: excluded(
+          result.content !== null && Content.guards.Metadata(result.content)
+            ? result.content.reason
+            : "no-licensed-pdf",
+        ),
       })
 
     attempts.push(Attempt.make({ copy, result: outcome }))

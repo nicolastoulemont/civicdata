@@ -86,7 +86,7 @@ export {
   TurnNotFound,
 } from "./Errors.ts"
 
-export { bylineOf, Evidence, Finding, Study, studiesOf } from "./Finding.ts"
+export { bylineOf, Evidence, Finding, Study } from "./Finding.ts"
 
 export { Indicator, IndicatorId, IndicatorNotes } from "./Indicator.ts"
 

@@ -1,16 +1,10 @@
 import { Array as Arr, Effect, Option } from "effect"
 import { extractText, getDocumentProxy } from "unpdf"
 
-import { fingerprint } from "../../src/fingerprint.ts"
-import {
-  Content,
-  type Copy,
-  Evidence,
-  PaperUnavailable,
-  Passage,
-} from "../../src/research/archive.ts"
-import { licenceOf } from "./licences.ts"
-import type { Download } from "./openalex.ts"
+import { fingerprint } from "../fingerprint.ts"
+import { Content, type Copy, Evidence, PaperUnavailable, Passage } from "./archive.ts"
+import { licenceOf } from "./Licences.ts"
+import type { Download } from "./OpenAlex.ts"
 
 // What produced a version's passages: the PDF parser and how passages are
 // cut. Change it whenever either changes, so the store keeps the old text

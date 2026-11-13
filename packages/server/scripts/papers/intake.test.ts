@@ -2,8 +2,9 @@ import { expect, it } from "@effect/vitest"
 import { Effect } from "effect"
 
 import { Content, PaperUnavailable } from "../../src/research/archive.ts"
+import { pdf } from "../../test/pdf.ts"
 import { intake, Source } from "./intake.ts"
-import { pdf, recorded, work } from "./testing.ts"
+import { recorded, work } from "./testing.ts"
 
 const source = Source.make({
   doi: "10.1234/employment",

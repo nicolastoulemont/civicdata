@@ -111,8 +111,6 @@ quote remain in saved citation data. Existing locale catalogs supply the labels.
 From the repository root, with dependencies installed:
 
 ```sh
-# Fetch new discovery units and retry unresolved copies locally.
-pnpm --filter @repo/server run papers
 # Audit-listed copies with DOI and exact-copy licence checks.
 pnpm --filter @repo/server run papers:intake
 # Refresh explicitly rechecks completed source records.
@@ -130,8 +128,11 @@ pnpm --filter @repo/server run research --query 'fiscal consolidation economic g
 pnpm --filter @repo/server run papers:publish
 ```
 
-All three scripts default to `.papers/corpus-v4`. `papers` takes `--output`;
-`research` and `papers:intake` take `--corpus`. Intake reads [sources.json](sources.json)
+These scripts default to `.papers/corpus-v4`; `research` and `papers:intake`
+take `--corpus`. Discovery and copy fetching no longer write this directory: the
+gather, `papers:gather`, writes new papers straight into a stage's paper store
+([gather](../../../papers.md#gather)). The corpus directory remains for replay,
+intake and annotation of these eight papers. Intake reads [sources.json](sources.json)
 by default; `--sources` selects another audited list. Each entry identifies DOI,
 copy URL, record URL and version. Intake requires matching DOI metadata and DOI
 text in the PDF. EconStor uses exact-item rights; other audited copies must prove

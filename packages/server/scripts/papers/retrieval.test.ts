@@ -6,9 +6,8 @@ import { HttpClient, HttpClientResponse } from "effect/http"
 import { grounded, model, ResearchUnavailable, Scope } from "../../src/research/annotation.ts"
 import { AnnotationInvalid, Annotator } from "../../src/research/Annotator.ts"
 import { Question, questionOf, search } from "../../src/research/search.ts"
-import { gather } from "./gather.ts"
 import { Retrieval } from "./retrieval.ts"
-import { recorded, seed } from "./testing.ts"
+import { recorded, saved, seed } from "./testing.ts"
 
 const anchor = { page: 1, quote: "Employment rose in France." }
 
@@ -101,7 +100,7 @@ it.effect(
     )
 
     return Effect.gen(function* () {
-      yield* gather(seed, { mode: "Resume" })
+      yield* saved
       const corpus = yield* Retrieval
       const docs = yield* corpus.documents
       const paper = docs[0]
@@ -139,7 +138,7 @@ it.effect(
         expect(search([entry], { question: questionOf(text) }).status).toBe("NoEvidence")
       }
 
-      expect(world.requests).toHaveLength(2)
+      expect(world.requests).toEqual([])
     }).pipe(Effect.provide(layer))
   },
 )
@@ -152,7 +151,7 @@ it.effect(
     remote.state.up = false
 
     return Effect.gen(function* () {
-      yield* gather(seed, { mode: "Resume" })
+      yield* saved
       const corpus = yield* Retrieval
       const paper = (yield* corpus.documents)[0]
 
@@ -213,7 +212,7 @@ it.effect(
     const remote = provider()
 
     return Effect.gen(function* () {
-      yield* gather(seed, { mode: "Resume" })
+      yield* saved
       const corpus = yield* Retrieval
       const paper = (yield* corpus.documents)[0]
 

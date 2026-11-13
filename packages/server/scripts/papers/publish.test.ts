@@ -1,13 +1,9 @@
-import { DatabaseSync } from "node:sqlite"
-
 import { expect, it } from "@effect/vitest"
-import { Effect, Layer, Redacted, Schema } from "effect"
+import { Effect, Schema } from "effect"
 import type { NonEmptyReadonlyArray } from "effect/Array"
-import * as FileSystem from "effect/FileSystem"
-import { FetchHttpClient } from "effect/http"
 
 import { fingerprint } from "../../src/fingerprint.ts"
-import { Annotation, model, rubric, Scope } from "../../src/research/annotation.ts"
+import { model, rubric } from "../../src/research/annotation.ts"
 import {
   Attempt,
   Content,
@@ -17,136 +13,17 @@ import {
   type Passage,
   Seed,
 } from "../../src/research/archive.ts"
-import { Document } from "../../src/research/entry.ts"
 import { Held, Papers } from "../../src/research/Papers.ts"
+import { withdraw } from "../../src/research/publication.ts"
 import { annotationKey, objectsOf, PaperId } from "../../src/research/store.ts"
-import { d1 } from "../d1.ts"
-import { Bucket } from "./bucket.ts"
-import { Outcome, publish, withdraw } from "./publish.ts"
-import { inputOf } from "./retrieval.ts"
+import { Publication, publish } from "./publish.ts"
+import { annotate, corpus, stage } from "./testing.ts"
 
-// A stage's paper store on the wire: D1's HTTP API answered by SQLite with
-// foreign keys on, as D1 runs them, and R2's object API by a map. The corpus
-// directory is an in-memory filesystem.
-
-const Query = Schema.Struct({
-  sql: Schema.String,
-  params: Schema.Array(Schema.Union([Schema.String, Schema.Finite, Schema.Null])),
-})
-
-const directory = "/corpus"
+const directory = corpus
 const retrievedAt = "2026-11-12T00:00:00.000Z"
 const licence = "https://creativecommons.org/licenses/by/4.0/"
 
-// Lets every request through to the store.
-const accept = (): Response | undefined => undefined
-
-const world = () => {
-  const db = new DatabaseSync(":memory:")
-  db.exec("PRAGMA foreign_keys = ON")
-  const objects = new Map<string, Uint8Array>()
-  const files = new Map<string, string | Uint8Array>()
-  const requests: Array<{ method: string; url: string; sql?: string }> = []
-  let refuse: (request: Request) => Response | undefined = accept
-
-  const d1Answer = async (request: Request) => {
-    const { sql, params } = Schema.decodeUnknownSync(Query)(await request.json())
-    requests.push({ method: request.method, url: request.url, sql })
-
-    try {
-      const results = db.prepare(sql).all(...params)
-
-      return Response.json({
-        result: [{ results, meta: { rows_read: results.length, rows_written: 0, size_after: 0 } }],
-      })
-    } catch (error) {
-      return new Response(String(error), { status: 400 })
-    }
-  }
-
-  const r2Answer = async (request: Request) => {
-    requests.push({ method: request.method, url: request.url })
-    const key = decodeURIComponent(new URL(request.url).pathname.split("/objects/")[1] ?? "")
-    const held = objects.get(key)
-
-    if (request.method === "PUT") objects.set(key, new Uint8Array(await request.arrayBuffer()))
-
-    if (request.method === "DELETE") objects.delete(key)
-
-    if (request.method === "GET")
-      return held === undefined
-        ? new Response(null, { status: 404 })
-        : new Response(Uint8Array.from(held))
-
-    return Response.json({ success: true })
-  }
-
-  const wire: typeof fetch = async (input, init) => {
-    const request = new Request(input, init)
-    const refused = refuse(request)
-
-    if (refused !== undefined) {
-      requests.push({ method: request.method, url: request.url })
-
-      return refused
-    }
-
-    return request.url.includes("/d1/database/") ? d1Answer(request) : r2Answer(request)
-  }
-
-  const http = FetchHttpClient.layer.pipe(Layer.provide(Layer.succeed(FetchHttpClient.Fetch, wire)))
-  const target = { account: "account", token: Redacted.make("token") }
-
-  const store = Layer.mergeAll(
-    d1({ ...target, database: "papers" }).layer,
-    Bucket.r2({ ...target, bucket: "papers" }),
-  ).pipe(Layer.provide(http))
-
-  // The Worker's reader, over the same store.
-  const reader = Papers.make({
-    get: async (key) => {
-      const bytes = objects.get(key)
-
-      return bytes === undefined ? null : { text: async () => new TextDecoder().decode(bytes) }
-    },
-  })
-
-  const fs = FileSystem.layerNoop({
-    readDirectory: (path) =>
-      Effect.succeed(
-        [...files.keys()].flatMap((name) =>
-          name.startsWith(`${path}/`) && !name.slice(path.length + 1).includes("/")
-            ? [name.slice(path.length + 1)]
-            : [],
-        ),
-      ),
-    exists: (path) => Effect.succeed(files.has(path)),
-    readFile: (path) => {
-      const value = files.get(path) ?? ""
-
-      return Effect.succeed(value instanceof Uint8Array ? value : new TextEncoder().encode(value))
-    },
-    readFileString: (path) => Effect.succeed(String(files.get(path) ?? "")),
-  })
-
-  return {
-    db,
-    objects,
-    files,
-    requests,
-    refuse: (rule: typeof refuse) => {
-      refuse = rule
-    },
-    // What one run sent: its statements that write, and its R2 writes.
-    writes: (from: number) =>
-      requests
-        .slice(from)
-        .filter(({ method, sql }) =>
-          sql === undefined ? method !== "GET" : /^\s*(INSERT|UPDATE|DELETE)/i.test(sql),
-        ),
-    layer: Layer.mergeAll(reader.pipe(Layer.provide(store)), store, fs),
-  }
-}
+const world = stage
 
 type World = ReturnType<typeof world>
 
@@ -249,36 +126,6 @@ const add = (place: World, delta: Gathered = {}) =>
     return paper
   })
 
-// Saves an annotation that fits the record, as the research script does.
-const annotate = (place: World, paper: Paper, { input }: { readonly input?: string } = {}) =>
-  Effect.gen(function* () {
-    const document = yield* Schema.decodeUnknownEffect(Document)(paper)
-    const fits = yield* inputOf(document)
-
-    const annotation = Annotation.make({
-      stamp: { rubric, model, input: input ?? fits, createdAt: retrievedAt },
-      scope: {
-        population: null,
-        excerpts: [],
-        countries: [],
-        regions: [],
-        periods: [],
-        design: Scope.fields.design.cases.Unknown.make({}),
-      },
-      labels: document.content.passages.map(({ page, part }) => ({
-        page,
-        part,
-        category: "Association",
-        confidence: 0.95,
-      })),
-      excerpts: [],
-    })
-
-    place.files.set(`${directory}/annotations/${fits}.json`, JSON.stringify(annotation))
-
-    return annotation
-  })
-
 const read = (id: string) =>
   Effect.gen(function* () {
     const papers = yield* Papers
@@ -297,9 +144,9 @@ const answer = (id: string) =>
 const withdrawal = (id: string) =>
   read(id).pipe(Effect.map((held) => (Held.guards.Withdrawn(held) ? held.reason : null)))
 
-const outcomes = (results: ReadonlyArray<{ readonly outcome: Outcome }>) =>
+const outcomes = (results: ReadonlyArray<{ readonly outcome: Publication }>) =>
   results.map(({ outcome }) =>
-    Outcome.$match(outcome, {
+    Publication.$match(outcome, {
       Unchanged: () => "Unchanged",
       Written: () => "Written",
       Failed: () => "Failed",
@@ -554,7 +401,7 @@ it.effect(
       const [refused] = yield* publish(directory)
 
       expect(refused?.outcome).toEqual(
-        Outcome.Failed({ problem: expect.stringContaining("withdraw its copy first") }),
+        Publication.Failed({ problem: expect.stringContaining("withdraw its copy first") }),
       )
       expect(yield* answer(paper.seed.id)).toBe("Text")
 

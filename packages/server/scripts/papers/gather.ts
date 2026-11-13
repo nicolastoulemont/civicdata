@@ -1,96 +1,76 @@
-import { Clock, Effect, Option, Schema } from "effect"
+// The local gather: runs the shared paper gather (src/research/Gather.ts)
+// on a machine, step by step at once, against a stage's paper store over
+// Cloudflare's D1 and R2 APIs. It gathers more works at once than the
+// Workflow, and still paces each host, Cloudflare's API included.
+import { Duration, Layer, type Redacted } from "effect"
 
+import { Step } from "../../src/CatalogBuild.ts"
+import { Bucket } from "../../src/research/Bucket.ts"
 import {
-  Attempt,
-  Content,
-  Paper,
-  PaperUnavailable,
-  type Mode,
-  type Seed,
-  type Work,
-} from "../../src/research/archive.ts"
-import { gatherCopies } from "./copies.ts"
-import { metadataUrl, OpenAlex } from "./openalex.ts"
-import { Papers } from "./storage.ts"
+  type Limits,
+  Outcome,
+  paced,
+  type Pacing,
+  pacing as workflow,
+  type Report,
+  sources,
+} from "../../src/research/Gather.ts"
+import { d1 } from "../d1.ts"
 
-const matches = (seed: Seed, work: Work) =>
-  seed.openalex === null
-    ? work.doi?.toLowerCase() === `https://doi.org/${seed.study.doi?.toLowerCase()}`
-    : work.id === seed.openalex
-
-const exclusion = (seed: Seed, work: Work | null) => {
-  if (work === null)
-    return seed.openalex === null && seed.study.doi === null ? "no-doi" : "not-found"
-
-  if (!matches(seed, work)) return "different-doi"
-
-  if (work.is_retracted) return "retracted"
-
-  return null
+export interface Stage {
+  readonly account: string
+  readonly database: string
+  readonly bucket: string
+  readonly token: Redacted.Redacted
 }
 
-interface Options {
-  readonly mode?: Mode
-  readonly found?: Work
+// A machine gathers more works at once and in larger steps than a Workflow.
+export const limits: Partial<Limits> = { batch: 50, concurrency: 8 }
+
+// The Workflow's pacing, and Cloudflare's API: it takes 1,200 requests in
+// five minutes from one user, and D1's HTTP API sends one per statement.
+const pacing: Pacing = {
+  ...workflow,
+  hosts: { ...workflow.hosts, "api.cloudflare.com": Duration.millis(260) },
 }
 
-const complete = (paper: Paper) =>
-  Content.guards.Text(paper.content) ||
-  !paper.attempts.some(({ result }) => Attempt.fields.result.guards.Failed(result))
+// The gather's services over the caller's HTTP client: the stage's store,
+// OpenAlex and the licence pages, and steps that run at once.
+export const local = (
+  { account, database, bucket, token }: Stage,
+  options: { readonly pacing?: Pacing } = {},
+) => {
+  const store = d1({ account, database, token })
 
-const stable = (paper: Paper) =>
-  JSON.stringify(Schema.encodeSync(Schema.toCodecJson(Paper))(paper), (key, value: Schema.Json) =>
-    key === "retrievedAt" ? undefined : value,
-  )
-
-export const gather = Effect.fn("Papers.gather")(function* (seed: Seed, options: Options = {}) {
-  const mode = options.mode ?? "Resume"
-  const papers = yield* Papers
-  const previous = yield* papers.read(seed)
-  const old = Option.getOrNull(previous)
-
-  if (
-    old !== null &&
-    mode !== "Refresh" &&
-    (complete(old) || mode === "Offline") &&
-    JSON.stringify(old.seed) === JSON.stringify(seed) &&
-    (options.found === undefined || JSON.stringify(old.work) === JSON.stringify(options.found))
-  ) {
-    return { written: false, paper: old }
+  return {
+    usage: store.usage,
+    layer: Layer.mergeAll(
+      store.layer,
+      Bucket.r2({ account, bucket, token }),
+      sources,
+      Step.immediate,
+    ).pipe(Layer.provide(paced(options.pacing ?? pacing))),
   }
+}
 
-  if (mode === "Offline") {
-    return yield* new PaperUnavailable({ operation: "offline", cause: "No completed checkpoint" })
+// The run's report: counts per outcome, each topic, and every work that
+// failed or that the store refused, without any paper text.
+export const summaryOf = (report: Report) => {
+  const count = (is: (outcome: Outcome) => boolean) =>
+    report.works.filter(({ outcome }) => is(outcome)).length
+
+  return {
+    works: report.works.length,
+    outcomes: {
+      Text: count(Outcome.guards.Text),
+      Metadata: count(Outcome.guards.Metadata),
+      Covered: count(Outcome.guards.Covered),
+      Refused: count(Outcome.guards.Refused),
+      Failed: count(Outcome.guards.Failed),
+    },
+    topics: report.topics,
+    problems: report.works.filter(
+      ({ outcome }) => Outcome.guards.Failed(outcome) || Outcome.guards.Refused(outcome),
+    ),
   }
-
-  const source = yield* OpenAlex
-  const work = options.found ?? (yield* source.lookup(seed))
-  const reason = exclusion(seed, work)
-
-  const gathered =
-    reason !== null || work === null
-      ? {
-          content: Content.cases.Metadata.make({ reason: reason ?? "not-found" }),
-          attempts: [],
-          pdf: null,
-        }
-      : yield* gatherCopies(work, { previous: old, refresh: mode === "Refresh" })
-
-  const identity = seed.openalex ?? seed.study.doi
-
-  const { pdf, ...record } = gathered
-
-  const paper = Paper.make({
-    format: 3,
-    seed,
-    metadataUrl: identity === null ? null : metadataUrl(identity),
-    retrievedAt: new Date(yield* Clock.currentTimeMillis).toISOString(),
-    work,
-    ...record,
-  })
-
-  if (old !== null && stable(old) === stable(paper)) return { written: false, paper: old }
-  yield* papers.write(paper, { pdf })
-
-  return { written: true, paper }
-})
+}
