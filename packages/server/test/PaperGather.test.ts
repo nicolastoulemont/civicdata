@@ -581,7 +581,7 @@ describe("the paper gather", () => {
           problem: "w1.example.org: Copy did not return a PDF",
         }),
       )
-      expect(place.urls().some((url) => url.includes("example.net"))).toBe(false)
+      expect(place.urls().map((url) => new URL(url).host)).not.toContain("mirror.example.net")
       expect(yield* tagOf(work(1))).toBe("Metadata")
     }).pipe(Effect.provide(layerOf(place.http)))
   })
