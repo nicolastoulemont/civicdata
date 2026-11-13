@@ -26,6 +26,7 @@
     "papers:gather": "node scripts/gather.ts",
     "papers:intake": "node scripts/intake.ts",
     "papers:publish": "node scripts/publish.ts",
+    "papers:weekly": "node scripts/weekly.ts",
     "annotate": "node scripts/annotate.ts"
   },
   "dependencies": {

@@ -1,12 +1,11 @@
-import { Source } from "@repo/domain"
 import { Option, Schema } from "effect"
 
-import { empty, Ledger, refuse, Slot, take } from "./Pace.ts"
+import { empty, Key, Ledger, refuse, Slot, take } from "./Pace.ts"
 
 const LedgerJson = Schema.fromJsonString(Ledger)
 const SlotJson = Schema.fromJsonString(Slot)
 
-const decodeSource = Schema.decodeUnknownOption(Source)
+const decodeKey = Schema.decodeUnknownOption(Key)
 const decodeLedger = Schema.decodeUnknownOption(LedgerJson)
 
 // What the limiter needs from its Durable Object's state.
@@ -22,10 +21,11 @@ interface DurableObject {
   readonly fetch: (request: Request) => Promise<Response>
 }
 
-// The request limiter for one source, named by it, shared by every Worker.
-// `POST /take?source=OECD&patience=2000` answers a Slot and records it;
-// `POST /refused?source=OECD` starts the source's cooldown. Its storage holds
-// the source's Ledger, so a limiter evicted from memory keeps its counts.
+// The request limiter for one source or host, named by it, shared by every
+// Worker. `POST /take?source=OECD&patience=2000` answers a Slot and records
+// it; `POST /refused?source=OECD` starts the source's cooldown. A host such as
+// `api.openalex.org` takes the place of a source. Its storage holds the
+// limiter's Ledger, so a limiter evicted from memory keeps its counts.
 export class PaceObject implements DurableObject {
   readonly #state: State
 
@@ -35,25 +35,24 @@ export class PaceObject implements DurableObject {
 
   async fetch(request: Request) {
     const url = new URL(request.url)
-    const source = decodeSource(url.searchParams.get("source"))
+    const key = decodeKey(url.searchParams.get("source"))
     const patience = Number(url.searchParams.get("patience") ?? "0")
 
-    if (Option.isNone(source) || !Number.isFinite(patience))
-      return new Response(null, { status: 400 })
+    if (Option.isNone(key) || !Number.isFinite(patience)) return new Response(null, { status: 400 })
 
     const stored = await this.#state.storage.get("ledger")
     const ledger = Option.getOrElse(decodeLedger(stored), () => empty)
     const now = Date.now()
 
     if (url.pathname === "/refused") {
-      await this.#save(refuse(source.value, { ledger, now }))
+      await this.#save(refuse(key.value, { ledger, now }))
 
       return new Response(null, { status: 204 })
     }
 
     if (url.pathname !== "/take") return new Response(null, { status: 404 })
 
-    const next = take(source.value, { ledger, now, patience })
+    const next = take(key.value, { ledger, now, patience })
 
     await this.#save(next.ledger)
 

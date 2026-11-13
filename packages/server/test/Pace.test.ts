@@ -195,6 +195,20 @@ const SlotJson = Schema.fromJsonString(Slot)
 const post = (pace: PaceObject, path: string) =>
   pace.fetch(new Request(`https://pace${path}`, { method: "POST" }))
 
+// The waits a host's limiter grants two requests in a row, which the clock
+// separates by a few milliseconds at most. One object per host, as the PACE
+// namespace names them.
+const waits = async (host: string) => {
+  const pace = new PaceObject(state())
+
+  const wait = async () =>
+    Schema.decodeSync(SlotJson)(
+      await (await post(pace, `/take?source=${host}&patience=5000`)).text(),
+    ).wait
+
+  return [await wait(), await wait()]
+}
+
 describe("PaceObject", () => {
   it("grants slots until the source's budget is spent, and keeps count in storage", async () => {
     const storage = state()
@@ -225,6 +239,15 @@ describe("PaceObject", () => {
     expect((await post(pace, "/take?source=Fixture&patience=0")).status).toBe(200)
     const answer = await post(pace, "/take?source=Fixture&patience=0")
     expect(Slot.guards.Full(Schema.decodeSync(SlotJson)(await answer.text()))).toBe(true)
+  })
+
+  it("paces a paper host: OpenAlex once a second, any other host every two seconds", async () => {
+    const openalex = await waits("api.openalex.org")
+    const publisher = await waits("www.econstor.eu")
+
+    expect(openalex[0]).toBe(0)
+    expect(openalex[1]).toBeGreaterThan(990)
+    expect(publisher[1]).toBeGreaterThan(1990)
   })
 
   it("rejects a malformed source name", async () => {

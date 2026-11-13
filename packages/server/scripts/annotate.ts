@@ -12,10 +12,11 @@
 // no Annotate Workflow, and the API refuses the run.
 import { parseArgs } from "node:util"
 
-import { Config, Effect, Redacted, Schema } from "effect"
-import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
+import { Effect, Schema } from "effect"
+import { FetchHttpClient } from "effect/http"
 
 import { Params } from "../src/research/Annotate.ts"
+import { start } from "./start.ts"
 
 const { values, positionals } = parseArgs({
   options: {
@@ -27,9 +28,7 @@ const { values, positionals } = parseArgs({
 
 const Command = Schema.Literals(["annotate", "retry", "retire", "demand"])
 
-const Created = Schema.Struct({ result: Schema.Struct({ id: Schema.String }) })
-
-const start = Effect.gen(function* () {
+const annotate = Effect.gen(function* () {
   const stage = yield* Schema.decodeUnknownEffect(Schema.NonEmptyString)(values.stage)
   const command = yield* Schema.decodeUnknownEffect(Command)(values.command)
 
@@ -46,26 +45,7 @@ const start = Effect.gen(function* () {
           ),
         )
 
-  const account = yield* Config.String("CLOUDFLARE_ACCOUNT_ID")
-  const token = yield* Config.Redacted("CLOUDFLARE_API_TOKEN")
-  // The name packages/infra/alchemy.run.ts gives the stage's Workflow.
-  const workflow = `civicdata-${stage.toLowerCase().replaceAll(/[^a-z0-9-]/g, "-")}-annotate`
-  const client = (yield* HttpClient.HttpClient).pipe(HttpClient.filterStatusOk)
-
-  const { result } = yield* client
-    .execute(
-      HttpClientRequest.post(
-        `https://api.cloudflare.com/client/v4/accounts/${account}/workflows/${workflow}/instances`,
-      ).pipe(
-        HttpClientRequest.bearerToken(Redacted.value(token)),
-        HttpClientRequest.bodyJsonUnsafe({ params }),
-      ),
-    )
-    .pipe(Effect.flatMap(HttpClientResponse.schemaBodyJson(Created)))
-
-  yield* Effect.logInfo(`Started ${workflow} instance ${result.id}`)
-
-  return result.id
+  return yield* start(stage, { workflow: "annotate", params })
 })
 
-await Effect.runPromise(start.pipe(Effect.provide(FetchHttpClient.layer)))
+await Effect.runPromise(annotate.pipe(Effect.provide(FetchHttpClient.layer)))

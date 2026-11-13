@@ -18,11 +18,13 @@ interface Page {
   readonly next: string | null
 }
 
-// What a search asks OpenAlex: its words, and whether it keeps to EconStor's
-// repository copies.
+// What a search asks OpenAlex: its words, whether it keeps to EconStor's
+// repository copies, and the day from which works must have been created or
+// updated, if any.
 interface Query {
   readonly query: string
   readonly repository?: boolean | undefined
+  readonly since?: string | null | undefined
 }
 
 interface Interface {
@@ -49,10 +51,13 @@ export const metadataUrl = (identity: string) =>
 // The fields `Work` reads, so a page of 200 works stays small.
 const select = "id,type,authorships,doi,title,publication_year,updated_date,is_retracted,locations"
 
-// Open access, not retracted, in English, published from 1990; EconStor's
-// repository (S4306401696) when the query keeps to it.
-const filterOf = ({ repository }: Query) =>
-  "is_oa:true,is_retracted:false,language:en,from_publication_date:1990-01-01" +
+// Open access, not retracted, in English, published from 1990, or from
+// `since` when the query gives a day; EconStor's repository (S4306401696)
+// when the query keeps to it. OpenAlex refuses `from_updated_date` and
+// `from_created_date` without a paid plan, so a weekly run narrows its
+// search by publication date.
+const filterOf = ({ repository, since }: Query) =>
+  `is_oa:true,is_retracted:false,language:en,from_publication_date:${since ?? "1990-01-01"}` +
   (repository === true ? ",locations.source.id:S4306401696" : "")
 
 const searchUrl = (query: Query, { cursor, size }: { cursor: string; size: number }) => {

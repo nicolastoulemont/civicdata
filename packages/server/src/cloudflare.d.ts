@@ -28,9 +28,10 @@ declare module "cloudflare:workers" {
     // its catalog. A build runs only where both are bound (CatalogBuild.ts).
     readonly CATALOG?: unknown
     readonly GATHER?: unknown
-    // The annotation Workflow, bound only where the stage owns its paper
-    // store (research/Annotate.ts).
+    // The annotation and paper gather Workflows, bound only where the stage
+    // owns its paper store (research/Annotate.ts, research/Runs.ts).
     readonly ANNOTATE?: import("./research/Annotate.ts").AnnotateBinding
+    readonly PAPER_GATHER?: unknown
     readonly ASK_LIMIT?: {
       readonly limit: (options: { readonly key: string }) => Promise<{ readonly success: boolean }>
     }
@@ -51,7 +52,7 @@ declare module "cloudflare:workers" {
         readonly fetch: (request: Request) => Promise<Response>
       }
     }
-    // One PaceObject per source, named by it.
+    // One PaceObject per source or paper host, named by it.
     readonly PACE?: import("./Pace.ts").Namespace
     // The sources' answers the agent eval replays, served from disk by
     // vitest.eval.config.ts. Only the eval has it.

@@ -5,16 +5,9 @@
 import { Duration, Layer, type Redacted } from "effect"
 
 import { Step } from "../../src/CatalogBuild.ts"
+import { type Gaps, gaps } from "../../src/Pace.ts"
 import { Bucket } from "../../src/research/Bucket.ts"
-import {
-  type Limits,
-  Outcome,
-  paced,
-  type Pacing,
-  pacing as workflow,
-  type Report,
-  sources,
-} from "../../src/research/Gather.ts"
+import { type Limits, Outcome, paced, type Report, sources } from "../../src/research/Gather.ts"
 import { d1 } from "../d1.ts"
 
 export interface Stage {
@@ -29,16 +22,16 @@ export const limits: Partial<Limits> = { batch: 50, concurrency: 8 }
 
 // The Workflow's pacing, and Cloudflare's API: it takes 1,200 requests in
 // five minutes from one user, and D1's HTTP API sends one per statement.
-const pacing: Pacing = {
-  ...workflow,
-  hosts: { ...workflow.hosts, "api.cloudflare.com": Duration.millis(260) },
+const pacing: Gaps = {
+  ...gaps,
+  hosts: { ...gaps.hosts, "api.cloudflare.com": Duration.millis(260) },
 }
 
 // The gather's services over the caller's HTTP client: the stage's store,
 // OpenAlex and the licence pages, and steps that run at once.
 export const local = (
   { account, database, bucket, token }: Stage,
-  options: { readonly pacing?: Pacing } = {},
+  options: { readonly pacing?: Gaps } = {},
 ) => {
   const store = d1({ account, database, token })
 

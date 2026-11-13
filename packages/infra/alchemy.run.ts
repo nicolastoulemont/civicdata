@@ -83,6 +83,9 @@ export default Alchemy.Stack(
     // earlier deploy set.
     const scheduled = stage === "prod"
 
+    // A Workflow's schedule: `cron` in production, none elsewhere.
+    const schedule = (cron: string) => (scheduled ? [cron] : [])
+
     // The catalog, the political records, the directions and the series'
     // bookkeeping (CATALOG_DB), the stored series, the vector index, the
     // paper store and the Workflows that build them: the stage's own, or
@@ -108,8 +111,8 @@ export default Alchemy.Stack(
           Alchemy.RemovalPolicy.retain(stage === "prod"),
         ),
         papers: yield* Cloudflare.R2.Bucket("Papers", { forceDestroy }),
-        // The Workflows that build the catalog, gather the series and
-        // annotate papers. A stage with its own catalog needs them even
+        // The Workflows that build the catalog, gather the series, gather
+        // papers and annotate them. A stage with its own catalog needs them even
         // unscheduled: only a Workflow writes its tables and buckets, and a
         // build refuses to run in a Worker that binds the catalog's or the
         // gather's alone (`database` in packages/server/src/CatalogBuild.ts).
@@ -121,7 +124,7 @@ export default Alchemy.Stack(
           CATALOG: Cloudflare.Workflow("Catalog", {
             workflowName: catalog,
             className: "CatalogWorkflow",
-            schedules: scheduled ? ["0 4 * * 1"] : [],
+            schedules: schedule("0 4 * * 1"),
           }),
           // Gathers each source's series into SERIES, in production every day
           // at 05:00 UTC, after Monday's catalog build. Deploys start no run;
@@ -130,7 +133,17 @@ export default Alchemy.Stack(
           GATHER: Cloudflare.Workflow("Gather", {
             workflowName: `${prefix}-gather`,
             className: "GatherWorkflow",
-            schedules: scheduled ? ["0 5 * * *"] : [],
+            schedules: schedule("0 5 * * *"),
+          }),
+          // Gathers new and updated papers from OpenAlex into the paper
+          // store (docs/papers.md#weekly-gather), in production every Monday
+          // at 03:00 UTC, before the catalog build. Elsewhere only when
+          // someone starts a run (.github/workflows/paper-gather.yml). It calls no
+          // model.
+          PAPER_GATHER: Cloudflare.Workflow("PaperGather", {
+            workflowName: `${prefix}-paper-gather`,
+            className: "PaperGatherWorkflow",
+            schedules: schedule("0 3 * * 1"),
           }),
           // Annotates stored paper versions with the model
           // (docs/papers.md#annotation), in production every day at 06:00
@@ -140,7 +153,7 @@ export default Alchemy.Stack(
           ANNOTATE: Cloudflare.Workflow("Annotate", {
             workflowName: `${prefix}-annotate`,
             className: "AnnotateWorkflow",
-            schedules: scheduled ? ["0 6 * * *"] : [],
+            schedules: schedule("0 6 * * *"),
           }),
         }),
       }
@@ -161,8 +174,8 @@ export default Alchemy.Stack(
         papersDatabase: yield* Cloudflare.D1.Database.ref("PapersDatabase", prod),
         papers: yield* Cloudflare.R2.Bucket.ref("Papers", prod),
         // None: their schedules would rebuild production's catalog and store
-        // with the pull request's code, and an annotation run would write
-        // production's papers.
+        // with the pull request's code, and a paper gather or annotation run
+        // would write production's papers.
         workflows: Option.none(),
       }
     })
@@ -232,7 +245,7 @@ export default Alchemy.Stack(
         CONVERSATION: Cloudflare.DurableObject("Conversation", {
           className: "ConversationObject",
         }),
-        // One Durable Object per source, pacing requests to it.
+        // One Durable Object per source or paper host, pacing requests to it.
         PACE: Cloudflare.DurableObject("Pace", { className: "PaceObject" }),
         ...Option.match(workflows, { onNone: () => ({}), onSome: (bound) => bound }),
         // Every question costs model calls: five per visitor per minute.
