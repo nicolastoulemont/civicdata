@@ -21,7 +21,9 @@
     "faostat": "node scripts/faostat.ts",
     "vdem": "node scripts/vdem.ts",
     "wid": "node scripts/wid.ts",
-    "imf": "node scripts/imf.ts"
+    "imf": "node scripts/imf.ts",
+    "papers": "node scripts/papers.ts",
+    "papers:intake": "node scripts/intake.ts"
   },
   "dependencies": {
     "@effect/ai-openai": "4.1.2",
@@ -39,6 +41,8 @@
     "@effect/platform-node": "4.1.2",
     "@effect/vitest": "catalog:",
     "@types/node": "^24.19.2",
+    "linkedom": "0.18.15",
+    "unpdf": "2.1.0",
     "vitest": "catalog:"
   }
 }

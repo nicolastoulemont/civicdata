@@ -49,7 +49,7 @@ export const Evidence = Schema.TaggedUnion({
 export type Evidence = typeof Evidence.Type
 
 // The studies behind a finding, on either side.
-const studiesOf = (evidence: Evidence): ReadonlyArray<Study> =>
+export const studiesOf = (evidence: Evidence): ReadonlyArray<Study> =>
   Evidence.match(evidence, {
     Agreed: ({ studies }) => studies,
     Single: ({ study }) => [study],
