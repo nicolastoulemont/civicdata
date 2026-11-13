@@ -169,4 +169,64 @@ export const tables = Effect.gen(function* () {
     text TEXT NOT NULL,
     PRIMARY KEY (version, page, part)
   )`
+
+  yield* index
+})
+
+// Search's index over titles and passages, in SQLite full-text search
+// (FTS5): one row per paper, keyed by `paper`, with its title, and one per
+// passage, keyed by `version`, `page` and `part`, with its text. Triggers keep
+// it in step with `paper` and `passage`, so a writer fills it by writing
+// those rows. `paper` and `version` are indexed only so a trigger finds a
+// row by them: a search matches `title` and `text` alone (Discovery.ts).
+// The porter tokenizer matches "employment" to "employed".
+const index = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient
+
+  yield* sql`CREATE VIRTUAL TABLE IF NOT EXISTS search USING fts5(
+    paper, version, page UNINDEXED, part UNINDEXED, title, text,
+    tokenize = 'porter unicode61 remove_diacritics 2'
+  )`
+
+  // A store written before the index existed gets its rows once.
+  const indexed = yield* sql`SELECT 1 FROM search LIMIT 1`
+
+  if (indexed.length === 0) {
+    yield* sql`INSERT INTO search (paper, title)
+      SELECT id, json_extract(study, '$.title') FROM paper`
+    yield* sql`INSERT INTO search (version, page, part, text)
+      SELECT version, page, part, text FROM passage`
+  }
+
+  yield* sql`CREATE TRIGGER IF NOT EXISTS search_paper_insert AFTER INSERT ON paper BEGIN
+    INSERT INTO search (paper, title) VALUES (new.id, json_extract(new.study, '$.title'));
+  END`
+
+  yield* sql`CREATE TRIGGER IF NOT EXISTS search_paper_update AFTER UPDATE OF id, study ON paper
+  BEGIN
+    DELETE FROM search WHERE search MATCH ('paper : "' || old.id || '"');
+    INSERT INTO search (paper, title) VALUES (new.id, json_extract(new.study, '$.title'));
+  END`
+
+  yield* sql`CREATE TRIGGER IF NOT EXISTS search_paper_delete AFTER DELETE ON paper BEGIN
+    DELETE FROM search WHERE search MATCH ('paper : "' || old.id || '"');
+  END`
+
+  yield* sql`CREATE TRIGGER IF NOT EXISTS search_passage_insert AFTER INSERT ON passage BEGIN
+    INSERT INTO search (version, page, part, text)
+      VALUES (new.version, new.page, new.part, new.text);
+  END`
+
+  // A version's deletion cascades to its passages, which fires this.
+  yield* sql`CREATE TRIGGER IF NOT EXISTS search_passage_delete AFTER DELETE ON passage BEGIN
+    DELETE FROM search WHERE search MATCH ('version : "' || old.version || '"')
+      AND page = old.page AND part = old.part;
+  END`
+
+  yield* sql`CREATE TRIGGER IF NOT EXISTS search_passage_update AFTER UPDATE ON passage BEGIN
+    DELETE FROM search WHERE search MATCH ('version : "' || old.version || '"')
+      AND page = old.page AND part = old.part;
+    INSERT INTO search (version, page, part, text)
+      VALUES (new.version, new.page, new.part, new.text);
+  END`
 })
