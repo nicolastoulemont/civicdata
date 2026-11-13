@@ -1,4 +1,4 @@
-import { Effect } from "effect"
+import { Duration, Effect, Exit } from "effect"
 import { SqlClient, SqlError } from "effect/sql"
 
 // Readers never create or alter tables: only builds do (CatalogBuild.ts,
@@ -33,3 +33,16 @@ export const orUnbuilt =
         ),
       ),
     )
+
+// A writer of the stage's own DB (Answers.ts, research/Demand.ts) makes its
+// tables on its first call, with `tables`, and keeps them made. A failure is
+// tried again on the next call.
+export const once = <E>(tables: Effect.Effect<void, E, SqlClient.SqlClient>) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient
+
+    return yield* Effect.cachedWithTTL(
+      tables.pipe(Effect.provideService(SqlClient.SqlClient, sql)),
+      (exit) => (Exit.isSuccess(exit) ? Duration.infinity : Duration.zero),
+    )
+  })

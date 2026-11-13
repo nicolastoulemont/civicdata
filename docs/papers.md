@@ -54,6 +54,27 @@ Withdrawing a copy for rights or a retraction therefore runs in this order: clea
 
 It fails with `PaperMissing` for an unknown paper or one whose publication has not finished, `PaperCorrupt` when the text object is missing, has another hash or does not decode, and `PapersUnavailable` when D1 or R2 fails, a table is missing, or the Worker binds no store.
 
+## Demand
+
+A question never starts paid work. It records which unannotated paper versions it matched, and the daily annotation run annotates the ones asked for most. `Demand` in `packages/server/src/research/Demand.ts` keeps that record in the `demand` table of the stage's own `DB`, where requests already write, not in `PAPERS_DB`, which requests only read. A preview's `DB` is always its own, so its demand never reaches production's. In production `DB` is also the catalog database.
+
+| Column    | Holds                                                        |
+| --------- | ------------------------------------------------------------ |
+| `version` | the version's id, `Version.fields.id` in `store.ts`          |
+| `count`   | how many calls asked for it; a call counts each version once |
+| `last`    | when a call last asked for it, as ISO 8601 UTC               |
+
+`record(versions)` runs one `INSERT ... ON CONFLICT DO UPDATE` over all the versions, so concurrent calls add up and nothing reads the table first. The first call in a Worker also creates the table if it is missing, as the answer log does ([answers](answers.md)). `since(time)` returns the versions asked for at or after `time`, most asked first, with their counts in all; it is for the daily run, never a request. Both fail with `DemandUnavailable` when D1 fails or the Worker binds no `DB`.
+
+Demand is advisory: nothing depends on it being exact, so it shares no transaction with `PAPERS_DB`. To read it by hand, run SQL against the stage's database in the Cloudflare dashboard (Storage and databases, then D1, then the stage's database, then Console):
+
+```sql
+SELECT version, count, last
+FROM demand
+WHERE last >= strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '-1 day')
+ORDER BY count DESC
+```
+
 ## Tests
 
 `packages/server/test/papers.ts` fills a test store the way the writers must: `publish` for a paper with text, `list` for a metadata-only paper, `withdraw` for a withdrawn one. Each is valid by default and takes only what a test changes. `packages/server/test/Papers.test.ts` runs the reader against D1 and R2 inside workerd.

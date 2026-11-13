@@ -10,9 +10,10 @@ import {
   View,
   Vote,
 } from "@repo/domain"
-import { Context, DateTime, Duration, Effect, Exit, Layer, Option, Schema } from "effect"
+import { Context, DateTime, Duration, Effect, Layer, Option, Schema } from "effect"
 import { SqlClient } from "effect/sql"
 
+import { once } from "./built.ts"
 import { defaultModel } from "./model.ts"
 
 // A chart a person changed before asking: the turn and place of the agent's
@@ -162,12 +163,8 @@ export class Answers extends Context.Service<Answers, Interface>()("@repo/server
       Effect.gen(function* () {
         const sql = yield* SqlClient.SqlClient
 
-        // Made once per object, on its first answer; a failure is tried
-        // again on the next.
-        const ready = yield* Effect.cachedWithTTL(
-          tables.pipe(Effect.provideService(SqlClient.SqlClient, sql)),
-          (exit) => (Exit.isSuccess(exit) ? Duration.infinity : Duration.zero),
-        )
+        // Made once per object, on its first answer.
+        const ready = yield* once(tables)
 
         const log = Effect.fn("Answers.log")(function* (
           turn: Turn,
