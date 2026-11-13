@@ -111,7 +111,11 @@ For one work, the gather:
 
 - leaves it alone when the store holds the same OpenAlex work under another paper id: a hand-audited copy from `papers:intake`, whose id hashes its DOI and URL (`Covered`);
 - keeps a retracted work as metadata with the reason `retracted`;
-- otherwise tries at most three of its copies, licensed ones first. Text is admitted only with copy-specific evidence: an EconStor item page whose own rights name CC BY or a public-domain licence for this PDF, or a CC BY or public-domain notice in the PDF's first two pages. An OpenAlex licence label alone only makes a copy worth downloading. A copy whose PDF or item page names another licence, or says "all rights reserved", keeps no text.
+- otherwise tries at most three of its copies and keeps the first whose text is admitted. Text is admitted only with copy-specific evidence: an EconStor item page whose own rights name CC BY or a public-domain licence for this PDF, or a CC BY or public-domain notice in the PDF's first two pages. An OpenAlex licence label alone only makes a copy worth downloading. A copy whose PDF or item page names another licence, or says "all rights reserved", keeps no text.
+
+The copies worth downloading come first: those OpenAlex labels CC BY or public domain, and EconStor items. Among them, the gather tries labelled repository copies first, then labelled published versions, then the rest in OpenAlex's order (`admit` in `packages/server/src/research/copies.ts`). A repository copy is one OpenAlex harvested over OAI-PMH, whose location id starts with `pmh:`: PubMed Central, Europe PMC, arXiv, EconStor and other repositories. Repositories serve PDFs to scripts more often than publishers, many of which answer 403. A copy that fails, with a 403, a 404, a 429 or a page instead of a PDF, moves the work on to its next copy. Copies not worth downloading only fill the three tries when fewer qualify, and the gather downloads none of them. Three tries keep a step of 10 works, gathered 2 at once, within its five minutes, since a download times out after 15 seconds, its landing page included.
+
+When a copy's PDF URL answers a page instead of a PDF, the gather reads the page's `citation_pdf_url` tag, the Highwire Press tag Google Scholar and Zotero read, and fetches the PDF it names, once per copy. It follows the tag only to an `https` URL on the page's registrable domain or the copy's landing page's, as `tldts` reads the public suffix list, and never back to the page itself. The request waits for its host's pace like any other. The PDF it finds goes through the same checks as one the PDF URL served, under the same copy, and an EconStor item page's licence does not count for it: the page vouches for the PDF it names, not for one a landing page led to. The gather sends no cookies, runs no script and names its own client: a 403 is the publisher's answer, and the work stays metadata-only.
 
 The paper's id hashes its OpenAlex id, its copy's id its location, source version and PDF SHA-256, and its version uses the extraction `unpdf-2.1.0/300-words`, exactly as a corpus record of the same work. A paper the publication command imported therefore gathers into the same copy, version and annotation key, and its imported annotation stays active.
 
@@ -132,7 +136,7 @@ The writer's rules hold: the gather never turns a paper whose text the store ser
 
 The hash leaves out `updated_date` because OpenAlex moves it whenever anything in the record changes, citation counts included: a weekly run would otherwise download most PDFs again. A new copy, licence, title or retraction changes the hash.
 
-`Failed` covers a copy whose host or PDF failed, and a store write that failed; the paper is published as metadata until a later attempt admits its text. After three failed attempts on one record the work waits for its record to change. A failure never makes the gather ask for another work again. Only the gather creates and writes the table, in its first step beside `tables`. To see what failed:
+`Failed` covers a work whose every copy worth downloading that the gather tried failed, and a store write that failed; the paper is published as metadata until a later attempt admits its text. A copy failure's `problem` names each copy's host and what went wrong, such as `europepmc.org: HTTP 404; onlinelibrary.wiley.com: HTTP 403`, and `operation` the steps that failed. A work one of whose copies failed while another was excluded on its own evidence, such as a PDF without a licence notice, is kept as metadata, not failed. After three failed attempts on one record the work waits for its record to change. A failure never makes the gather ask for another work again. Only the gather creates and writes the table, in its first step beside `tables`. To see what failed:
 
 ```sql
 SELECT work, updated, json_extract(outcome, '$.operation') AS operation,
@@ -148,7 +152,7 @@ Two runs never gather the same work at once. Before a batch, a run claims its wo
 
 ### Pacing
 
-Every request waits between two requests to the same host: 1 second for `api.openalex.org` and 2 seconds for any other host (`gaps` in `packages/server/src/Pace.ts`). Other hosts go on meanwhile, so one slow publisher holds back only its own works. The PaperGather Workflow paces each host through its own `PaceObject`, the Durable Object the series gather paces each source through (`Pace.hosts`), so every run and every Worker of a stage shares one pace per host. A request waits up to a minute for its slot; past that, or after the host answers 429, it fails as a 429 and the host rests for a minute. The local gather paces in its own process (`paced` in `Gather.ts`). Requests name the client `papers-gather/1.0`, with no email, `mailto` or API key: OpenAlex's anonymous limits apply, and a run stays far under them.
+Every request waits between two requests to the same host: 1 second for `api.openalex.org` and 2 seconds for any other host (`gaps` in `packages/server/src/Pace.ts`). Other hosts go on meanwhile, so one slow publisher holds back only its own works. The PaperGather Workflow paces each host through its own `PaceObject`, the Durable Object the series gather paces each source through (`Pace.hosts`), so every run and every Worker of a stage shares one pace per host. A request waits up to a minute for its slot; past that, or after the host answers 429, it fails as a 429 and the host rests for a minute. The local gather paces in its own process (`paced` in `Gather.ts`). Requests to OpenAlex and to publishers name the client `openfacts-papers/1.0 (+https://openfacts.app)` (`anonymous` and `paced` in `Gather.ts`), with no email, `mailto` or API key: OpenAlex's anonymous limits apply, and a run stays far under them.
 
 ### Local gather
 
@@ -158,7 +162,7 @@ To fill a stage the first time, label its pull request `own-catalog` and name th
 
 The command prints counts per outcome, each topic's counts, and every work that failed or that the store refused, with its id, title and problem, never a passage. It exits 1 when a work failed, the store refused one, or a topic stopped early; a rerun asks only for what failed.
 
-`packages/server/test/PaperGather.test.ts` runs the gather inside workerd against D1 and R2, with OpenAlex, publishers and EconStor faked at the HTTP client and real PDFs: paging, admission and exclusion, a rerun with nothing changed, a changed record, a failed PDF host, the attempt limit, the refusal to drop served text, a hand-audited copy and per-host pacing. `packages/server/scripts/papers/gather.test.ts` runs the local gather over Cloudflare's wire after publishing the corpus record of the same work.
+`packages/server/test/PaperGather.test.ts` runs the gather inside workerd against D1 and R2, with OpenAlex, publishers and EconStor faked at the HTTP client and real PDFs: paging, admission and exclusion, a rerun with nothing changed, a changed record, a failed PDF host, a landing page's PDF tag followed on its own site and refused to another, a refused copy followed by a repository copy, a work whose every copy failed, the client name, the attempt limit, the refusal to drop served text, a hand-audited copy and per-host pacing. `packages/server/scripts/papers/gather.test.ts` runs the local gather over Cloudflare's wire after publishing the corpus record of the same work.
 
 ### Weekly gather
 
@@ -212,7 +216,7 @@ The instance's output is its run record: the Cloudflare dashboard shows it under
 | `unchanged` | listed works the ledger already held under the same record                               |
 | `covered`   | works a hand-audited copy holds                                                          |
 | `refused`   | works the store refused                                                                  |
-| `failed`    | works whose copy host, PDF or store write failed                                         |
+| `failed`    | works whose every tried copy failed, or whose store write failed                         |
 | `held`      | works another run was gathering                                                          |
 | `waiting`   | wanted works a cap left for the next run                                                 |
 | `requests`  | requests to OpenAlex, `pdfs` PDFs downloaded and `bytes` their size                      |

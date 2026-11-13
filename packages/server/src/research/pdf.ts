@@ -49,7 +49,7 @@ const readPdf = (bytes: Uint8Array) =>
   })
 
 export const textOf = Effect.fn("Papers.text")(function* (
-  download: Download,
+  download: Omit<Download, "landing">,
   options: { readonly copy: Copy; readonly evidence: ReadonlyArray<Evidence> },
 ) {
   const { bytes, url, retrievedAt } = download

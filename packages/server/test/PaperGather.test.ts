@@ -43,6 +43,13 @@ const itemPage = (handle: number, licence: string) => `
   <meta name="DC.rights" content="${licence}">
 `
 
+// A publisher's landing page, served where OpenAlex lists the PDF, that
+// names its PDF in a Highwire Press tag.
+const landing = (pdfUrl: string) => `<html><head>
+  <meta name="citation_title" content="Minimum wages and employment">
+  <meta name="citation_pdf_url" content="${pdfUrl}">
+</head><body>Download the PDF</body></html>`
+
 // A record as OpenAlex sends it: a work, or one without a title, which the
 // gather cannot decode.
 type Listed = Work | { readonly id: string; readonly title: null }
@@ -58,7 +65,7 @@ interface World {
 // OpenAlex and the publishers on the wire. OpenAlex sends a next cursor on
 // every page, as it does, and an empty page past the last.
 const world = ({ searches, respond = () => undefined }: World) => {
-  const requests: Array<{ readonly url: string; readonly at: number }> = []
+  const requests: Array<{ readonly url: string; readonly at: number; readonly agent: string }> = []
 
   // Each work's current record; a search page lists works by id.
   const records = new Map(
@@ -96,7 +103,11 @@ const world = ({ searches, respond = () => undefined }: World) => {
   const http = Layer.succeed(
     HttpClient.HttpClient,
     HttpClient.make((request) => {
-      requests.push({ url: request.url, at: Date.now() })
+      requests.push({
+        url: request.url,
+        at: Date.now(),
+        agent: request.headers["user-agent"] ?? "",
+      })
       const url = new URL(request.url)
 
       const response =
@@ -521,6 +532,153 @@ describe("the paper gather", () => {
           .urls()
           .filter((url) => new URL(url).searchParams.get("filter")?.includes("S4306401696")),
       ).toHaveLength(5)
+    }).pipe(Effect.provide(layerOf(place.http)))
+  })
+
+  it.effect("follows a landing page's PDF tag on its own site and admits the licensed PDF", () => {
+    const linked = "https://files.example.org/w1/paper-final.pdf"
+
+    const place = world({
+      searches: { [topic.query]: [[work(1)]] },
+      respond: (url) =>
+        url === copy(1).pdf_url ? new Response(landing(linked), { status: 200 }) : undefined,
+    })
+
+    return Effect.gen(function* () {
+      const report = yield* gather()
+
+      expect(outcomes(report)).toEqual({ [work(1).id]: "Text" })
+      expect(place.urls().filter((url) => !url.startsWith("https://api."))).toEqual([
+        copy(1).pdf_url,
+        linked,
+      ])
+
+      const text = yield* held(work(1))
+
+      assert(Held.guards.Text(text), "Expected the linked PDF's text")
+      expect(text.version.url).toBe(linked)
+      expect(text.copy.evidence).toMatchObject([
+        { url: linked, page: 1, licence: "https://creativecommons.org/licenses/by/4.0/" },
+      ])
+    }).pipe(Effect.provide(layerOf(place.http)))
+  })
+
+  it.effect("never follows a landing page's PDF tag to another site", () => {
+    const place = world({
+      searches: { [topic.query]: [[work(1)]] },
+      respond: (url) =>
+        url === copy(1).pdf_url
+          ? new Response(landing("https://mirror.example.net/paper.pdf"))
+          : undefined,
+    })
+
+    return Effect.gen(function* () {
+      const report = yield* gather()
+
+      expect(report.works[0]?.outcome).toEqual(
+        Outcome.cases.Failed.make({
+          operation: "download",
+          problem: "w1.example.org: Copy did not return a PDF",
+        }),
+      )
+      expect(place.urls().map((url) => new URL(url).host)).not.toContain("mirror.example.net")
+      expect(yield* tagOf(work(1))).toBe("Metadata")
+    }).pipe(Effect.provide(layerOf(place.http)))
+  })
+
+  it.effect("moves on from a copy its publisher refuses to a repository copy", () => {
+    // The publisher's copy comes first and refuses; EconStor's item page
+    // gives its own copy's licence.
+    const record = work(1, { locations: [copy(1), item(5)] })
+
+    const place = world({
+      searches: { [topic.query]: [[record]] },
+      respond: (url) => {
+        if (url === copy(1).pdf_url) return new Response("Forbidden", { status: 403 })
+
+        return url === item(5).landing_page_url
+          ? new Response(itemPage(5, "https://creativecommons.org/licenses/by/4.0/"))
+          : undefined
+      },
+    })
+
+    return Effect.gen(function* () {
+      const report = yield* gather()
+
+      expect(outcomes(report)).toEqual({ [record.id]: "Text" })
+      expect(place.urls().filter((url) => !url.startsWith("https://api."))).toEqual([
+        copy(1).pdf_url,
+        item(5).landing_page_url,
+        item(5).pdf_url,
+      ])
+
+      const text = yield* held(record)
+
+      assert(Held.guards.Text(text), "Expected the repository copy's text")
+      expect(text.version.url).toBe(item(5).pdf_url)
+      expect(yield* ledgerOf(record)).toMatchObject({ attempts: 0 })
+    }).pipe(Effect.provide(layerOf(place.http)))
+  })
+
+  it.effect("fails a work only when every copy worth downloading failed, naming each", () => {
+    // OpenAlex lists the publisher's copy first; the labelled repository
+    // copy is tried first.
+    const repository = copy(2, {
+      id: "pmh:oai:europepmc.org:2",
+      pdf_url: "https://europepmc.org/articles/PMC2/pdf/paper.pdf",
+      version: "acceptedVersion",
+    })
+
+    const records = {
+      failing: work(2, { locations: [copy(2), repository] }),
+      // One copy refuses; the other's PDF gives no licence, which decides.
+      decided: work(3, { locations: [copy(3), copy(4, { id: "doi:10.1234/w3-copy" })] }),
+    }
+
+    const place = world({
+      searches: { [topic.query]: [Object.values(records)] },
+      respond: (url) => {
+        if (url === repository.pdf_url) return new Response("Not found", { status: 404 })
+
+        if (url === copy(2).pdf_url || url === copy(3).pdf_url)
+          return new Response("Forbidden", { status: 403 })
+
+        return url === copy(4).pdf_url ? new Response(pdf("")) : undefined
+      },
+    })
+
+    return Effect.gen(function* () {
+      const report = yield* gather()
+
+      expect(report.works.find(({ work: id }) => id === records.failing.id)?.outcome).toEqual(
+        Outcome.cases.Failed.make({
+          operation: "download",
+          problem: "europepmc.org: HTTP 404; w2.example.org: HTTP 403",
+        }),
+      )
+      expect(
+        place.urls().filter((url) => url === repository.pdf_url || url === copy(2).pdf_url),
+      ).toEqual([repository.pdf_url, copy(2).pdf_url])
+      expect(yield* ledgerOf(records.failing)).toMatchObject({ attempts: 1 })
+      expect(yield* tagOf(records.failing)).toBe("Metadata")
+
+      expect(outcomes(report)[records.decided.id]).toBe("Metadata")
+      expect(yield* ledgerOf(records.decided)).toMatchObject({ attempts: 0 })
+    }).pipe(Effect.provide(layerOf(place.http)))
+  })
+
+  it.effect("names the project's client on every request, OpenAlex and publishers alike", () => {
+    const place = world({ searches: { [topic.query]: [[work(1)]] } })
+
+    return Effect.gen(function* () {
+      yield* gather()
+
+      expect(new Set(place.requests.map(({ url }) => new URL(url).host))).toEqual(
+        new Set(["api.openalex.org", "w1.example.org"]),
+      )
+      expect(new Set(place.requests.map(({ agent }) => agent))).toEqual(
+        new Set(["openfacts-papers/1.0 (+https://openfacts.app)"]),
+      )
     }).pipe(Effect.provide(layerOf(place.http)))
   })
 

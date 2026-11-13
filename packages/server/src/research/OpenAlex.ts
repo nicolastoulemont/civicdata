@@ -1,12 +1,17 @@
 import { Clock, Context, Effect, Layer, Option, Schema } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
+import { getDomain } from "tldts"
 
-import { Copy, PaperUnavailable, type Seed, Work } from "./archive.ts"
-import { bodyOf } from "./http.ts"
+import { Copy, Https, PaperUnavailable, type Seed, Work } from "./archive.ts"
+import { metaOf } from "./html.ts"
+import { bodyOf, briefOf } from "./http.ts"
 
 export interface Download {
   readonly bytes: Uint8Array
   readonly url: string
+  // The page that named the PDF in its `citation_pdf_url` tag, when the
+  // copy's PDF URL answered that page instead of a PDF.
+  readonly landing: string | null
   readonly retrievedAt: string
 }
 
@@ -110,6 +115,37 @@ export const copiesOf = (work: Work) => {
   ]
 }
 
+// A Highwire Press tag naming a page's PDF, as Google Scholar and Zotero
+// read it.
+const PdfTag = Schema.Struct({ name: Schema.Literal("citation_pdf_url"), content: Https })
+
+// A URL's registrable domain. Private suffixes such as github.io count as
+// suffixes, so two sites under one stay apart.
+const domainOf = (url: string) => getDomain(url, { allowPrivateDomains: true })
+
+// The PDF a landing page names, if it sits on the page's registrable domain
+// or the copy's landing page's. A link to another site, or back to the page
+// itself, is not followed.
+const linkOf = (html: string, { page, copy }: { readonly page: string; readonly copy: Copy }) => {
+  const sites = new Set(
+    [page, copy.landing_page_url].flatMap((url) => {
+      const domain = url === null ? null : domainOf(url)
+
+      return domain === null ? [] : [domain]
+    }),
+  )
+
+  return metaOf(html)
+    .flatMap((tag) => Option.toArray(Schema.decodeUnknownOption(PdfTag)(tag)))
+    .map(({ content }) => content)
+    .find((link) => link !== page && link !== copy.pdf_url && sites.has(domainOf(link) ?? ""))
+}
+
+const now = Effect.map(Clock.currentTimeMillis, (millis) => new Date(millis).toISOString())
+
+const isPdf = (bytes: Uint8Array) =>
+  new TextDecoder().decode(bytes.subarray(0, 5)).startsWith("%PDF-")
+
 export class OpenAlex extends Context.Service<OpenAlex, Interface>()("papers/OpenAlex") {
   static readonly layer = Layer.effect(
     OpenAlex,
@@ -167,23 +203,40 @@ export class OpenAlex extends Context.Service<OpenAlex, Interface>()("papers/Ope
         Effect.mapError((cause) => new PaperUnavailable({ operation: "metadata", cause })),
       )
 
+      // One request for a copy's file: its bytes, and where they came from
+      // after redirects.
+      const fetched = (url: string) =>
+        client.get(url).pipe(
+          Effect.flatMap((response) =>
+            Effect.map(bodyOf(response, 20 * 1024 * 1024), (bytes) => ({
+              bytes,
+              url: response.url || url,
+            })),
+          ),
+        )
+
+      // The copy's PDF. When its PDF URL answers a landing page instead,
+      // follows the page's `citation_pdf_url` tag once, to the same site.
       const download = Effect.fn("OpenAlex.download")(
         function* (copy: Copy) {
-          const response = yield* client.get(copy.pdf_url)
-          const bytes = yield* bodyOf(response, 20 * 1024 * 1024)
+          const first = yield* fetched(copy.pdf_url)
 
-          if (!new TextDecoder().decode(bytes.subarray(0, 5)).startsWith("%PDF-")) {
-            return yield* Effect.fail("Copy did not return a PDF")
-          }
+          if (isPdf(first.bytes)) return { ...first, landing: null, retrievedAt: yield* now }
+          const html = new TextDecoder().decode(first.bytes)
+          const link = linkOf(html, { page: first.url, copy })
 
-          return {
-            bytes,
-            url: response.url || copy.pdf_url,
-            retrievedAt: new Date(yield* Clock.currentTimeMillis).toISOString(),
-          }
+          if (link === undefined) return yield* Effect.fail("Copy did not return a PDF")
+          const linked = yield* fetched(link)
+
+          if (!isPdf(linked.bytes))
+            return yield* Effect.fail("Landing page's PDF link did not return a PDF")
+
+          return { ...linked, landing: first.url, retrievedAt: yield* now }
         },
         Effect.timeout("15 seconds"),
-        Effect.mapError((cause) => new PaperUnavailable({ operation: "download", cause })),
+        Effect.mapError(
+          (cause) => new PaperUnavailable({ operation: "download", cause: briefOf(cause) }),
+        ),
       )
 
       return OpenAlex.of({ lookup, page, works, download })
