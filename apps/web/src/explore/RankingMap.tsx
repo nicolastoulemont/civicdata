@@ -1,4 +1,4 @@
-import { type Country, countries, regionOf, type ResolvedView } from "@openfacts/domain"
+import { type Country, countries, regionOf, type ResolvedView } from "@repo/domain"
 import { use, useId } from "react"
 import { useTranslation } from "react-i18next"
 

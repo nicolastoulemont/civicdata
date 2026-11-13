@@ -1,4 +1,4 @@
-import type { Indicator } from "@openfacts/domain"
+import type { Indicator } from "@repo/domain"
 
 import { titles } from "./titles.gen.ts"
 

@@ -1,4 +1,4 @@
-import { type Source } from "@openfacts/domain"
+import { type Source } from "@repo/domain"
 import { Console, Context, Effect, Layer, Option, Ref, Schema } from "effect"
 
 // How each source answered the run: from a recording, or by a request that
@@ -54,7 +54,7 @@ const format = ({ input, cached, output }: Tokens) =>
 // What a run of the eval asked of each source, and the OpenAI tokens each
 // case used, printed when the run ends. Other evals on this machine share
 // the sources' limits but not this count.
-export class Tally extends Context.Service<Tally, Interface>()("@openfacts/server/eval/Tally") {
+export class Tally extends Context.Service<Tally, Interface>()("@repo/server/eval/Tally") {
   static readonly layer = Layer.effect(
     Tally,
     Effect.gen(function* () {

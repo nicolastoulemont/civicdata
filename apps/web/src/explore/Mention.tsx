@@ -1,4 +1,4 @@
-import { type Cited, type Country, nameOf } from "@openfacts/domain"
+import { type Cited, type Country, nameOf } from "@repo/domain"
 
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 

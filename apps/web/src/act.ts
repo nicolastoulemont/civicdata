@@ -1,4 +1,4 @@
-import type { Action } from "@openfacts/domain"
+import type { Action } from "@repo/domain"
 import { createContext } from "react"
 
 // Tells the conversation what the person did with a chart in one of its

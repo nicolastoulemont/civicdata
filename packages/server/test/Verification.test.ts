@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest"
-import { verificationAction, verificationHeader } from "@openfacts/domain"
+import { verificationAction, verificationHeader } from "@repo/domain"
 import { Effect, Layer, Redacted } from "effect"
 import { HttpEffect, type HttpServerRequest, HttpServerResponse } from "effect/http"
 import { TestClock } from "effect/testing"

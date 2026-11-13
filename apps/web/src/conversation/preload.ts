@@ -1,4 +1,4 @@
-import { chartsOf, type ConversationId } from "@openfacts/domain"
+import { chartsOf, type ConversationId } from "@repo/domain"
 import type { QueryClient } from "@tanstack/react-query"
 import { createIsomorphicFn } from "@tanstack/react-start"
 

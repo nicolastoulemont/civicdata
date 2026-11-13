@@ -1,4 +1,4 @@
-import { Code, Country, DimensionId, IndicatorId, type Source, sourceOf } from "@openfacts/domain"
+import { Code, Country, DimensionId, IndicatorId, type Source, sourceOf } from "@repo/domain"
 import { Array as Arr, Context, Effect, Layer, Option, Record, Schema, Stream } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
@@ -525,7 +525,7 @@ interface Interface {
 // The catalog's outlines and labels in D1. Builds write them: the catalog
 // Workflow every week, and scripts/outlines.ts on a stage's first fill. Only
 // builds create the tables (Catalog.ts).
-export class Outlines extends Context.Service<Outlines, Interface>()("@openfacts/server/Outlines") {
+export class Outlines extends Context.Service<Outlines, Interface>()("@repo/server/Outlines") {
   static readonly layer = Layer.effect(
     Outlines,
     Effect.gen(function* () {

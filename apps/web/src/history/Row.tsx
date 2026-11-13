@@ -1,4 +1,4 @@
-import { ConversationNotFound, type Ending, type Turns } from "@openfacts/domain"
+import { ConversationNotFound, type Ending, type Turns } from "@repo/domain"
 import { useIsMutating, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link, useNavigate } from "@tanstack/react-router"
 import { cn } from "cn"

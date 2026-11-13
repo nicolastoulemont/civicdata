@@ -1,4 +1,4 @@
-import type { ConversationId, Ending, Pick } from "@openfacts/domain"
+import type { ConversationId, Ending, Pick } from "@repo/domain"
 import { Match } from "effect"
 import type { TFunction } from "i18next"
 import { useTranslation } from "react-i18next"

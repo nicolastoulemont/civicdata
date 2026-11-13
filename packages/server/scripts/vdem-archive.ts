@@ -5,7 +5,7 @@ import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 import { promisify } from "node:util"
 
-import { SourceUnavailable } from "@openfacts/domain"
+import { SourceUnavailable } from "@repo/domain"
 import { Config, DateTime, Effect, Layer, Schema, Stream } from "effect"
 import { HttpClient } from "effect/http"
 

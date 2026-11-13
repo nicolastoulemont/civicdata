@@ -4,9 +4,9 @@
   "type": "module",
   "scripts": {
     "build": "turbo run build",
-    "dev": "docker compose up --detach --wait && OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 OTEL_EXPORTER_OTLP_HEADERS= pnpm --filter @openfacts/infra run dev",
-    "dev:web": "turbo run dev --filter=@openfacts/web",
-    "storybook": "pnpm --filter @openfacts/web run storybook",
+    "dev": "docker compose up --detach --wait && OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 OTEL_EXPORTER_OTLP_HEADERS= pnpm --filter @repo/infra run dev",
+    "dev:web": "turbo run dev --filter=@repo/web",
+    "storybook": "pnpm --filter @repo/web run storybook",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:lint": "node --test tools/oxlint/i18n/plugin.test.mjs",

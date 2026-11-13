@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest"
-import { Answered, Asked, Cited, Day, Down, Text } from "@openfacts/domain"
+import { Answered, Asked, Cited, Day, Down, Text } from "@repo/domain"
 import { DateTime, Effect, FileSystem, Layer, Option, PlatformError, Schema } from "effect"
 
 import { Probed, ProbedJson } from "../../eval/probes.ts"

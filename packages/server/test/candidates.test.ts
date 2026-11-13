@@ -17,7 +17,7 @@ import {
   Unanswered,
   Up,
   Year,
-} from "@openfacts/domain"
+} from "@repo/domain"
 
 import { candidates, type Logged, print } from "../eval/candidates.ts"
 

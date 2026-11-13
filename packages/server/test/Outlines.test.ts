@@ -7,7 +7,7 @@ import {
   Code,
   Country,
   DimensionId,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import { reset } from "cloudflare:test"
 import { env } from "cloudflare:workers"
 import { Effect, Schema, Stream } from "effect"

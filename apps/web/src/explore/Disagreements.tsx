@@ -1,4 +1,4 @@
-import type { ResolvedView } from "@openfacts/domain"
+import type { ResolvedView } from "@repo/domain"
 import { useTranslation } from "react-i18next"
 
 import { page } from "./format.ts"

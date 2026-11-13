@@ -64,11 +64,11 @@ ORDER BY asked DESC
 
 ## Turning answers into eval cases
 
-`pnpm --filter @openfacts/server run triage` prints the answers of the last 7 days worth a look, worst first. It reads the stage's log through Cloudflare's D1 API:
+`pnpm --filter @repo/server run triage` prints the answers of the last 7 days worth a look, worst first. It reads the stage's log through Cloudflare's D1 API:
 
 ```sh
 CLOUDFLARE_ACCOUNT_ID=... CLOUDFLARE_API_TOKEN=... DATABASE_ID=... DAYS=30 \
-  pnpm --filter @openfacts/server run triage
+  pnpm --filter @repo/server run triage
 ```
 
 With `RUN=eval/runs/<run>` instead, a path from `packages/server`, it reads a probe run's answers and their votes ([eval workflow](evals.md), [review rubric](../packages/server/eval/probes.md)). The token needs D1 read access. `DATABASE_ID` is the stage's database, under Storage and databases, then D1, in the Cloudflare dashboard. `DAYS` is optional.

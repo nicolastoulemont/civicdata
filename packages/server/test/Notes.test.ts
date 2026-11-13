@@ -6,7 +6,7 @@ import {
   IndicatorNotes as IndicatorNotesSchema,
   IndicatorNotFound,
   SourceUnavailable,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import { Effect, Layer, Option, Schema } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
 import { TestClock } from "effect/testing"

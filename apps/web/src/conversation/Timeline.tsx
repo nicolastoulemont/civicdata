@@ -7,7 +7,7 @@ import {
   Rendered,
   type Turn,
   type TurnIndex,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import { Match, Schema } from "effect"
 import { useTranslation } from "react-i18next"
 

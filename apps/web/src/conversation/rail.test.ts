@@ -11,7 +11,7 @@ import {
   TurnIndex,
   Unanswered,
   Year,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import { describe, expect, it } from "vitest"
 
 import { createI18n } from "../locale.tsx"

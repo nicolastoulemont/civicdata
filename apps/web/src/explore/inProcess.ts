@@ -1,4 +1,4 @@
-import { handle } from "@openfacts/server"
+import { handle } from "@repo/server"
 import { Layer } from "effect"
 import { FetchHttpClient } from "effect/http"
 

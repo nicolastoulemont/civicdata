@@ -94,7 +94,7 @@ export VDEM_PYTHON=/tmp/vdem-python/bin/python
 # Set CLOUDFLARE_ACCOUNT_ID, CLOUDFLARE_API_TOKEN, VDEM_D1_ID, VDEM_R2_BUCKET,
 # R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY
 # to the approved stage's existing catalog database and series bucket.
-pnpm --filter @openfacts/server vdem
+pnpm --filter @repo/server vdem
 ```
 
 The command requires Node 24 and POSIX `sort`. It uses the shared operational

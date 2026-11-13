@@ -1,4 +1,4 @@
-import { ConversationId } from "@openfacts/domain"
+import { ConversationId } from "@repo/domain"
 import { createFileRoute, notFound, useLocation } from "@tanstack/react-router"
 import { Option, Schema, Struct } from "effect"
 import { useEffect } from "react"

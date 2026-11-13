@@ -13,7 +13,7 @@ import {
   Trend,
   type View,
   Year,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import { defaultParseSearch, defaultStringifySearch } from "@tanstack/react-router"
 import { Match, Schema } from "effect"
 

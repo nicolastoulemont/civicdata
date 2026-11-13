@@ -1,4 +1,4 @@
-import type { ConversationId } from "@openfacts/domain"
+import type { ConversationId } from "@repo/domain"
 import { useEffect, useRef, useState } from "react"
 import { useTranslation } from "react-i18next"
 

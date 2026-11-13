@@ -9,7 +9,7 @@ import {
   Qualification,
   SourceUnavailable,
   type Observation,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import { Context, DateTime, Effect, Layer, Option, Schema, Stream } from "effect"
 import { HttpClient } from "effect/http"
 
@@ -52,7 +52,7 @@ export class IlostatArchive extends Context.Service<
   {
     readonly read: (version: string) => Stream.Stream<Stored, SourceUnavailable>
   }
->()("@openfacts/server/IlostatArchive") {}
+>()("@repo/server/IlostatArchive") {}
 
 // TOC uses day/month/year in Europe/Paris. Its exact timestamp is an opaque
 // version, not a US date or a lexical chronological release order.
@@ -183,7 +183,7 @@ const noteLabel = ({ category, code }: { readonly category: string; readonly cod
     category === "Source" ? dictionaries.note_source : dictionaries.note_indicator,
   ).find(([key]) => key === code)?.[1] ?? ""
 
-export class Ilostat extends Context.Service<Ilostat, Adapter>()("@openfacts/server/Ilostat") {
+export class Ilostat extends Context.Service<Ilostat, Adapter>()("@repo/server/Ilostat") {
   static readonly layer = Layer.effect(
     Ilostat,
     Effect.gen(function* () {

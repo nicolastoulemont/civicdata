@@ -1,5 +1,5 @@
 import { D1Client } from "@effect/sql-d1"
-import { type CatalogEntry, IndicatorId } from "@openfacts/domain"
+import { type CatalogEntry, IndicatorId } from "@repo/domain"
 import { env } from "cloudflare:workers"
 import { type Duration, Effect, Layer } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"

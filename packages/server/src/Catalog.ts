@@ -1,5 +1,5 @@
 import { D1Client } from "@effect/sql-d1"
-import { CatalogEntry, CatalogUnavailable, type IndicatorId, Source } from "@openfacts/domain"
+import { CatalogEntry, CatalogUnavailable, type IndicatorId, Source } from "@repo/domain"
 import { Array as Arr, Context, Effect, Layer, Option, Record, Schedule, Schema } from "effect"
 import { SqlClient, SqlError, SqlSchema } from "effect/sql"
 
@@ -223,7 +223,7 @@ export const tables = Effect.gen(function* () {
 // Indicator search over the published catalog of every source, merged with
 // the indicators closest in meaning from Vectors. Every result comes from a
 // published generation: a neighbor no longer in the catalog is dropped.
-export class Catalog extends Context.Service<Catalog, Interface>()("@openfacts/server/Catalog") {
+export class Catalog extends Context.Service<Catalog, Interface>()("@repo/server/Catalog") {
   static readonly layer = Layer.effect(
     Catalog,
     Effect.gen(function* () {

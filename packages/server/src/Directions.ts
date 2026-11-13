@@ -1,5 +1,5 @@
 import { D1Client } from "@effect/sql-d1"
-import { Direction, IndicatorId } from "@openfacts/domain"
+import { Direction, IndicatorId } from "@repo/domain"
 import { Context, Effect, Layer, Option, Schema } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
@@ -70,7 +70,7 @@ const checked: ReadonlyMap<IndicatorId, Direction> = new Map([
 // The one place a direction comes from: the hand-checked list, else the
 // direction the catalog Workflow's model stored, else Neutral.
 export class Directions extends Context.Service<Directions, Interface>()(
-  "@openfacts/server/Directions",
+  "@repo/server/Directions",
 ) {
   // Needs a SqlClient over the catalog's database.
   static readonly layer = Layer.effect(

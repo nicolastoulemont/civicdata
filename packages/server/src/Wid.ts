@@ -1,10 +1,4 @@
-import {
-  Country,
-  Dimension,
-  IndicatorId,
-  IndicatorNotFound,
-  SourceUnavailable,
-} from "@openfacts/domain"
+import { Country, Dimension, IndicatorId, IndicatorNotFound, SourceUnavailable } from "@repo/domain"
 import { Context, DateTime, Effect, Layer, Option, Schema, Stream } from "effect"
 
 import { type Adapter, Policy, type Release } from "./Adapter.ts"
@@ -53,9 +47,9 @@ export class WidArchive extends Context.Service<
     readonly read: (version: string) => Stream.Stream<Stored, SourceUnavailable>
     readonly verify: (version: string) => Effect.Effect<void, SourceUnavailable>
   }
->()("@openfacts/server/WidArchive") {}
+>()("@repo/server/WidArchive") {}
 
-export class Wid extends Context.Service<Wid, Adapter>()("@openfacts/server/Wid") {
+export class Wid extends Context.Service<Wid, Adapter>()("@repo/server/Wid") {
   static readonly layer = Layer.effect(
     Wid,
     Effect.gen(function* () {

@@ -21,7 +21,7 @@ const classifier = () =>
 // once after each deploy and, in production, every Monday at 04:00 UTC
 // (packages/infra). The two builds run side by side, and one failing does
 // not stop the other. Workers only: package.json resolves
-// `@openfacts/server/workflow` to `workflow.node.ts` outside workerd.
+// `@repo/server/workflow` to `workflow.node.ts` outside workerd.
 export class CatalogWorkflow extends WorkflowEntrypoint {
   override async run(
     event: Readonly<CloudflareWorkersModule.WorkflowEvent<unknown>>,

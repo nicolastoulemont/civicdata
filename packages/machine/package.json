@@ -1,5 +1,5 @@
 {
-  "name": "@openfacts/machine",
+  "name": "@repo/machine",
   "private": true,
   "type": "module",
   "exports": {

@@ -113,9 +113,9 @@ jobs:
           echo "OWN_CATALOG=$own" >> "$GITHUB_ENV"
           echo "open=$open" >> "$GITHUB_OUTPUT"
       - if: env.OPEN == 'true'
-        run: pnpm --filter @openfacts/infra exec alchemy deploy --yes --stage "$STAGE"
+        run: pnpm --filter @repo/infra exec alchemy deploy --yes --stage "$STAGE"
       - if: env.OPEN == 'false'
-        run: pnpm --filter @openfacts/infra exec alchemy destroy --yes --stage "$STAGE"
+        run: pnpm --filter @repo/infra exec alchemy destroy --yes --stage "$STAGE"
       # In CI, Alchemy prints log lines and status messages to stdout before the
       # value, which it prints last as indented JSON. Parse from its opening
       # brace. The stack output comes from pull request code, so accept a bare
@@ -123,7 +123,7 @@ jobs:
       - id: url
         if: env.OPEN == 'true'
         run: |
-          output=$(pnpm --silent --filter @openfacts/infra exec alchemy state cat "civicdata/$STAGE/output" --log-level=none --no-input)
+          output=$(pnpm --silent --filter @repo/infra exec alchemy state cat "civicdata/$STAGE/output" --log-level=none --no-input)
           if ! url=$(sed -n '/^{/,$p' <<< "$output" | jq -er .url); then
             echo "::error::Could not read the preview URL from the stack output"
             printf '%s\n' "$output"
@@ -146,7 +146,7 @@ jobs:
         name: Start a catalog build
         if: env.OWN_CATALOG != 'false' && env.OPEN != 'false'
         run: |
-          output=$(pnpm --silent --filter @openfacts/infra exec alchemy state cat "civicdata/$STAGE/output" --log-level=none --no-input)
+          output=$(pnpm --silent --filter @repo/infra exec alchemy state cat "civicdata/$STAGE/output" --log-level=none --no-input)
           if ! name=$(sed -n '/^{/,$p' <<< "$output" | jq -er .catalog); then
             echo "::error::Could not read the catalog Workflow from the stack output"
             printf '%s\n' "$output"
@@ -255,7 +255,7 @@ jobs:
       - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           require-lockfile: true
-      - run: pnpm --filter @openfacts/infra exec alchemy deploy --yes --stage "$STAGE"
+      - run: pnpm --filter @repo/infra exec alchemy deploy --yes --stage "$STAGE"
       - *build
 
   # Destroys a closed pull request's stage. One merged while its check runs
@@ -287,7 +287,7 @@ jobs:
       - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           require-lockfile: true
-      - run: pnpm --filter @openfacts/infra exec alchemy destroy --yes --stage "$STAGE"
+      - run: pnpm --filter @repo/infra exec alchemy destroy --yes --stage "$STAGE"
 
   preview-removed:
     needs: cleanup

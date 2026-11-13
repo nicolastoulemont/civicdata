@@ -16,7 +16,7 @@ import {
   type Year,
   yearOf,
   yearsOf,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import { Context, Effect, Layer, Schema } from "effect"
 import { HttpApiBuilder } from "effect/http-api"
 import { SqlClient, SqlSchema } from "effect/sql"
@@ -289,7 +289,7 @@ const lastDay = (government: Government) =>
 // publishers' published generations, in sequence per country (see
 // `sequence`), with the events and reforms checked by hand (see
 // official/README.md).
-export class Politics extends Context.Service<Politics, Interface>()("@openfacts/server/Politics") {
+export class Politics extends Context.Service<Politics, Interface>()("@repo/server/Politics") {
   static readonly layer = Layer.effect(
     Politics,
     Effect.gen(function* () {

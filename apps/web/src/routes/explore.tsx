@@ -1,4 +1,4 @@
-import type { ResolvedView, View } from "@openfacts/domain"
+import type { ResolvedView, View } from "@repo/domain"
 import type { QueryClient } from "@tanstack/react-query"
 import { createFileRoute, Link, notFound } from "@tanstack/react-router"
 import { createIsomorphicFn } from "@tanstack/react-start"

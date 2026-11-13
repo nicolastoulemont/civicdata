@@ -3,7 +3,7 @@ import {
   type CatalogEntry,
   type IndicatorId,
   SourceUnavailable,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import { type UseQueryResult, useQuery } from "@tanstack/react-query"
 import { Data, Match } from "effect"
 import type { TFunction } from "i18next"

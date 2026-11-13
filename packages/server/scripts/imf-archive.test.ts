@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs"
 import { DatabaseSync } from "node:sqlite"
 
-import { ResolvedView, Trend, Year } from "@openfacts/domain"
+import { ResolvedView, Trend, Year } from "@repo/domain"
 import { Effect, Layer, Option, Redacted, Result, Schema, Stream } from "effect"
 import { FetchHttpClient } from "effect/http"
 import { expect, it } from "vitest"

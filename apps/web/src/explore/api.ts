@@ -1,4 +1,4 @@
-import { Ranking, Relation, type Trend, type View } from "@openfacts/domain"
+import { Ranking, Relation, type Trend, type View } from "@repo/domain"
 import { keepPreviousData, queryOptions, skipToken } from "@tanstack/react-query"
 import { Match } from "effect"
 

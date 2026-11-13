@@ -1,6 +1,6 @@
 import type { CloudflareWorkersModule, Rpc } from "@cloudflare/workers-types"
 import { D1Client } from "@effect/sql-d1"
-import { CatalogEntry, Direction, IndicatorId, Source, SourceUnavailable } from "@openfacts/domain"
+import { CatalogEntry, Direction, IndicatorId, Source, SourceUnavailable } from "@repo/domain"
 import {
   Array as Arr,
   Clock,
@@ -216,7 +216,7 @@ export class Step extends Context.Service<
     // Sleeps as one named step: a resumed build skips a sleep that ended.
     readonly sleep: (name: string, duration: Duration.Duration) => Effect.Effect<void, StepFailed>
   }
->()("@openfacts/server/CatalogBuild/Step") {
+>()("@repo/server/CatalogBuild/Step") {
   // A step's body runs with the caller's services, so its spans and logs
   // reach the run's tracer under the span that started the step.
   static readonly workflow = (step: WorkflowStep) =>
@@ -256,7 +256,7 @@ export class Step extends Context.Service<
 // so one that stays down keeps its previous generation without holding back
 // the others; the build then fails, naming it.
 export class CatalogBuild extends Context.Service<CatalogBuild, Interface>()(
-  "@openfacts/server/CatalogBuild",
+  "@repo/server/CatalogBuild",
 ) {
   static readonly layer = Layer.effect(
     CatalogBuild,

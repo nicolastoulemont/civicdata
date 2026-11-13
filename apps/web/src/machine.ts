@@ -1,4 +1,4 @@
-import { Machine } from "@openfacts/machine"
+import { Machine } from "@repo/machine"
 import { Effect, Equal, Fiber, Stream } from "effect"
 import { useCallback, useEffect, useEffectEvent, useRef, useState } from "react"
 

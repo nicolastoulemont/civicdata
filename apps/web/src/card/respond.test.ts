@@ -8,7 +8,7 @@ import {
   Relation,
   Trend,
   Year,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import { http, HttpResponse } from "msw/http"
 import { describe, expect, it } from "vitest"
 

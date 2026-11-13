@@ -1,4 +1,4 @@
-import { IndicatorId } from "@openfacts/domain"
+import { IndicatorId } from "@repo/domain"
 import { DateTime } from "effect"
 import { expect, it } from "vitest"
 

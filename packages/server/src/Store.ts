@@ -16,7 +16,7 @@ import {
   sourceOf,
   SourceUnavailable,
   type Year,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import { Array as Arr, Context, Data, Effect, Layer, Option, Order, Schema, Stream } from "effect"
 
 import { fingerprint } from "./fingerprint.ts"
@@ -365,7 +365,7 @@ interface Current {
 // hash, so a chart costs two. Unlike the Cache, the store has no expiry and
 // its failures are errors: a gathering run must never mistake a bucket that
 // failed for an empty one.
-export class Store extends Context.Service<Store, Interface>()("@openfacts/server/Store") {
+export class Store extends Context.Service<Store, Interface>()("@repo/server/Store") {
   static readonly r2 = (bucket: SeriesBucket) => Layer.succeed(Store, Store.make(bucket))
 
   private static readonly make = (bucket: SeriesBucket): Interface => {

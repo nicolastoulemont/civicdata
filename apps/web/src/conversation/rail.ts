@@ -1,4 +1,4 @@
-import { Text } from "@openfacts/domain"
+import { Text } from "@repo/domain"
 import { Match, Schema } from "effect"
 import type { TFunction } from "i18next"
 

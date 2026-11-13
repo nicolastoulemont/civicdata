@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest"
-import { Code, DimensionsMissing, IndicatorId, SourceUnavailable, Year } from "@openfacts/domain"
+import { Code, DimensionsMissing, IndicatorId, SourceUnavailable, Year } from "@repo/domain"
 import { Effect, Layer, Stream } from "effect"
 
 import { growth, Imf } from "../src/Imf.ts"

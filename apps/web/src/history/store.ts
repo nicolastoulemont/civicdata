@@ -1,4 +1,4 @@
-import { ConversationId } from "@openfacts/domain"
+import { ConversationId } from "@repo/domain"
 import { Array, DateTime, Option, Order, Schema, Struct } from "effect"
 import { useSyncExternalStore } from "react"
 

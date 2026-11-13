@@ -57,7 +57,7 @@ import {
   Unanswered,
   View,
   Year,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import {
   createMemoryHistory,

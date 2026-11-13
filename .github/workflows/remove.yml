@@ -58,7 +58,7 @@ jobs:
       - name: Destroy each stage
         run: |
           for n in $PRS; do
-            pnpm --filter @openfacts/infra exec alchemy destroy --yes --stage "pr-$n"
+            pnpm --filter @repo/infra exec alchemy destroy --yes --stage "pr-$n"
           done
       # Every resource a stage deploys carries -pr-<number>- in its name. Fails
       # when one belongs to a closed pull request, and prints the rest:

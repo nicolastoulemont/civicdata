@@ -17,7 +17,7 @@ import {
   Trend,
   type View,
   Year,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import { type UseQueryResult, useQuery, useQueryClient } from "@tanstack/react-query"
 import { Data, Match, Struct } from "effect"
 import type { TFunction } from "i18next"

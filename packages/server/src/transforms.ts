@@ -1,4 +1,4 @@
-import type { ResolvedView, Year } from "@openfacts/domain"
+import type { ResolvedView, Year } from "@repo/domain"
 import { Array as Arr } from "effect"
 
 type Observations = ResolvedView["observations"]

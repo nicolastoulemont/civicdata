@@ -1,4 +1,4 @@
-import { applies, kindOf, type Transform, transformOf, type View } from "@openfacts/domain"
+import { applies, kindOf, type Transform, transformOf, type View } from "@repo/domain"
 import { Match } from "effect"
 import { useTranslation } from "react-i18next"
 

@@ -104,7 +104,7 @@ A destroy reads the state store, never the stack's code, so a stage whose state 
 1. Create a Cloudflare API token for CI. Alchemy's CI guide lists Workers Scripts, Workers R2 Storage, D1 and Secrets Store write access, plus Workers Tail read. Add Vectorize write access for the catalog's index. Trim it after the first deploy.
 2. Bootstrap the Alchemy state store once, from a machine logged in to Cloudflare:
    ```sh
-   pnpm --filter @openfacts/infra exec alchemy state bootstrap
+   pnpm --filter @repo/infra exec alchemy state bootstrap
    ```
 3. In GitHub, create the `preview` and `production` environments. In each, add the secrets `CLOUDFLARE_API_TOKEN` and `OPENAI_API_KEY` and the variable `CLOUDFLARE_ACCOUNT_ID`. To record traces, also add the variable `OTEL_EXPORTER_OTLP_ENDPOINT` and the secret `OTEL_EXPORTER_OTLP_HEADERS` ([docs/traces.md](traces.md#grafana-cloud)). Limit `production` to the `main` branch. Fund the OpenAI project behind the key with prepaid credits and cap their auto-reload: that is the only limit on total spend. Each Worker limits one visitor to five questions a minute, and once the credits run out every question answers "The assistant is not available".
 4. Protect the repository. Rulesets, dependency review, code scanning uploads and private vulnerability reporting need a public repository on GitHub's free plan. This repository has:
@@ -115,7 +115,7 @@ A destroy reads the state store, never the stack's code, so a stage whose state 
 
 ## Your own stage
 
-To deploy your own stage from your machine, connect Cloudflare once with `pnpm --filter @openfacts/infra exec alchemy profile edit`, then run `pnpm --filter @openfacts/infra run deploy`. Keep the `run`: without it, pnpm runs its own `deploy` command instead of the script. The stage is named `live_<your user>` unless you pass `--stage`.
+To deploy your own stage from your machine, connect Cloudflare once with `pnpm --filter @repo/infra exec alchemy profile edit`, then run `pnpm --filter @repo/infra run deploy`. Keep the `run`: without it, pnpm runs its own `deploy` command instead of the script. The stage is named `live_<your user>` unless you pass `--stage`.
 
 ## Upgrading Alchemy
 

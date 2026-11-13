@@ -1,11 +1,5 @@
 import { beforeEach, describe, expect, it } from "@effect/vitest"
-import {
-  CatalogUnavailable,
-  Country,
-  IndicatorId,
-  PoliticsUnavailable,
-  Year,
-} from "@openfacts/domain"
+import { CatalogUnavailable, Country, IndicatorId, PoliticsUnavailable, Year } from "@repo/domain"
 import { reset } from "cloudflare:test"
 import { Cause, Effect, Exit, Layer } from "effect"
 

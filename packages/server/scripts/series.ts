@@ -6,7 +6,7 @@ import { join } from "node:path"
 import { promisify } from "node:util"
 
 import { NodeStream } from "@effect/platform-node"
-import { SourceUnavailable, type Source, sourceOf } from "@openfacts/domain"
+import { SourceUnavailable, type Source, sourceOf } from "@repo/domain"
 import { Effect, Schema, Stream } from "effect"
 
 import { Stored } from "../src/Store.ts"

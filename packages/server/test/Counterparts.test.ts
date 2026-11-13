@@ -1,4 +1,4 @@
-import { Dimensions, IndicatorId, Ranking, Trend, Year } from "@openfacts/domain"
+import { Dimensions, IndicatorId, Ranking, Trend, Year } from "@repo/domain"
 import { Schema } from "effect"
 import { describe, expect, it } from "vitest"
 

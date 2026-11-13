@@ -71,7 +71,7 @@ import {
   View,
   Vote,
   Year,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import { reset } from "cloudflare:test"
 import { env } from "cloudflare:workers"
 import {

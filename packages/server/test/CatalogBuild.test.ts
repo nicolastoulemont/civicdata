@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "@effect/vitest"
-import { type CatalogEntry, IndicatorId, SourceUnavailable } from "@openfacts/domain"
+import { type CatalogEntry, IndicatorId, SourceUnavailable } from "@repo/domain"
 import { reset } from "cloudflare:test"
 import { Deferred, Effect, Match, Schema } from "effect"
 import { TestClock } from "effect/testing"

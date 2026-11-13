@@ -1,4 +1,4 @@
-import { ChartIndex, chartsOf, Turn, TurnIndex, View } from "@openfacts/domain"
+import { ChartIndex, chartsOf, Turn, TurnIndex, View } from "@repo/domain"
 import {
   Array as Arr,
   Clock,
@@ -99,7 +99,7 @@ export const keep = 30 * 24 * 60 * 60 * 1000
 
 // One conversation's saved state.
 export class Transcript extends Context.Service<Transcript, Interface>()(
-  "@openfacts/server/Transcript",
+  "@repo/server/Transcript",
 ) {
   static readonly memory = Layer.effect(
     Transcript,

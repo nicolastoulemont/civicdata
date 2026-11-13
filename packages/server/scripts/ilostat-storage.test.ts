@@ -1,5 +1,5 @@
 import { expect, it } from "@effect/vitest"
-import { IndicatorId, Year } from "@openfacts/domain"
+import { IndicatorId, Year } from "@repo/domain"
 import { DateTime, Effect, Redacted, Stream } from "effect"
 import { FetchHttpClient } from "effect/http"
 

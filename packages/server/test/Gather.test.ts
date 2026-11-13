@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "@effect/vitest"
-import { Failure, Year } from "@openfacts/domain"
+import { Failure, Year } from "@repo/domain"
 import { reset } from "cloudflare:test"
 import { DateTime, Effect, Fiber, Layer, Stream } from "effect"
 import { TestClock } from "effect/testing"

@@ -1,4 +1,4 @@
-import { Publisher } from "@openfacts/domain"
+import { Publisher } from "@repo/domain"
 import { Array as Arr, Context, Effect, Layer, Match, Option, Schema, Struct } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
@@ -53,7 +53,7 @@ export class PoliticsBuildFailed extends Schema.TaggedError<
 // Stores each publisher's governments and elections in D1 for Politics to
 // read, in the same Workflow as the indicator catalog (CatalogWorkflow.ts).
 export class PoliticsBuild extends Context.Service<PoliticsBuild, Interface>()(
-  "@openfacts/server/PoliticsBuild",
+  "@repo/server/PoliticsBuild",
 ) {
   static readonly layer = Layer.effect(
     PoliticsBuild,

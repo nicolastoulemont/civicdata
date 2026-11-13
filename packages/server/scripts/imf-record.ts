@@ -1,4 +1,4 @@
-import { Country, Year, Qualification, SourceUnavailable } from "@openfacts/domain"
+import { Country, Year, Qualification, SourceUnavailable } from "@repo/domain"
 import { Effect, Schema } from "effect"
 
 import { growth } from "../src/Imf.ts"

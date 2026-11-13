@@ -8,7 +8,7 @@ import {
   type TurnIndex,
   TurnNotFound,
   type View,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import type { TFunction } from "i18next"
 import { lazy, Suspense, useState } from "react"
 import { useTranslation } from "react-i18next"

@@ -1,5 +1,5 @@
-import { IndicatorId, regions, Trend as TrendView, Year } from "@openfacts/domain"
-import type { Country, View } from "@openfacts/domain"
+import { IndicatorId, regions, Trend as TrendView, Year } from "@repo/domain"
+import type { Country, View } from "@repo/domain"
 import { Array as Arr } from "effect"
 
 import { Expected } from "./score.ts"

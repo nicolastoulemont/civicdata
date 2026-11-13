@@ -1,4 +1,4 @@
-import { inYear, type Ranked, type Related, type Span, Year } from "@openfacts/domain"
+import { inYear, type Ranked, type Related, type Span, Year } from "@repo/domain"
 import { cn } from "cn"
 import { Pause, Play } from "lucide-react"
 import { type ReactNode, useEffect, useEffectEvent, useState } from "react"

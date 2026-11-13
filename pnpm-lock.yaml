@@ -236,13 +236,13 @@ importers:
       '@marsidev/react-turnstile':
         specifier: ^1.6.3
         version: 1.6.3(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
-      '@openfacts/domain':
+      '@repo/domain':
         specifier: workspace:*
         version: link:../../packages/domain
-      '@openfacts/machine':
+      '@repo/machine':
         specifier: workspace:*
         version: link:../../packages/machine
-      '@openfacts/server':
+      '@repo/server':
         specifier: workspace:*
         version: link:../../packages/server
       '@tanstack/query-persist-client-core':
@@ -461,10 +461,10 @@ importers:
       '@effect/sql-d1':
         specifier: 4.1.2
         version: 4.1.2(effect@4.1.2)
-      '@openfacts/domain':
+      '@repo/domain':
         specifier: workspace:*
         version: link:../domain
-      '@openfacts/machine':
+      '@repo/machine':
         specifier: workspace:*
         version: link:../machine
       aws4fetch:

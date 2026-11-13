@@ -3,7 +3,7 @@
 // oxlint-disable-next-line typescript/triple-slash-reference
 /// <reference path="./cloudflare.d.ts" />
 
-import { SourceUnavailable } from "@openfacts/domain"
+import { SourceUnavailable } from "@repo/domain"
 import { Context, DateTime, Effect, Layer, Option, Schema } from "effect"
 
 // What the cache needs from an R2 bucket binding.
@@ -26,7 +26,7 @@ interface Remembered<A, E> {
 
 // A best-effort key-value store. Failures are logged and read as misses, so a
 // cache outage never breaks a chart.
-export class Cache extends Context.Service<Cache, Interface>()("@openfacts/server/Cache") {
+export class Cache extends Context.Service<Cache, Interface>()("@repo/server/Cache") {
   static readonly r2 = (bucket: Bucket) =>
     Layer.succeed(
       Cache,

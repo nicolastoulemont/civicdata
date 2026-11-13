@@ -1,4 +1,4 @@
-import { transformOf } from "@openfacts/domain"
+import { transformOf } from "@repo/domain"
 import { describe, expect, it } from "vitest"
 
 import { fromUrl, type Search, toQuery, toSearch, toView } from "./search.ts"

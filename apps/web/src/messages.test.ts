@@ -1,4 +1,4 @@
-import { Locale } from "@openfacts/domain"
+import { Locale } from "@repo/domain"
 import { Schema } from "effect"
 import { describe, expect, it } from "vitest"
 

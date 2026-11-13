@@ -18,7 +18,7 @@ import { runtime } from "./vitest.config.ts"
 // for a run, never as a routine check.
 if (process.env["RUN_AGENT_EVAL"] !== "1") {
   throw new Error(
-    "The agent eval and probe run start only on request: they spend OpenAI tokens and take from 25 minutes to over an hour. Coding agents run them only when the user asked for a run in the current task, never to check their own change. To run one: RUN_AGENT_EVAL=1 pnpm --filter @openfacts/server eval (or probe)",
+    "The agent eval and probe run start only on request: they spend OpenAI tokens and take from 25 minutes to over an hour. Coding agents run them only when the user asked for a run in the current task, never to check their own change. To run one: RUN_AGENT_EVAL=1 pnpm --filter @repo/server eval (or probe)",
   )
 }
 

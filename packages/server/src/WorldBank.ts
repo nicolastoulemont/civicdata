@@ -6,7 +6,7 @@ import {
   IndicatorNotFound,
   SourceUnavailable,
   Year,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import { Context, DateTime, Duration, Effect, Layer, Schedule, Schema, Stream } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
 import { unzipSync } from "fflate"
@@ -301,9 +301,7 @@ const keys = {
 // World Bank data: the World Development Indicators, gathered in full into
 // the store from their bulk downloads, and read through the API for a series
 // not stored yet.
-export class WorldBank extends Context.Service<WorldBank, Adapter>()(
-  "@openfacts/server/WorldBank",
-) {
+export class WorldBank extends Context.Service<WorldBank, Adapter>()("@repo/server/WorldBank") {
   static readonly layer = Layer.effect(WorldBank, Effect.map(make, adapterOf))
 
   // Serves a stored result younger than `lifetime`, otherwise asks the World

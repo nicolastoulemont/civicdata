@@ -1,4 +1,4 @@
-import { type Cited, citeLink, nameOf } from "@openfacts/domain"
+import { type Cited, citeLink, nameOf } from "@repo/domain"
 import { Option } from "effect"
 
 // A citation as the model writes it: a record's id in double brackets,

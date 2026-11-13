@@ -1,4 +1,4 @@
-import { Asked, blocksOf, type Ending, Text } from "@openfacts/domain"
+import { Asked, blocksOf, type Ending, Text } from "@repo/domain"
 import { Schema } from "effect"
 
 const isText = Schema.is(Text)

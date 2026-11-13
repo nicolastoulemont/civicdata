@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "@effect/vitest"
-import { countries, Dimensions, IndicatorId, Year } from "@openfacts/domain"
+import { countries, Dimensions, IndicatorId, Year } from "@repo/domain"
 import { reset } from "cloudflare:test"
 import { DateTime, Effect, Exit, Option, Schema, Stream } from "effect"
 
