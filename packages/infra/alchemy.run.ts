@@ -58,10 +58,11 @@ export default Alchemy.Stack(
       Alchemy.RemovalPolicy.retain(stage === "prod"),
     )
 
-    // R2 refuses to delete a bucket that holds objects. Both buckets hold
-    // only what can be fetched again, so destroying any other stage empties
-    // them first; production keeps the refusal. A destroy reads this from the
-    // stage's last deploy, not from this file.
+    // R2 refuses to delete a bucket that holds objects. Outside production
+    // every bucket holds only what can be fetched or published again, so
+    // destroying any other stage empties them first; production keeps the
+    // refusal. A destroy reads this from the stage's last deploy, not from
+    // this file.
     const forceDestroy = stage !== "prod"
 
     // Series cache. Every object can be fetched again from its source.
@@ -83,9 +84,9 @@ export default Alchemy.Stack(
     const scheduled = stage === "prod"
 
     // The catalog, the political records, the directions and the series'
-    // bookkeeping (CATALOG_DB), the stored series, the vector index and the
-    // Workflows that build them: the stage's own, or production's, which a
-    // shared stage reads and never builds.
+    // bookkeeping (CATALOG_DB), the stored series, the vector index, the
+    // paper store and the Workflows that build them: the stage's own, or
+    // production's, which a shared stage reads and never builds.
     const owned = Effect.gen(function* () {
       return {
         catalogDatabase: database,
@@ -98,6 +99,15 @@ export default Alchemy.Stack(
         vectors: yield* Cloudflare.Vectorize.Index("Vectors", {
           preset: "@cf/baai/bge-small-en-v1.5",
         }),
+        // The paper store (docs/papers.md): bibliography, copies, versions,
+        // passages and annotations in a database of its own, so passage
+        // search never queues behind catalog searches, and each version's
+        // PDF and text in a bucket. Annotations cost model calls to redo, so
+        // a production destroy keeps the database.
+        papersDatabase: yield* Cloudflare.D1.Database("PapersDatabase").pipe(
+          Alchemy.RemovalPolicy.retain(stage === "prod"),
+        ),
+        papers: yield* Cloudflare.R2.Bucket("Papers", { forceDestroy }),
         // The Workflows that build the catalog and gather the series. A
         // stage with its own catalog needs both even unscheduled: only a
         // Workflow writes its tables and bucket, and a build refuses to run
@@ -138,13 +148,17 @@ export default Alchemy.Stack(
         catalogDatabase: yield* Cloudflare.D1.Database.ref("Database", prod),
         series: yield* Cloudflare.R2.Bucket.ref("Series", prod),
         vectors: yield* Cloudflare.Vectorize.Index.ref("Vectors", prod),
+        papersDatabase: yield* Cloudflare.D1.Database.ref("PapersDatabase", prod),
+        papers: yield* Cloudflare.R2.Bucket.ref("Papers", prod),
         // None: their schedules would rebuild production's catalog and store
         // with the pull request's code.
         workflows: Option.none(),
       }
     })
 
-    const { catalogDatabase, series, vectors, workflows } = yield* shared ? production : owned
+    const { catalogDatabase, series, vectors, papersDatabase, papers, workflows } = yield* shared
+      ? production
+      : owned
 
     // The agent's OpenAI key and model, from the shell, CI, the Keychain
     // through `with-key.sh`, or `.env` next to this file (see `.env.example`).
@@ -200,6 +214,8 @@ export default Alchemy.Stack(
         CACHE: cache,
         SERIES: series,
         VECTORS: vectors,
+        PAPERS_DB: papersDatabase,
+        PAPERS: papers,
         AI: Cloudflare.Workers.AI(),
         // One Durable Object per conversation, exported by apps/web/src/server.ts.
         CONVERSATION: Cloudflare.DurableObject("Conversation", {
