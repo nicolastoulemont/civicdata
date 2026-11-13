@@ -1,6 +1,6 @@
 // oxlint-disable-next-line import/no-unassigned-import -- Vite injects the app's theme and Tailwind styles into every story.
 import "../src/styles.css"
-import { ResolvedView } from "@openfacts/domain"
+import { ResolvedView } from "@repo/domain"
 import type { Decorator, Preview } from "@storybook/react-vite"
 import { Schema } from "effect"
 import { type ReactNode, useLayoutEffect } from "react"

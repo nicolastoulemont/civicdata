@@ -1,4 +1,4 @@
-import { Failure, Source, SourceUnavailable } from "@openfacts/domain"
+import { Failure, Source, SourceUnavailable } from "@repo/domain"
 import { DateTime, Effect, Option, Schema } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 

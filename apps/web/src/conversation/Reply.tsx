@@ -1,4 +1,4 @@
-import type { Ending } from "@openfacts/domain"
+import type { Ending } from "@repo/domain"
 import { Match } from "effect"
 import { useTranslation } from "react-i18next"
 

@@ -1,4 +1,4 @@
-import { inYear, type Related } from "@openfacts/domain"
+import { inYear, type Related } from "@repo/domain"
 import { useTranslation } from "react-i18next"
 
 import { type Moving, OverTime } from "./OverTime.tsx"

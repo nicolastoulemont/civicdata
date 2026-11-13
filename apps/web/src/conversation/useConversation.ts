@@ -15,8 +15,8 @@ import {
   type View,
   type Vote,
   withShown,
-} from "@openfacts/domain"
-import { Machine } from "@openfacts/machine"
+} from "@repo/domain"
+import { Machine } from "@repo/machine"
 import {
   MutationObserver,
   type QueryClient,

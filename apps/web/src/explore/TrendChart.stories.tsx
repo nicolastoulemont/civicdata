@@ -1,4 +1,4 @@
-import { Trend } from "@openfacts/domain"
+import { Trend } from "@repo/domain"
 import type { Meta, StoryObj } from "@storybook/react-vite"
 import { Schema } from "effect"
 import { fn } from "storybook/test"

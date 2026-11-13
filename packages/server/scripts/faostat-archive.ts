@@ -5,7 +5,7 @@ import { join } from "node:path"
 import { promisify } from "node:util"
 
 import { NodeStream } from "@effect/platform-node"
-import { Failure, SourceUnavailable } from "@openfacts/domain"
+import { Failure, SourceUnavailable } from "@repo/domain"
 import { DateTime, Effect, Layer, Stream } from "effect"
 import { HttpClient } from "effect/http"
 

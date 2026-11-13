@@ -19,11 +19,11 @@ openfacts charts public data about countries from the World Bank, Eurostat and t
 
 ## State machines
 
-- Model every state machine explicitly with `Machine.make` from `@openfacts/machine`, and run it in a component with `useMachine` from `apps/web/src/machine.ts`; only a trivial one, a single boolean with no work tied to it, stays a plain `useState` or `Ref`.
+- Model every state machine explicitly with `Machine.make` from `@repo/machine`, and run it in a component with `useMachine` from `apps/web/src/machine.ts`; only a trivial one, a single boolean with no work tied to it, stays a plain `useState` or `Ref`.
 
 ## UI
 
-- Build all UI from shadcn components (Base UI primitives, style `base-nova`) in `apps/web/src/components/ui/`. Find one with `pnpm --filter @openfacts/web exec shadcn search @shadcn -q <term>`, add it with `pnpm --filter @openfacts/web exec shadcn add <name>`, then run `pnpm format`.
+- Build all UI from shadcn components (Base UI primitives, style `base-nova`) in `apps/web/src/components/ui/`. Find one with `pnpm --filter @repo/web exec shadcn search @shadcn -q <term>`, add it with `pnpm --filter @repo/web exec shadcn add <name>`, then run `pnpm format`.
 - When no shadcn component fits, stop and ask the user which to use: a composition of existing components, a Base UI primitive, a third-party library, or a custom component. Hand-roll a component or add a UI library only on that answer.
 - Component files are ours to edit for behavior and accessibility, and `shadcn add --overwrite` discards those edits. Lint relaxes shadcn's patterns (runtime `typeof`, unchecked casts, wrapper roles) for `components/ui/**` only; app code keeps every rule.
 - Type a component's props with a named `interface <Component>Props` (a `type` for a union or intersection) declared above the component, never inline.
@@ -48,7 +48,7 @@ openfacts charts public data about countries from the World Bank, Eurostat and t
 ## Tooling gotchas
 
 - pnpm refuses package versions published less than a day ago, and any dependency build script not listed under `allowBuilds` in `pnpm-workspace.yaml`. Review a build script before allowing it.
-- `pnpm deploy` is a pnpm built-in. Run the infra script with `pnpm --filter @openfacts/infra run deploy`.
+- `pnpm deploy` is a pnpm built-in. Run the infra script with `pnpm --filter @repo/infra run deploy`.
 - Stopping `pnpm dev` can leave a child process listening on port 1337; free the port before restarting.
 - Run `pnpm check` before pushing; CI runs the same gate.
 - Fallow enforces the package import direction: web -> server -> domain, web and server may import machine, and nothing imports infra. A new package or top-level source folder needs a zone in `.fallowrc.json`, or `pnpm check` fails.

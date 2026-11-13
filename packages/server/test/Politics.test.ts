@@ -7,7 +7,7 @@ import {
   type Government,
   PoliticsUnavailable,
   Year,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import { reset } from "cloudflare:test"
 import { Effect, Layer } from "effect"
 import { HttpServer } from "effect/http"

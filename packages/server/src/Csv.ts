@@ -5,7 +5,7 @@ import {
   type Flag,
   type ResolvedView,
   Year,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import { Array as Arr, Option, Schema } from "effect"
 
 import { geo } from "./geo.ts"

@@ -4,7 +4,7 @@ import {
   SourceUnavailable,
   TransformNotApplicable,
   type View,
-} from "@openfacts/domain"
+} from "@repo/domain"
 
 import { resolve } from "@/explore/api"
 import { inProcess } from "@/explore/inProcess"

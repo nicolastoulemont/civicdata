@@ -5,7 +5,7 @@
 // catalog build, which leaves out of search the datasets no chart can show
 // and embeds the labels:
 //
-//   STAGE=pr-152 pnpm --filter @openfacts/server run outlines
+//   STAGE=pr-152 pnpm --filter @repo/server run outlines
 //
 // It writes to the stage's own database, civicdata-Database-<STAGE>-*, as
 // Alchemy's default Cloudflare login (~/.alchemy/profiles/default/
@@ -49,7 +49,7 @@ const login = Effect.gen(function* () {
 
   if (values.expires <= Date.now()) {
     return yield* Effect.fail(
-      "Alchemy's Cloudflare login expired. Refresh it with: pnpm --silent --filter @openfacts/infra exec alchemy state cat civicdata/prod/output --log-level=none --no-input",
+      "Alchemy's Cloudflare login expired. Refresh it with: pnpm --silent --filter @repo/infra exec alchemy state cat civicdata/prod/output --log-level=none --no-input",
     )
   }
 

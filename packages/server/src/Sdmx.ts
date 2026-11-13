@@ -10,7 +10,7 @@ import {
   type Source,
   SourceUnavailable,
   sourceOf,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import {
   Array as Arr,
   Context,
@@ -579,7 +579,7 @@ const keys = {
 }
 
 // Eurostat and OECD data, read through their SDMX REST APIs as SDMX-CSV.
-export class Sdmx extends Context.Service<Sdmx, Interface>()("@openfacts/server/Sdmx") {
+export class Sdmx extends Context.Service<Sdmx, Interface>()("@repo/server/Sdmx") {
   static readonly layer = Layer.effect(Sdmx, make(passthrough))
 
   // Serves a stored dataflow, list of dimensions or series while its source

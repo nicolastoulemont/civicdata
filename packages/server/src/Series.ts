@@ -9,7 +9,7 @@ import {
   Observation,
   type SeriesKey,
   Year,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import { DateTime, Effect, Schema } from "effect"
 
 // What the Resolver asks a source adapter for: one series' values for some

@@ -1,4 +1,4 @@
-import type { ConversationId } from "@openfacts/domain"
+import type { ConversationId } from "@repo/domain"
 
 // Which composer a draft is typed in: the home page's, or a conversation's.
 export type Draft = "home" | ConversationId

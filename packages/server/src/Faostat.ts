@@ -9,7 +9,7 @@ import {
   Qualification,
   Failure,
   SourceUnavailable,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import { Context, DateTime, Effect, Layer, Option, Schema, Stream } from "effect"
 import { HttpClient } from "effect/http"
 
@@ -229,9 +229,9 @@ const observationsOf = Effect.fn("Faostat.observations")(function* (
 export class FaostatArchive extends Context.Service<
   FaostatArchive,
   { readonly read: (version: string) => Stream.Stream<Stored, SourceUnavailable> }
->()("@openfacts/server/FaostatArchive") {}
+>()("@repo/server/FaostatArchive") {}
 
-export class Faostat extends Context.Service<Faostat, Adapter>()("@openfacts/server/Faostat") {
+export class Faostat extends Context.Service<Faostat, Adapter>()("@repo/server/Faostat") {
   static readonly layer = Layer.effect(
     Faostat,
     Effect.gen(function* () {

@@ -67,7 +67,7 @@ preserve numeric text, including trailing zeros. Current selected data contain
 Only after owner approval for a named target:
 
 ```
-pnpm --filter @openfacts/server wid
+pnpm --filter @repo/server wid
 ```
 
 Required variables: `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` (D1),

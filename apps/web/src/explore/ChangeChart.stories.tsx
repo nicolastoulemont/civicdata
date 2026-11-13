@@ -1,4 +1,4 @@
-import { Change, IndicatorId, Year } from "@openfacts/domain"
+import { Change, IndicatorId, Year } from "@repo/domain"
 import type { Meta, StoryObj } from "@storybook/react-vite"
 import { Schema } from "effect"
 

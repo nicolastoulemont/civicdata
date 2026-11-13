@@ -1,4 +1,4 @@
-import { Asked, type ConversationId, Stopped, type Turn, type TurnIndex } from "@openfacts/domain"
+import { Asked, type ConversationId, Stopped, type Turn, type TurnIndex } from "@repo/domain"
 import { DateTime, Schema } from "effect"
 import { useState } from "react"
 import { useTranslation } from "react-i18next"

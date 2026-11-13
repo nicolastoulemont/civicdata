@@ -1,4 +1,4 @@
-import { ChartIndex, TurnIndex } from "@openfacts/domain"
+import { ChartIndex, TurnIndex } from "@repo/domain"
 import { Clock, Effect, Layer, Option, Predicate, Schedule, Stream } from "effect"
 
 import { Agent } from "../src/Agent.ts"

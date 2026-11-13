@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from "@effect/vitest"
-import { type CatalogEntry, CatalogUnavailable } from "@openfacts/domain"
+import { type CatalogEntry, CatalogUnavailable } from "@repo/domain"
 import { reset } from "cloudflare:test"
 import { Effect } from "effect"
 

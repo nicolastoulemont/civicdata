@@ -1,4 +1,4 @@
-import { type Block, Chart } from "@openfacts/domain"
+import { type Block, Chart } from "@repo/domain"
 import { Schema } from "effect"
 import { Fragment, type ReactNode } from "react"
 import { useTranslation } from "react-i18next"

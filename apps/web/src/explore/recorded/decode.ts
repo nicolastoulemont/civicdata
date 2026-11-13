@@ -1,4 +1,4 @@
-import { ResolvedView } from "@openfacts/domain"
+import { ResolvedView } from "@repo/domain"
 import { Schema } from "effect"
 
 // The JSON files here are World Bank responses recorded on 2026-11-10 in the

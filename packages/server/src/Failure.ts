@@ -1,4 +1,4 @@
-import { Failure, type Source, SourceUnavailable } from "@openfacts/domain"
+import { Failure, type Source, SourceUnavailable } from "@repo/domain"
 import { Cause, Effect, Match, Schema } from "effect"
 import { HttpClientError } from "effect/http"
 

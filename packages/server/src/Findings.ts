@@ -1,4 +1,4 @@
-import { type Country, covers, Finding, type IndicatorId, type Year } from "@openfacts/domain"
+import { type Country, covers, Finding, type IndicatorId, type Year } from "@repo/domain"
 import { Context, Effect, Layer, Schema } from "effect"
 
 import findings from "./research/findings.json"
@@ -38,7 +38,7 @@ const over = (all: ReadonlyArray<Finding>): Interface => ({
 
 // The research findings the agent may cite for why a figure moved, reviewed
 // by hand and shipped with the code (see research/README.md).
-export class Findings extends Context.Service<Findings, Interface>()("@openfacts/server/Findings") {
+export class Findings extends Context.Service<Findings, Interface>()("@repo/server/Findings") {
   static readonly layer = Layer.effect(
     Findings,
     Schema.decodeUnknownEffect(Catalogue)(findings).pipe(

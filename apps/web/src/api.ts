@@ -1,4 +1,4 @@
-import { Api, verificationHeader, VerificationRequired } from "@openfacts/domain"
+import { Api, verificationHeader, VerificationRequired } from "@repo/domain"
 import { Effect, Layer, Option, Schema } from "effect"
 import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
 import { HttpApiClient } from "effect/http-api"

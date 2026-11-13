@@ -11,7 +11,7 @@ import {
   type Related,
   type ResolvedView,
   Year,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import { Array as Arr, Match, Order, Schema } from "effect"
 
 const Point = Schema.Struct({ year: Year, value: Schema.Finite })

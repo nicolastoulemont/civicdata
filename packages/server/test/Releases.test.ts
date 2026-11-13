@@ -8,7 +8,7 @@ import {
   SourceUnavailable,
   Trend,
   Year,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import { reset } from "cloudflare:test"
 import { env } from "cloudflare:workers"
 import { DateTime, Effect, Layer, Schema, Stream } from "effect"

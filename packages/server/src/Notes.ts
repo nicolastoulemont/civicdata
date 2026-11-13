@@ -7,7 +7,7 @@ import {
   type Source,
   SourceUnavailable,
   sourceOf,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import { Context, DateTime, Duration, Effect, Layer, Match, Option, Schedule, Schema } from "effect"
 import { HttpClient, HttpClientRequest } from "effect/http"
 import { decodeXML } from "entities"
@@ -367,7 +367,7 @@ const make = Effect.gen(function* () {
 // What each source writes about an indicator beyond its definition: the
 // World Bank's notes on a series, Eurostat's reference metadata on a
 // dataset, and the OECD's notes on a dataflow's countries and series.
-export class Notes extends Context.Service<Notes, Interface>()("@openfacts/server/Notes") {
+export class Notes extends Context.Service<Notes, Interface>()("@repo/server/Notes") {
   // Needs an HttpClient and a Cache.
   static readonly layer = Layer.effect(Notes, make)
 

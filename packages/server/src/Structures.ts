@@ -1,4 +1,4 @@
-import { SourceUnavailable } from "@openfacts/domain"
+import { SourceUnavailable } from "@repo/domain"
 import { Context, Effect, Layer, Schema, Stream } from "effect"
 import { HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
 import { Gunzip } from "fflate"
@@ -81,7 +81,7 @@ interface Interface {
 // What Eurostat and the OECD publish about the structure of all their
 // datasets, read over HTTP.
 export class Structures extends Context.Service<Structures, Interface>()(
-  "@openfacts/server/Structures",
+  "@repo/server/Structures",
 ) {
   static readonly layer = Layer.effect(
     Structures,

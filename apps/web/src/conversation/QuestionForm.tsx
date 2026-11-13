@@ -1,4 +1,4 @@
-import { maxQuestion, Question } from "@openfacts/domain"
+import { maxQuestion, Question } from "@repo/domain"
 import {
   type Editor,
   Extension,

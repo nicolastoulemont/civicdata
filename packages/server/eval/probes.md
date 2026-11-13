@@ -39,7 +39,7 @@ Then write `review.md` in the run folder:
 ## Turning findings into cases
 
 ```sh
-RUN=eval/runs/<run> pnpm --filter @openfacts/server run triage
+RUN=eval/runs/<run> pnpm --filter @repo/server run triage
 ```
 
 It ranks the run's answers as it ranks the production log (`eval/candidates.ts`): a down vote first, then answers cut short, unanswered, or with charts the server sent back. An up vote leaves an answer out. Each answer prints as the start of a case for `cases.ts`. Finish it as `docs/answers.md` describes. Keep the probe in `probes.ts` too: ids number probes in order, so removing one renames those after it, and the probe still gets its text reviewed.

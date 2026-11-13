@@ -7,7 +7,7 @@ import {
   IndicatorNotFound,
   SourceUnavailable,
   Year,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import { DateTime, Effect, Fiber, Layer, Schema } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
 import { TestClock } from "effect/testing"

@@ -5,7 +5,7 @@ import {
   Observation,
   Qualification,
   SourceUnavailable,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import { Context, DateTime, Effect, Layer, Option, Schema, Stream } from "effect"
 
 import { AssetId, type Adapter, Policy, Release } from "./Adapter.ts"
@@ -122,9 +122,9 @@ export class VdemArchive extends Context.Service<
   {
     readonly read: Stream.Stream<Stored, SourceUnavailable>
   }
->()("@openfacts/server/VdemArchive") {}
+>()("@repo/server/VdemArchive") {}
 
-export class Vdem extends Context.Service<Vdem, Adapter>()("@openfacts/server/Vdem") {
+export class Vdem extends Context.Service<Vdem, Adapter>()("@repo/server/Vdem") {
   static readonly layer = Layer.effect(
     Vdem,
     Effect.gen(function* () {

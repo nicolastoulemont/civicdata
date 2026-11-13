@@ -1,4 +1,4 @@
-import { Locale } from "@openfacts/domain"
+import { Locale } from "@repo/domain"
 import { Schema } from "effect"
 import { useId } from "react"
 import { useTranslation } from "react-i18next"

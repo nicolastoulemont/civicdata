@@ -3,7 +3,7 @@ import { join } from "node:path"
 import { createGunzip } from "node:zlib"
 
 import { NodeStream } from "@effect/platform-node"
-import { SourceUnavailable } from "@openfacts/domain"
+import { SourceUnavailable } from "@repo/domain"
 import { DateTime, Effect, Layer, Stream } from "effect"
 import { HttpClient } from "effect/http"
 

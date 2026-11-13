@@ -1,4 +1,4 @@
-import type { Country, Flag, ResolvedView } from "@openfacts/domain"
+import type { Country, Flag, ResolvedView } from "@repo/domain"
 import type { TFunction } from "i18next"
 import { Download } from "lucide-react"
 import { use } from "react"

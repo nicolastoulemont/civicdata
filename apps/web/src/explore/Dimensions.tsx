@@ -1,4 +1,4 @@
-import type { Code, Dimension, View } from "@openfacts/domain"
+import type { Code, Dimension, View } from "@repo/domain"
 import { useId } from "react"
 import { useTranslation } from "react-i18next"
 

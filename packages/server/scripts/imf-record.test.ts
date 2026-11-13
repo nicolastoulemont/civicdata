@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs"
 
-import { Country } from "@openfacts/domain"
+import { Country } from "@repo/domain"
 import { Effect, Result } from "effect"
 import { expect, it } from "vitest"
 

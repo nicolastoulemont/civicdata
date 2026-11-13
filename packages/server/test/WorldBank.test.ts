@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest"
-import { IndicatorId, IndicatorNotFound, SourceUnavailable, Year } from "@openfacts/domain"
+import { IndicatorId, IndicatorNotFound, SourceUnavailable, Year } from "@repo/domain"
 import { DateTime, Effect, Fiber, Layer, Stream } from "effect"
 import { TestClock } from "effect/testing"
 

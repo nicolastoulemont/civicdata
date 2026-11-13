@@ -1,5 +1,5 @@
 {
-  "name": "@openfacts/infra",
+  "name": "@repo/infra",
   "private": true,
   "type": "module",
   "scripts": {

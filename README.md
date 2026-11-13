@@ -151,7 +151,7 @@ missing numbers. See [the scope and manual first-fill runbook](docs/research/ilo
 
 WID's first stored-only slice covers pre-tax national-income shares for France
 and Sweden, 1991–2024, with explicit percentile, age, equal-split population and
-fraction units. Its manual `pnpm --filter @openfacts/server wid` command stages
+fraction units. Its manual `pnpm --filter @repo/server wid` command stages
 reusable country inputs before complete-series release activation. Every input's
 provenance and publisher quality notes remain attached. See
 [WID evidence and operations](docs/research/wid/README.md). The project uses WID

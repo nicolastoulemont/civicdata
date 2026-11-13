@@ -1,4 +1,4 @@
-import { IndicatorId, Politics, ResolvedView, View, Year } from "@openfacts/domain"
+import { IndicatorId, Politics, ResolvedView, View, Year } from "@repo/domain"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import {
   createMemoryHistory,

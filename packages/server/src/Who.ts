@@ -8,7 +8,7 @@ import {
   Qualification,
   SourceUnavailable,
   Year,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import { Context, DateTime, Duration, Effect, Exit, Layer, Schema, Stream } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
 
@@ -367,7 +367,7 @@ const make = Effect.gen(function* () {
   })
 })
 
-export class Who extends Context.Service<Who, Adapter>()("@openfacts/server/Who") {
+export class Who extends Context.Service<Who, Adapter>()("@repo/server/Who") {
   static readonly layer = Layer.effect(Who, make)
   static readonly cached = Layer.effect(
     Who,

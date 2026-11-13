@@ -7,7 +7,7 @@ import {
   SourceUnavailable,
   Trend,
   Year,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import { Effect, Layer, Schema, Stream } from "effect"
 import { TestClock } from "effect/testing"
 

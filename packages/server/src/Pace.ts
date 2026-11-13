@@ -1,4 +1,4 @@
-import type { Source } from "@openfacts/domain"
+import type { Source } from "@repo/domain"
 import { Clock, Context, Duration, Effect, Layer, Ref, Schema } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
 
@@ -133,7 +133,7 @@ export const hosts = new Map<string, Source>([
 
 // Paces the requests the app sends to each source, so that all its Workers
 // together stay within the source's limits.
-export class Pace extends Context.Service<Pace, Interface>()("@openfacts/server/Pace") {
+export class Pace extends Context.Service<Pace, Interface>()("@repo/server/Pace") {
   // Limiters in this process only: tests, and plain `pnpm dev:web`.
   static readonly memory = Layer.effect(
     Pace,

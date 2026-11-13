@@ -13,7 +13,7 @@ import {
   directionAfter,
   type View,
   Year,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import { Array as Arr, Context, Effect, Layer, Match, Option } from "effect"
 
 import { counterparts, disagreeing } from "./Counterparts.ts"
@@ -64,7 +64,7 @@ const qualified = (
   by: { readonly qualifications?: ReadonlyArray<unknown> } | undefined,
 ) => (main.qualifications?.length ?? 0) + (by?.qualifications?.length ?? 0) > 0
 
-export class Resolver extends Context.Service<Resolver, Interface>()("@openfacts/server/Resolver") {
+export class Resolver extends Context.Service<Resolver, Interface>()("@repo/server/Resolver") {
   static readonly layer = Layer.effect(
     Resolver,
     Effect.gen(function* () {

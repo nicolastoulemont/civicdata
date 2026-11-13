@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest"
-import { Failure, SourceUnavailable } from "@openfacts/domain"
+import { Failure, SourceUnavailable } from "@repo/domain"
 import { Cause } from "effect"
 import { HttpClientError, HttpClientRequest, HttpClientResponse } from "effect/http"
 

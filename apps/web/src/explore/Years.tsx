@@ -1,4 +1,4 @@
-import { Year } from "@openfacts/domain"
+import { Year } from "@repo/domain"
 import { useId } from "react"
 
 import { Field, FieldLabel } from "@/components/ui/field"

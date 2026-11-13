@@ -1,6 +1,6 @@
 import { DEFAULT_SCRIPT_ID, Turnstile } from "@marsidev/react-turnstile"
-import { verificationAction, VerificationRequired, VerificationToken } from "@openfacts/domain"
-import { Machine } from "@openfacts/machine"
+import { verificationAction, VerificationRequired, VerificationToken } from "@repo/domain"
+import { Machine } from "@repo/machine"
 import { Data, Effect, Option, Result, Schema } from "effect"
 import type { ReactNode } from "react"
 import { createRoot } from "react-dom/client"

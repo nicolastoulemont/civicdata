@@ -55,7 +55,7 @@ updating the evidence, expected hashes and chronological release order together.
 Order currently follows publication time. Same-publication revisions need a new,
 explicitly reviewed monotone order before adoption; they cannot overwrite this pin.
 
-The Node-only `pnpm --filter @openfacts/server imf` command uses shared Gather,
+The Node-only `pnpm --filter @repo/server imf` command uses shared Gather,
 Inputs.collect, D1 and signed conditional R2 storage. It assembles both countries
 as one complete series before staging, verifies exact input bytes again immediately
 before conditional activation, and retains the previous active release on failure.

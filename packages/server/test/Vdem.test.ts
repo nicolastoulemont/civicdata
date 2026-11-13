@@ -1,6 +1,6 @@
 import { D1Client } from "@effect/sql-d1"
 import { beforeEach, expect, it } from "@effect/vitest"
-import { Qualification, Trend, Year } from "@openfacts/domain"
+import { Qualification, Trend, Year } from "@repo/domain"
 import { reset } from "cloudflare:test"
 import { DateTime, Effect, Layer, Result, Schema, Stream } from "effect"
 import { SqlClient } from "effect/sql"

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest"
-import { areas, Politics, sourceOf } from "@openfacts/domain"
+import { areas, Politics, sourceOf } from "@repo/domain"
 import { Schema } from "effect"
 
 import events from "../src/official/events.json"

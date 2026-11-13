@@ -15,7 +15,7 @@ import {
   TransformNotApplicable,
   Trend,
   Year,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import { reset } from "cloudflare:test"
 import { DateTime, Effect, Layer, Schema } from "effect"
 import { HttpServer } from "effect/http"

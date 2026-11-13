@@ -1,4 +1,4 @@
-import { type IndicatorId, sourceOf, type View } from "@openfacts/domain"
+import { type IndicatorId, sourceOf, type View } from "@repo/domain"
 import { Match } from "effect"
 
 import { createI18n } from "../locale.tsx"

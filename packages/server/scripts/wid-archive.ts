@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto"
 
-import { Input, SourceUnavailable } from "@openfacts/domain"
+import { Input, SourceUnavailable } from "@repo/domain"
 import { DateTime, Duration, Effect, Layer, Schema, Stream } from "effect"
 import { HttpClient } from "effect/http"
 import { SqlClient } from "effect/sql"

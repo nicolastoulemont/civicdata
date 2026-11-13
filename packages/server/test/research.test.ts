@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest"
-import { Evidence, Finding, IndicatorId, Scope, type Study, Year } from "@openfacts/domain"
+import { Evidence, Finding, IndicatorId, Scope, type Study, Year } from "@repo/domain"
 import { Effect, Exit, Schema, Struct } from "effect"
 
 import { Findings } from "../src/Findings.ts"

@@ -1,10 +1,4 @@
-import {
-  Country,
-  Dimension,
-  IndicatorId,
-  IndicatorNotFound,
-  SourceUnavailable,
-} from "@openfacts/domain"
+import { Country, Dimension, IndicatorId, IndicatorNotFound, SourceUnavailable } from "@repo/domain"
 import { Context, DateTime, Effect, Layer, Option, Schema, Stream } from "effect"
 
 import { type Adapter, Policy, type Release } from "./Adapter.ts"
@@ -37,9 +31,9 @@ export class ImfArchive extends Context.Service<
     readonly read: (version: string) => Stream.Stream<Stored, SourceUnavailable>
     readonly verify: (version: string) => Effect.Effect<void, SourceUnavailable>
   }
->()("@openfacts/server/ImfArchive") {}
+>()("@repo/server/ImfArchive") {}
 
-export class Imf extends Context.Service<Imf, Adapter>()("@openfacts/server/Imf") {
+export class Imf extends Context.Service<Imf, Adapter>()("@repo/server/Imf") {
   static readonly layer = Layer.effect(
     Imf,
     Effect.gen(function* () {

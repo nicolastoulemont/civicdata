@@ -1,4 +1,4 @@
-import { inYear, type Ranked } from "@openfacts/domain"
+import { inYear, type Ranked } from "@repo/domain"
 import { lazy, Suspense } from "react"
 
 import { Skeleton } from "@/components/ui/skeleton"

@@ -4,7 +4,7 @@ import {
   VerificationRequired,
   VerificationToken,
   VerificationUnavailable,
-} from "@openfacts/domain"
+} from "@repo/domain"
 import { Clock, Context, Duration, Effect, Layer, Option, Redacted, Result, Schema } from "effect"
 import * as Base64Url from "effect/encoding/Base64Url"
 import {
@@ -48,7 +48,7 @@ const signed = (expiry: number) => encoder.encode(`${verificationAction}:${expir
 // A browser proof is redeemed once, before a request can spend model credits.
 // It earns the browser a pass for the rest of its session.
 export class Verification extends Context.Service<Verification, Interface>()(
-  "@openfacts/server/Verification",
+  "@repo/server/Verification",
 ) {
   static readonly none = Layer.succeed(Verification, Verification.of({ check: Effect.void }))
 
