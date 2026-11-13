@@ -1,3 +1,4 @@
+import { boundaries } from "@repo/maps/vite"
 import tailwindcss from "@tailwindcss/vite"
 import { tanstackStart } from "@tanstack/react-start/plugin/vite"
 import react from "@vitejs/plugin-react"
@@ -10,5 +11,5 @@ export default defineConfig({
   // Provided by the Workers runtime. Outside Workers the server's dynamic
   // import of it fails and the R2 cache is skipped (see packages/server Cache).
   build: { rolldownOptions: { external: ["cloudflare:workers"] } },
-  plugins: [tailwindcss(), tanstackStart(), react()],
+  plugins: [boundaries(), tailwindcss(), tanstackStart(), react()],
 })

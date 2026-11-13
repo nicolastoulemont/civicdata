@@ -3,6 +3,7 @@
 // `pnpm --filter @repo/web run glyphs` after changing a face below.
 import { readFileSync, writeFileSync } from "node:fs"
 
+import { labels } from "@repo/maps/labels"
 // opentype.js ships CommonJS, which Node exposes as a default export only.
 // oxlint-disable-next-line import/default
 import opentype from "opentype.js"
@@ -14,14 +15,26 @@ const faces = [
 ]
 
 // Printable ASCII covers every World Bank indicator and economy name, apart
-// from the en dash. The card adds "·" and "…", and the map of Europe "é" for
-// Réunion.
+// from the en dash. Cards add punctuation, boundary credits and accented
+// inset names such as Réunion, Juan Fernández and Salas y Gómez.
+const names = await labels()
+
 const characters = [
-  ...Array.from({ length: 95 }, (_, index) => String.fromCodePoint(32 + index)),
-  "–",
-  "·",
-  "…",
-  "é",
+  ...new Set([
+    ...Array.from({ length: 95 }, (_, index) => String.fromCodePoint(32 + index)),
+    "–",
+    "·",
+    "…",
+    "é",
+    "ç",
+    "©",
+    "É",
+    "á",
+    "ó",
+    "ý",
+    "İ",
+    ...names.flatMap((name) => name.split("")),
+  ]),
 ]
 
 // Sub-rows per pixel row. Coverage along each sub-row is exact.
@@ -124,9 +137,12 @@ const rasterize = (
   return coverage
 }
 
-const glyphs = (font: opentype.Font, size: number) =>
+const glyphs = (fonts: ReadonlyArray<opentype.Font>, size: number) =>
   Object.fromEntries(
     characters.map((character) => {
+      const font = fonts.find((candidate) => candidate.charToGlyphIndex(character) !== 0)
+
+      if (font === undefined) throw new Error(`No Geist glyph for ${character}`)
       const glyph = font.charToGlyph(character)
       const path = glyph.getPath(0, 0, size)
       const bounds = path.getBoundingBox()
@@ -151,21 +167,25 @@ const glyphs = (font: opentype.Font, size: number) =>
   )
 
 const source = faces.map(({ name, weight, size }) => {
-  const file = new URL(
-    `../node_modules/@fontsource/geist/files/geist-latin-${weight}-normal.woff`,
-    import.meta.url,
-  )
+  const fonts = ["latin", "latin-ext"].map((subset) => {
+    const file = new URL(
+      `../node_modules/@fontsource/geist/files/geist-${subset}-${weight}-normal.woff`,
+      import.meta.url,
+    )
 
-  const bytes = readFileSync(file)
+    const bytes = readFileSync(file)
 
-  // oxlint-disable-next-line import/no-named-as-default-member
-  const font = opentype.parse(
-    bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength),
-  )
+    // oxlint-disable-next-line import/no-named-as-default-member
+    return opentype.parse(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength))
+  })
+
+  const font = fonts[0]
+
+  if (font === undefined) throw new Error("Missing Geist Latin font")
 
   const ascent = Math.round((font.ascender * size) / font.unitsPerEm)
 
-  return `export const ${name}: Face = ${JSON.stringify({ size, ascent, glyphs: glyphs(font, size) })}\n`
+  return `export const ${name}: Face = ${JSON.stringify({ size, ascent, glyphs: glyphs(fonts, size) })}\n`
 })
 
 writeFileSync(

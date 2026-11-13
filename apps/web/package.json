@@ -4,10 +4,9 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
-    "build": "vite build",
+    "build": "turbo run build --filter=@repo/maps && vite build",
     "typecheck": "effect-tsgo tsc --noEmit && effect-tsgo tsc --noEmit -p scripts",
-    "glyphs": "node scripts/glyphs.ts",
-    "maps": "node scripts/maps.ts",
+    "glyphs": "turbo run build --filter=@repo/maps && node scripts/glyphs.ts",
     "flags": "node scripts/flags.ts",
     "colors": "node scripts/colors.ts",
     "test": "vitest run",
@@ -20,6 +19,7 @@
     "@marsidev/react-turnstile": "^1.6.3",
     "@repo/domain": "workspace:*",
     "@repo/machine": "workspace:*",
+    "@repo/maps": "workspace:*",
     "@repo/server": "workspace:*",
     "@tanstack/query-persist-client-core": "^5.107.1",
     "@tanstack/react-query": "^5.107.1",
@@ -56,16 +56,11 @@
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.8",
-    "@types/d3-geo": "^3.1.1",
-    "@types/geojson": "^7946.0.16",
     "@types/node": "^26.6.6",
     "@types/opentype.js": "^1.3.10",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "@types/topojson-client": "^3.1.5",
-    "@types/topojson-specification": "^1.0.5",
     "@vitejs/plugin-react": "^6.2.0",
-    "d3-geo": "^3.1.2",
     "flag-icons": "^7.6.0",
     "happy-dom": "^21.0.4",
     "i18n-iso-countries": "^7.14.0",
@@ -74,9 +69,7 @@
     "shadcn": "^4.23.0",
     "storybook": "^10.6.6",
     "tailwindcss": "^4.3.5",
-    "topojson-client": "^3.1.0",
     "vite": "^8.3.0",
-    "vitest": "catalog:",
-    "world-atlas": "^2.0.2"
+    "vitest": "catalog:"
   }
 }

@@ -6,11 +6,32 @@
       "dependsOn": ["^build"],
       "outputs": ["dist/**"]
     },
-    "typecheck": {},
-    "test": {},
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "test": {
+      "dependsOn": ["^build"]
+    },
     "dev": {
       "cache": false,
+      "persistent": true,
+      "dependsOn": ["^build"]
+    },
+    "storybook": {
+      "dependsOn": ["^build"],
+      "cache": false,
       "persistent": true
+    },
+    "build-storybook": {
+      "dependsOn": ["^build"],
+      "outputs": ["storybook-static/**"]
+    },
+    "lint": {
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/.oxlintrc.json", "$TURBO_ROOT$/tools/oxlint/**"]
+    },
+    "format:check": {
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/.oxfmtrc.json"]
     }
-  }
+  },
+  "globalDependencies": ["tsconfig.base.json"]
 }

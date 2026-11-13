@@ -33,6 +33,13 @@ jobs:
         with:
           cache: true
           require-lockfile: true
+      # Keep package checks across runners, so changing web does not rerun maps.
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with: &task-cache
+          path: .turbo/cache
+          key: ${{ runner.os }}-${{ runner.arch }}-turbo-${{ hashFiles('pnpm-lock.yaml', '.node-version') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-${{ runner.arch }}-turbo-${{ hashFiles('pnpm-lock.yaml', '.node-version') }}-
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm test:lint
@@ -112,6 +119,11 @@ jobs:
           echo "OPEN=$open" >> "$GITHUB_ENV"
           echo "OWN_CATALOG=$own" >> "$GITHUB_ENV"
           echo "open=$open" >> "$GITHUB_OUTPUT"
+      - if: env.OPEN == 'true'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with: *task-cache
+      - if: env.OPEN == 'true'
+        run: pnpm turbo run build --filter=@repo/maps
       - if: env.OPEN == 'true'
         run: pnpm --filter @repo/infra exec alchemy deploy --yes --stage "$STAGE"
       - if: env.OPEN == 'false'
@@ -255,6 +267,9 @@ jobs:
       - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           require-lockfile: true
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with: *task-cache
+      - run: pnpm turbo run build --filter=@repo/maps
       - run: pnpm --filter @repo/infra exec alchemy deploy --yes --stage "$STAGE"
       - *build
 

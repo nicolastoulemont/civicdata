@@ -17,3 +17,6 @@ coverage/
 # What each probe run answered (packages/server/eval/probes.md)
 packages/server/eval/runs/
 packages/server/eval/archives/
+
+# Local, checksum-verified copies of map artifacts stored in R2.
+packages/maps/.archive/

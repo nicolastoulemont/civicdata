@@ -1645,6 +1645,7 @@ describe("Explore", () => {
   })
 
   it.each([
+    [["USA"], "Map of United States", ["Alaska", "Hawaii", "District of Columbia"]],
     [["USA", "MEX"], "Map of North America", ["Hawaii"]],
     [["MEX", "GTM"], "Map of Central America", []],
     [["SAU", "ARE"], "Map of the Gulf states", []],
@@ -1684,6 +1685,456 @@ describe("Explore", () => {
     expect(screen.getByText("French Guiana")).toBeDefined()
   })
 
+  it.each(["California", "Alaska", "Hawaii", "District of Columbia"])(
+    "names %s on the US map",
+    async (name) => {
+      network.use(everywhere)
+      const user = userEvent.setup()
+      show(
+        Ranking.make({
+          indicator: population,
+          countries: ["USA"],
+          year: Year.make(2020),
+          as: "Map",
+        }),
+      )
+      const map = await screen.findByRole("figure", { name: /^Map of United States/ })
+      expect(within(map).getAllByRole("img")).toHaveLength(51)
+      await user.hover(within(map).getByRole("img", { name }))
+      expect((await screen.findByRole("tooltip")).textContent).toBe(name)
+    },
+  )
+
+  it("names an enlarged region when reached by keyboard", async () => {
+    network.use(everywhere)
+    const user = userEvent.setup()
+    show(
+      Ranking.make({ indicator: population, countries: ["USA"], year: Year.make(2020), as: "Map" }),
+    )
+    const map = await screen.findByRole("figure", { name: /^Map of United States/ })
+    act(() => within(map).getByRole("img", { name: "Hawaii" }).focus())
+    await user.tab()
+    expect(document.activeElement).toBe(
+      within(map).getByRole("img", { name: "District of Columbia" }),
+    )
+    await vi.waitFor(() =>
+      expect(screen.getByRole("tooltip").textContent).toBe("District of Columbia"),
+    )
+    expect(
+      within(map).getByText(
+        "Shows the 50 states and Washington, DC. US territories are not shown.",
+        { exact: false },
+      ),
+    ).toBeDefined()
+    expect(within(map).getByText("Insets use different scales.", { exact: false })).toBeDefined()
+  })
+
+  it.each([
+    ["MEX", "Mexico", "Revillagigedo Islands"],
+    ["MEX", "Mexico", "Guadalupe Island"],
+    ["CHL", "Chile", "Rapa Nui"],
+    ["CHL", "Chile", "Salas y Gómez"],
+    ["CHL", "Chile", "Juan Fernández Islands"],
+    ["CHL", "Chile", "Desventuradas Islands"],
+    ["COL", "Colombia", "Malpelo Island"],
+    ["JPN", "Japan", "Tokyo offshore islands"],
+    ["ZAF", "South Africa", "Western Cape offshore islands"],
+  ] as const)("keeps offshore parts of %s in labelled insets", async (country, title, name) => {
+    network.use(everywhere)
+    show(
+      Ranking.make({
+        indicator: population,
+        countries: [country],
+        year: Year.make(2020),
+        as: "Map",
+      }),
+    )
+
+    const map = await screen.findByRole("figure", {
+      name: `Map of ${title} ranking countries by Total population`,
+    })
+
+    expect(within(map).getByText(name)).toBeDefined()
+    expect(within(map).getByText("Insets use different scales.", { exact: false })).toBeDefined()
+  })
+
+  it.each([
+    [
+      "KOR",
+      "Sejong",
+      /Statistics Korea SGIS \/ vuski\/admdongkor/,
+      "CC BY 4.0; upstream KOGL Type 1. Adapted for display.",
+      "Shows 16 first-level units after the July 2026 Jeonnam-Gwangju merger.",
+    ],
+    [
+      "PHL",
+      "Pateros",
+      /NAMRIA \/ PSA via bendlikeabamboo/,
+      "CC BY-IGO. Adapted for display.",
+      "Shows 82 provinces, 38 independent cities, Pateros and the Special Geographic Area.",
+    ],
+  ] as const)(
+    "credits %s boundaries and keeps its data national",
+    async (country, area, publisher, license, scope) => {
+      network.use(everywhere)
+      const user = userEvent.setup()
+      show(
+        Ranking.make({
+          indicator: population,
+          countries: [country],
+          year: Year.make(2020),
+          as: "Map",
+        }),
+      )
+      const map = await screen.findByRole("figure", { name: /^Map of / })
+      expect(within(map).getByRole("link", { name: publisher }).getAttribute("href")).toMatch(
+        /^https:/,
+      )
+      expect(within(map).getByRole("link", { name: license }).getAttribute("href")).toContain(
+        "creativecommons.org/licenses/by/",
+      )
+      expect(within(map).getByText(scope)).toBeDefined()
+      expect(within(map).queryByRole("link", { name: /Natural Earth/ })).toBeNull()
+      act(() => within(map).getByRole("img", { name: area }).focus())
+      await vi.waitFor(() => expect(screen.getByRole("tooltip").textContent).toBe(area))
+      await user.click(screen.getByRole("tab", { name: "Data" }))
+      const table = await screen.findByRole("table")
+      expect(within(table).getAllByRole("row")).toHaveLength(2)
+      expect(table.textContent).toContain("1,000")
+    },
+  )
+
+  it("keeps Indonesia's four new Papua provinces separate despite repeated source codes", async () => {
+    network.use(everywhere)
+    show(
+      Ranking.make({ indicator: population, countries: ["IDN"], year: Year.make(2020), as: "Map" }),
+    )
+    const map = await screen.findByRole("figure", { name: /^Map of Indonesia/ })
+
+    for (const name of [
+      "Papua",
+      "Papua Barat",
+      "Papua Selatan",
+      "Papua Tengah",
+      "Papua Pegunungan",
+      "Papua Barat Daya",
+    ])
+      expect(within(map).getByRole("img", { name })).toBeDefined()
+  })
+
+  it.each([
+    [
+      "CUW",
+      "Land outside census polygons (context)",
+      "Shows 61 census-viewer geozones. Land outside those polygons is shown for location only.",
+    ],
+    [
+      "MAF",
+      "Tintamarre (context)",
+      "Shows 14 statistical neighbourhoods, distinct from the six neighbourhood councils.",
+    ],
+  ] as const)("keeps uncovered land neutral for %s", async (country, context, scope) => {
+    network.use(everywhere)
+    show(
+      Ranking.make({
+        indicator: population,
+        countries: [country],
+        year: Year.make(2020),
+        as: "Map",
+      }),
+    )
+    const map = await screen.findByRole("figure", { name: /^Map of / })
+    expect(within(map).getByText(scope)).toBeDefined()
+    expect(
+      within(map)
+        .getByLabelText(
+          new RegExp(
+            `${context.replace(/[()]/g, "\\$&")}, .*Location only; national value not applied`,
+          ),
+        )
+        .getAttribute("fill"),
+    ).toBe("var(--border)")
+  })
+
+  it("offers the adapted Emirati boundary data under its open database licence", async () => {
+    network.use(everywhere)
+    show(
+      Ranking.make({ indicator: population, countries: ["ARE"], year: Year.make(2020), as: "Map" }),
+    )
+    const map = await screen.findByRole("figure", { name: /^Map of United Arab Emirates/ })
+    expect(
+      within(map).getByRole("link", { name: "Download boundary data" }).getAttribute("href"),
+    ).toBe("/boundaries/ARE.zip")
+    expect(
+      within(map)
+        .getByRole("link", { name: "ODbL 1.0. Adapted for display." })
+        .getAttribute("href"),
+    ).toBe("https://opendatacommons.org/licenses/odbl/1-0/")
+  })
+
+  it("labels Slovenian statistical geography and its open boundary licence", async () => {
+    network.use(everywhere)
+    show(
+      Ranking.make({ indicator: population, countries: ["SVN"], year: Year.make(2020), as: "Map" }),
+    )
+    const map = await screen.findByRole("figure", { name: /^Map of Slovenia/ })
+    expect(within(map).getByText(/Statistical regions/)).toBeDefined()
+    expect(
+      within(map)
+        .getByRole("link", { name: /Geodetska uprava Republike Slovenije/ })
+        .getAttribute("href"),
+    ).toContain("geohub.gov.si")
+    expect(
+      within(map)
+        .getByRole("link", { name: "CC BY 4.0. Adapted for display." })
+        .getAttribute("href"),
+    ).toBe("https://creativecommons.org/licenses/by/4.0/")
+  })
+
+  it.each([
+    ["BDI", ["Buhumuza", "Bujumbura"]],
+    ["BFA", ["Soum", "Sourou", "Kadiogo"]],
+    ["MDG", ["Ambatosoa", "Vatovavy", "Fitovinany"]],
+    ["MLI", ["Taoudenni", "Bandiagara"]],
+    ["TZA", ["Songwe", "Mbeya"]],
+    ["TLS", ["Atauro", "Dili"]],
+    ["AFG", ["Panjshir", "Daykundi", "Parwan", "Uruzgan"]],
+    ["MWI", ["Karonga", "Chitipa"]],
+    ["MOZ", ["Maputo City", "Maputo Province"]],
+  ] as const)("preserves the current distinct areas of %s", async (country, areas) => {
+    network.use(everywhere)
+    show(
+      Ranking.make({
+        indicator: population,
+        countries: [country],
+        year: Year.make(2020),
+        as: "Map",
+      }),
+    )
+    const map = await screen.findByRole("figure", { name: /^Map of / })
+
+    for (const name of areas) expect(within(map).getByRole("img", { name })).toBeDefined()
+  })
+
+  it("keeps China's mainland geography separate from Hong Kong, Macao and Taiwan", async () => {
+    network.use(everywhere)
+    show(
+      Ranking.make({ indicator: population, countries: ["CHN"], year: Year.make(2020), as: "Map" }),
+    )
+    const map = await screen.findByRole("figure", { name: /^Map of China/ })
+    expect(within(map).getAllByRole("img")).toHaveLength(31)
+    expect(within(map).queryByRole("img", { name: /Hong Kong|Macau|Taiwan/ })).toBeNull()
+    expect(within(map).getByRole("img", { name: "Guangdong Province" })).toBeDefined()
+  })
+
+  it("credits Estonia's dated official boundaries and keeps its value national", async () => {
+    network.use(everywhere)
+    const user = userEvent.setup()
+    show(
+      Ranking.make({ indicator: population, countries: ["EST"], year: Year.make(2020), as: "Map" }),
+    )
+    const map = await screen.findByRole("figure", { name: /^Map of Estonia/ })
+    expect(within(map).getByText(/Shows 15 counties/)).toBeDefined()
+    expect(
+      within(map)
+        .getByRole("link", {
+          name: "Boundaries: Estonian Land and Spatial Development Board, 12 November 2026.",
+        })
+        .getAttribute("href"),
+    ).toContain("geoportaal.maaruum.ee")
+    expect(within(map).queryByRole("link", { name: /Natural Earth/ })).toBeNull()
+    act(() => within(map).getByRole("img", { name: "Hiiu" }).focus())
+    await vi.waitFor(() => expect(screen.getByRole("tooltip").textContent).toBe("Hiiu"))
+    await user.click(screen.getByRole("tab", { name: "Data" }))
+    const table = await screen.findByRole("table")
+    expect(table.textContent).toContain("Estonia")
+    expect(table.textContent).toContain("1,000")
+    expect(within(table).getAllByRole("row")).toHaveLength(2)
+  })
+
+  it("keeps the two Croatian counties with a duplicated atlas code separate", async () => {
+    network.use(everywhere)
+    show(
+      Ranking.make({ indicator: population, countries: ["HRV"], year: Year.make(2020), as: "Map" }),
+    )
+    const map = await screen.findByRole("figure", { name: /^Map of Croatia/ })
+    expect(within(map).getByRole("img", { name: "Požega-Slavonia" })).toBeDefined()
+    expect(within(map).getByRole("img", { name: "Brod-Posavina" })).toBeDefined()
+    expect(within(map).getByRole("img", { name: "Zagreb County" })).toBeDefined()
+    expect(within(map).getByRole("img", { name: "City of Zagreb" })).toBeDefined()
+  })
+
+  it("credits Ireland's current council boundaries and keeps its value national", async () => {
+    network.use(everywhere)
+    const user = userEvent.setup()
+    show(
+      Ranking.make({ indicator: population, countries: ["IRL"], year: Year.make(2020), as: "Map" }),
+    )
+    const map = await screen.findByRole("figure", { name: /^Map of Ireland/ })
+    expect(within(map).getByText(/Shows 31 local authority areas/)).toBeDefined()
+    expect(within(map).getByRole("img", { name: "Limerick City and County" })).toBeDefined()
+    expect(within(map).getByRole("img", { name: "Waterford City and County" })).toBeDefined()
+    expect(within(map).queryByRole("img", { name: /North Tipperary|South Tipperary/ })).toBeNull()
+    expect(
+      within(map)
+        .getByRole("link", { name: "Boundaries: © Tailte Éireann, 2024." })
+        .getAttribute("href"),
+    ).toContain("ed592af6f0444bf1b0becdb5925f9477")
+    expect(
+      within(map)
+        .getByRole("link", { name: "CC BY 4.0. Simplified for display." })
+        .getAttribute("href"),
+    ).toBe("https://creativecommons.org/licenses/by/4.0/")
+    expect(within(map).queryByRole("link", { name: /Natural Earth/ })).toBeNull()
+    act(() => within(map).getByRole("img", { name: "Dublin City" }).focus())
+    await user.tab()
+    expect(document.activeElement).toBe(within(map).getByRole("img", { name: "Cork City" }))
+    await vi.waitFor(() => expect(screen.getByRole("tooltip").textContent).toBe("Cork City"))
+    await user.click(screen.getByRole("tab", { name: "Data" }))
+    const table = await screen.findByRole("table")
+    expect(table.textContent).toContain("Ireland")
+    expect(table.textContent).toContain("1,000")
+    expect(within(table).getAllByRole("row")).toHaveLength(2)
+  })
+
+  it("distinguishes Mount Athos from Greece's thirteen regions", async () => {
+    network.use(everywhere)
+    show(
+      Ranking.make({ indicator: population, countries: ["GRC"], year: Year.make(2020), as: "Map" }),
+    )
+    const map = await screen.findByRole("figure", { name: /^Map of Greece/ })
+    expect(
+      within(map).getByText(/Shows 13 regions and the self-governed territory of Mount Athos/),
+    ).toBeDefined()
+  })
+
+  it("labels the UK statistical regions and credits ONS and Ordnance Survey", async () => {
+    network.use(everywhere)
+    const user = userEvent.setup()
+    show(
+      Ranking.make({ indicator: population, countries: ["GBR"], year: Year.make(2020), as: "Map" }),
+    )
+    const map = await screen.findByRole("figure", { name: /^Map of United Kingdom/ })
+    expect(within(map).getAllByRole("img")).toHaveLength(12)
+    expect(within(map).getByRole("img", { name: "Scotland" })).toBeDefined()
+    expect(within(map).getByRole("img", { name: "Wales" })).toBeDefined()
+    expect(within(map).getByRole("img", { name: "Northern Ireland" })).toBeDefined()
+    await user.hover(within(map).getByRole("img", { name: "London" }))
+    expect((await screen.findByRole("tooltip")).textContent).toBe("London")
+    expect(within(map).getByText(/UK boundaries show 12 statistical regions/)).toBeDefined()
+    expect(
+      within(map).getByRole("link", {
+        name: "Boundaries: Office for National Statistics, January 2025.",
+      }),
+    ).toBeDefined()
+    expect(
+      within(map).getByText("Contains OS data © Crown copyright and database right 2025", {
+        exact: false,
+      }),
+    ).toBeDefined()
+    expect(within(map).queryByRole("link", { name: /Natural Earth/ })).toBeNull()
+  })
+
+  it("keeps New Zealand's outlying islands outside the regional count", async () => {
+    network.use(everywhere)
+    show(
+      Ranking.make({ indicator: population, countries: ["NZL"], year: Year.make(2020), as: "Map" }),
+    )
+    const map = await screen.findByRole("figure", { name: /^Map of New Zealand/ })
+    expect(within(map).getAllByRole("img")).toHaveLength(17)
+    expect(
+      within(map)
+        .getByLabelText(
+          "Three Kings Islands, New Zealand: Location only; national value not applied.",
+        )
+        .getAttribute("fill"),
+    ).toBe("var(--border)")
+    expect(
+      within(map)
+        .getByLabelText("Kermadec Islands, New Zealand: Location only; national value not applied.")
+        .getAttribute("fill"),
+    ).toBe("var(--border)")
+    expect(
+      within(map)
+        .getByLabelText(
+          "Subantarctic islands, New Zealand: Location only; national value not applied.",
+        )
+        .getAttribute("fill"),
+    ).toBe("var(--border)")
+    expect(within(map).queryByRole("img", { name: "Tokelau" })).toBeNull()
+    expect(
+      within(map).getByText(/The Cook Islands, Niue and Tokelau are not included/),
+    ).toBeDefined()
+  })
+
+  it("withholds the Dutch national colour from Caribbean municipalities", async () => {
+    network.use(everywhere)
+    show(
+      Ranking.make({ indicator: population, countries: ["NLD"], year: Year.make(2020), as: "Map" }),
+    )
+    const map = await screen.findByRole("figure", { name: /^Map of Netherlands/ })
+    const value = within(map).getByLabelText("Netherlands: 1,000").getAttribute("fill")
+    expect(value).not.toBe("var(--border)")
+    expect(
+      within(map)
+        .getByLabelText("Bonaire, Netherlands: Location only; national value not applied.")
+        .getAttribute("fill"),
+    ).toBe("var(--border)")
+    expect(
+      within(map)
+        .getByLabelText("St. Eustatius, Netherlands: Location only; national value not applied.")
+        .getAttribute("fill"),
+    ).toBe("var(--border)")
+    expect(
+      within(map)
+        .getByLabelText("Saba, Netherlands: Location only; national value not applied.")
+        .getAttribute("fill"),
+    ).toBe("var(--border)")
+    expect(
+      within(map).getByText(
+        "Caribbean municipalities are shown for location only; the national value is not applied to them.",
+        { exact: false },
+      ),
+    ).toBeDefined()
+  })
+
+  it("shows all Länder on a Germany-only map and keeps the value national", async () => {
+    network.use(everywhere)
+    const user = userEvent.setup()
+
+    show(
+      Ranking.make({ indicator: population, countries: ["DEU"], year: Year.make(2020), as: "Map" }),
+    )
+
+    const map = await screen.findByRole("figure", { name: /^Map of Germany/ })
+    const areas = within(map)
+
+    expect(areas.getAllByRole("img")).toHaveLength(16)
+
+    for (const name of ["Berlin", "Hamburg", "Bremen", "Bayern", "Thüringen"])
+      expect(areas.getByRole("img", { name }).getAttribute("tabindex")).toBe("0")
+    expect(
+      areas.getByText(
+        "Borders show regions. Colour shows the national value, not regional values.",
+        { exact: false },
+      ),
+    ).toBeDefined()
+    expect(
+      areas
+        .getByRole("link", { name: "Boundaries: Natural Earth, Admin 1, v5.1.2." })
+        .getAttribute("href"),
+    ).toContain("naturalearthdata.com")
+
+    await user.hover(areas.getByRole("img", { name: "Bayern" }))
+    expect((await screen.findByRole("tooltip")).textContent).toBe("Bayern")
+    await user.unhover(areas.getByRole("img", { name: "Bayern" }))
+    act(() => areas.getByRole("img", { name: "Berlin" }).focus())
+    await vi.waitFor(() => expect(screen.getByRole("tooltip").textContent).toBe("Berlin"))
+    await user.click(screen.getByRole("tab", { name: "Data" }))
+    expect((await screen.findByRole("table")).textContent).toContain("Germany")
+    expect(screen.getByRole("table").textContent).toContain("1,000")
+  })
+
   it("names the country and its value when the pointer is over it on a map", async () => {
     network.use(everywhere)
     const user = userEvent.setup()
@@ -1697,6 +2148,7 @@ describe("Explore", () => {
       }),
     )
     await screen.findByRole("figure", { name: /^Map of Europe/ })
+    expect(screen.queryByRole("img", { name: "Bayern" })).toBeNull()
 
     await user.hover(outline("France"))
     expect((await screen.findByRole("tooltip")).textContent).toBe("France: 1,000")

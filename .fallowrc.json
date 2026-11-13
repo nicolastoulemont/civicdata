@@ -5,7 +5,7 @@
   "ignoreDependencies": [
     // The tsconfig plugin name. @effect/tsgo provides it.
     "@effect/language-service",
-    // Data files apps/web/scripts reads by path, not by import.
+    // Data files the web and map generators read by path, not by import.
     "flag-icons",
     "i18n-iso-countries",
     "world-atlas"
@@ -16,6 +16,7 @@
   "ignoreExports": [
     // Alchemy loads the archive stack through its deploy command argument.
     { "file": "packages/infra/evals.run.ts", "exports": ["default"] },
+    { "file": "packages/infra/maps.run.ts", "exports": ["default"] },
     // TanStack Router generates this file and decides what it exports.
     { "file": "apps/web/src/routeTree.gen.ts", "exports": ["*"] },
     // shadcn components export every sub-part; pages use a few. An unused
@@ -37,13 +38,18 @@
   "effect": { "schemaExportsAsTypes": true },
   // Two maps can project the same place at the same size, e.g. the Hawaii
   // inset on North America and the Americas, so generated outlines repeat.
-  "duplicates": { "ignore": ["apps/web/src/explore/maps/**"] },
+  "duplicates": { "ignore": ["packages/maps/src/data/**"] },
   // shadcn's generated components are kept close to upstream rather than
   // restructured; complexity limits apply to our own code. Build scripts
-  // (apps/web/scripts, tools/brand) run by hand; tests check what they write
+  // (apps/web/scripts, packages/maps/scripts, tools/brand) run by hand; tests check what they write
   // (faces.gen.ts), not the scripts.
   "health": {
-    "ignore": ["apps/web/src/components/ui/**", "apps/web/scripts/**", "tools/brand/**"]
+    "ignore": [
+      "apps/web/src/components/ui/**",
+      "apps/web/scripts/**",
+      "packages/maps/scripts/**",
+      "tools/brand/**"
+    ]
   },
   "rules": {
     "unused-effect-layers": "error",
@@ -51,7 +57,8 @@
     "unproduced-catch-tags": "error"
   },
   // Dependencies point one way: web -> server -> domain. The machine package
-  // depends on nothing of ours, so web and server both build on it. Infra
+  // depends on nothing of ours, so web and server both build on it. Maps
+  // depend on domain, and web consumes their compiled public API. Infra
   // deploys the app and nothing imports it. A new package needs a zone before
   // CI passes.
   "boundaries": {
@@ -60,6 +67,7 @@
       { "name": "brand", "patterns": ["tools/brand/**"] },
       { "name": "domain", "patterns": ["packages/domain/**"] },
       { "name": "machine", "patterns": ["packages/machine/**"] },
+      { "name": "maps", "patterns": ["packages/maps/**"] },
       { "name": "server", "patterns": ["packages/server/**"] },
       { "name": "web", "patterns": ["apps/web/**"] },
       { "name": "infra", "patterns": ["packages/infra/**"] }
@@ -69,8 +77,9 @@
       { "from": "brand", "allow": [] },
       { "from": "domain", "allow": [] },
       { "from": "machine", "allow": [] },
+      { "from": "maps", "allow": ["domain"] },
       { "from": "server", "allow": ["domain", "machine"] },
-      { "from": "web", "allow": ["server", "domain", "machine"] },
+      { "from": "web", "allow": ["server", "domain", "machine", "maps"] },
       { "from": "infra", "allow": [] }
     ],
     "coverage": { "requireAllFiles": true }

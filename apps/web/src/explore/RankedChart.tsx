@@ -1,4 +1,5 @@
 import { inYear, type Ranked } from "@repo/domain"
+import { bands } from "@repo/maps"
 import { lazy, Suspense } from "react"
 
 import { Skeleton } from "@/components/ui/skeleton"
@@ -6,7 +7,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { type Moving, OverTime } from "./OverTime.tsx"
 import { RankingChart } from "./RankingChart.tsx"
 import { fromZero } from "./scale.ts"
-import { bands } from "./sheet.ts"
 
 // The map's outlines load only when a map is shown.
 const RankingMap = lazy(() =>

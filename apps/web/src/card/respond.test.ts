@@ -93,7 +93,12 @@ const decode = async (bytes: Uint8Array<ArrayBuffer>) => {
 
   const header = new DataView((chunks.get("IHDR") ?? new Uint8Array(8)).slice().buffer)
 
-  return { width: header.getUint32(0), height: header.getUint32(4), rows: rows.byteLength }
+  return {
+    width: header.getUint32(0),
+    height: header.getUint32(4),
+    rows: rows.byteLength,
+    pixels: new Uint8Array(rows),
+  }
 }
 
 describe("GET /explore.png", () => {
@@ -105,11 +110,95 @@ describe("GET /explore.png", () => {
     expect(response.status).toBe(200)
     expect(response.headers.get("content-type")).toBe("image/png")
     // Every row holds a filter byte and three bytes, red, green and blue, per pixel.
-    expect(await decode(new Uint8Array(await response.arrayBuffer()))).toEqual({
+    expect(await decode(new Uint8Array(await response.arrayBuffer()))).toMatchObject({
       width: 600,
       height: 315,
       rows: (1 + 600 * 3) * 315,
     })
+  })
+
+  it("keeps Dutch Caribbean insets neutral in the shared image", async () => {
+    network.use(
+      http.get("https://api.worldbank.org/v2/country/NLD/indicator/SP.POP.TOTL", () =>
+        HttpResponse.json([
+          { ...page, total: 1 },
+          [{ countryiso3code: "NLD", date: "2020", value: 1000 }],
+        ]),
+      ),
+      ...worldBank,
+      eurostat,
+    )
+
+    const response = await get(
+      toQuery(
+        Ranking.make({
+          indicator: IndicatorId.make("SP.POP.TOTL"),
+          countries: ["NLD"],
+          year: Year.make(2020),
+          as: "Map",
+        }),
+      ),
+    )
+
+    expect(response.status).toBe(200)
+    const image = await decode(new Uint8Array(await response.arrayBuffer()))
+    let mainlandColour = 0
+    let islandColour = 0
+
+    // The image's map and inset panels, excluding the colour key on the right.
+    // Neutral pixels have equal RGB channels; national shading does not.
+    for (let y = 90; y < 240; y += 1) {
+      for (let x = 30; x < 338; x += 1) {
+        const at = y * (1 + image.width * 3) + 1 + x * 3
+
+        if (image.pixels[at] !== image.pixels[at + 2]) {
+          if (x < 190) mainlandColour += 1
+          else islandColour += 1
+        }
+      }
+    }
+
+    expect(mainlandColour).toBeGreaterThan(0)
+    expect(islandColour).toBe(0)
+  })
+
+  it("keeps narrow island insets visible in the shared image", async () => {
+    network.use(
+      http.get("https://api.worldbank.org/v2/country/PLW/indicator/SP.POP.TOTL", () =>
+        HttpResponse.json([
+          { ...page, total: 1 },
+          [{ countryiso3code: "PLW", date: "2020", value: 1000 }],
+        ]),
+      ),
+      ...worldBank,
+      eurostat,
+    )
+
+    const response = await get(
+      toQuery(
+        Ranking.make({
+          indicator: IndicatorId.make("SP.POP.TOTL"),
+          countries: ["PLW"],
+          year: Year.make(2020),
+          as: "Map",
+        }),
+      ),
+    )
+
+    const image = await decode(new Uint8Array(await response.arrayBuffer()))
+    let coloured = 0
+
+    // Hatohobei's tiny islands lie in the first inset. The main islands and
+    // the colour key are outside this rectangle. A coastal stroke erased them.
+    for (let y = 90; y < 134; y += 1) {
+      for (let x = 135; x < 198; x += 1) {
+        const at = y * (1 + image.width * 3) + 1 + x * 3
+
+        if (image.pixels[at] !== image.pixels[at + 2]) coloured += 1
+      }
+    }
+
+    expect(coloured).toBeGreaterThan(0)
   })
 
   it.each([

@@ -4,11 +4,11 @@ import {
   countries,
   inYear,
   isRanked,
-  regionOf,
   type ResolvedView,
   type Trend,
 } from "@repo/domain"
-import { Match } from "effect"
+import { load, rings, type Sheet, shades, type Steps } from "@repo/maps"
+import { Match, Predicate } from "effect"
 
 import { colors } from "@/explore/colors.gen"
 import {
@@ -24,7 +24,6 @@ import {
 import { changes, type Paired, pairs } from "@/explore/points"
 import { places } from "@/explore/preview"
 import { around, ticks } from "@/explore/scale"
-import { load, rings, type Sheet, shades, type Steps } from "@/explore/sheet"
 
 import { type Canvas, canvas, fill, type Ink, line, png, rect, mapInks, text } from "./canvas.ts"
 import { body, label, title } from "./faces.gen.ts"
@@ -394,15 +393,102 @@ const drawInsets = (
     const scale = Math.min(column / inset.width, (row - 18) / inset.height)
 
     frame(image, { x, y, width: inset.width * scale, height: inset.height * scale })
-    fill(image, place(inset.outline, { x, y, scale }), inkOf(inset.country))
-    text(image, label, inset.name, { x, y: y + inset.height * scale + 12, ink: "muted" })
+    fill(
+      image,
+      place(inset.outline, { x, y, scale }),
+      inset.coverage === "Context" ? "border" : inkOf(inset.country),
+    )
+
+    // A single area's outline is its coast, not an interior regional border.
+    // Stroking it at card scale erases narrow islands and atoll rims.
+    if (inset.areas !== undefined && inset.areas.length > 1) {
+      drawBorders(image, { outlines: inset.areas.map((area) => area.outline), at: { x, y, scale } })
+    }
+
+    text(image, label, fit(label, inset.name, column), {
+      x,
+      y: y + inset.height * scale + 12,
+      ink: "muted",
+    })
   }
+}
+
+// The same regional boundaries as the interactive map, scaled into the card.
+const drawBorders = (
+  image: Canvas,
+  { outlines, at }: { outlines: ReadonlyArray<Steps>; at: { x: number; y: number; scale: number } },
+) => {
+  for (const outline of outlines) {
+    for (const ring of place(outline, at)) {
+      for (const [index, point] of ring.entries()) {
+        const next = ring[(index + 1) % ring.length]
+
+        if (next !== undefined) line(image, point, next, { ink: "border", width: 2 })
+      }
+    }
+  }
+}
+
+// The map key shares a column with its scope notes.
+const drawMapKey = (
+  image: Canvas,
+  {
+    entries,
+    notices,
+    x,
+    y,
+  }: {
+    entries: ReadonlyArray<{ ink: Ink; text: string }>
+    notices: ReadonlyArray<string>
+    x: number
+    y: number
+  },
+) => {
+  for (const [index, entry] of entries.entries()) {
+    const top = y + index * 16
+    rect(image, { x, y: top + 2, width: 10, height: 10 }, entry.ink)
+    text(image, label, entry.text, { x: x + 16, y: top + 11, ink: "muted" })
+  }
+
+  for (const [index, notice] of notices.entries()) {
+    text(image, label, notice, { x, y: y + (entries.length + index) * 16 + 11, ink: "muted" })
+  }
+}
+
+const noticesOf = (sheet: Sheet) => {
+  const { subdivisions } = sheet
+
+  if (subdivisions === undefined) return []
+
+  const kind =
+    subdivisions.source === "Boundary"
+      ? subdivisions.credit.kind
+      : subdivisions.source === "ONS" || subdivisions.country === "ISL"
+        ? "Statistical"
+        : "Administrative"
+
+  const geography = {
+    Administrative: "Regional borders",
+    Statistical: "Statistical regions",
+    Geographic: "Geographic areas",
+  }
+
+  return [
+    "National value",
+    geography[kind],
+    ...(sheet.insets.length === 0 ? [] : ["Insets rescaled"]),
+    ...(sheet.insets.some((inset) => inset.coverage === "Context")
+      ? ["Context: location only"]
+      : []),
+  ]
 }
 
 // A map shaded by rank, as on the site, then its insets, then the key. A
 // country without a value stays the colour of a border.
-const drawMap = async (image: Canvas, resolved: ResolvedView, box: Box) => {
-  const sheet = await load(regionOf(resolved.view.countries))
+const drawMap = (
+  image: Canvas,
+  { resolved, box, sheet }: { resolved: ResolvedView; box: Box; sheet: Sheet },
+) => {
   const { byCountry, key } = shades(resolved.observations)
 
   const inkOf = (country: Country): Ink => {
@@ -411,12 +497,18 @@ const drawMap = async (image: Canvas, resolved: ResolvedView, box: Box) => {
     return shade === undefined ? "border" : (mapInks[shade] ?? "chart-1")
   }
 
-  const labels = key.map(({ low, high }) =>
-    low === high ? formatCompact(low) : `${formatCompact(low)}–${formatCompact(high)}`,
-  )
+  const entries: ReadonlyArray<{ ink: Ink; text: string }> = [
+    ...key.map(({ shade, low, high }) => ({
+      ink: mapInks[shade] ?? "chart-1",
+      text: low === high ? formatCompact(low) : `${formatCompact(low)}–${formatCompact(high)}`,
+    })),
+    { ink: "border", text: "No data" },
+  ]
 
-  const room = Math.max(widest(labels), widest(["No data"])) + 30
-  const column = widest(sheet.insets.map((inset) => inset.name))
+  const notices = noticesOf(sheet)
+
+  const room = widest([...entries.map((entry) => entry.text), ...notices]) + 30
+  const column = Math.max(64, Math.min(100, widest(sheet.insets.map((inset) => inset.name))))
   const columns = Math.min(2, sheet.insets.length)
   const insets = columns === 0 ? 0 : columns * (column + 8) + 8
   const row = (box.bottom - box.top) / Math.max(1, Math.ceil(sheet.insets.length / 2))
@@ -436,24 +528,13 @@ const drawMap = async (image: Canvas, resolved: ResolvedView, box: Box) => {
     if (outline !== undefined) fill(image, place(outline, at), inkOf(code))
   }
 
+  drawBorders(image, { outlines: sheet.subdivisions?.areas.map((area) => area.outline) ?? [], at })
+
   const left = box.left + sheet.width * scale + 16
 
   drawInsets(image, { sheet, inkOf, left, top: box.top, column, row })
 
-  const rows = [
-    ...key.map(({ shade }, index) => ({
-      ink: mapInks[shade] ?? "chart-1",
-      text: labels[index] ?? "",
-    })),
-    { ink: "border" as const, text: "No data" },
-  ]
-
-  for (const [index, entry] of rows.entries()) {
-    const top = box.top + index * 16
-
-    rect(image, { x: left + insets, y: top + 2, width: 10, height: 10 }, entry.ink)
-    text(image, label, entry.text, { x: left + insets + 16, y: top + 11, ink: "muted" })
-  }
+  drawMapKey(image, { entries, notices, x: left + insets, y: box.top })
 }
 
 // Draws a resolved View as a PNG link-preview card: the indicator, the
@@ -490,7 +571,54 @@ export const card = async (fetched: ResolvedView) => {
     ink: "muted",
   })
 
+  const missing = resolved.missing.length === view.countries.length
+
+  const sheet =
+    !missing && Predicate.isTagged(view, "Ranking") && view.as === "Map"
+      ? await load(view.countries)
+      : undefined
+
+  const boundary =
+    sheet?.subdivisions?.source === "Boundary"
+      ? { ...sheet.subdivisions.credit, country: sheet.subdivisions.country }
+      : undefined
+
+  const credits =
+    boundary === undefined
+      ? Match.value(sheet?.subdivisions?.source).pipe(
+          Match.when("ONS", () => [
+            "Source: Office for National Statistics licensed under the Open Government Licence v.3.0",
+            "Contains OS data © Crown copyright and database right 2025",
+          ]),
+          Match.when("Tailte", () => [
+            "Boundaries: © Tailte Éireann, 2024. CC BY 4.0. Simplified for display.",
+          ]),
+          Match.when("LandBoard", () => [
+            "Boundaries: Estonian Land and Spatial Development Board, 12 November 2026.",
+          ]),
+          Match.orElse(() => []),
+        )
+      : [
+          `Boundaries: ${boundary.publisher}, ${boundary.vintage}.`,
+          `${boundary.license}. Adapted for display.`,
+          ...(boundary.license.startsWith("ODbL") || boundary.license.startsWith("CC BY-SA")
+            ? [`${boundary.licenseUrl} https://openfacts.app/boundaries/${boundary.country}.zip`]
+            : []),
+        ]
+
+  const creditRows = credits.flatMap((credit) =>
+    wrap(label, credit, { width: width - 2 * margin, lines: 3 }),
+  )
+
   const footer = height - 22
+
+  for (const [index, credit] of creditRows.entries()) {
+    text(image, label, credit, {
+      x: margin,
+      y: footer - (creditRows.length - index) * 12,
+      ink: "muted",
+    })
+  }
 
   // The site's address, so a shared image says where the chart lives.
   const site = "openfacts.app"
@@ -511,10 +639,10 @@ export const card = async (fetched: ResolvedView) => {
     left: margin,
     top: y + 4 + body.size * 1.25 + 12,
     right: width - margin,
-    bottom: footer - 20,
+    bottom: footer - 20 - creditRows.length * 12,
   }
 
-  if (resolved.missing.length === view.countries.length) {
+  if (missing) {
     text(image, body, "No data for these countries and years", {
       x: margin,
       y: (box.top + box.bottom) / 2,
@@ -523,10 +651,12 @@ export const card = async (fetched: ResolvedView) => {
   } else if ("against" in resolved) {
     drawRelation(image, resolved, box)
   } else {
-    await Match.valueTags(resolved.view, {
+    Match.valueTags(resolved.view, {
       Trend: (trend) => drawTrend(image, resolved, trend, box),
-      Ranking: (ranking) =>
-        ranking.as === "Map" ? drawMap(image, resolved, box) : drawRanking(image, resolved, box),
+      Ranking: () =>
+        sheet === undefined
+          ? drawRanking(image, resolved, box)
+          : drawMap(image, { resolved, box, sheet }),
       Change: (change) => drawChange(image, resolved, change, box),
     })
   }
