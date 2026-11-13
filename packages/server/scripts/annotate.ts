@@ -6,9 +6,10 @@
 //
 // `--command retry` also lets the run claim the listed versions' Abandoned
 // keys. `--command retire` instead clears each listed version's active
-// annotation when it is under settings other than the current ones. A stage
-// without its own paper store binds no Annotate Workflow, and the API
-// refuses the run.
+// annotation when it is under settings other than the current ones.
+// `--command demand`, with no versions, annotates what questions asked for,
+// as production's daily run does. A stage without its own paper store binds
+// no Annotate Workflow, and the API refuses the run.
 import { parseArgs } from "node:util"
 
 import { Config, Effect, Redacted, Schema } from "effect"
@@ -24,7 +25,7 @@ const { values, positionals } = parseArgs({
   allowPositionals: true,
 })
 
-const Command = Schema.Literals(["annotate", "retry", "retire"])
+const Command = Schema.Literals(["annotate", "retry", "retire", "demand"])
 
 const Created = Schema.Struct({ result: Schema.Struct({ id: Schema.String }) })
 
@@ -32,14 +33,18 @@ const start = Effect.gen(function* () {
   const stage = yield* Schema.decodeUnknownEffect(Schema.NonEmptyString)(values.stage)
   const command = yield* Schema.decodeUnknownEffect(Command)(values.command)
 
-  const versions = yield* Schema.decodeUnknownEffect(Params.cases.Annotate.fields.versions)(
-    positionals,
-  )
-
   const params =
-    command === "retire"
-      ? Params.cases.Retire.make({ versions })
-      : Params.cases.Annotate.make({ versions, retry: command === "retry" })
+    command === "demand"
+      ? yield* Schema.decodeUnknownEffect(Schema.Tuple([]))(positionals).pipe(
+          Effect.as(Params.cases.Demand.make({})),
+        )
+      : yield* Schema.decodeUnknownEffect(Params.cases.Annotate.fields.versions)(positionals).pipe(
+          Effect.map((versions) =>
+            command === "retire"
+              ? Params.cases.Retire.make({ versions })
+              : Params.cases.Annotate.make({ versions, retry: command === "retry" }),
+          ),
+        )
 
   const account = yield* Config.String("CLOUDFLARE_ACCOUNT_ID")
   const token = yield* Config.Redacted("CLOUDFLARE_API_TOKEN")

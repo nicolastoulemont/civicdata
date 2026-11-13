@@ -16,7 +16,7 @@ A stage that owns its catalog and paper store binds three Workflows:
 | ---------- | ------------------ | --------------------------------------------- | ----------------------------------------------------------------------------------- |
 | `CATALOG`  | `CatalogWorkflow`  | the catalog, political records and directions | after each deploy, and in `prod` every Monday at 04:00 UTC                          |
 | `GATHER`   | `GatherWorkflow`   | the stored series                             | by hand ([series](series.md#start-a-run-by-hand)), and in `prod` daily at 05:00 UTC |
-| `ANNOTATE` | `AnnotateWorkflow` | paper annotations and their keys' states      | only by hand ([papers](papers.md#start-a-run-by-hand))                              |
+| `ANNOTATE` | `AnnotateWorkflow` | paper annotations and their keys' states      | by hand ([papers](papers.md#start-a-run-by-hand)), and in `prod` daily at 06:00 UTC |
 
 ### Closing a pull request
 

@@ -1,11 +1,12 @@
 name: Annotate papers
 
 # Starts one run of a stage's Annotate Workflow with a list of paper
-# versions (docs/papers.md#annotation). No stage runs it on a schedule, so
-# this and packages/server/scripts/annotate.ts are the only ways a run
-# starts. A preview without the own-catalog label reads production's paper
-# store and has no Annotate Workflow, so it is refused. Each run costs model
-# calls. Run it from the Actions tab or with
+# versions, or with the demand command, which annotates what questions asked
+# for (docs/papers.md#annotation). Production also starts a demand run every
+# day at 06:00 UTC; this and packages/server/scripts/annotate.ts start every
+# other run. A preview without the own-catalog label reads production's
+# paper store and has no Annotate Workflow, so it is refused. Each run costs
+# model calls. Run it from the Actions tab or with
 # `gh workflow run annotate.yml -f stage=pr-123 -f versions="<id> <id>"`.
 on:
   workflow_dispatch:
@@ -15,15 +16,16 @@ on:
         required: true
         type: string
       versions:
-        description: "Paper version ids, separated by spaces"
-        required: true
+        description: "Paper version ids, separated by spaces; none for demand"
+        required: false
+        default: ""
         type: string
       command:
-        description: "annotate; retry, which also claims Abandoned keys; or retire, which clears annotations under older settings"
+        description: "annotate; retry, which also claims Abandoned keys; retire, which clears annotations under older settings; or demand, which annotates what questions asked for"
         required: true
         default: annotate
         type: choice
-        options: [annotate, retry, retire]
+        options: [annotate, retry, retire, demand]
 
 permissions: {}
 

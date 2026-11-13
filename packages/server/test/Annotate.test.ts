@@ -1,9 +1,10 @@
 import { assert, beforeEach, describe, expect, it } from "@effect/vitest"
 import { reset } from "cloudflare:test"
-import { Effect, Fiber, Layer, Predicate, Redacted, Schema } from "effect"
+import { Duration, Effect, Fiber, Layer, Predicate, Redacted, Schema } from "effect"
 import type { NonEmptyReadonlyArray } from "effect/Array"
 import { HttpClient, HttpClientResponse } from "effect/http"
 import { SqlClient } from "effect/sql"
+import { TestClock } from "effect/testing"
 
 import { type WorkflowStep, Step } from "../src/CatalogBuild.ts"
 import { fingerprint } from "../src/fingerprint.ts"
@@ -19,6 +20,7 @@ import {
 import { model, Settings } from "../src/research/annotation.ts"
 import { Annotator } from "../src/research/Annotator.ts"
 import type { Passage } from "../src/research/archive.ts"
+import { Demand } from "../src/research/Demand.ts"
 import { Held, Papers } from "../src/research/Papers.ts"
 import { annotationKey, objectsOf, PaperId } from "../src/research/store.ts"
 import { bibliography, body, papersBucket, papersDb, publish } from "./papers.ts"
@@ -252,6 +254,31 @@ const instances = () => {
   }
 }
 
+// The real demand record in the test's DB, counting how often a run reads it.
+const demand = () => {
+  let reads = 0
+
+  return {
+    reads: () => reads,
+    layer: Layer.effect(
+      Demand,
+      Effect.gen(function* () {
+        const real = yield* Demand
+
+        return Demand.of({
+          ...real,
+          since: (time) =>
+            Effect.suspend(() => {
+              reads += 1
+
+              return real.since(time)
+            }),
+        })
+      }),
+    ).pipe(Layer.provide(Demand.layer)),
+  }
+}
+
 interface Run {
   readonly run?: string
   readonly steps?: ReturnType<typeof workflow>
@@ -260,9 +287,13 @@ interface Run {
 }
 
 // One Workflow instance's run of `params`, against the test's D1, R2,
-// provider and Workflow API.
+// provider, Workflow API and demand.
 const annotating = (
-  world: { provider: ReturnType<typeof provider>; instances: ReturnType<typeof instances> },
+  world: {
+    provider: ReturnType<typeof provider>
+    instances: ReturnType<typeof instances>
+    demand: ReturnType<typeof demand>
+  },
   params: Params,
   {
     run = "run-1",
@@ -283,6 +314,7 @@ const annotating = (
           Layer.provide(papersDb),
           Layer.provide(world.provider.layer),
           Layer.provide(world.instances.layer),
+          Layer.provide(world.demand.layer),
         ),
       ),
     ),
@@ -293,7 +325,17 @@ const annotating = (
 const annotate = (...versions: NonEmptyReadonlyArray<string>) =>
   Params.cases.Annotate.make({ versions: [...versions] })
 
-const world = () => ({ provider: provider(), instances: instances() })
+const world = () => ({ provider: provider(), instances: instances(), demand: demand() })
+
+const daily = Params.cases.Demand.make({})
+
+// Questions asking for `versions`, one call each.
+const ask = (...versions: ReadonlyArray<string>) =>
+  Effect.gen(function* () {
+    const record = yield* Demand
+
+    yield* Effect.forEach(versions, (version) => record.record([version]), { discard: true })
+  }).pipe(Effect.provide(Demand.layer))
 
 // What PAPERS_DB holds for a key, and every run's records.
 const keyState = (annotation: string) =>
@@ -817,6 +859,245 @@ describe("the Annotate Workflow", () => {
 
       expect((yield* read(older.paper)).annotation).toBeNull()
       expect((yield* read(current.paper)).annotation).toEqual(body(textOf(2)))
+    }),
+  )
+})
+
+// Publishes paper `n` with an annotation under the rubric research-3.
+const imported = (n: number) =>
+  publish({
+    paper: bibliography({ id: PaperId.make(String(n).repeat(64)) }),
+    passages: textOf(n),
+    annotation: body(textOf(n)),
+  }).pipe(Effect.provide(papersDb))
+
+const versionsOf = (results: ReadonlyArray<Report>) => results.map(({ version }) => version)
+
+const recordsOf = (run: string) =>
+  Effect.map(records, (rows) => rows.filter((row) => row.run === run))
+
+describe("a Demand run", () => {
+  it.effect("annotates each version questions asked for once, and lists none of them again", () =>
+    Effect.gen(function* () {
+      const test = world()
+      const [a, b, c] = yield* Effect.all([paper(1), paper(2), paper(3)])
+
+      yield* ask(a.version, b.version, c.version)
+
+      const first = yield* annotating(test, daily)
+
+      expect(versionsOf(first).toSorted()).toEqual([a.version, b.version, c.version].toSorted())
+      expect(done(first)).toEqual(["Annotated", "Annotated", "Annotated"])
+      expect([test.provider.scopes(), test.provider.labels()]).toEqual([3, 3])
+
+      yield* ask(a.version, b.version, c.version)
+
+      expect(yield* annotating(test, daily, { run: "run-2" })).toEqual([])
+      expect([test.provider.scopes(), test.provider.labels()]).toEqual([3, 3])
+      expect(yield* recordsOf("run-2")).toEqual([])
+    }),
+  )
+
+  it.effect(
+    "lists versions with no annotation first, then those under older settings, most asked first",
+    () =>
+      Effect.gen(function* () {
+        const test = world()
+
+        const [none, more, older, fewer] = yield* Effect.all([
+          paper(1),
+          paper(2),
+          imported(3),
+          imported(4),
+        ])
+
+        yield* ask(none.version, more.version, more.version, more.version)
+        yield* ask(older.version, older.version, older.version, older.version, older.version)
+        yield* ask(fewer.version, fewer.version)
+
+        const results = yield* annotating(test, daily, {
+          settings: { model, rubric: "research-4" },
+        })
+
+        expect(versionsOf(results)).toEqual([
+          more.version,
+          none.version,
+          older.version,
+          fewer.version,
+        ])
+        expect(done(results)).toEqual(["Annotated", "Annotated", "Annotated", "Annotated"])
+      }),
+  )
+
+  it.effect("leaves the versions past the paper cap NotStarted for the next run", () =>
+    Effect.gen(function* () {
+      const test = world()
+      const [a, b, c] = yield* Effect.all([paper(1), paper(2), paper(3)])
+
+      yield* ask(a.version, a.version, a.version, b.version, b.version, c.version)
+
+      const capped = yield* annotating(test, daily, { limits: { papers: 2 } })
+
+      expect(versionsOf(capped)).toEqual([a.version, b.version, c.version])
+      expect(done(capped)).toEqual(["Annotated", "Annotated", "NotStarted"])
+      expect([test.provider.scopes(), test.provider.labels()]).toEqual([2, 2])
+
+      const [waiting] = yield* recordsOf("run-1").pipe(
+        Effect.map((rows) => rows.filter((row) => row.version === c.version)),
+      )
+
+      expect(waiting).toMatchObject({
+        outcome: JSON.stringify(Outcome.cases.NotStarted.make({})),
+        requests: 0,
+      })
+      expect(yield* keyState(yield* keyFor(3))).toBeNull()
+
+      const next = yield* annotating(test, daily, { run: "run-2", limits: { papers: 2 } })
+
+      expect(versionsOf(next)).toEqual([c.version])
+      expect(done(next)).toEqual(["Annotated"])
+    }),
+  )
+
+  it.effect(
+    "skips Ready, Abandoned, current and withdrawn versions, and takes a Failed key again",
+    () =>
+      Effect.gen(function* () {
+        const test = world()
+
+        const [ready, abandoned, failed, current, open] = yield* Effect.all([
+          paper(1),
+          paper(2),
+          paper(3),
+          imported(4),
+          paper(5),
+        ])
+
+        const withdrawn = "f".repeat(64)
+
+        yield* annotating(test, annotate(ready.version), { run: "run-ready" })
+
+        test.provider.state.scope = "Malformed"
+        yield* annotating(test, annotate(abandoned.version), {
+          run: "run-abandoned",
+          limits: { attempts: 1 },
+        })
+        yield* annotating(test, annotate(failed.version), { run: "run-failed" })
+        test.provider.state.scope = "Ok"
+
+        expect(yield* keyState(yield* keyFor(2))).toMatchObject({ state: "Abandoned" })
+        expect(yield* keyState(yield* keyFor(3))).toMatchObject({ state: "Failed", attempts: 1 })
+
+        yield* ask(ready.version, abandoned.version, failed.version, current.version, withdrawn)
+        yield* ask(open.version)
+        yield* ask(open.version)
+
+        const [scopes, labels] = [test.provider.scopes(), test.provider.labels()]
+        const results = yield* annotating(test, daily)
+
+        expect(versionsOf(results)).toEqual([open.version, failed.version])
+        expect(done(results)).toEqual(["Annotated", "Annotated"])
+        expect([test.provider.scopes() - scopes, test.provider.labels() - labels]).toEqual([2, 2])
+      }),
+  )
+
+  it.effect(
+    "lists no Ready key after Workflow history retention removed the run that made it",
+    () =>
+      Effect.gen(function* () {
+        const test = world()
+        const { version } = yield* paper(1)
+
+        yield* ask(version)
+        yield* annotating(test, daily, { run: "run-1" })
+
+        // Weeks later the Workflow API no longer knows run-1, and questions
+        // still ask for the paper.
+        yield* TestClock.adjust(Duration.days(20))
+        yield* ask(version)
+
+        expect(yield* annotating(test, daily, { run: "run-2" })).toEqual([])
+        expect([test.provider.scopes(), test.provider.labels()]).toEqual([1, 1])
+      }),
+  )
+
+  it.effect("lists only versions asked for in the last 30 days", () =>
+    Effect.gen(function* () {
+      const test = world()
+      const [old, recent] = yield* Effect.all([paper(1), paper(2)])
+
+      yield* ask(old.version)
+      yield* TestClock.adjust(Duration.days(31))
+      yield* ask(recent.version)
+
+      expect(versionsOf(yield* annotating(test, daily))).toEqual([recent.version])
+    }),
+  )
+
+  it.effect("reads demand once, and lists the same versions when Workflows replays the run", () =>
+    Effect.gen(function* () {
+      const test = world()
+      const [first, later] = yield* Effect.all([paper(1), paper(2)])
+      const crashing = workflow({ crash: `scope ${yield* keyFor(1)}` })
+
+      test.instances.live.add("run-1")
+      yield* ask(first.version)
+
+      const fiber = yield* Effect.forkChild(annotating(test, daily, { steps: crashing }))
+
+      yield* crashing.crashed
+      yield* Fiber.interrupt(fiber)
+
+      // Asked for after the selection: the restarted instance replays it.
+      yield* ask(later.version)
+      crashing.revive()
+
+      const results = yield* annotating(test, daily, { steps: crashing })
+
+      expect(versionsOf(results)).toEqual([first.version])
+      expect(done(results)).toEqual(["Annotated"])
+      expect(test.demand.reads()).toBe(1)
+    }),
+  )
+
+  it.effect("calls no model and writes nothing when no question asked for a paper", () =>
+    Effect.gen(function* () {
+      const test = world()
+
+      expect(yield* annotating(test, daily)).toEqual([])
+      expect([test.provider.scopes(), test.provider.labels()]).toEqual([0, 0])
+
+      const sql = yield* SqlClient.SqlClient.pipe(Effect.provide(papersDb))
+
+      const written = yield* sql`
+        SELECT name FROM sqlite_master WHERE name LIKE 'annotation%'
+      `.pipe(Effect.provide(papersDb))
+
+      expect(written).toEqual([])
+    }),
+  )
+
+  it.effect("annotates each key once when a run started by hand overlaps the daily run", () =>
+    Effect.gen(function* () {
+      const test = world()
+      const [a, b, c] = yield* Effect.all([paper(1), paper(2), paper(3)])
+
+      yield* ask(a.version, b.version, c.version)
+      test.instances.live.add("run-hand")
+      test.instances.live.add("run-daily")
+
+      yield* Effect.all(
+        [
+          annotating(test, annotate(a.version, b.version), { run: "run-hand" }),
+          annotating(test, daily, { run: "run-daily" }),
+        ],
+        { concurrency: "unbounded" },
+      )
+
+      expect([test.provider.scopes(), test.provider.labels()]).toEqual([3, 3])
+
+      for (const n of [1, 2, 3])
+        expect(yield* keyState(yield* keyFor(n))).toMatchObject({ state: "Ready" })
     }),
   )
 })
