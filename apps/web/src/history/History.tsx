@@ -45,10 +45,10 @@ const GitHub = () => (
   </svg>
 )
 
-// The sidebar: the mark and name with its toggle at the top right, a search
-// over titles and a link to start a conversation, then the conversations
-// asked in this browser, newest first, and Settings and the source at the
-// bottom, at either end. It fills its panel on desktop and is a drawer on
+// The sidebar: the mark and name, linking home, with its toggle at the top
+// right, a search over titles and a link to start a conversation, then the
+// conversations asked in this browser, newest first, and Settings and the
+// source at the bottom, at either end. It fills its panel on desktop and is a drawer on
 // phones.
 export const History = () => {
   const { t } = useTranslation("home")
@@ -63,10 +63,17 @@ export const History = () => {
     <Sidebar collapsible={isMobile ? "offcanvas" : "none"} className="w-full">
       <SidebarHeader>
         <div className="mt-1 mb-2 flex items-center gap-2">
-          <span className="flex items-center gap-1.5 pl-2 text-sm font-semibold tracking-tight">
+          <Link
+            className={buttonVariants({
+              variant: "ghost",
+              className: "px-2 font-semibold tracking-tight",
+            })}
+            to="/"
+            onClick={() => setOpenMobile(false)}
+          >
             <Mark className="size-4" />
             openfacts
-          </span>
+          </Link>
           <SidebarTrigger className="ml-auto" />
         </div>
         <div className="flex items-center gap-1">

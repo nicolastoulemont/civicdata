@@ -220,6 +220,21 @@ describe("History", () => {
     expect((await sidebar()).getByText("No conversation matches the search.")).toBeDefined()
   })
 
+  it("goes to the home page from the mark and name", async () => {
+    const user = userEvent.setup()
+
+    store(entry())
+    network.use(turns(brazil, { answered: [] }))
+    show(`/c/${brazil}`)
+
+    // The sidebar's link comes before the conversation's breadcrumb.
+    const [mark] = await screen.findAllByRole("link", { name: "openfacts" })
+
+    await user.click(mark!)
+
+    expect(await screen.findByText("Home")).toBeDefined()
+  })
+
   it("links to the source on GitHub", async () => {
     show()
 
@@ -481,7 +496,9 @@ describe("History", () => {
     await user.unhover(link)
     await waitFor(() => expect(screen.queryByRole("tooltip")).toBeNull())
 
-    // The sidebar's toggle, the search, "New conversation", then the conversation.
+    // The mark and name, the sidebar's toggle, the search, "New conversation",
+    // then the conversation.
+    await user.tab()
     await user.tab()
     await user.tab()
     await user.tab()
