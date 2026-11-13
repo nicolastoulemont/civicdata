@@ -45,30 +45,30 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Boe",
+    country: "NRU",
+    width: 240,
+    height: 180,
+    outline: [[124, 172, -57, -139, 78, -25, 28, 49, -24, 20]],
+    areas: [
+      { code: "NRU-4971", name: "Boe", outline: [[124, 172, -57, -139, 78, -25, 28, 49, -24, 20]] },
+    ],
+  },
+]
+
 export const naoero: Sheet = {
   width: 1000,
   height: 1195,
   outlines: { NRU: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Boe",
-      country: "NRU",
-      width: 240,
-      height: 180,
-      outline: [[124, 172, -57, -139, 78, -25, 28, 49, -24, 20]],
-      areas: [
-        {
-          code: "NRU-4971",
-          name: "Boe",
-          outline: [[124, 172, -57, -139, 78, -25, 28, 49, -24, 20]],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "NRU",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["NRU-4971"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

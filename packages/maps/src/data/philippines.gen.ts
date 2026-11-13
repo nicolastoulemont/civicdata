@@ -4255,63 +4255,65 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "City of Manila",
+    country: "PHL",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        141, 30, 75, 67, -56, 68, -24, 7, -30, -52, -22, 0, 8, -9, -6, -14, -15, 46, -4, -40, 28,
+        -9, -1, -2, -48, 3, -22, -17, 44, 4, -13, -14, -8, -22, 25, 37, 9, -1, -14, -53, 12, -7,
+        -37, -10, 106, -4,
+      ],
+    ],
+    areas: [
+      {
+        code: "PH1303901",
+        name: "City of Manila",
+        outline: [
+          [
+            141, 30, 75, 67, -56, 68, -24, 7, -30, -52, -22, 0, 8, -9, -6, -14, -15, 46, -4, -40,
+            28, -9, -1, -2, -48, 3, -22, -17, 44, 4, -13, -14, -8, -22, 25, 37, 9, -1, -14, -53, 12,
+            -7, -37, -10, 106, -4,
+          ],
+        ],
+      },
+    ],
+  },
+  {
+    name: "City of San Juan",
+    country: "PHL",
+    width: 240,
+    height: 180,
+    outline: [[232, 94, -139, 63, -85, -70, 23, -64]],
+    areas: [
+      {
+        code: "PH1307405",
+        name: "City of San Juan",
+        outline: [[232, 94, -139, 63, -85, -70, 23, -64]],
+      },
+    ],
+  },
+  {
+    name: "Pateros",
+    country: "PHL",
+    width: 240,
+    height: 180,
+    outline: [[27, 102, 57, -94, 129, 62, -66, 102]],
+    areas: [
+      { code: "PH1307606", name: "Pateros", outline: [[27, 102, 57, -94, 129, 62, -66, 102]] },
+    ],
+  },
+]
+
 export const philippines: Sheet = {
   width: 1000,
   height: 1354,
   outlines: { PHL: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "City of Manila",
-      country: "PHL",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          141, 30, 75, 67, -56, 68, -24, 7, -30, -52, -22, 0, 8, -9, -6, -14, -15, 46, -4, -40, 28,
-          -9, -1, -2, -48, 3, -22, -17, 44, 4, -13, -14, -8, -22, 25, 37, 9, -1, -14, -53, 12, -7,
-          -37, -10, 106, -4,
-        ],
-      ],
-      areas: [
-        {
-          code: "PH1303901",
-          name: "City of Manila",
-          outline: [
-            [
-              141, 30, 75, 67, -56, 68, -24, 7, -30, -52, -22, 0, 8, -9, -6, -14, -15, 46, -4, -40,
-              28, -9, -1, -2, -48, 3, -22, -17, 44, 4, -13, -14, -8, -22, 25, 37, 9, -1, -14, -53,
-              12, -7, -37, -10, 106, -4,
-            ],
-          ],
-        },
-      ],
-    },
-    {
-      name: "City of San Juan",
-      country: "PHL",
-      width: 240,
-      height: 180,
-      outline: [[232, 94, -139, 63, -85, -70, 23, -64]],
-      areas: [
-        {
-          code: "PH1307405",
-          name: "City of San Juan",
-          outline: [[232, 94, -139, 63, -85, -70, 23, -64]],
-        },
-      ],
-    },
-    {
-      name: "Pateros",
-      country: "PHL",
-      width: 240,
-      height: 180,
-      outline: [[27, 102, 57, -94, 129, 62, -66, 102]],
-      areas: [
-        { code: "PH1307606", name: "Pateros", outline: [[27, 102, 57, -94, 129, 62, -66, 102]] },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "PHL",
     source: "Boundary",
@@ -4323,6 +4325,8 @@ export const philippines: Sheet = {
       licenseUrl: "https://creativecommons.org/licenses/by/3.0/igo/",
       kind: "Administrative",
     },
-    areas: areas.filter((area) => !["PH1303901", "PH1307405", "PH1307606"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

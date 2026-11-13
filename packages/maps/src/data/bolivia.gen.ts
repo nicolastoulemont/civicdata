@@ -365,11 +365,13 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = []
+
 export const bolivia: Sheet = {
   width: 1000,
   height: 1131,
   outlines: { BOL: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [],
+  insets,
   subdivisions: { country: "BOL", source: "NaturalEarth", areas: areas },
 }

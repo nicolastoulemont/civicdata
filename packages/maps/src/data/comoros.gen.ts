@@ -40,42 +40,46 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Moûhîlî",
+    country: "COM",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        162, 93, 8, 3, 51, 35, 11, 17, -3, 7, -15, 3, -23, 0, -65, -14, -68, -2, -16, -5, -4, -8, 1,
+        -17, -3, -9, -8, -8, -9, -4, -7, -5, -3, -13, -1, -36, 6, -15, 15, 6, 14, 7, 41, 8, 18, 6,
+        50, 33,
+      ],
+    ],
+    areas: [
+      {
+        code: "COM-4934",
+        name: "Moûhîlî",
+        outline: [
+          [
+            162, 93, 8, 3, 51, 35, 11, 17, -3, 7, -15, 3, -23, 0, -65, -14, -68, -2, -16, -5, -4,
+            -8, 1, -17, -3, -9, -8, -8, -9, -4, -7, -5, -3, -13, -1, -36, 6, -15, 15, 6, 14, 7, 41,
+            8, 18, 6, 50, 33,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const comoros: Sheet = {
   width: 1000,
   height: 797,
   outlines: { COM: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Moûhîlî",
-      country: "COM",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          162, 93, 8, 3, 51, 35, 11, 17, -3, 7, -15, 3, -23, 0, -65, -14, -68, -2, -16, -5, -4, -8,
-          1, -17, -3, -9, -8, -8, -9, -4, -7, -5, -3, -13, -1, -36, 6, -15, 15, 6, 14, 7, 41, 8, 18,
-          6, 50, 33,
-        ],
-      ],
-      areas: [
-        {
-          code: "COM-4934",
-          name: "Moûhîlî",
-          outline: [
-            [
-              162, 93, 8, 3, 51, 35, 11, 17, -3, 7, -15, 3, -23, 0, -65, -14, -68, -2, -16, -5, -4,
-              -8, 1, -17, -3, -9, -8, -8, -9, -4, -7, -5, -3, -13, -1, -36, 6, -15, 15, 6, 14, 7,
-              41, 8, 18, 6, 50, 33,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "COM",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["COM-4934"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

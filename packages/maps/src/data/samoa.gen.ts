@@ -111,32 +111,36 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Aiga-i-le-Tai",
+    country: "WSM",
+    width: 240,
+    height: 180,
+    outline: [[102, 32, 64, -24, 38, 84, -126, 80, -37, -17, -5, -40, 15, -43, 44, 16, 25, -13]],
+    areas: [
+      {
+        code: "WSM-4986",
+        name: "Aiga-i-le-Tai",
+        outline: [
+          [102, 32, 64, -24, 38, 84, -126, 80, -37, -17, -5, -40, 15, -43, 44, 16, 25, -13],
+        ],
+      },
+    ],
+  },
+]
+
 export const samoa: Sheet = {
   width: 1000,
   height: 464,
   outlines: { WSM: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Aiga-i-le-Tai",
-      country: "WSM",
-      width: 240,
-      height: 180,
-      outline: [[102, 32, 64, -24, 38, 84, -126, 80, -37, -17, -5, -40, 15, -43, 44, 16, 25, -13]],
-      areas: [
-        {
-          code: "WSM-4986",
-          name: "Aiga-i-le-Tai",
-          outline: [
-            [102, 32, 64, -24, 38, 84, -126, 80, -37, -17, -5, -40, 15, -43, 44, 16, 25, -13],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "WSM",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["WSM-4986"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

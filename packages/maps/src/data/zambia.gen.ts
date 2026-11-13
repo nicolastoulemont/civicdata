@@ -461,11 +461,13 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = []
+
 export const zambia: Sheet = {
   width: 1000,
   height: 865,
   outlines: { ZMB: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [],
+  insets,
   subdivisions: { country: "ZMB", source: "NaturalEarth", areas: areas },
 }

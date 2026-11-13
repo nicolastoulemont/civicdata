@@ -463,11 +463,13 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = []
+
 export const saudiArabia: Sheet = {
   width: 1000,
   height: 836,
   outlines: { SAU: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [],
+  insets,
   subdivisions: { country: "SAU", source: "NaturalEarth", areas: areas },
 }

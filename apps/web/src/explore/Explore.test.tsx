@@ -1848,9 +1848,9 @@ describe("Explore", () => {
     expect(
       within(map)
         .getByLabelText(
-          new RegExp(
-            `${context.replace(/[()]/g, "\\$&")}, .*Location only; national value not applied`,
-          ),
+          (label) =>
+            label.startsWith(`${context}, `) &&
+            label.includes("Location only; national value not applied"),
         )
         .getAttribute("fill"),
     ).toBe("var(--border)")

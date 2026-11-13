@@ -70,30 +70,34 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Saint Mark",
+    country: "GRD",
+    width: 240,
+    height: 180,
+    outline: [[47, 108, 81, -100, 33, 24, 24, 36, 8, 52, -16, 52, -37, -29, -47, -23]],
+    areas: [
+      {
+        code: "GRD-5074",
+        name: "Saint Mark",
+        outline: [[47, 108, 81, -100, 33, 24, 24, 36, 8, 52, -16, 52, -37, -29, -47, -23]],
+      },
+    ],
+  },
+]
+
 export const grenada: Sheet = {
   width: 1000,
   height: 1453,
   outlines: { GRD: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Saint Mark",
-      country: "GRD",
-      width: 240,
-      height: 180,
-      outline: [[47, 108, 81, -100, 33, 24, 24, 36, 8, 52, -16, 52, -37, -29, -47, -23]],
-      areas: [
-        {
-          code: "GRD-5074",
-          name: "Saint Mark",
-          outline: [[47, 108, 81, -100, 33, 24, 24, 36, 8, 52, -16, 52, -37, -29, -47, -23]],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "GRD",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["GRD-5074"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

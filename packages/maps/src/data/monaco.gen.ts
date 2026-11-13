@@ -146,39 +146,41 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Ravin de Sainte-Dévote",
+    country: "MCO",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        33, 8, 51, 55, 13, 3, 13, 4, 9, 6, 15, 14, 29, 8, 5, 31, 58, -13, -2, 46, -27, 2, -15, 2,
+        -17, 6, -18, -17, -14, 0, 9, -11, -18, -13, -12, -14, -13, -3, -12, 18, -3, -6, -33, -21,
+        -18, -7, -12, -17, 0, -22, 5, -19, -12, -16,
+      ],
+    ],
+    areas: [
+      {
+        code: "ac469755-74e6-4bb4-9897-a4e274e9976b",
+        name: "Ravin de Sainte-Dévote",
+        outline: [
+          [
+            33, 8, 51, 55, 13, 3, 13, 4, 9, 6, 15, 14, 29, 8, 5, 31, 58, -13, -2, 46, -27, 2, -15,
+            2, -17, 6, -18, -17, -14, 0, 9, -11, -18, -13, -12, -14, -13, -3, -12, 18, -3, -6, -33,
+            -21, -18, -7, -12, -17, 0, -22, 5, -19, -12, -16,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const monaco: Sheet = {
   width: 1000,
   height: 1217,
   outlines: { MCO: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Ravin de Sainte-Dévote",
-      country: "MCO",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          33, 8, 51, 55, 13, 3, 13, 4, 9, 6, 15, 14, 29, 8, 5, 31, 58, -13, -2, 46, -27, 2, -15, 2,
-          -17, 6, -18, -17, -14, 0, 9, -11, -18, -13, -12, -14, -13, -3, -12, 18, -3, -6, -33, -21,
-          -18, -7, -12, -17, 0, -22, 5, -19, -12, -16,
-        ],
-      ],
-      areas: [
-        {
-          code: "ac469755-74e6-4bb4-9897-a4e274e9976b",
-          name: "Ravin de Sainte-Dévote",
-          outline: [
-            [
-              33, 8, 51, 55, 13, 3, 13, 4, 9, 6, 15, 14, 29, 8, 5, 31, 58, -13, -2, 46, -27, 2, -15,
-              2, -17, 6, -18, -17, -14, 0, 9, -11, -18, -13, -12, -14, -13, -3, -12, 18, -3, -6,
-              -33, -21, -18, -7, -12, -17, 0, -22, 5, -19, -12, -16,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "MCO",
     source: "Boundary",
@@ -190,6 +192,8 @@ export const monaco: Sheet = {
       licenseUrl: "https://opendatacommons.org/licenses/odbl/1-0/",
       kind: "Geographic",
     },
-    areas: areas.filter((area) => !["ac469755-74e6-4bb4-9897-a4e274e9976b"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

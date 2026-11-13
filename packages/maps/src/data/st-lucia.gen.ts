@@ -178,39 +178,41 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Canaries",
+    country: "LCA",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        82, 8, 14, 19, 25, 11, 18, 27, 7, -1, 13, 10, 5, 23, 21, 25, 9, 24, -1, 0, -15, 20, -18, 6,
+        -4, -9, -18, -24, 2, -12, -7, -18, -23, -1, -7, -7, -6, -15, -26, -2, -12, -9, -13, -1, 9,
+        -11, -5, -7, 2, -5, 15, -10, 0, -10, 5, -6, -4, -7, 3, -8,
+      ],
+    ],
+    areas: [
+      {
+        code: "63095687B90177859016877",
+        name: "Canaries",
+        outline: [
+          [
+            82, 8, 14, 19, 25, 11, 18, 27, 7, -1, 13, 10, 5, 23, 21, 25, 9, 24, -1, 0, -15, 20, -18,
+            6, -4, -9, -18, -24, 2, -12, -7, -18, -23, -1, -7, -7, -6, -15, -26, -2, -12, -9, -13,
+            -1, 9, -11, -5, -7, 2, -5, 15, -10, 0, -10, 5, -6, -4, -7, 3, -8,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const stLucia: Sheet = {
   width: 1000,
   height: 1980,
   outlines: { LCA: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Canaries",
-      country: "LCA",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          82, 8, 14, 19, 25, 11, 18, 27, 7, -1, 13, 10, 5, 23, 21, 25, 9, 24, -1, 0, -15, 20, -18,
-          6, -4, -9, -18, -24, 2, -12, -7, -18, -23, -1, -7, -7, -6, -15, -26, -2, -12, -9, -13, -1,
-          9, -11, -5, -7, 2, -5, 15, -10, 0, -10, 5, -6, -4, -7, 3, -8,
-        ],
-      ],
-      areas: [
-        {
-          code: "63095687B90177859016877",
-          name: "Canaries",
-          outline: [
-            [
-              82, 8, 14, 19, 25, 11, 18, 27, 7, -1, 13, 10, 5, 23, 21, 25, 9, 24, -1, 0, -15, 20,
-              -18, 6, -4, -9, -18, -24, 2, -12, -7, -18, -23, -1, -7, -7, -6, -15, -26, -2, -12, -9,
-              -13, -1, 9, -11, -5, -7, 2, -5, 15, -10, 0, -10, 5, -6, -4, -7, 3, -8,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "LCA",
     source: "Boundary",
@@ -222,6 +224,8 @@ export const stLucia: Sheet = {
       licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/",
       kind: "Administrative",
     },
-    areas: areas.filter((area) => !["63095687B90177859016877"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

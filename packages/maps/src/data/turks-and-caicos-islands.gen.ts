@@ -68,30 +68,34 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Salt Cay",
+    country: "TCA",
+    width: 240,
+    height: 180,
+    outline: [[100, 8, 49, 2, 37, 32, -43, 64, -62, 66, -27, -20, 24, -98]],
+    areas: [
+      {
+        code: "TCA-5008",
+        name: "Salt Cay",
+        outline: [[100, 8, 49, 2, 37, 32, -43, 64, -62, 66, -27, -20, 24, -98]],
+      },
+    ],
+  },
+]
+
 export const turksAndCaicosIslands: Sheet = {
   width: 1000,
   height: 542,
   outlines: { TCA: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Salt Cay",
-      country: "TCA",
-      width: 240,
-      height: 180,
-      outline: [[100, 8, 49, 2, 37, 32, -43, 64, -62, 66, -27, -20, 24, -98]],
-      areas: [
-        {
-          code: "TCA-5008",
-          name: "Salt Cay",
-          outline: [[100, 8, 49, 2, 37, 32, -43, 64, -62, 66, -27, -20, 24, -98]],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "TCA",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["TCA-5008"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

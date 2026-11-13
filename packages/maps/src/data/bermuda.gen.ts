@@ -87,30 +87,34 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "City of Hamilton",
+    country: "BMU",
+    width: 240,
+    height: 180,
+    outline: [[210, 151, -180, 21, 13, -144, 167, -20]],
+    areas: [
+      {
+        code: "BMU-5134",
+        name: "City of Hamilton",
+        outline: [[210, 151, -180, 21, 13, -144, 167, -20]],
+      },
+    ],
+  },
+]
+
 export const bermuda: Sheet = {
   width: 1000,
   height: 705,
   outlines: { BMU: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "City of Hamilton",
-      country: "BMU",
-      width: 240,
-      height: 180,
-      outline: [[210, 151, -180, 21, 13, -144, 167, -20]],
-      areas: [
-        {
-          code: "BMU-5134",
-          name: "City of Hamilton",
-          outline: [[210, 151, -180, 21, 13, -144, 167, -20]],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "BMU",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["BMU-5134"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

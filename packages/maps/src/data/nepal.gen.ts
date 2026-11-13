@@ -928,12 +928,14 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = []
+
 export const nepal: Sheet = {
   width: 1000,
   height: 577,
   outlines: { NPL: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [],
+  insets,
   subdivisions: {
     country: "NPL",
     source: "Boundary",

@@ -3028,12 +3028,14 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = []
+
 export const vietnam: Sheet = {
   width: 1000,
   height: 1111,
   outlines: { VNM: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [],
+  insets,
   subdivisions: {
     country: "VNM",
     source: "Boundary",

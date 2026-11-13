@@ -333,11 +333,13 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = []
+
 export const lithuania: Sheet = {
   width: 1000,
   height: 770,
   outlines: { LTU: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [],
+  insets,
   subdivisions: { country: "LTU", source: "NaturalEarth", areas: areas },
 }

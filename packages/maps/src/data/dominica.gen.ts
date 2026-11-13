@@ -109,30 +109,34 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Saint Luke",
+    country: "DMA",
+    width: 240,
+    height: 180,
+    outline: [[66, 163, -3, -155, 108, 44, 6, 67, -112, 53]],
+    areas: [
+      {
+        code: "DMA-1437",
+        name: "Saint Luke",
+        outline: [[66, 163, -3, -155, 108, 44, 6, 67, -112, 53]],
+      },
+    ],
+  },
+]
+
 export const dominica: Sheet = {
   width: 1000,
   height: 1854,
   outlines: { DMA: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Saint Luke",
-      country: "DMA",
-      width: 240,
-      height: 180,
-      outline: [[66, 163, -3, -155, 108, 44, 6, 67, -112, 53]],
-      areas: [
-        {
-          code: "DMA-1437",
-          name: "Saint Luke",
-          outline: [[66, 163, -3, -155, 108, 44, 6, 67, -112, 53]],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "DMA",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["DMA-1437"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

@@ -209,42 +209,46 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Paramaribo",
+    country: "SUR",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        48, 15, 10, 2, 10, 0, 12, 2, 16, 1, 13, -4, 15, -6, 18, -2, 20, 14, 23, 17, 9, 17, -14, 34,
+        -17, 19, 1, -1, -18, 17, -14, 6, 7, 25, 8, 16, -49, -16, -20, -13, -8, -9, -7, -11, -5, -12,
+        -9, -32, -3, -42, 1, -17,
+      ],
+    ],
+    areas: [
+      {
+        code: "SUR-72",
+        name: "Paramaribo",
+        outline: [
+          [
+            48, 15, 10, 2, 10, 0, 12, 2, 16, 1, 13, -4, 15, -6, 18, -2, 20, 14, 23, 17, 9, 17, -14,
+            34, -17, 19, 1, -1, -18, 17, -14, 6, 7, 25, 8, 16, -49, -16, -20, -13, -8, -9, -7, -11,
+            -5, -12, -9, -32, -3, -42, 1, -17,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const suriname: Sheet = {
   width: 1000,
   height: 1027,
   outlines: { SUR: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Paramaribo",
-      country: "SUR",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          48, 15, 10, 2, 10, 0, 12, 2, 16, 1, 13, -4, 15, -6, 18, -2, 20, 14, 23, 17, 9, 17, -14,
-          34, -17, 19, 1, -1, -18, 17, -14, 6, 7, 25, 8, 16, -49, -16, -20, -13, -8, -9, -7, -11,
-          -5, -12, -9, -32, -3, -42, 1, -17,
-        ],
-      ],
-      areas: [
-        {
-          code: "SUR-72",
-          name: "Paramaribo",
-          outline: [
-            [
-              48, 15, 10, 2, 10, 0, 12, 2, 16, 1, 13, -4, 15, -6, 18, -2, 20, 14, 23, 17, 9, 17,
-              -14, 34, -17, 19, 1, -1, -18, 17, -14, 6, 7, 25, 8, 16, -49, -16, -20, -13, -8, -9,
-              -7, -11, -5, -12, -9, -32, -3, -42, 1, -17,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "SUR",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["SUR-72"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

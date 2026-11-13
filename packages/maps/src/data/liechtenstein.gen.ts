@@ -113,30 +113,34 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Schellenberg",
+    country: "LIE",
+    width: 240,
+    height: 180,
+    outline: [[124, 8, 56, 52, -17, 52, -57, 18, -43, 42, -3, -39, 29, -42, 14, -42]],
+    areas: [
+      {
+        code: "LIE-4899",
+        name: "Schellenberg",
+        outline: [[124, 8, 56, 52, -17, 52, -57, 18, -43, 42, -3, -39, 29, -42, 14, -42]],
+      },
+    ],
+  },
+]
+
 export const liechtenstein: Sheet = {
   width: 1000,
   height: 2186,
   outlines: { LIE: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Schellenberg",
-      country: "LIE",
-      width: 240,
-      height: 180,
-      outline: [[124, 8, 56, 52, -17, 52, -57, 18, -43, 42, -3, -39, 29, -42, 14, -42]],
-      areas: [
-        {
-          code: "LIE-4899",
-          name: "Schellenberg",
-          outline: [[124, 8, 56, 52, -17, 52, -57, 18, -43, 42, -3, -39, 29, -42, 14, -42]],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "LIE",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["LIE-4899"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

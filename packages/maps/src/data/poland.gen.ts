@@ -395,11 +395,13 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = []
+
 export const poland: Sheet = {
   width: 1000,
   height: 938,
   outlines: { POL: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [],
+  insets,
   subdivisions: { country: "POL", source: "NaturalEarth", areas: areas },
 }

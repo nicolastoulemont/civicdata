@@ -935,40 +935,44 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Bucharest",
+    country: "ROU",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        165, 125, -21, -6, -3, 9, 14, 34, -12, 10, -21, -28, -25, -5, -29, -32, 0, -19, 29, -3, 0,
+        -19, -23, -10, 21, -37, 30, -11, 4, 41, 34, 9, -10, 31, 19, 17,
+      ],
+    ],
+    areas: [
+      {
+        code: "RO-B",
+        name: "Bucharest",
+        outline: [
+          [
+            165, 125, -21, -6, -3, 9, 14, 34, -12, 10, -21, -28, -25, -5, -29, -32, 0, -19, 29, -3,
+            0, -19, -23, -10, 21, -37, 30, -11, 4, 41, 34, 9, -10, 31, 19, 17,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const romania: Sheet = {
   width: 1000,
   height: 708,
   outlines: { ROU: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Bucharest",
-      country: "ROU",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          165, 125, -21, -6, -3, 9, 14, 34, -12, 10, -21, -28, -25, -5, -29, -32, 0, -19, 29, -3, 0,
-          -19, -23, -10, 21, -37, 30, -11, 4, 41, 34, 9, -10, 31, 19, 17,
-        ],
-      ],
-      areas: [
-        {
-          code: "RO-B",
-          name: "Bucharest",
-          outline: [
-            [
-              165, 125, -21, -6, -3, 9, 14, 34, -12, 10, -21, -28, -25, -5, -29, -32, 0, -19, 29,
-              -3, 0, -19, -23, -10, 21, -37, 30, -11, 4, 41, 34, 9, -10, 31, 19, 17,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "ROU",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["RO-B"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

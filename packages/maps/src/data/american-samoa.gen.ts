@@ -35,44 +35,44 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Rose Atoll",
+    country: "ASM",
+    width: 240,
+    height: 180,
+    outline: [[183, 172, -139, -115, 115, -49, 37, 14]],
+    areas: [
+      { code: "ASM-5000", name: "Rose Atoll", outline: [[183, 172, -139, -115, 115, -49, 37, 14]] },
+    ],
+  },
+  {
+    name: "Swains Island",
+    country: "ASM",
+    width: 240,
+    height: 180,
+    outline: [[195, 21, -7, 107, -88, 44, -55, -64, 10, -100]],
+    areas: [
+      {
+        code: "ASM-5001",
+        name: "Swains Island",
+        outline: [[195, 21, -7, 107, -88, 44, -55, -64, 10, -100]],
+      },
+    ],
+  },
+]
+
 export const americanSamoa: Sheet = {
   width: 1000,
   height: 171,
   outlines: { ASM: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Rose Atoll",
-      country: "ASM",
-      width: 240,
-      height: 180,
-      outline: [[183, 172, -139, -115, 115, -49, 37, 14]],
-      areas: [
-        {
-          code: "ASM-5000",
-          name: "Rose Atoll",
-          outline: [[183, 172, -139, -115, 115, -49, 37, 14]],
-        },
-      ],
-    },
-    {
-      name: "Swains Island",
-      country: "ASM",
-      width: 240,
-      height: 180,
-      outline: [[195, 21, -7, 107, -88, 44, -55, -64, 10, -100]],
-      areas: [
-        {
-          code: "ASM-5001",
-          name: "Swains Island",
-          outline: [[195, 21, -7, 107, -88, 44, -55, -64, 10, -100]],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "ASM",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["ASM-5000", "ASM-5001"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

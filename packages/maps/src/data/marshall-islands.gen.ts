@@ -250,27 +250,29 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Ujae",
+    country: "MHL",
+    width: 240,
+    height: 180,
+    outline: [[228, 108, -51, 62, -75, 2, -90, -64, 8, -88, 9, -12, 90, 60, 41, -20, 58, 14]],
+    areas: [
+      {
+        code: "77969171B60639821987115",
+        name: "Ujae",
+        outline: [[228, 108, -51, 62, -75, 2, -90, -64, 8, -88, 9, -12, 90, 60, 41, -20, 58, 14]],
+      },
+    ],
+  },
+]
+
 export const marshallIslands: Sheet = {
   width: 1000,
   height: 910,
   outlines: { MHL: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Ujae",
-      country: "MHL",
-      width: 240,
-      height: 180,
-      outline: [[228, 108, -51, 62, -75, 2, -90, -64, 8, -88, 9, -12, 90, 60, 41, -20, 58, 14]],
-      areas: [
-        {
-          code: "77969171B60639821987115",
-          name: "Ujae",
-          outline: [[228, 108, -51, 62, -75, 2, -90, -64, 8, -88, 9, -12, 90, 60, 41, -20, 58, 14]],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "MHL",
     source: "Boundary",
@@ -282,6 +284,8 @@ export const marshallIslands: Sheet = {
       licenseUrl: "https://opendatacommons.org/licenses/odbl/1-0/",
       kind: "Administrative",
     },
-    areas: areas.filter((area) => !["77969171B60639821987115"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

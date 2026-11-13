@@ -293,11 +293,13 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = []
+
 export const elSalvador: Sheet = {
   width: 1000,
   height: 555,
   outlines: { SLV: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [],
+  insets,
   subdivisions: { country: "SLV", source: "NaturalEarth", areas: areas },
 }

@@ -404,39 +404,41 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "N'DJAMENA",
+    country: "TCD",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        151, 10, 30, 23, 22, 20, 6, 30, 18, 23, -4, 25, -8, 32, -25, 7, -19, 2, -17, -6, -21, -10,
+        1, -21, -15, -23, -19, -19, -17, 9, -22, 3, -32, -29, -16, -16, 10, -17, 31, -5, 20, -6, 17,
+        -7, 17, -12, 21, -5,
+      ],
+    ],
+    areas: [
+      {
+        code: "TCD18",
+        name: "N'DJAMENA",
+        outline: [
+          [
+            151, 10, 30, 23, 22, 20, 6, 30, 18, 23, -4, 25, -8, 32, -25, 7, -19, 2, -17, -6, -21,
+            -10, 1, -21, -15, -23, -19, -19, -17, 9, -22, 3, -32, -29, -16, -16, 10, -17, 31, -5,
+            20, -6, 17, -7, 17, -12, 21, -5,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const chad: Sheet = {
   width: 1000,
   height: 1564,
   outlines: { TCD: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "N'DJAMENA",
-      country: "TCD",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          151, 10, 30, 23, 22, 20, 6, 30, 18, 23, -4, 25, -8, 32, -25, 7, -19, 2, -17, -6, -21, -10,
-          1, -21, -15, -23, -19, -19, -17, 9, -22, 3, -32, -29, -16, -16, 10, -17, 31, -5, 20, -6,
-          17, -7, 17, -12, 21, -5,
-        ],
-      ],
-      areas: [
-        {
-          code: "TCD18",
-          name: "N'DJAMENA",
-          outline: [
-            [
-              151, 10, 30, 23, 22, 20, 6, 30, 18, 23, -4, 25, -8, 32, -25, 7, -19, 2, -17, -6, -21,
-              -10, 1, -21, -15, -23, -19, -19, -17, 9, -22, 3, -32, -29, -16, -16, 10, -17, 31, -5,
-              20, -6, 17, -7, 17, -12, 21, -5,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "TCD",
     source: "Boundary",
@@ -449,6 +451,8 @@ export const chad: Sheet = {
       licenseUrl: "https://creativecommons.org/licenses/by/3.0/igo/",
       kind: "Administrative",
     },
-    areas: areas.filter((area) => !["TCD18"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

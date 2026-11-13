@@ -161,40 +161,44 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Anseba",
+    country: "ERI",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        19, 171, 0, -156, 4, -3, 3, 0, 5, 0, 3, 2, 4, 3, 3, 1, 5, -1, 14, -5, 23, -4, 7, 17, 9, 18,
+        34, 53, 22, 24, 18, 16, 33, 17, 15, 10, -4, 5, -3, 2, -5, 2, -3, -1,
+      ],
+    ],
+    areas: [
+      {
+        code: "ERI-1561",
+        name: "Anseba",
+        outline: [
+          [
+            19, 171, 0, -156, 4, -3, 3, 0, 5, 0, 3, 2, 4, 3, 3, 1, 5, -1, 14, -5, 23, -4, 7, 17, 9,
+            18, 34, 53, 22, 24, 18, 16, 33, 17, 15, 10, -4, 5, -3, 2, -5, 2, -3, -1,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const eritrea: Sheet = {
   width: 1000,
   height: 867,
   outlines: { ERI: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Anseba",
-      country: "ERI",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          19, 171, 0, -156, 4, -3, 3, 0, 5, 0, 3, 2, 4, 3, 3, 1, 5, -1, 14, -5, 23, -4, 7, 17, 9,
-          18, 34, 53, 22, 24, 18, 16, 33, 17, 15, 10, -4, 5, -3, 2, -5, 2, -3, -1,
-        ],
-      ],
-      areas: [
-        {
-          code: "ERI-1561",
-          name: "Anseba",
-          outline: [
-            [
-              19, 171, 0, -156, 4, -3, 3, 0, 5, 0, 3, 2, 4, 3, 3, 1, 5, -1, 14, -5, 23, -4, 7, 17,
-              9, 18, 34, 53, 22, 24, 18, 16, 33, 17, 15, 10, -4, 5, -3, 2, -5, 2, -3, -1,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "ERI",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["ERI-1561"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

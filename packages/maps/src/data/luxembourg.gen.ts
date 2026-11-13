@@ -752,12 +752,14 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = []
+
 export const luxembourg: Sheet = {
   width: 1000,
   height: 1425,
   outlines: { LUX: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [],
+  insets,
   subdivisions: {
     country: "LUX",
     source: "Boundary",

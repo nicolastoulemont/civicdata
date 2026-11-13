@@ -488,40 +488,44 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Maputo City",
+    country: "MOZ",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        221, 79, -27, 25, -11, 18, -7, 9, -38, 32, -13, 8, -16, 1, -13, -4, -29, -19, -24, -8, -24,
+        0, 15, -49, 36, -84, 110, 34,
+      ],
+    ],
+    areas: [
+      {
+        code: "MOZ-5854",
+        name: "Maputo City",
+        outline: [
+          [
+            221, 79, -27, 25, -11, 18, -7, 9, -38, 32, -13, 8, -16, 1, -13, -4, -29, -19, -24, -8,
+            -24, 0, 15, -49, 36, -84, 110, 34,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const mozambique: Sheet = {
   width: 1000,
   height: 1576,
   outlines: { MOZ: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Maputo City",
-      country: "MOZ",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          221, 79, -27, 25, -11, 18, -7, 9, -38, 32, -13, 8, -16, 1, -13, -4, -29, -19, -24, -8,
-          -24, 0, 15, -49, 36, -84, 110, 34,
-        ],
-      ],
-      areas: [
-        {
-          code: "MOZ-5854",
-          name: "Maputo City",
-          outline: [
-            [
-              221, 79, -27, 25, -11, 18, -7, 9, -38, 32, -13, 8, -16, 1, -13, -4, -29, -19, -24, -8,
-              -24, 0, 15, -49, 36, -84, 110, 34,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "MOZ",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["MOZ-5854"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

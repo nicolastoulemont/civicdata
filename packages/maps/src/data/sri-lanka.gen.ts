@@ -263,11 +263,13 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = []
+
 export const sriLanka: Sheet = {
   width: 1000,
   height: 1753,
   outlines: { LKA: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [],
+  insets,
   subdivisions: { country: "LKA", source: "NaturalEarth", areas: areas },
 }

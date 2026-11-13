@@ -1153,12 +1153,14 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = []
+
 export const slovenia: Sheet = {
   width: 1000,
   height: 665,
   outlines: { SVN: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [],
+  insets,
   subdivisions: {
     country: "SVN",
     source: "Boundary",

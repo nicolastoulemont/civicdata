@@ -248,11 +248,13 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = []
+
 export const costaRica: Sheet = {
   width: 1000,
   height: 1252,
   outlines: { CRI: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [],
+  insets,
   subdivisions: { country: "CRI", source: "NaturalEarth", areas: areas },
 }

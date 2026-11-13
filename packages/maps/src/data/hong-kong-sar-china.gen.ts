@@ -200,40 +200,44 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Yau Tsim Mong",
+    country: "HKG",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        156, 161, -20, 11, -21, -26, 5, -54, -11, -24, -4, -23, -24, 0, 0, -33, 70, -4, -3, 42, 11,
+        48,
+      ],
+    ],
+    areas: [
+      {
+        code: "HKG-5157",
+        name: "Yau Tsim Mong",
+        outline: [
+          [
+            156, 161, -20, 11, -21, -26, 5, -54, -11, -24, -4, -23, -24, 0, 0, -33, 70, -4, -3, 42,
+            11, 48,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const hongKongSarChina: Sheet = {
   width: 1000,
   height: 747,
   outlines: { HKG: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Yau Tsim Mong",
-      country: "HKG",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          156, 161, -20, 11, -21, -26, 5, -54, -11, -24, -4, -23, -24, 0, 0, -33, 70, -4, -3, 42,
-          11, 48,
-        ],
-      ],
-      areas: [
-        {
-          code: "HKG-5157",
-          name: "Yau Tsim Mong",
-          outline: [
-            [
-              156, 161, -20, 11, -21, -26, 5, -54, -11, -24, -4, -23, -24, 0, 0, -33, 70, -4, -3,
-              42, 11, 48,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "HKG",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["HKG-5157"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

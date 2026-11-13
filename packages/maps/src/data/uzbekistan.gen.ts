@@ -357,42 +357,46 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Tashkent City",
+    country: "UZB",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        116, 172, -20, -5, -9, -15, 4, -9, -1, -4, -10, 12, -17, -19, -5, -10, -1, -11, -11, 6, -2,
+        -2, 17, -43, 6, -28, 35, -36, 23, 0, 15, 11, 21, 3, 25, 16, 2, 14, -10, 18, 9, 6, 7, 10, -5,
+        8, 7, 7, -25, 13, -34, 31,
+      ],
+    ],
+    areas: [
+      {
+        code: "UZ-TK",
+        name: "Tashkent City",
+        outline: [
+          [
+            116, 172, -20, -5, -9, -15, 4, -9, -1, -4, -10, 12, -17, -19, -5, -10, -1, -11, -11, 6,
+            -2, -2, 17, -43, 6, -28, 35, -36, 23, 0, 15, 11, 21, 3, 25, 16, 2, 14, -10, 18, 9, 6, 7,
+            10, -5, 8, 7, 7, -25, 13, -34, 31,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const uzbekistan: Sheet = {
   width: 1000,
   height: 661,
   outlines: { UZB: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Tashkent City",
-      country: "UZB",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          116, 172, -20, -5, -9, -15, 4, -9, -1, -4, -10, 12, -17, -19, -5, -10, -1, -11, -11, 6,
-          -2, -2, 17, -43, 6, -28, 35, -36, 23, 0, 15, 11, 21, 3, 25, 16, 2, 14, -10, 18, 9, 6, 7,
-          10, -5, 8, 7, 7, -25, 13, -34, 31,
-        ],
-      ],
-      areas: [
-        {
-          code: "UZ-TK",
-          name: "Tashkent City",
-          outline: [
-            [
-              116, 172, -20, -5, -9, -15, 4, -9, -1, -4, -10, 12, -17, -19, -5, -10, -1, -11, -11,
-              6, -2, -2, 17, -43, 6, -28, 35, -36, 23, 0, 15, 11, 21, 3, 25, 16, 2, 14, -10, 18, 9,
-              6, 7, 10, -5, 8, 7, 7, -25, 13, -34, 31,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "UZB",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["UZ-TK"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

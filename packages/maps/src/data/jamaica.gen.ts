@@ -194,40 +194,44 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Kingston",
+    country: "JAM",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        218, 145, -5, -5, -13, -12, -32, -8, -74, -1, -51, 1, -35, -21, 8, -24, 4, -9, 19, -13, 25,
+        -10, 21, -5, 63, -3, 37, 8, 24, 13, 21, 48, 2, 34,
+      ],
+    ],
+    areas: [
+      {
+        code: "JAM-1377",
+        name: "Kingston",
+        outline: [
+          [
+            218, 145, -5, -5, -13, -12, -32, -8, -74, -1, -51, 1, -35, -21, 8, -24, 4, -9, 19, -13,
+            25, -10, 21, -5, 63, -3, 37, 8, 24, 13, 21, 48, 2, 34,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const jamaica: Sheet = {
   width: 1000,
   height: 408,
   outlines: { JAM: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Kingston",
-      country: "JAM",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          218, 145, -5, -5, -13, -12, -32, -8, -74, -1, -51, 1, -35, -21, 8, -24, 4, -9, 19, -13,
-          25, -10, 21, -5, 63, -3, 37, 8, 24, 13, 21, 48, 2, 34,
-        ],
-      ],
-      areas: [
-        {
-          code: "JAM-1377",
-          name: "Kingston",
-          outline: [
-            [
-              218, 145, -5, -5, -13, -12, -32, -8, -74, -1, -51, 1, -35, -21, 8, -24, 4, -9, 19,
-              -13, 25, -10, 21, -5, 63, -3, 37, 8, 24, 13, 21, 48, 2, 34,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "JAM",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["JAM-1377"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

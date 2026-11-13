@@ -462,40 +462,44 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Asunción",
+    country: "PRY",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        127, 172, -38, -30, 0, -12, -27, -68, 19, -24, 10, -9, 13, -7, 25, -8, 10, -6, 22, 21, 13,
+        24, 4, 37, -8, 38, -22, 25,
+      ],
+    ],
+    areas: [
+      {
+        code: "PY-ASU",
+        name: "Asunción",
+        outline: [
+          [
+            127, 172, -38, -30, 0, -12, -27, -68, 19, -24, 10, -9, 13, -7, 25, -8, 10, -6, 22, 21,
+            13, 24, 4, 37, -8, 38, -22, 25,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const paraguay: Sheet = {
   width: 1000,
   height: 1073,
   outlines: { PRY: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Asunción",
-      country: "PRY",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          127, 172, -38, -30, 0, -12, -27, -68, 19, -24, 10, -9, 13, -7, 25, -8, 10, -6, 22, 21, 13,
-          24, 4, 37, -8, 38, -22, 25,
-        ],
-      ],
-      areas: [
-        {
-          code: "PY-ASU",
-          name: "Asunción",
-          outline: [
-            [
-              127, 172, -38, -30, 0, -12, -27, -68, 19, -24, 10, -9, 13, -7, 25, -8, 10, -6, 22, 21,
-              13, 24, 4, 37, -8, 38, -22, 25,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "PRY",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["PY-ASU"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

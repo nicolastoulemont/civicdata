@@ -667,11 +667,13 @@ import type { Sheet } from "../index.ts"
 
 const areas = ${JSON.stringify(outlines)}
 
+const insets: Sheet["insets"] = ${JSON.stringify(insets)}
+
 export const ${nameOf(map.id)}: Sheet = {
   width: 1000, height: ${height + 10},
   outlines: { ${map.country}: areas.flatMap((area) => area.outline) },
-  land: ${JSON.stringify(background)}, insets: ${JSON.stringify(insets)},
-  subdivisions: { country: "${map.country}", source: "${map.source}", ${map.source === "Boundary" ? `credit: ${JSON.stringify(boundaryCredit(map.country))},` : ""} areas: ${map.insets.length === 0 ? "areas" : `areas.filter((area) => !${JSON.stringify(map.insets.map((away) => away.code))}.includes(area.code))`} },
+  land: ${JSON.stringify(background)}, insets,
+  subdivisions: { country: "${map.country}", source: "${map.source}", ${map.source === "Boundary" ? `credit: ${JSON.stringify(boundaryCredit(map.country))},` : ""} areas: ${map.insets.length === 0 ? "areas" : "areas.filter((area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)))"} },
 }
 `,
   )

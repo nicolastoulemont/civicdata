@@ -118,46 +118,50 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Hatohobei",
+    country: "PLW",
+    width: 240,
+    height: 180,
+    outline: [
+      [12, 76, 6, -4, 7, 0, 3, 3, -4, 6, -6, 3, -8, 1, -2, -3],
+      [225, 99, 5, 1, 2, 5, -6, 3, -5, -1, -1, -4, 3, -3],
+    ],
+    areas: [
+      {
+        code: "PLW-5247",
+        name: "Hatohobei",
+        outline: [
+          [12, 76, 6, -4, 7, 0, 3, 3, -4, 6, -6, 3, -8, 1, -2, -3],
+          [225, 99, 5, 1, 2, 5, -6, 3, -5, -1, -1, -4, 3, -3],
+        ],
+      },
+    ],
+  },
+  {
+    name: "Sonsorol",
+    country: "PLW",
+    width: 240,
+    height: 180,
+    outline: [[121, 172, -59, -135, 57, -29, 59, 54]],
+    areas: [
+      { code: "PLW-5259", name: "Sonsorol", outline: [[121, 172, -59, -135, 57, -29, 59, 54]] },
+    ],
+  },
+]
+
 export const palau: Sheet = {
   width: 1000,
   height: 2052,
   outlines: { PLW: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Hatohobei",
-      country: "PLW",
-      width: 240,
-      height: 180,
-      outline: [
-        [12, 76, 6, -4, 7, 0, 3, 3, -4, 6, -6, 3, -8, 1, -2, -3],
-        [225, 99, 5, 1, 2, 5, -6, 3, -5, -1, -1, -4, 3, -3],
-      ],
-      areas: [
-        {
-          code: "PLW-5247",
-          name: "Hatohobei",
-          outline: [
-            [12, 76, 6, -4, 7, 0, 3, 3, -4, 6, -6, 3, -8, 1, -2, -3],
-            [225, 99, 5, 1, 2, 5, -6, 3, -5, -1, -1, -4, 3, -3],
-          ],
-        },
-      ],
-    },
-    {
-      name: "Sonsorol",
-      country: "PLW",
-      width: 240,
-      height: 180,
-      outline: [[121, 172, -59, -135, 57, -29, 59, 54]],
-      areas: [
-        { code: "PLW-5259", name: "Sonsorol", outline: [[121, 172, -59, -135, 57, -29, 59, 54]] },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "PLW",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["PLW-5247", "PLW-5259"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

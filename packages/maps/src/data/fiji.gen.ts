@@ -216,40 +216,44 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Rotuma",
+    country: "FJI",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        224, 71, 8, 29, -28, 19, -41, 9, -32, 1, -25, -9, -29, -7, -30, -2, -29, 4, -9, -27, -1,
+        -10, 27, 7, 22, -4, 49, -30, 28, 10, 65, 0,
+      ],
+    ],
+    areas: [
+      {
+        code: "FJI-2658",
+        name: "Rotuma",
+        outline: [
+          [
+            224, 71, 8, 29, -28, 19, -41, 9, -32, 1, -25, -9, -29, -7, -30, -2, -29, 4, -9, -27, -1,
+            -10, 27, 7, 22, -4, 49, -30, 28, 10, 65, 0,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const fiji: Sheet = {
   width: 1000,
   height: 834,
   outlines: { FJI: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Rotuma",
-      country: "FJI",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          224, 71, 8, 29, -28, 19, -41, 9, -32, 1, -25, -9, -29, -7, -30, -2, -29, 4, -9, -27, -1,
-          -10, 27, 7, 22, -4, 49, -30, 28, 10, 65, 0,
-        ],
-      ],
-      areas: [
-        {
-          code: "FJI-2658",
-          name: "Rotuma",
-          outline: [
-            [
-              224, 71, 8, 29, -28, 19, -41, 9, -32, 1, -25, -9, -29, -7, -30, -2, -29, 4, -9, -27,
-              -1, -10, 27, 7, 22, -4, 49, -30, 28, 10, 65, 0,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "FJI",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["FJI-2658"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

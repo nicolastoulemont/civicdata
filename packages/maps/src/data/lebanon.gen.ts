@@ -245,37 +245,39 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Beyrouth",
+    country: "LBN",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        230, 31, -13, 20, -11, 59, -42, 24, -26, 38, -19, -2, -17, -15, -57, 0, 0, -16, -8, -35,
+        -24, -23, -3, -13, 0, -17, 21, -23, 29, -6, 24, 5, 47, -19, 28, 12, 35, 0,
+      ],
+    ],
+    areas: [
+      {
+        code: "68408151B13555465262434",
+        name: "Beyrouth",
+        outline: [
+          [
+            230, 31, -13, 20, -11, 59, -42, 24, -26, 38, -19, -2, -17, -15, -57, 0, 0, -16, -8, -35,
+            -24, -23, -3, -13, 0, -17, 21, -23, 29, -6, 24, 5, 47, -19, 28, 12, 35, 0,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const lebanon: Sheet = {
   width: 1000,
   height: 1300,
   outlines: { LBN: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Beyrouth",
-      country: "LBN",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          230, 31, -13, 20, -11, 59, -42, 24, -26, 38, -19, -2, -17, -15, -57, 0, 0, -16, -8, -35,
-          -24, -23, -3, -13, 0, -17, 21, -23, 29, -6, 24, 5, 47, -19, 28, 12, 35, 0,
-        ],
-      ],
-      areas: [
-        {
-          code: "68408151B13555465262434",
-          name: "Beyrouth",
-          outline: [
-            [
-              230, 31, -13, 20, -11, 59, -42, 24, -26, 38, -19, -2, -17, -15, -57, 0, 0, -16, -8,
-              -35, -24, -23, -3, -13, 0, -17, 21, -23, 29, -6, 24, 5, 47, -19, 28, 12, 35, 0,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "LBN",
     source: "Boundary",
@@ -287,6 +289,8 @@ export const lebanon: Sheet = {
       licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/",
       kind: "Administrative",
     },
-    areas: areas.filter((area) => !["68408151B13555465262434"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

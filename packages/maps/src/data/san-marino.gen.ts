@@ -92,34 +92,36 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Montegiardino",
+    country: "SMR",
+    width: 240,
+    height: 180,
+    outline: [[157, 11, -3, 22, 4, 21, -70, 118, -6, -50, 4, -43, 6, -26, 12, -21, 2, -16, 19, -8]],
+    areas: [
+      {
+        code: "SMR-4889",
+        name: "Montegiardino",
+        outline: [
+          [157, 11, -3, 22, 4, 21, -70, 118, -6, -50, 4, -43, 6, -26, 12, -21, 2, -16, 19, -8],
+        ],
+      },
+    ],
+  },
+]
+
 export const sanMarino: Sheet = {
   width: 1000,
   height: 1174,
   outlines: { SMR: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Montegiardino",
-      country: "SMR",
-      width: 240,
-      height: 180,
-      outline: [
-        [157, 11, -3, 22, 4, 21, -70, 118, -6, -50, 4, -43, 6, -26, 12, -21, 2, -16, 19, -8],
-      ],
-      areas: [
-        {
-          code: "SMR-4889",
-          name: "Montegiardino",
-          outline: [
-            [157, 11, -3, 22, 4, 21, -70, 118, -6, -50, 4, -43, 6, -26, 12, -21, 2, -16, 19, -8],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "SMR",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["SMR-4889"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

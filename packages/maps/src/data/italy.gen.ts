@@ -836,11 +836,13 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = []
+
 export const italy: Sheet = {
   width: 1000,
   height: 1318,
   outlines: { ITA: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [],
+  insets,
   subdivisions: { country: "ITA", source: "NaturalEarth", areas: areas },
 }

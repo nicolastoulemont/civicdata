@@ -76,40 +76,44 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Saint Andrew",
+    country: "VCT",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        108, 172, -71, -50, 27, -29, 43, -31, 39, -43, 16, -7, 28, -4, -3, 35, 16, 14, -13, 26, -47,
+        52,
+      ],
+    ],
+    areas: [
+      {
+        code: "VCT-5065",
+        name: "Saint Andrew",
+        outline: [
+          [
+            108, 172, -71, -50, 27, -29, 43, -31, 39, -43, 16, -7, 28, -4, -3, 35, 16, 14, -13, 26,
+            -47, 52,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const saintVincentAndTheGrenadines: Sheet = {
   width: 1000,
   height: 2400,
   outlines: { VCT: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Saint Andrew",
-      country: "VCT",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          108, 172, -71, -50, 27, -29, 43, -31, 39, -43, 16, -7, 28, -4, -3, 35, 16, 14, -13, 26,
-          -47, 52,
-        ],
-      ],
-      areas: [
-        {
-          code: "VCT-5065",
-          name: "Saint Andrew",
-          outline: [
-            [
-              108, 172, -71, -50, 27, -29, 43, -31, 39, -43, 16, -7, 28, -4, -3, 35, 16, 14, -13,
-              26, -47, 52,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "VCT",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["VCT-5065"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

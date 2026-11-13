@@ -125,30 +125,34 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Saint Paul Charlestown",
+    country: "KNA",
+    width: 240,
+    height: 180,
+    outline: [[31, 132, -23, -61, 139, 12, 85, -35, -64, 64, -76, 15]],
+    areas: [
+      {
+        code: "KNA-5108",
+        name: "Saint Paul Charlestown",
+        outline: [[31, 132, -23, -61, 139, 12, 85, -35, -64, 64, -76, 15]],
+      },
+    ],
+  },
+]
+
 export const saintKittsAndNevis: Sheet = {
   width: 1000,
   height: 1018,
   outlines: { KNA: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Saint Paul Charlestown",
-      country: "KNA",
-      width: 240,
-      height: 180,
-      outline: [[31, 132, -23, -61, 139, 12, 85, -35, -64, 64, -76, 15]],
-      areas: [
-        {
-          code: "KNA-5108",
-          name: "Saint Paul Charlestown",
-          outline: [[31, 132, -23, -61, 139, 12, 85, -35, -64, 64, -76, 15]],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "KNA",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["KNA-5108"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

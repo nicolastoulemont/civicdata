@@ -618,39 +618,41 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Bamako",
+    country: "MLI",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        165, 15, 28, -3, 12, 30, -18, 8, -10, 3, -1, 39, 19, -2, 4, 3, -5, 33, 9, 15, -6, 12, -10,
+        6, -40, -3, -20, 13, -17, 3, -44, -2, 4, -20, 15, -29, -24, 1, -10, -4, -5, -9, 9, -24, -20,
+        1, 27, -38, 18, -12, 13, -2, 16, -26, 41, 17,
+      ],
+    ],
+    areas: [
+      {
+        code: "ML20",
+        name: "Bamako",
+        outline: [
+          [
+            165, 15, 28, -3, 12, 30, -18, 8, -10, 3, -1, 39, 19, -2, 4, 3, -5, 33, 9, 15, -6, 12,
+            -10, 6, -40, -3, -20, 13, -17, 3, -44, -2, 4, -20, 15, -29, -24, 1, -10, -4, -5, -9, 9,
+            -24, -20, 1, 27, -38, 18, -12, 13, -2, 16, -26, 41, 17,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const mali: Sheet = {
   width: 1000,
   height: 939,
   outlines: { MLI: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Bamako",
-      country: "MLI",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          165, 15, 28, -3, 12, 30, -18, 8, -10, 3, -1, 39, 19, -2, 4, 3, -5, 33, 9, 15, -6, 12, -10,
-          6, -40, -3, -20, 13, -17, 3, -44, -2, 4, -20, 15, -29, -24, 1, -10, -4, -5, -9, 9, -24,
-          -20, 1, 27, -38, 18, -12, 13, -2, 16, -26, 41, 17,
-        ],
-      ],
-      areas: [
-        {
-          code: "ML20",
-          name: "Bamako",
-          outline: [
-            [
-              165, 15, 28, -3, 12, 30, -18, 8, -10, 3, -1, 39, 19, -2, 4, 3, -5, 33, 9, 15, -6, 12,
-              -10, 6, -40, -3, -20, 13, -17, 3, -44, -2, 4, -20, 15, -29, -24, 1, -10, -4, -5, -9,
-              9, -24, -20, 1, 27, -38, 18, -12, 13, -2, 16, -26, 41, 17,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "MLI",
     source: "Boundary",
@@ -662,6 +664,8 @@ export const mali: Sheet = {
       licenseUrl: "https://creativecommons.org/licenses/by/3.0/igo/",
       kind: "Administrative",
     },
-    areas: areas.filter((area) => !["ML20"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

@@ -683,41 +683,43 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Shanghai Municipality",
+    country: "CHN",
+    width: 240,
+    height: 180,
+    outline: [
+      [185, 83, -7, 5, -36, -13, -13, -9, 1, -4, 32, 14],
+      [
+        107, 172, -10, -16, -8, -6, -14, -3, -6, -7, 0, -13, -14, -11, 5, -2, 11, -15, 9, -9, 5,
+        -18, 7, -16, 10, -6, 37, 28, 35, 30, -7, 30, -32, 18,
+      ],
+      [177, 55, -10, 10, -18, -4, -43, -20, -28, -24, 4, -9, 17, 1, 16, 8, 46, 24],
+    ],
+    areas: [
+      {
+        code: "43563684B32591653033375",
+        name: "Shanghai Municipality",
+        outline: [
+          [185, 83, -7, 5, -36, -13, -13, -9, 1, -4, 32, 14],
+          [
+            107, 172, -10, -16, -8, -6, -14, -3, -6, -7, 0, -13, -14, -11, 5, -2, 11, -15, 9, -9, 5,
+            -18, 7, -16, 10, -6, 37, 28, 35, 30, -7, 30, -32, 18,
+          ],
+          [177, 55, -10, 10, -18, -4, -43, -20, -28, -24, 4, -9, 17, 1, 16, 8, 46, 24],
+        ],
+      },
+    ],
+  },
+]
+
 export const china: Sheet = {
   width: 1000,
   height: 827,
   outlines: { CHN: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Shanghai Municipality",
-      country: "CHN",
-      width: 240,
-      height: 180,
-      outline: [
-        [185, 83, -7, 5, -36, -13, -13, -9, 1, -4, 32, 14],
-        [
-          107, 172, -10, -16, -8, -6, -14, -3, -6, -7, 0, -13, -14, -11, 5, -2, 11, -15, 9, -9, 5,
-          -18, 7, -16, 10, -6, 37, 28, 35, 30, -7, 30, -32, 18,
-        ],
-        [177, 55, -10, 10, -18, -4, -43, -20, -28, -24, 4, -9, 17, 1, 16, 8, 46, 24],
-      ],
-      areas: [
-        {
-          code: "43563684B32591653033375",
-          name: "Shanghai Municipality",
-          outline: [
-            [185, 83, -7, 5, -36, -13, -13, -9, 1, -4, 32, 14],
-            [
-              107, 172, -10, -16, -8, -6, -14, -3, -6, -7, 0, -13, -14, -11, 5, -2, 11, -15, 9, -9,
-              5, -18, 7, -16, 10, -6, 37, 28, 35, 30, -7, 30, -32, 18,
-            ],
-            [177, 55, -10, 10, -18, -4, -43, -20, -28, -24, 4, -9, 17, 1, 16, 8, 46, 24],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "CHN",
     source: "Boundary",
@@ -729,6 +731,8 @@ export const china: Sheet = {
       licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/",
       kind: "Administrative",
     },
-    areas: areas.filter((area) => !["43563684B32591653033375"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

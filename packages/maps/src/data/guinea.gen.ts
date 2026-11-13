@@ -589,40 +589,44 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Conakry",
+    country: "GIN",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        219, 83, -83, 48, -66, 20, -3, 6, -17, 11, -20, 4, -9, -13, 5, -20, 13, -7, 15, -3, 16, -11,
+        77, -110, 1, 0,
+      ],
+    ],
+    areas: [
+      {
+        code: "GIN-5630",
+        name: "Conakry",
+        outline: [
+          [
+            219, 83, -83, 48, -66, 20, -3, 6, -17, 11, -20, 4, -9, -13, 5, -20, 13, -7, 15, -3, 16,
+            -11, 77, -110, 1, 0,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const guinea: Sheet = {
   width: 1000,
   height: 755,
   outlines: { GIN: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Conakry",
-      country: "GIN",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          219, 83, -83, 48, -66, 20, -3, 6, -17, 11, -20, 4, -9, -13, 5, -20, 13, -7, 15, -3, 16,
-          -11, 77, -110, 1, 0,
-        ],
-      ],
-      areas: [
-        {
-          code: "GIN-5630",
-          name: "Conakry",
-          outline: [
-            [
-              219, 83, -83, 48, -66, 20, -3, 6, -17, 11, -20, 4, -9, -13, 5, -20, 13, -7, 15, -3,
-              16, -11, 77, -110, 1, 0,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "GIN",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["GIN-5630"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

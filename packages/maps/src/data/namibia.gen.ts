@@ -670,12 +670,14 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = []
+
 export const namibia: Sheet = {
   width: 1000,
   height: 931,
   outlines: { NAM: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [],
+  insets,
   subdivisions: {
     country: "NAM",
     source: "Boundary",

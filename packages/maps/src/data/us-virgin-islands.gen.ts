@@ -36,40 +36,44 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Saint John",
+    country: "VIR",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        167, 82, -11, 5, 17, 23, -10, 39, -52, -28, -79, 8, -24, -22, 24, -36, 26, -11, 29, -9, -7,
+        -12, 14, -8, 54, 14, 25, 5, 24, 11, 28, 15, 7, 17, -22, 4,
+      ],
+    ],
+    areas: [
+      {
+        code: "VIR-4869",
+        name: "Saint John",
+        outline: [
+          [
+            167, 82, -11, 5, 17, 23, -10, 39, -52, -28, -79, 8, -24, -22, 24, -36, 26, -11, 29, -9,
+            -7, -12, 14, -8, 54, 14, 25, 5, 24, 11, 28, 15, 7, 17, -22, 4,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const usVirginIslands: Sheet = {
   width: 1000,
   height: 1525,
   outlines: { VIR: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Saint John",
-      country: "VIR",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          167, 82, -11, 5, 17, 23, -10, 39, -52, -28, -79, 8, -24, -22, 24, -36, 26, -11, 29, -9,
-          -7, -12, 14, -8, 54, 14, 25, 5, 24, 11, 28, 15, 7, 17, -22, 4,
-        ],
-      ],
-      areas: [
-        {
-          code: "VIR-4869",
-          name: "Saint John",
-          outline: [
-            [
-              167, 82, -11, 5, 17, 23, -10, 39, -52, -28, -79, 8, -24, -22, 24, -36, 26, -11, 29,
-              -9, -7, -12, 14, -8, 54, 14, 25, 5, 24, 11, 28, 15, 7, 17, -22, 4,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "VIR",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["VIR-4869"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

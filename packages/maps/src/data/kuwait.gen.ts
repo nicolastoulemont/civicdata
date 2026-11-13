@@ -78,40 +78,41 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Hawalli",
+    country: "KWT",
+    width: 240,
+    height: 180,
+    outline: [
+      [61, 11, 4, 6, 28, 25, 19, 6, 51, 18, 69, -14, -12, 85, -81, 32, -77, 0, -32, -75, -22, -45],
+    ],
+    areas: [
+      {
+        code: "KWT-3506",
+        name: "Hawalli",
+        outline: [
+          [
+            61, 11, 4, 6, 28, 25, 19, 6, 51, 18, 69, -14, -12, 85, -81, 32, -77, 0, -32, -75, -22,
+            -45,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const kuwait: Sheet = {
   width: 1000,
   height: 944,
   outlines: { KWT: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Hawalli",
-      country: "KWT",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          61, 11, 4, 6, 28, 25, 19, 6, 51, 18, 69, -14, -12, 85, -81, 32, -77, 0, -32, -75, -22,
-          -45,
-        ],
-      ],
-      areas: [
-        {
-          code: "KWT-3506",
-          name: "Hawalli",
-          outline: [
-            [
-              61, 11, 4, 6, 28, 25, 19, 6, 51, 18, 69, -14, -12, 85, -81, 32, -77, 0, -32, -75, -22,
-              -45,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "KWT",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["KWT-3506"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

@@ -426,40 +426,44 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Distrito Nacional",
+    country: "DOM",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        202, 105, -6, 1, -23, 7, -44, 21, -36, 25, -14, 7, -20, 6, 8, -54, -31, -46, 3, -43, 38,
+        -21, 17, 25, 18, 27, 27, 3, 26, -8, 39, 6,
+      ],
+    ],
+    areas: [
+      {
+        code: "DO-01",
+        name: "Distrito Nacional",
+        outline: [
+          [
+            202, 105, -6, 1, -23, 7, -44, 21, -36, 25, -14, 7, -20, 6, 8, -54, -31, -46, 3, -43, 38,
+            -21, 17, 25, 18, 27, 27, 3, 26, -8, 39, 6,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const dominicanRepublic: Sheet = {
   width: 1000,
   height: 691,
   outlines: { DOM: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Distrito Nacional",
-      country: "DOM",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          202, 105, -6, 1, -23, 7, -44, 21, -36, 25, -14, 7, -20, 6, 8, -54, -31, -46, 3, -43, 38,
-          -21, 17, 25, 18, 27, 27, 3, 26, -8, 39, 6,
-        ],
-      ],
-      areas: [
-        {
-          code: "DO-01",
-          name: "Distrito Nacional",
-          outline: [
-            [
-              202, 105, -6, 1, -23, 7, -44, 21, -36, 25, -14, 7, -20, 6, 8, -54, -31, -46, 3, -43,
-              38, -21, 17, 25, 18, 27, 27, 3, 26, -8, 39, 6,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "DOM",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["DO-01"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

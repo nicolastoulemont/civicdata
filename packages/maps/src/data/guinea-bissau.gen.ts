@@ -281,40 +281,44 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Bissau",
+    country: "GNB",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        186, 77, -4, 1, -6, 4, -29, 43, -8, 6, -20, 6, -45, 27, -19, 8, -1, -26, 1, -18, 6, -34, 47,
+        -86, 12, 21, 3, 4, 6, 4, 12, 4, 8, 4, 13, 16, 6, 5,
+      ],
+    ],
+    areas: [
+      {
+        code: "GNB-769",
+        name: "Bissau",
+        outline: [
+          [
+            186, 77, -4, 1, -6, 4, -29, 43, -8, 6, -20, 6, -45, 27, -19, 8, -1, -26, 1, -18, 6, -34,
+            47, -86, 12, 21, 3, 4, 6, 4, 12, 4, 8, 4, 13, 16, 6, 5,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const guineaBissau: Sheet = {
   width: 1000,
   height: 593,
   outlines: { GNB: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Bissau",
-      country: "GNB",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          186, 77, -4, 1, -6, 4, -29, 43, -8, 6, -20, 6, -45, 27, -19, 8, -1, -26, 1, -18, 6, -34,
-          47, -86, 12, 21, 3, 4, 6, 4, 12, 4, 8, 4, 13, 16, 6, 5,
-        ],
-      ],
-      areas: [
-        {
-          code: "GNB-769",
-          name: "Bissau",
-          outline: [
-            [
-              186, 77, -4, 1, -6, 4, -29, 43, -8, 6, -20, 6, -45, 27, -19, 8, -1, -26, 1, -18, 6,
-              -34, 47, -86, 12, 21, 3, 4, 6, 4, 12, 4, 8, 4, 13, 16, 6, 5,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "GNB",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["GNB-769"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

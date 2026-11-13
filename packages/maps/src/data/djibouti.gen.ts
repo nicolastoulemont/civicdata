@@ -82,40 +82,44 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Djibouti",
+    country: "DJI",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        8, 74, 115, -1, 18, -4, 16, 1, 18, 10, 16, -4, 8, -11, 7, -11, 9, -3, 4, 9, 12, 49, 1, 1,
+        -3, 1, -98, 18, -30, 0, -47, -5, -45, -48,
+      ],
+    ],
+    areas: [
+      {
+        code: "DJI-1567",
+        name: "Djibouti",
+        outline: [
+          [
+            8, 74, 115, -1, 18, -4, 16, 1, 18, 10, 16, -4, 8, -11, 7, -11, 9, -3, 4, 9, 12, 49, 1,
+            1, -3, 1, -98, 18, -30, 0, -47, -5, -45, -48,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const djibouti: Sheet = {
   width: 1000,
   height: 1086,
   outlines: { DJI: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Djibouti",
-      country: "DJI",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          8, 74, 115, -1, 18, -4, 16, 1, 18, 10, 16, -4, 8, -11, 7, -11, 9, -3, 4, 9, 12, 49, 1, 1,
-          -3, 1, -98, 18, -30, 0, -47, -5, -45, -48,
-        ],
-      ],
-      areas: [
-        {
-          code: "DJI-1567",
-          name: "Djibouti",
-          outline: [
-            [
-              8, 74, 115, -1, 18, -4, 16, 1, 18, 10, 16, -4, 8, -11, 7, -11, 9, -3, 4, 9, 12, 49, 1,
-              1, -3, 1, -98, 18, -30, 0, -47, -5, -45, -48,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "DJI",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["DJI-1567"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

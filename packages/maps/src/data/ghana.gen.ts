@@ -1652,12 +1652,14 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = []
+
 export const ghana: Sheet = {
   width: 1000,
   height: 1443,
   outlines: { GHA: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [],
+  insets,
   subdivisions: {
     country: "GHA",
     source: "Boundary",

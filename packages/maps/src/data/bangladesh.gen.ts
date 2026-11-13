@@ -249,12 +249,14 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = []
+
 export const bangladesh: Sheet = {
   width: 1000,
   height: 1384,
   outlines: { BGD: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [],
+  insets,
   subdivisions: {
     country: "BGD",
     source: "Boundary",

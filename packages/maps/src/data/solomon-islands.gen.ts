@@ -290,40 +290,44 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Capital Territory (Honiara)",
+    country: "SLB",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        8, 64, 46, 4, 86, -4, 22, -3, 21, -9, 18, -12, 31, 20, -12, 43, 1, 24, -33, 13, -20, -21,
+        -67, 7, -62, -24,
+      ],
+    ],
+    areas: [
+      {
+        code: "SLB-5130",
+        name: "Capital Territory (Honiara)",
+        outline: [
+          [
+            8, 64, 46, 4, 86, -4, 22, -3, 21, -9, 18, -12, 31, 20, -12, 43, 1, 24, -33, 13, -20,
+            -21, -67, 7, -62, -24,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const solomonIslands: Sheet = {
   width: 1000,
   height: 452,
   outlines: { SLB: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Capital Territory (Honiara)",
-      country: "SLB",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          8, 64, 46, 4, 86, -4, 22, -3, 21, -9, 18, -12, 31, 20, -12, 43, 1, 24, -33, 13, -20, -21,
-          -67, 7, -62, -24,
-        ],
-      ],
-      areas: [
-        {
-          code: "SLB-5130",
-          name: "Capital Territory (Honiara)",
-          outline: [
-            [
-              8, 64, 46, 4, 86, -4, 22, -3, 21, -9, 18, -12, 31, 20, -12, 43, 1, 24, -33, 13, -20,
-              -21, -67, 7, -62, -24,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "SLB",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["SLB-5130"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

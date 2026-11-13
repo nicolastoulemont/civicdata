@@ -370,42 +370,46 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Budapest",
+    country: "HUN",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        39, 166, 3, -24, 9, -19, 0, -9, -16, -45, -4, -39, 27, -4, 12, -6, 11, -11, 21, -1, 20, 12,
+        10, 13, 17, 12, 1, 8, 10, -2, 34, 26, 9, 4, 6, 7, -10, 26, -21, 16, -9, 11, -43, 31, -13,
+        -2, -22, -14,
+      ],
+    ],
+    areas: [
+      {
+        code: "HU-BU",
+        name: "Budapest",
+        outline: [
+          [
+            39, 166, 3, -24, 9, -19, 0, -9, -16, -45, -4, -39, 27, -4, 12, -6, 11, -11, 21, -1, 20,
+            12, 10, 13, 17, 12, 1, 8, 10, -2, 34, 26, 9, 4, 6, 7, -10, 26, -21, 16, -9, 11, -43, 31,
+            -13, -2, -22, -14,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const hungary: Sheet = {
   width: 1000,
   height: 625,
   outlines: { HUN: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Budapest",
-      country: "HUN",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          39, 166, 3, -24, 9, -19, 0, -9, -16, -45, -4, -39, 27, -4, 12, -6, 11, -11, 21, -1, 20,
-          12, 10, 13, 17, 12, 1, 8, 10, -2, 34, 26, 9, 4, 6, 7, -10, 26, -21, 16, -9, 11, -43, 31,
-          -13, -2, -22, -14,
-        ],
-      ],
-      areas: [
-        {
-          code: "HU-BU",
-          name: "Budapest",
-          outline: [
-            [
-              39, 166, 3, -24, 9, -19, 0, -9, -16, -45, -4, -39, 27, -4, 12, -6, 11, -11, 21, -1,
-              20, 12, 10, 13, 17, 12, 1, 8, 10, -2, 34, 26, 9, 4, 6, 7, -10, 26, -21, 16, -9, 11,
-              -43, 31, -13, -2, -22, -14,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "HUN",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["HU-BU"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

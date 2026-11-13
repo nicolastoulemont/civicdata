@@ -240,42 +240,46 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Brussels",
+    country: "BEL",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        201, 138, -56, 31, -15, 3, -15, -3, -19, -13, -18, -38, -13, 6, -26, -14, 8, -17, 18, -3, 4,
+        -18, -7, -13, 13, -26, 26, -12, 29, 5, 18, -18, 12, 9, 11, 19, -1, 10, -10, 11, 27, 18, 11,
+        35, -14, 2, -6, 9,
+      ],
+    ],
+    areas: [
+      {
+        code: "BE-BRU",
+        name: "Brussels",
+        outline: [
+          [
+            201, 138, -56, 31, -15, 3, -15, -3, -19, -13, -18, -38, -13, 6, -26, -14, 8, -17, 18,
+            -3, 4, -18, -7, -13, 13, -26, 26, -12, 29, 5, 18, -18, 12, 9, 11, 19, -1, 10, -10, 11,
+            27, 18, 11, 35, -14, 2, -6, 9,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const belgium: Sheet = {
   width: 1000,
   height: 823,
   outlines: { BEL: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Brussels",
-      country: "BEL",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          201, 138, -56, 31, -15, 3, -15, -3, -19, -13, -18, -38, -13, 6, -26, -14, 8, -17, 18, -3,
-          4, -18, -7, -13, 13, -26, 26, -12, 29, 5, 18, -18, 12, 9, 11, 19, -1, 10, -10, 11, 27, 18,
-          11, 35, -14, 2, -6, 9,
-        ],
-      ],
-      areas: [
-        {
-          code: "BE-BRU",
-          name: "Brussels",
-          outline: [
-            [
-              201, 138, -56, 31, -15, 3, -15, -3, -19, -13, -18, -38, -13, 6, -26, -14, 8, -17, 18,
-              -3, 4, -18, -7, -13, 13, -26, 26, -12, 29, 5, 18, -18, 12, 9, 11, 19, -1, 10, -10, 11,
-              27, 18, 11, 35, -14, 2, -6, 9,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "BEL",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["BE-BRU"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

@@ -105,43 +105,45 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Phoenix Islands",
+    country: "KIR",
+    width: 240,
+    height: 180,
+    outline: [
+      [231, 116, 1, 0, 0, 1, -1, 0, 0, -1, 1, 1, 0, -1, -1, 0],
+      [49, 66, 0, 1, 0, -1, -1, 0, 1, 0],
+      [51, 66, -1, 0, 0, 1, -1, 0, 1, 0, 0, -1, 1, 0],
+      [50, 66, 1, 0, -1, 0],
+      [50, 65, 1, 1, -1, 0, 0, -1],
+      [49, 64, 1, 0, 0, 1, -1, 0, 0, -1],
+      [49, 63, 0, 1, 0, -1],
+    ],
+    areas: [
+      {
+        code: "97431129B36644055464690",
+        name: "Phoenix Islands",
+        outline: [
+          [231, 116, 1, 0, 0, 1, -1, 0, 0, -1, 1, 1, 0, -1, -1, 0],
+          [49, 66, 0, 1, 0, -1, -1, 0, 1, 0],
+          [51, 66, -1, 0, 0, 1, -1, 0, 1, 0, 0, -1, 1, 0],
+          [50, 66, 1, 0, -1, 0],
+          [50, 65, 1, 1, -1, 0, 0, -1],
+          [49, 64, 1, 0, 0, 1, -1, 0, 0, -1],
+          [49, 63, 0, 1, 0, -1],
+        ],
+      },
+    ],
+  },
+]
+
 export const kiribati: Sheet = {
   width: 1000,
   height: 246,
   outlines: { KIR: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Phoenix Islands",
-      country: "KIR",
-      width: 240,
-      height: 180,
-      outline: [
-        [231, 116, 1, 0, 0, 1, -1, 0, 0, -1, 1, 1, 0, -1, -1, 0],
-        [49, 66, 0, 1, 0, -1, -1, 0, 1, 0],
-        [51, 66, -1, 0, 0, 1, -1, 0, 1, 0, 0, -1, 1, 0],
-        [50, 66, 1, 0, -1, 0],
-        [50, 65, 1, 1, -1, 0, 0, -1],
-        [49, 64, 1, 0, 0, 1, -1, 0, 0, -1],
-        [49, 63, 0, 1, 0, -1],
-      ],
-      areas: [
-        {
-          code: "97431129B36644055464690",
-          name: "Phoenix Islands",
-          outline: [
-            [231, 116, 1, 0, 0, 1, -1, 0, 0, -1, 1, 1, 0, -1, -1, 0],
-            [49, 66, 0, 1, 0, -1, -1, 0, 1, 0],
-            [51, 66, -1, 0, 0, 1, -1, 0, 1, 0, 0, -1, 1, 0],
-            [50, 66, 1, 0, -1, 0],
-            [50, 65, 1, 1, -1, 0, 0, -1],
-            [49, 64, 1, 0, 0, 1, -1, 0, 0, -1],
-            [49, 63, 0, 1, 0, -1],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "KIR",
     source: "Boundary",
@@ -153,6 +155,8 @@ export const kiribati: Sheet = {
       licenseUrl: "https://opendatacommons.org/licenses/odbl/1-0/",
       kind: "Statistical",
     },
-    areas: areas.filter((area) => !["97431129B36644055464690"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

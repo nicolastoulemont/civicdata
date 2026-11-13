@@ -364,11 +364,13 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = []
+
 export const nicaragua: Sheet = {
   width: 1000,
   height: 899,
   outlines: { NIC: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [],
+  insets,
   subdivisions: { country: "NIC", source: "NaturalEarth", areas: areas },
 }

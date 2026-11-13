@@ -82,30 +82,34 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Redonda",
+    country: "ATG",
+    width: 240,
+    height: 180,
+    outline: [[120, 40, 17, -23, 27, -9, 3, 46, -3, 61, -24, 47, -46, 10, -21, -31, 17, -68]],
+    areas: [
+      {
+        code: "ATG-5092",
+        name: "Redonda",
+        outline: [[120, 40, 17, -23, 27, -9, 3, 46, -3, 61, -24, 47, -46, 10, -21, -31, 17, -68]],
+      },
+    ],
+  },
+]
+
 export const antiguaAndBarbuda: Sheet = {
   width: 1000,
   height: 1217,
   outlines: { ATG: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Redonda",
-      country: "ATG",
-      width: 240,
-      height: 180,
-      outline: [[120, 40, 17, -23, 27, -9, 3, 46, -3, 61, -24, 47, -46, 10, -21, -31, 17, -68]],
-      areas: [
-        {
-          code: "ATG-5092",
-          name: "Redonda",
-          outline: [[120, 40, 17, -23, 27, -9, 3, 46, -3, 61, -24, 47, -46, 10, -21, -31, 17, -68]],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "ATG",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["ATG-5092"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

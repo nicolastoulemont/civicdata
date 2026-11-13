@@ -265,12 +265,14 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = []
+
 export const northMacedonia: Sheet = {
   width: 1000,
   height: 793,
   outlines: { MKD: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [],
+  insets,
   subdivisions: {
     country: "MKD",
     source: "Boundary",

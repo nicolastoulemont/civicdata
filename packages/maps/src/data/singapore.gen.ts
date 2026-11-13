@@ -62,40 +62,44 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "North East",
+    country: "SGP",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        58, 8, 64, 32, 79, 28, 14, 3, -9, 19, -22, 19, -25, 10, 0, 22, -9, 31, -20, 0, -15, -13,
+        -36, -16, -31, -11, -23, -18, 3, -33, 6, -29, 11, -27,
+      ],
+    ],
+    areas: [
+      {
+        code: "SGP-4874",
+        name: "North East",
+        outline: [
+          [
+            58, 8, 64, 32, 79, 28, 14, 3, -9, 19, -22, 19, -25, 10, 0, 22, -9, 31, -20, 0, -15, -13,
+            -36, -16, -31, -11, -23, -18, 3, -33, 6, -29, 11, -27,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const singapore: Sheet = {
   width: 1000,
   height: 518,
   outlines: { SGP: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "North East",
-      country: "SGP",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          58, 8, 64, 32, 79, 28, 14, 3, -9, 19, -22, 19, -25, 10, 0, 22, -9, 31, -20, 0, -15, -13,
-          -36, -16, -31, -11, -23, -18, 3, -33, 6, -29, 11, -27,
-        ],
-      ],
-      areas: [
-        {
-          code: "SGP-4874",
-          name: "North East",
-          outline: [
-            [
-              58, 8, 64, 32, 79, 28, 14, 3, -9, 19, -22, 19, -25, 10, 0, 22, -9, 31, -20, 0, -15,
-              -13, -36, -16, -31, -11, -23, -18, 3, -33, 6, -29, 11, -27,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "SGP",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["SGP-4874"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

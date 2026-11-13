@@ -80,40 +80,44 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Andorra la Vella",
+    country: "AND",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        205, 8, -16, 27, -28, 28, -13, 17, -14, 27, -20, 35, -30, 18, -20, 12, -15, -15, -9, -32,
+        -1, -20, -4, -30, 38, -22, 37, -25, 35, -8, 29, -12,
+      ],
+    ],
+    areas: [
+      {
+        code: "AND-4876",
+        name: "Andorra la Vella",
+        outline: [
+          [
+            205, 8, -16, 27, -28, 28, -13, 17, -14, 27, -20, 35, -30, 18, -20, 12, -15, -15, -9,
+            -32, -1, -20, -4, -30, 38, -22, 37, -25, 35, -8, 29, -12,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const andorra: Sheet = {
   width: 1000,
   height: 839,
   outlines: { AND: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Andorra la Vella",
-      country: "AND",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          205, 8, -16, 27, -28, 28, -13, 17, -14, 27, -20, 35, -30, 18, -20, 12, -15, -15, -9, -32,
-          -1, -20, -4, -30, 38, -22, 37, -25, 35, -8, 29, -12,
-        ],
-      ],
-      areas: [
-        {
-          code: "AND-4876",
-          name: "Andorra la Vella",
-          outline: [
-            [
-              205, 8, -16, 27, -28, 28, -13, 17, -14, 27, -20, 35, -30, 18, -20, 12, -15, -15, -9,
-              -32, -1, -20, -4, -30, 38, -22, 37, -25, 35, -8, 29, -12,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "AND",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["AND-4876"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

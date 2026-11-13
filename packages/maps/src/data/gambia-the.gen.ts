@@ -96,40 +96,44 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Banjul",
+    country: "GMB",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        32, 101, 58, -72, 25, -21, 2, 10, 6, 8, 8, 5, 11, 5, 17, -9, 18, -1, 15, 6, 10, 11, 6, 19,
+        -11, 3, -16, 1, -12, 12, 16, 14, 13, 29, -24, 19, -43, 32, -41, -3, -31, -32,
+      ],
+    ],
+    areas: [
+      {
+        code: "GMB-2153",
+        name: "Banjul",
+        outline: [
+          [
+            32, 101, 58, -72, 25, -21, 2, 10, 6, 8, 8, 5, 11, 5, 17, -9, 18, -1, 15, 6, 10, 11, 6,
+            19, -11, 3, -16, 1, -12, 12, 16, 14, 13, 29, -24, 19, -43, 32, -41, -3, -31, -32,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const gambiaThe: Sheet = {
   width: 1000,
   height: 272,
   outlines: { GMB: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Banjul",
-      country: "GMB",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          32, 101, 58, -72, 25, -21, 2, 10, 6, 8, 8, 5, 11, 5, 17, -9, 18, -1, 15, 6, 10, 11, 6, 19,
-          -11, 3, -16, 1, -12, 12, 16, 14, 13, 29, -24, 19, -43, 32, -41, -3, -31, -32,
-        ],
-      ],
-      areas: [
-        {
-          code: "GMB-2153",
-          name: "Banjul",
-          outline: [
-            [
-              32, 101, 58, -72, 25, -21, 2, 10, 6, 8, 8, 5, 11, 5, 17, -9, 18, -1, 15, 6, 10, 11, 6,
-              19, -11, 3, -16, 1, -12, 12, 16, 14, 13, 29, -24, 19, -43, 32, -41, -3, -31, -32,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "GMB",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["GMB-2153"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

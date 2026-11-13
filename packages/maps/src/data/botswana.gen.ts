@@ -741,27 +741,29 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Sowa Town",
+    country: "BWA",
+    width: 240,
+    height: 180,
+    outline: [[181, 8, 3, 164, -128, -27, 6, -15, 32, -88]],
+    areas: [
+      {
+        code: "66a4e35a-75b2-49fe-8d5d-abab8bc88451",
+        name: "Sowa Town",
+        outline: [[181, 8, 3, 164, -128, -27, 6, -15, 32, -88]],
+      },
+    ],
+  },
+]
+
 export const botswana: Sheet = {
   width: 1000,
   height: 1054,
   outlines: { BWA: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Sowa Town",
-      country: "BWA",
-      width: 240,
-      height: 180,
-      outline: [[181, 8, 3, 164, -128, -27, 6, -15, 32, -88]],
-      areas: [
-        {
-          code: "66a4e35a-75b2-49fe-8d5d-abab8bc88451",
-          name: "Sowa Town",
-          outline: [[181, 8, 3, 164, -128, -27, 6, -15, 32, -88]],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "BWA",
     source: "Boundary",
@@ -773,6 +775,8 @@ export const botswana: Sheet = {
       licenseUrl: "https://opendatacommons.org/licenses/odbl/1-0/",
       kind: "Geographic",
     },
-    areas: areas.filter((area) => !["66a4e35a-75b2-49fe-8d5d-abab8bc88451"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

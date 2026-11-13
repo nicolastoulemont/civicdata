@@ -235,40 +235,44 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "São Lourenço dos Órgãos",
+    country: "CPV",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        23, 103, 16, -1, 45, -34, 8, -41, 4, -19, 36, 16, 33, -10, 52, 46, -38, 13, -42, 37, -33,
+        36, -45, 26, -35, -31,
+      ],
+    ],
+    areas: [
+      {
+        code: "CPV-5050",
+        name: "São Lourenço dos Órgãos",
+        outline: [
+          [
+            23, 103, 16, -1, 45, -34, 8, -41, 4, -19, 36, 16, 33, -10, 52, 46, -38, 13, -42, 37,
+            -33, 36, -45, 26, -35, -31,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const caboVerde: Sheet = {
   width: 1000,
   height: 929,
   outlines: { CPV: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "São Lourenço dos Órgãos",
-      country: "CPV",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          23, 103, 16, -1, 45, -34, 8, -41, 4, -19, 36, 16, 33, -10, 52, 46, -38, 13, -42, 37, -33,
-          36, -45, 26, -35, -31,
-        ],
-      ],
-      areas: [
-        {
-          code: "CPV-5050",
-          name: "São Lourenço dos Órgãos",
-          outline: [
-            [
-              23, 103, 16, -1, 45, -34, 8, -41, 4, -19, 36, 16, 33, -10, 52, 46, -38, 13, -42, 37,
-              -33, 36, -45, 26, -35, -31,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "CPV",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["CPV-5050"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

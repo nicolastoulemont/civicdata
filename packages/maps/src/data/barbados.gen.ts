@@ -128,42 +128,46 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Saint Joseph",
+    country: "BRB",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        129, 8, 23, 32, 47, 36, -6, 2, -41, 39, -1, 0, -1, 0, -3, 0, -1, 5, 0, 3, -3, 41, -1, 0,
+        -34, 6, -21, -43, -7, -8, -3, -3, -36, -23, 26, -60, 8, -13, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1,
+        0, 1, 1, 1, 3, 1, 8, -2, 31, -15,
+      ],
+    ],
+    areas: [
+      {
+        code: "BRB-1994",
+        name: "Saint Joseph",
+        outline: [
+          [
+            129, 8, 23, 32, 47, 36, -6, 2, -41, 39, -1, 0, -1, 0, -3, 0, -1, 5, 0, 3, -3, 41, -1, 0,
+            -34, 6, -21, -43, -7, -8, -3, -3, -36, -23, 26, -60, 8, -13, 1, 0, 1, 0, 1, 0, 1, 0, 1,
+            1, 0, 1, 1, 1, 3, 1, 8, -2, 31, -15,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const barbados: Sheet = {
   width: 1000,
   height: 1320,
   outlines: { BRB: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Saint Joseph",
-      country: "BRB",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          129, 8, 23, 32, 47, 36, -6, 2, -41, 39, -1, 0, -1, 0, -3, 0, -1, 5, 0, 3, -3, 41, -1, 0,
-          -34, 6, -21, -43, -7, -8, -3, -3, -36, -23, 26, -60, 8, -13, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1,
-          0, 1, 1, 1, 3, 1, 8, -2, 31, -15,
-        ],
-      ],
-      areas: [
-        {
-          code: "BRB-1994",
-          name: "Saint Joseph",
-          outline: [
-            [
-              129, 8, 23, 32, 47, 36, -6, 2, -41, 39, -1, 0, -1, 0, -3, 0, -1, 5, 0, 3, -3, 41, -1,
-              0, -34, 6, -21, -43, -7, -8, -3, -3, -36, -23, 26, -60, 8, -13, 1, 0, 1, 0, 1, 0, 1,
-              0, 1, 1, 0, 1, 1, 1, 3, 1, 8, -2, 31, -15,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "BRB",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["BRB-1994"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

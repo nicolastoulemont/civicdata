@@ -195,37 +195,39 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Meemu",
+    country: "MDV",
+    width: 240,
+    height: 180,
+    outline: [
+      [
+        93, 170, -6, -13, 20, -25, -6, -18, 11, 7, -9, -17, 11, 7, 2, -11, -11, 2, 22, -42, 4, -52,
+        21, 0, 1, 71, -22, 76, -19, 17,
+      ],
+    ],
+    areas: [
+      {
+        code: "51498476B38384458438606",
+        name: "Meemu",
+        outline: [
+          [
+            93, 170, -6, -13, 20, -25, -6, -18, 11, 7, -9, -17, 11, 7, 2, -11, -11, 2, 22, -42, 4,
+            -52, 21, 0, 1, 71, -22, 76, -19, 17,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const maldives: Sheet = {
   width: 1000,
   height: 4811,
   outlines: { MDV: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Meemu",
-      country: "MDV",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          93, 170, -6, -13, 20, -25, -6, -18, 11, 7, -9, -17, 11, 7, 2, -11, -11, 2, 22, -42, 4,
-          -52, 21, 0, 1, 71, -22, 76, -19, 17,
-        ],
-      ],
-      areas: [
-        {
-          code: "51498476B38384458438606",
-          name: "Meemu",
-          outline: [
-            [
-              93, 170, -6, -13, 20, -25, -6, -18, 11, 7, -9, -17, 11, 7, 2, -11, -11, 2, 22, -42, 4,
-              -52, 21, 0, 1, 71, -22, 76, -19, 17,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "MDV",
     source: "Boundary",
@@ -237,6 +239,8 @@ export const maldives: Sheet = {
       licenseUrl: "https://opendatacommons.org/licenses/odbl/1-0/",
       kind: "Statistical",
     },
-    areas: areas.filter((area) => !["51498476B38384458438606"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }

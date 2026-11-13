@@ -206,40 +206,41 @@ const areas = [
   },
 ]
 
+const insets: Sheet["insets"] = [
+  {
+    name: "Littoral",
+    country: "BEN",
+    width: 240,
+    height: 180,
+    outline: [
+      [232, 123, -224, 21, 17, -44, 22, -22, 32, -21, 38, -10, 85, -11, -5, 38, 13, 11, 9, 2, 9, 5],
+    ],
+    areas: [
+      {
+        code: "BEN-2175",
+        name: "Littoral",
+        outline: [
+          [
+            232, 123, -224, 21, 17, -44, 22, -22, 32, -21, 38, -10, 85, -11, -5, 38, 13, 11, 9, 2,
+            9, 5,
+          ],
+        ],
+      },
+    ],
+  },
+]
+
 export const benin: Sheet = {
   width: 1000,
   height: 2023,
   outlines: { BEN: areas.flatMap((area) => area.outline) },
   land: [],
-  insets: [
-    {
-      name: "Littoral",
-      country: "BEN",
-      width: 240,
-      height: 180,
-      outline: [
-        [
-          232, 123, -224, 21, 17, -44, 22, -22, 32, -21, 38, -10, 85, -11, -5, 38, 13, 11, 9, 2, 9,
-          5,
-        ],
-      ],
-      areas: [
-        {
-          code: "BEN-2175",
-          name: "Littoral",
-          outline: [
-            [
-              232, 123, -224, 21, 17, -44, 22, -22, 32, -21, 38, -10, 85, -11, -5, 38, 13, 11, 9, 2,
-              9, 5,
-            ],
-          ],
-        },
-      ],
-    },
-  ],
+  insets,
   subdivisions: {
     country: "BEN",
     source: "NaturalEarth",
-    areas: areas.filter((area) => !["BEN-2175"].includes(area.code)),
+    areas: areas.filter(
+      (area) => !insets.some((inset) => inset.areas?.some((part) => part.code === area.code)),
+    ),
   },
 }
