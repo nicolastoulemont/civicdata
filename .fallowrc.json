@@ -66,8 +66,10 @@
   // depend on domain, and web consumes their compiled public API. Infra
   // deploys the app and nothing imports it. A new package needs a zone before
   // CI passes.
-  // Inside the server, each domain imports only the domains before it in the
-  // order its zones are listed (AGENTS.md, Server layout). A file takes the
+  // Inside the server, platform and utils form the foundation, which every
+  // zone may import and which imports no domain. Each domain imports only the
+  // foundation and the domains before it in the order its zones are listed
+  // (AGENTS.md, Server layout). A file takes the
   // first zone that matches it, so tests, which may import any domain, come
   // before the domains that hold them.
   "boundaries": {
@@ -88,8 +90,10 @@
           "packages/server/vitest.scripts.config.ts"
         ]
       },
-      { "name": "server-utils", "patterns": ["packages/server/src/utils/**"] },
-      { "name": "server-platform", "patterns": ["packages/server/src/platform/**"] },
+      {
+        "name": "server-foundation",
+        "patterns": ["packages/server/src/platform/**", "packages/server/src/utils/**"]
+      },
       { "name": "server-visitors", "patterns": ["packages/server/src/visitors/**"] },
       { "name": "server-series", "patterns": ["packages/server/src/series/**"] },
       { "name": "server-sources", "patterns": ["packages/server/src/sources/**"] },
@@ -114,34 +118,25 @@
       { "from": "domain", "allow": [] },
       { "from": "machine", "allow": [] },
       { "from": "maps", "allow": ["domain"] },
-      { "from": "server-utils", "allow": [] },
-      { "from": "server-platform", "allow": ["domain", "machine", "server-utils"] },
+      { "from": "server-foundation", "allow": ["domain", "machine"] },
       {
         "from": "server-visitors",
-        "allow": ["domain", "machine", "server-utils", "server-platform"]
+        "allow": ["domain", "machine", "server-foundation"]
       },
       {
         "from": "server-series",
-        "allow": ["domain", "machine", "server-utils", "server-platform", "server-visitors"]
+        "allow": ["domain", "machine", "server-foundation", "server-visitors"]
       },
       {
         "from": "server-sources",
-        "allow": [
-          "domain",
-          "machine",
-          "server-utils",
-          "server-platform",
-          "server-visitors",
-          "server-series"
-        ]
+        "allow": ["domain", "machine", "server-foundation", "server-visitors", "server-series"]
       },
       {
         "from": "server-politics",
         "allow": [
           "domain",
           "machine",
-          "server-utils",
-          "server-platform",
+          "server-foundation",
           "server-visitors",
           "server-series",
           "server-sources"
@@ -152,8 +147,7 @@
         "allow": [
           "domain",
           "machine",
-          "server-utils",
-          "server-platform",
+          "server-foundation",
           "server-visitors",
           "server-series",
           "server-sources",
@@ -165,8 +159,7 @@
         "allow": [
           "domain",
           "machine",
-          "server-utils",
-          "server-platform",
+          "server-foundation",
           "server-visitors",
           "server-series",
           "server-sources",
@@ -179,8 +172,7 @@
         "allow": [
           "domain",
           "machine",
-          "server-utils",
-          "server-platform",
+          "server-foundation",
           "server-visitors",
           "server-series",
           "server-sources",
@@ -194,8 +186,7 @@
         "allow": [
           "domain",
           "machine",
-          "server-utils",
-          "server-platform",
+          "server-foundation",
           "server-visitors",
           "server-series",
           "server-sources",
@@ -210,8 +201,7 @@
         "allow": [
           "domain",
           "machine",
-          "server-utils",
-          "server-platform",
+          "server-foundation",
           "server-visitors",
           "server-series",
           "server-sources",
@@ -227,8 +217,7 @@
         "allow": [
           "domain",
           "machine",
-          "server-utils",
-          "server-platform",
+          "server-foundation",
           "server-visitors",
           "server-series",
           "server-sources",
@@ -245,8 +234,7 @@
         "allow": [
           "domain",
           "machine",
-          "server-utils",
-          "server-platform",
+          "server-foundation",
           "server-visitors",
           "server-series",
           "server-sources",
@@ -264,8 +252,7 @@
         "allow": [
           "domain",
           "machine",
-          "server-utils",
-          "server-platform",
+          "server-foundation",
           "server-visitors",
           "server-series",
           "server-sources",
@@ -285,10 +272,9 @@
           "domain",
           "machine",
           "server",
-          "server-utils",
+          "server-foundation",
           "server-tests",
           "server-tools",
-          "server-platform",
           "server-visitors",
           "server-series",
           "server-sources",
@@ -308,9 +294,8 @@
           "domain",
           "machine",
           "server",
-          "server-utils",
+          "server-foundation",
           "server-tests",
-          "server-platform",
           "server-visitors",
           "server-series",
           "server-sources",

@@ -19,9 +19,9 @@ openfacts charts public data about countries from the World Bank, Eurostat and t
 
 ## Server layout
 
-- `packages/server/src` groups files by domain. The root holds only the Worker's entry, `index.ts`, and `cloudflare.d.ts`, which collects the binding types each domain declares. A domain imports only the domains before it in this order: `platform`, `visitors`, `series`, `sources`, `politics`, `catalog`, `gather`, `views`, `research`, `assistant`, `api`, `workflows`. Fallow enforces the order with one zone per domain in `.fallowrc.json`, so a new domain folder needs a zone and a rule there.
+- `packages/server/src` groups files by domain. The root holds only the Worker's entry, `index.ts`, and `cloudflare.d.ts`, which collects the binding types each domain declares. `platform/` and `utils/` form the foundation: every folder may import them, and they import nothing from the domain folders. A domain imports only the foundation and the domains before it in this order: `visitors`, `series`, `sources`, `politics`, `catalog`, `gather`, `views`, `research`, `assistant`, `api`, `workflows`. Fallow enforces both rules with zones in `.fallowrc.json`, so a new domain folder needs a zone and a rule there.
 - A domain keeps its tests in `tests/` and its data files in `assets/`. Fakes and fixtures that several domains share live in `src/tests/`.
-- A helper goes in `utils/` when it imports nothing from `src/`, holds no service or binding, and at least two files use it: the domain's own `utils/` while its users sit in one domain, `src/utils/` once they span two. Every domain may import `src/utils/`.
+- A helper goes in `utils/` when it imports nothing from `src/`, holds no service or binding, and at least two files use it: the domain's own `utils/` while its users sit in one domain, `src/utils/` once they span two.
 
 ## State machines
 
