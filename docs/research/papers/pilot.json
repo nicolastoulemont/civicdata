@@ -1,0 +1,896 @@
+{
+  "format": 1,
+  "results": [
+    {
+      "id": "2d1904ef96d1ef2a52541ae5833578bd98303c0875251c2e628c4cafb0507978",
+      "title": "Growth Forecast Errors and Fiscal Multipliers",
+      "written": true,
+      "metadataUrl": "https://api.openalex.org/works/https%3A%2F%2Fdoi.org%2F10.3386%2Fw18779",
+      "retrievedAt": "2026-11-12T14:41:28.596Z",
+      "work": {
+        "id": "https://openalex.org/W2062551580",
+        "doi": "https://doi.org/10.2139/ssrn.2226267",
+        "title": "Growth Forecast Errors and Fiscal Multipliers",
+        "publication_year": 2013,
+        "updated_date": "2026-11-12T12:28:57.059296",
+        "is_retracted": false,
+        "locations": [
+          {
+            "landing_page_url": "https://doi.org/10.5089/9781475576443.001",
+            "pdf_url": "https://www.elibrary.imf.org/downloadpdf/journals/001/2013/001/001.2013.issue-001-en.xml",
+            "license": null,
+            "version": "publishedVersion"
+          },
+          {
+            "landing_page_url": "https://doi.org/10.1257/aer.103.3.117",
+            "pdf_url": null,
+            "license": null,
+            "version": "publishedVersion"
+          },
+          {
+            "landing_page_url": "https://doi.org/10.2139/ssrn.2226267",
+            "pdf_url": "https://papers.ssrn.com/sol3/Delivery.cfm?abstractid=2226267",
+            "license": null,
+            "version": "publishedVersion"
+          },
+          {
+            "landing_page_url": "https://doi.org/10.3386/w18779",
+            "pdf_url": "https://doi.org/10.3386/w18779",
+            "license": null,
+            "version": "publishedVersion"
+          },
+          {
+            "landing_page_url": "http://www.nber.org/papers/w18779.pdf",
+            "pdf_url": "http://www.nber.org/papers/w18779.pdf",
+            "license": null,
+            "version": "submittedVersion"
+          },
+          {
+            "landing_page_url": "http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.395.692",
+            "pdf_url": null,
+            "license": null,
+            "version": "submittedVersion"
+          },
+          {
+            "landing_page_url": "https://papers.ssrn.com/sol3/Delivery.cfm/wp131.pdf?abstractid=2226267&mirid=1&type=2",
+            "pdf_url": null,
+            "license": null,
+            "version": "submittedVersion"
+          },
+          {
+            "landing_page_url": "https://EconPapers.repec.org/RePEc:nbr:nberwo:18779",
+            "pdf_url": null,
+            "license": null,
+            "version": "submittedVersion"
+          },
+          {
+            "landing_page_url": "http://www.aeaweb.org/articles.php?doi=10.1257/aer.103.3.117",
+            "pdf_url": null,
+            "license": null,
+            "version": "submittedVersion"
+          },
+          {
+            "landing_page_url": "http://www.imf.org/external/pubs/cat/longres.aspx?sk=40200",
+            "pdf_url": null,
+            "license": null,
+            "version": "submittedVersion"
+          },
+          {
+            "landing_page_url": "http://search.ebscohost.com/login.aspx?direct=true&amp;scope=site&amp;db=nlebk&amp;db=nlabk&amp;AN=547915",
+            "pdf_url": null,
+            "license": null,
+            "version": "submittedVersion"
+          },
+          {
+            "landing_page_url": "http://elibrary.imf.org/view/IMF001/20181-9781475576443/20181-9781475576443/20181-9781475576443.xml",
+            "pdf_url": null,
+            "license": null,
+            "version": "submittedVersion"
+          }
+        ]
+      },
+      "content": {
+        "_tag": "Metadata",
+        "reason": "different-doi"
+      }
+    },
+    {
+      "id": "114a90aee9d555064293456dd865c9b9c455c24d1ffdfbdc5d37116063bf4073",
+      "title": "Austerity in the Aftermath of the Great Recession",
+      "written": true,
+      "metadataUrl": "https://api.openalex.org/works/https%3A%2F%2Fdoi.org%2F10.3386%2Fw23147",
+      "retrievedAt": "2026-11-12T14:41:28.845Z",
+      "work": {
+        "id": "https://openalex.org/W3124700892",
+        "doi": "https://doi.org/10.3386/w23147",
+        "title": "Austerity in the Aftermath of the Great Recession",
+        "publication_year": 2017,
+        "updated_date": "2026-11-07T11:25:07.637180",
+        "is_retracted": false,
+        "locations": [
+          {
+            "landing_page_url": "https://doi.org/10.3386/w23147",
+            "pdf_url": "https://doi.org/10.3386/w23147",
+            "license": null,
+            "version": "publishedVersion"
+          }
+        ]
+      },
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-licensed-pdf"
+      }
+    },
+    {
+      "id": "de907b70330184f731ac55e55cf7e3a729d98ba22177a67a6f5e2aa8526dd7ab",
+      "title": "Macroeconomic Evaluation of Labor Market Reform in Germany",
+      "written": true,
+      "metadataUrl": "https://api.openalex.org/works/https%3A%2F%2Fdoi.org%2F10.1057%2Fimfer.2013.19",
+      "retrievedAt": "2026-11-12T14:41:29.562Z",
+      "work": {
+        "id": "https://openalex.org/W2107152570",
+        "doi": "https://doi.org/10.1057/imfer.2013.19",
+        "title": "Macroeconomic Evaluation of Labor Market Reform in Germany",
+        "publication_year": 2013,
+        "updated_date": "2026-11-07T11:25:07.637180",
+        "is_retracted": false,
+        "locations": [
+          {
+            "landing_page_url": "https://doi.org/10.1057/imfer.2013.19",
+            "pdf_url": null,
+            "license": null,
+            "version": "publishedVersion"
+          }
+        ]
+      },
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-licensed-pdf"
+      }
+    },
+    {
+      "id": "dbfdb28da65ba6488f25fc26cf7cb77a614e715e46beb07a5b02fd93f2788d32",
+      "title": "Transitions in the German labor market: structure and crisis",
+      "written": true,
+      "metadataUrl": null,
+      "retrievedAt": "2026-11-12T14:41:29.564Z",
+      "work": null,
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-doi"
+      }
+    },
+    {
+      "id": "0d892ae63cfedfec5545a7635dc360331664c1155431766c34b7cef5db894692",
+      "title": "Estimating Incentive and Welfare Effects of Non-Stationary Unemployment Benefits",
+      "written": true,
+      "metadataUrl": null,
+      "retrievedAt": "2026-11-12T14:41:29.564Z",
+      "work": null,
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-doi"
+      }
+    },
+    {
+      "id": "9892c644dcdd4d932c644de0907878af737defa265fedd6c17d214002cd0d919",
+      "title": "From Sick Man of Europe to Economic Superstar: Germany's Resurgent Economy",
+      "written": true,
+      "metadataUrl": "https://api.openalex.org/works/https%3A%2F%2Fdoi.org%2F10.1257%2Fjep.28.1.167",
+      "retrievedAt": "2026-11-12T14:41:29.805Z",
+      "work": {
+        "id": "https://openalex.org/W2156185522",
+        "doi": "https://doi.org/10.1257/jep.28.1.167",
+        "title": "From Sick Man of Europe to Economic Superstar: Germany's Resurgent Economy",
+        "publication_year": 2014,
+        "updated_date": "2026-11-12T12:28:57.059296",
+        "is_retracted": false,
+        "locations": [
+          {
+            "landing_page_url": "https://doi.org/10.1257/jep.28.1.167",
+            "pdf_url": null,
+            "license": null,
+            "version": "publishedVersion"
+          },
+          {
+            "landing_page_url": "http://www.aeaweb.org/articles.php?doi=10.1257/jep.28.1.167",
+            "pdf_url": null,
+            "license": null,
+            "version": "submittedVersion"
+          }
+        ]
+      },
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-licensed-pdf"
+      }
+    },
+    {
+      "id": "40e672aa65be8eb8de575f9c7954439611ebaa3aabc427b9d194cfecb0d5ee2e",
+      "title": "January 2002: Euro-zone annual inflation up to 2.7%. Euro changeover effect likely to be within the 0.0% to 0.16% range",
+      "written": true,
+      "metadataUrl": null,
+      "retrievedAt": "2026-11-12T14:41:29.808Z",
+      "work": null,
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-doi"
+      }
+    },
+    {
+      "id": "c79f2dc038c306840844664ebca46e7b813b10bfe69220baf5d00831616e3539",
+      "title": "Measured inflation and inflation perceptions in the euro area",
+      "written": true,
+      "metadataUrl": null,
+      "retrievedAt": "2026-11-12T14:41:29.809Z",
+      "work": null,
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-doi"
+      }
+    },
+    {
+      "id": "3743c8913ed7c1042143de19bd5a2ec770778d4d9e2a2dd547b2bbc62e91c026",
+      "title": "Menu Costs at Work: Restaurant Prices and the Introduction of the Euro",
+      "written": true,
+      "metadataUrl": null,
+      "retrievedAt": "2026-11-12T14:41:29.810Z",
+      "work": null,
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-doi"
+      }
+    },
+    {
+      "id": "893e1d7f1741a8cc06ee4a15e932af965e8e711be752e87037718b7d7410d807",
+      "title": "The Supply-Shock Explanation of the Great Stagflation Revisited",
+      "written": true,
+      "metadataUrl": "https://api.openalex.org/works/https%3A%2F%2Fdoi.org%2F10.3386%2Fw14563",
+      "retrievedAt": "2026-11-12T14:41:30.085Z",
+      "work": {
+        "id": "https://openalex.org/W1591818907",
+        "doi": "https://doi.org/10.3386/w14563",
+        "title": "The Supply-Shock Explanation of the Great Stagflation Revisited",
+        "publication_year": 2008,
+        "updated_date": "2026-11-10T11:39:43.021295",
+        "is_retracted": false,
+        "locations": [
+          {
+            "landing_page_url": "https://doi.org/10.3386/w14563",
+            "pdf_url": "https://doi.org/10.3386/w14563",
+            "license": null,
+            "version": "publishedVersion"
+          }
+        ]
+      },
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-licensed-pdf"
+      }
+    },
+    {
+      "id": "02ad8a06bdad14b91539412c50a546ec4b80465f352b3167e58a11e97b625171",
+      "title": "Do We Really Know that Oil Caused the Great Stagflation? A Monetary Alternative",
+      "written": true,
+      "metadataUrl": "https://api.openalex.org/works/https%3A%2F%2Fdoi.org%2F10.1086%2F654439",
+      "retrievedAt": "2026-11-12T14:41:30.346Z",
+      "work": {
+        "id": "https://openalex.org/W2113215803",
+        "doi": "https://doi.org/10.1086/654439",
+        "title": "Do We Really Know That Oil Caused the Great Stagflation? A Monetary Alternative",
+        "publication_year": 2001,
+        "updated_date": "2026-11-12T12:28:57.059296",
+        "is_retracted": false,
+        "locations": [
+          {
+            "landing_page_url": "https://doi.org/10.1086/654439",
+            "pdf_url": "https://www.journals.uchicago.edu/doi/epdf/10.1086/654439",
+            "license": null,
+            "version": "publishedVersion"
+          },
+          {
+            "landing_page_url": "https://doi.org/10.1162/088933601320224900",
+            "pdf_url": null,
+            "license": null,
+            "version": "publishedVersion"
+          },
+          {
+            "landing_page_url": "http://www.nber.org/chapters/c11065.pdf",
+            "pdf_url": "http://www.nber.org/chapters/c11065.pdf",
+            "license": null,
+            "version": "submittedVersion"
+          },
+          {
+            "landing_page_url": "http://www.nber.org/chapters/c13419.pdf",
+            "pdf_url": "http://www.nber.org/chapters/c13419.pdf",
+            "license": null,
+            "version": "submittedVersion"
+          },
+          {
+            "landing_page_url": "http://www.nber.org/papers/w8389.pdf",
+            "pdf_url": "http://www.nber.org/papers/w8389.pdf",
+            "license": null,
+            "version": "submittedVersion"
+          },
+          {
+            "landing_page_url": "http://papers.nber.org/papers/w8389.pdf",
+            "pdf_url": "http://papers.nber.org/papers/w8389.pdf",
+            "license": null,
+            "version": "submittedVersion"
+          }
+        ]
+      },
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-licensed-pdf"
+      }
+    },
+    {
+      "id": "00b1651de715faec336393928038003a2ef6761695b30ed1063a9f93a8cab598",
+      "title": "What Caused the US Pandemic-Era Inflation?",
+      "written": true,
+      "metadataUrl": "https://api.openalex.org/works/https%3A%2F%2Fdoi.org%2F10.3386%2Fw31417",
+      "retrievedAt": "2026-11-12T14:41:30.610Z",
+      "work": {
+        "id": "https://openalex.org/W4382935640",
+        "doi": "https://doi.org/10.3386/w31417",
+        "title": "What Caused the US Pandemic-Era Inflation?",
+        "publication_year": 2023,
+        "updated_date": "2026-11-11T12:16:26.678958",
+        "is_retracted": false,
+        "locations": [
+          {
+            "landing_page_url": "https://doi.org/10.3386/w31417",
+            "pdf_url": "https://doi.org/10.3386/w31417",
+            "license": null,
+            "version": "publishedVersion"
+          },
+          {
+            "landing_page_url": "https://doi.org/10.2139/ssrn.4497998",
+            "pdf_url": null,
+            "license": null,
+            "version": "submittedVersion"
+          },
+          {
+            "landing_page_url": "http://www.nber.org/papers/w31417.pdf",
+            "pdf_url": "http://www.nber.org/papers/w31417.pdf",
+            "license": null,
+            "version": "submittedVersion"
+          }
+        ]
+      },
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-licensed-pdf"
+      }
+    },
+    {
+      "id": "6affadb6a1694d65880cfe29a1e04cacee0729e52502882dbf7ade68c52341f6",
+      "title": "An Analysis of Pandemic-Era Inflation in 11 Economies",
+      "written": true,
+      "metadataUrl": "https://api.openalex.org/works/https%3A%2F%2Fdoi.org%2F10.3386%2Fw32532",
+      "retrievedAt": "2026-11-12T14:41:30.855Z",
+      "work": {
+        "id": "https://openalex.org/W4399307205",
+        "doi": "https://doi.org/10.3386/w32532",
+        "title": "An Analysis of Pandemic-Era Inflation in 11 Economies",
+        "publication_year": 2024,
+        "updated_date": "2026-11-11T12:16:26.678958",
+        "is_retracted": false,
+        "locations": [
+          {
+            "landing_page_url": "https://doi.org/10.3386/w32532",
+            "pdf_url": "https://doi.org/10.3386/w32532",
+            "license": null,
+            "version": "publishedVersion"
+          },
+          {
+            "landing_page_url": "https://doi.org/10.2139/ssrn.4851805",
+            "pdf_url": null,
+            "license": null,
+            "version": "submittedVersion"
+          },
+          {
+            "landing_page_url": "http://www.nber.org/papers/w32532.pdf",
+            "pdf_url": "http://www.nber.org/papers/w32532.pdf",
+            "license": null,
+            "version": "submittedVersion"
+          }
+        ]
+      },
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-licensed-pdf"
+      }
+    },
+    {
+      "id": "f22476cfcb556b98c137ab11eadf1f81814022456222311ed33cf6ed1695d6b4",
+      "title": "What caused the euro area post-pandemic inflation? An application of Bernanke and Blanchard (2023)",
+      "written": true,
+      "metadataUrl": "https://api.openalex.org/works/https%3A%2F%2Fdoi.org%2F10.2866%2F361869",
+      "retrievedAt": "2026-11-12T14:41:31.110Z",
+      "work": {
+        "id": "https://openalex.org/W6965212481",
+        "doi": "https://doi.org/10.2866/361869",
+        "title": "What caused the euro area post-pandemic inflation? An application of Bernanke and Blanchard (2023)",
+        "publication_year": 2024,
+        "updated_date": "2026-10-28T10:33:24.094632",
+        "is_retracted": false,
+        "locations": [
+          {
+            "landing_page_url": "https://hdl.handle.net/10419/299570",
+            "pdf_url": "https://www.econstor.eu/bitstream/10419/299570/1/1882297431.pdf",
+            "license": null,
+            "version": "submittedVersion"
+          }
+        ]
+      },
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-licensed-pdf"
+      }
+    },
+    {
+      "id": "7a93ff7feafc8d6b37365f5695c36d65718f969b66fd423ee64111b0c329bd84",
+      "title": "The Effect of Minimum Wages on Low-Wage Jobs: Evidence from the United States Using a Bunching Estimator",
+      "written": true,
+      "metadataUrl": "https://api.openalex.org/works/https%3A%2F%2Fdoi.org%2F10.3386%2Fw25434",
+      "retrievedAt": "2026-11-12T14:41:31.387Z",
+      "work": {
+        "id": "https://openalex.org/W2788275785",
+        "doi": "https://doi.org/10.3386/w25434",
+        "title": "The Effect of Minimum Wages on Low-Wage Jobs: Evidence from the United States Using a Bunching Estimator",
+        "publication_year": 2019,
+        "updated_date": "2026-11-07T11:25:07.637180",
+        "is_retracted": false,
+        "locations": [
+          {
+            "landing_page_url": "https://doi.org/10.3386/w25434",
+            "pdf_url": "https://doi.org/10.3386/w25434",
+            "license": null,
+            "version": "publishedVersion"
+          }
+        ]
+      },
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-licensed-pdf"
+      }
+    },
+    {
+      "id": "3ec9765a07eb9f917a429dd84524b8eb9532dcc78db17f513fcda22d1a85a526",
+      "title": "Myth or Measurement: What Does the New Minimum Wage Research Say about Minimum Wages and Job Loss in the United States?",
+      "written": true,
+      "metadataUrl": "https://api.openalex.org/works/https%3A%2F%2Fdoi.org%2F10.3386%2Fw28388",
+      "retrievedAt": "2026-11-12T14:41:31.688Z",
+      "work": {
+        "id": "https://openalex.org/W3121457627",
+        "doi": "https://doi.org/10.3386/w28388",
+        "title": "Myth or Measurement: What Does the New Minimum Wage Research Say about Minimum Wages and Job Loss in the United States?",
+        "publication_year": 2021,
+        "updated_date": "2026-11-07T11:25:07.637180",
+        "is_retracted": false,
+        "locations": [
+          {
+            "landing_page_url": "https://doi.org/10.3386/w28388",
+            "pdf_url": "https://doi.org/10.3386/w28388",
+            "license": null,
+            "version": "publishedVersion"
+          },
+          {
+            "landing_page_url": "http://www.nber.org/papers/w28388.pdf",
+            "pdf_url": "http://www.nber.org/papers/w28388.pdf",
+            "license": null,
+            "version": "submittedVersion"
+          }
+        ]
+      },
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-licensed-pdf"
+      }
+    },
+    {
+      "id": "0d12542f6d88c29d574de153c75b3cbd76e36ec0bebfb04afa37f847e2597841",
+      "title": "Reallocation Effects of the Minimum Wage",
+      "written": true,
+      "metadataUrl": null,
+      "retrievedAt": "2026-11-12T14:41:31.693Z",
+      "work": null,
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-doi"
+      }
+    },
+    {
+      "id": "4a97c11d70e08949a6f9ccfccf9f33bcbec474f5363c45ff56fcf342aca20491",
+      "title": "The Short-Run Employment Effects of the German Minimum Wage Reform",
+      "written": true,
+      "metadataUrl": null,
+      "retrievedAt": "2026-11-12T14:41:31.694Z",
+      "work": null,
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-doi"
+      }
+    },
+    {
+      "id": "14c39769263f40c5cf5d853761a763764722e3e42f06d7f0aa4bc0515226ee6e",
+      "title": "Does Short-Time Work Save Jobs? A Business Cycle Analysis",
+      "written": true,
+      "metadataUrl": null,
+      "retrievedAt": "2026-11-12T14:41:31.695Z",
+      "work": null,
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-doi"
+      }
+    },
+    {
+      "id": "d94ae442a70067ab63eda97fdbb50411da941099db6619af9fcd278876b70512",
+      "title": "Subsidizing Labor Hoarding in Recessions: The Employment & Welfare Effects of Short Time Work",
+      "written": true,
+      "metadataUrl": null,
+      "retrievedAt": "2026-11-12T14:41:31.696Z",
+      "work": null,
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-doi"
+      }
+    },
+    {
+      "id": "9213b9c629de3cc4e84a8cab53c25d17faadf863f58ea6dd65b4569cb18e751c",
+      "title": "The Heterogeneous Impact of Short-Time Work: From Saved Jobs to Windfall Effects",
+      "written": true,
+      "metadataUrl": null,
+      "retrievedAt": "2026-11-12T14:41:31.697Z",
+      "work": null,
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-doi"
+      }
+    },
+    {
+      "id": "dd70bfe1f8c9abafa2da93d04f69cdd9e875106791119ba44dcc0f5292a235a8",
+      "title": "Does Raising the Retirement Age Increase Employment of Older Workers?",
+      "written": true,
+      "metadataUrl": null,
+      "retrievedAt": "2026-11-12T14:41:31.698Z",
+      "work": null,
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-doi"
+      }
+    },
+    {
+      "id": "8cc7adef975579da156dd79d098a508f9305473fc48b8957d755d8e6cb0f90bc",
+      "title": "Closing Routes to Retirement: How Do People Respond?",
+      "written": true,
+      "metadataUrl": null,
+      "retrievedAt": "2026-11-12T14:41:31.699Z",
+      "work": null,
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-doi"
+      }
+    },
+    {
+      "id": "e54db29f8c0210913921f7375dfff8012838c2578f337b5857ee477db4e3e37f",
+      "title": "Incentives, shocks or signals: labour supply effects of increasing the female state pension age in the UK",
+      "written": true,
+      "metadataUrl": null,
+      "retrievedAt": "2026-11-12T14:41:31.700Z",
+      "work": null,
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-doi"
+      }
+    },
+    {
+      "id": "077c6a58767f1865045c2fdc1ae4e3120403f4c568b2e97a8eae04c66b1434f5",
+      "title": "Employment and Substitution Effects of Raising the Statutory Eligibility Age in France",
+      "written": true,
+      "metadataUrl": null,
+      "retrievedAt": "2026-11-12T14:41:31.701Z",
+      "work": null,
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-doi"
+      }
+    },
+    {
+      "id": "3a3f0e83638da9d48c1a8d01c5d197c68ab19ed1bf0c3b1952d6f2c961af03df",
+      "title": "Workforce Aging, Pension Reforms, and Firm Outcomes",
+      "written": true,
+      "metadataUrl": "https://api.openalex.org/works/https%3A%2F%2Fdoi.org%2F10.3386%2Fw28407",
+      "retrievedAt": "2026-11-12T14:41:31.960Z",
+      "work": {
+        "id": "https://openalex.org/W4416197644",
+        "doi": "https://doi.org/10.1016/j.labeco.2025.102823",
+        "title": "Older workers, pension reforms and firm outcomes",
+        "publication_year": 2020,
+        "updated_date": "2026-11-11T12:16:26.678958",
+        "is_retracted": false,
+        "locations": [
+          {
+            "landing_page_url": "https://doi.org/10.1016/j.labeco.2025.102823",
+            "pdf_url": null,
+            "license": null,
+            "version": "publishedVersion"
+          },
+          {
+            "landing_page_url": "https://doi.org/10.3386/w28407",
+            "pdf_url": "https://doi.org/10.3386/w28407",
+            "license": null,
+            "version": "publishedVersion"
+          },
+          {
+            "landing_page_url": "https://doi.org/10.2139/ssrn.3710129",
+            "pdf_url": null,
+            "license": null,
+            "version": "publishedVersion"
+          },
+          {
+            "landing_page_url": "https://doi.org/10.2139/ssrn.4769816",
+            "pdf_url": null,
+            "license": null,
+            "version": "submittedVersion"
+          },
+          {
+            "landing_page_url": "https://doi.org/10.2139/ssrn.3776976",
+            "pdf_url": null,
+            "license": null,
+            "version": "submittedVersion"
+          },
+          {
+            "landing_page_url": "https://www.bancaditalia.it/pubblicazioni/temi-discussione/2020/2020-1297/en_tema-1297.pdf",
+            "pdf_url": "https://www.bancaditalia.it/pubblicazioni/temi-discussione/2020/2020-1297/en_tema-1297.pdf",
+            "license": null,
+            "version": "submittedVersion"
+          },
+          {
+            "landing_page_url": "http://www.nber.org/papers/w28407.pdf",
+            "pdf_url": "http://www.nber.org/papers/w28407.pdf",
+            "license": null,
+            "version": "submittedVersion"
+          },
+          {
+            "landing_page_url": "https://EconPapers.repec.org/RePEc:nbr:nberwo:28407",
+            "pdf_url": null,
+            "license": null,
+            "version": "submittedVersion"
+          }
+        ]
+      },
+      "content": {
+        "_tag": "Metadata",
+        "reason": "different-doi"
+      }
+    },
+    {
+      "id": "e0f82f6fe27535fb3dbe7867230c08ec209b67c8612ca1b2c1b3ef06724bb990",
+      "title": "The 2012 Labour Market Reform in Spain: A Preliminary Assessment",
+      "written": true,
+      "metadataUrl": null,
+      "retrievedAt": "2026-11-12T14:41:31.963Z",
+      "work": null,
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-doi"
+      }
+    },
+    {
+      "id": "04cf67f632624f3be550b7f77e9b00f737054b5fc7ab7e64bec19dd496e8d64c",
+      "title": "The Impact of the 2012 Spanish Labour Market Reform on Unemployment Inflows and Outflows: a Regression Discontinuity Analysis using Duration Models",
+      "written": true,
+      "metadataUrl": null,
+      "retrievedAt": "2026-11-12T14:41:31.966Z",
+      "work": null,
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-doi"
+      }
+    },
+    {
+      "id": "9066ffa3454ceca7be6d66fd3529f54b04192d5e5c28509ecc05df50da4b4301",
+      "title": "Two-Tier Labor Markets in the Great Recession: France vs. Spain",
+      "written": true,
+      "metadataUrl": null,
+      "retrievedAt": "2026-11-12T14:41:31.968Z",
+      "work": null,
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-doi"
+      }
+    },
+    {
+      "id": "8e82106195a00d60a15992e0abfc3d70a656e13af083014bfbc414d77fa530f4",
+      "title": "The Analytics of the Greek Crisis",
+      "written": true,
+      "metadataUrl": "https://api.openalex.org/works/https%3A%2F%2Fdoi.org%2F10.3386%2Fw22370",
+      "retrievedAt": "2026-11-12T14:41:32.209Z",
+      "work": {
+        "id": "https://openalex.org/W2625137005",
+        "doi": "https://doi.org/10.3386/w22370",
+        "title": "The Analytics of the Greek Crisis",
+        "publication_year": 2016,
+        "updated_date": "2026-11-06T12:05:46.655746",
+        "is_retracted": false,
+        "locations": [
+          {
+            "landing_page_url": "https://doi.org/10.3386/w22370",
+            "pdf_url": "https://doi.org/10.3386/w22370",
+            "license": null,
+            "version": "publishedVersion"
+          },
+          {
+            "landing_page_url": "https://orcid.org/0000-0002-0944-4914>",
+            "pdf_url": null,
+            "license": null,
+            "version": "acceptedVersion"
+          },
+          {
+            "landing_page_url": "https://www.escholarship.org/uc/item/2cg7m1gf.pdf;origin=repeccitec",
+            "pdf_url": "https://www.escholarship.org/uc/item/2cg7m1gf.pdf;origin=repeccitec",
+            "license": null,
+            "version": "submittedVersion"
+          },
+          {
+            "landing_page_url": "https://www.lse.ac.uk/Hellenic-Observatory/Assets/Documents/Publications/GreeSE-Papers/GreeSE-No100.pdf",
+            "pdf_url": "https://www.lse.ac.uk/Hellenic-Observatory/Assets/Documents/Publications/GreeSE-Papers/GreeSE-No100.pdf",
+            "license": null,
+            "version": "submittedVersion"
+          },
+          {
+            "landing_page_url": "http://www.nber.org/papers/w22370.pdf",
+            "pdf_url": "http://www.nber.org/papers/w22370.pdf",
+            "license": null,
+            "version": "submittedVersion"
+          },
+          {
+            "landing_page_url": "https://EconPapers.repec.org/RePEc:nbr:nberwo:22370",
+            "pdf_url": null,
+            "license": null,
+            "version": "submittedVersion"
+          },
+          {
+            "landing_page_url": "https://papers.ssrn.com/sol3/Delivery.cfm/nber_w22370.pdf?abstractid=2800879&mirid=1",
+            "pdf_url": null,
+            "license": null,
+            "version": "submittedVersion"
+          },
+          {
+            "landing_page_url": "http://www.cepr.org/active/publications/discussion_papers/dp.php?dpno=11334",
+            "pdf_url": null,
+            "license": null,
+            "version": "submittedVersion"
+          },
+          {
+            "landing_page_url": "http://eprints.lse.ac.uk/82433/",
+            "pdf_url": null,
+            "license": null,
+            "version": "submittedVersion"
+          },
+          {
+            "landing_page_url": "https://escholarship.org/uc/item/2cg7m1gf",
+            "pdf_url": null,
+            "license": null,
+            "version": "submittedVersion"
+          },
+          {
+            "landing_page_url": "http://www.escholarship.org/uc/item/2cg7m1gf",
+            "pdf_url": null,
+            "license": null,
+            "version": "submittedVersion"
+          }
+        ]
+      },
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-licensed-pdf"
+      }
+    },
+    {
+      "id": "92b99ef54266d0dae67b7de9bbe2964298710983a05f7fccdb53d78d10be2667",
+      "title": "National Accounts for a Global Economy: the Case of Ireland",
+      "written": true,
+      "metadataUrl": null,
+      "retrievedAt": "2026-11-12T14:41:32.212Z",
+      "work": null,
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-doi"
+      }
+    },
+    {
+      "id": "b7a12f6b16cbe1ed6da98875c52cb677cf7922783f29dd2fa7cde42d596a03c9",
+      "title": "Report of the Economic Statistics Review Group (ESRG)",
+      "written": true,
+      "metadataUrl": null,
+      "retrievedAt": "2026-11-12T14:41:32.213Z",
+      "work": null,
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-doi"
+      }
+    },
+    {
+      "id": "3b875fa17a3fcbd4a20a3fb80a17aefb7f140246925c7612bfd756772d6868d8",
+      "title": "Fear, Lockdown, and Diversion: Comparing Drivers of Pandemic Economic Decline 2020",
+      "written": true,
+      "metadataUrl": "https://api.openalex.org/works/https%3A%2F%2Fdoi.org%2F10.3386%2Fw27432",
+      "retrievedAt": "2026-11-12T14:41:33.852Z",
+      "work": {
+        "id": "https://openalex.org/W3154802074",
+        "doi": "https://doi.org/10.3386/w27432",
+        "title": "Fear, Lockdown, and Diversion: Comparing Drivers of Pandemic Economic Decline 2020",
+        "publication_year": 2020,
+        "updated_date": "2026-11-11T12:16:26.678958",
+        "is_retracted": false,
+        "locations": [
+          {
+            "landing_page_url": "https://doi.org/10.3386/w27432",
+            "pdf_url": "https://doi.org/10.3386/w27432",
+            "license": "cc-by",
+            "version": "publishedVersion"
+          }
+        ]
+      },
+      "content": {
+        "_tag": "Metadata",
+        "reason": "licence-conflict"
+      }
+    },
+    {
+      "id": "238ef8f430a83e63695c43806c1181a9cb703175bd9d4edc14b8c0bb77bf4fae",
+      "title": "The Great Lockdown: Dissecting the Economic Effects",
+      "written": true,
+      "metadataUrl": null,
+      "retrievedAt": "2026-11-12T14:41:33.853Z",
+      "work": null,
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-doi"
+      }
+    },
+    {
+      "id": "0a2267267539f4cdfccc93e73285201f32c366b5126c7d4a7d81a98e050bfdae",
+      "title": "The Finnish Great Depression: From Russia with Love",
+      "written": true,
+      "metadataUrl": "https://api.openalex.org/works/https%3A%2F%2Fdoi.org%2F10.3386%2Fw14874",
+      "retrievedAt": "2026-11-12T14:41:34.288Z",
+      "work": {
+        "id": "https://openalex.org/W3126053943",
+        "doi": "https://doi.org/10.3386/w14874",
+        "title": "The Finnish Great Depression: From Russia with Love",
+        "publication_year": 2009,
+        "updated_date": "2026-11-04T10:54:05.112534",
+        "is_retracted": false,
+        "locations": [
+          {
+            "landing_page_url": "https://doi.org/10.3386/w14874",
+            "pdf_url": "https://doi.org/10.3386/w14874",
+            "license": null,
+            "version": "publishedVersion"
+          }
+        ]
+      },
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-licensed-pdf"
+      }
+    },
+    {
+      "id": "8cc559495fbac203133fc4aa96210b9163b00fee05fd82c95c81d4ec9db3ced6",
+      "title": "The Economic Crisis of the 1990s in Finland",
+      "written": true,
+      "metadataUrl": null,
+      "retrievedAt": "2026-11-12T14:41:34.290Z",
+      "work": null,
+      "content": {
+        "_tag": "Metadata",
+        "reason": "no-doi"
+      }
+    }
+  ]
+}

@@ -12,6 +12,7 @@ coverage/
 .env.*
 !.env.example
 .DS_Store
+.papers/
 
 # What each probe run answered (packages/server/eval/probes.md)
 packages/server/eval/runs/

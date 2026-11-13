@@ -1,0 +1,83 @@
+{
+  "method": "Retained PDF SHA-256 and page count; sampled page-token coverage against pdftotext -layout. Coverage ignores order and multiplicity and is not a scientific-quality score.",
+  "documents": [
+    {
+      "id": "044ad0ae7f444c988bdd489fc29ebc822fec116a1c16e06cf28f53b2710af8b4",
+      "title": "A comparative assessment of minimum wage employment in Europe",
+      "source": "https://www.esri.ie/pubs/RS123.pdf",
+      "sha256": "542500f7d8e5e9231397b64c5028a2083a81aa55ee525526f39c1d3675139d9c",
+      "sha256Matches": true,
+      "pdfPages": 70,
+      "storedPages": 70,
+      "samples": [
+        {
+          "page": 2,
+          "referenceTokens": 91,
+          "referenceTokenCoverage": 1
+        },
+        {
+          "page": 35,
+          "referenceTokens": 471,
+          "referenceTokenCoverage": 1
+        },
+        {
+          "page": 69,
+          "referenceTokens": 115,
+          "referenceTokenCoverage": 1
+        }
+      ]
+    },
+    {
+      "id": "424e4d77864c4923223882924712acd717b8b1a5878c824ad82871715e53a894",
+      "title": "A study of minimum wage employment in Ireland using online job vacancy data",
+      "source": "https://www.esri.ie/pubs/RS209.pdf",
+      "sha256": "3bf28617b633b81d9b60968f5378fcec01d83e166c190b78861fa204f93dae4d",
+      "sha256Matches": true,
+      "pdfPages": 46,
+      "storedPages": 46,
+      "samples": [
+        {
+          "page": 2,
+          "referenceTokens": 93,
+          "referenceTokenCoverage": 1
+        },
+        {
+          "page": 23,
+          "referenceTokens": 99,
+          "referenceTokenCoverage": 1
+        },
+        {
+          "page": 45,
+          "referenceTokens": 207,
+          "referenceTokenCoverage": 1
+        }
+      ]
+    },
+    {
+      "id": "fd99324201ce47ed2e4e9602659de79d1aa051908c3207c0b0d6448ce4729f91",
+      "title": "Democracy, economic growth, and income inequality: Evidence from province level data",
+      "source": "https://www.econstor.eu/bitstream/10419/304100/1/10.1080_23322039.2023.2220244.pdf",
+      "sha256": "047736a83b4ab499bc4c17376f584b0608025f2922344f70127b1db6a81d3b13",
+      "sha256Matches": true,
+      "pdfPages": 14,
+      "storedPages": 14,
+      "samples": [
+        {
+          "page": 1,
+          "referenceTokens": 247,
+          "referenceTokenCoverage": 1
+        },
+        {
+          "page": 7,
+          "referenceTokens": 536,
+          "referenceTokenCoverage": 1
+        },
+        {
+          "page": 13,
+          "referenceTokens": 831,
+          "referenceTokenCoverage": 1
+        }
+      ]
+    }
+  ]
+}
