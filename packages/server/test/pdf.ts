@@ -1,8 +1,16 @@
 // A real two-page PDF for the paper tests, in workerd and in Node, built
 // here so the fixture's text and rights are ours. The tests use the real PDF
 // parser; only HTTP is fake.
+
+// Each line of `text` on a line of its own, as a publisher's layout breaks
+// a footer.
 const stream = (text: string) => {
-  const content = `BT /F1 12 Tf 40 700 Td (${text}) Tj ET\n`
+  const lines = text
+    .split("\n")
+    .map((line) => `(${line}) Tj`)
+    .join(" 0 -14 Td ")
+
+  const content = `BT /F1 12 Tf 40 700 Td ${lines} ET\n`
 
   return `<< /Length ${content.length} >>\nstream\n${content}endstream`
 }

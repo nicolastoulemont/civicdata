@@ -49,7 +49,9 @@ export const Key = Schema.Union([Source, Host])
 export type Key = typeof Key.Type
 
 // How often the paper gather asks one host: OpenAlex at most once a second,
-// any other host at most once every two seconds.
+// PMC's bucket on AWS, which serves scripts in bulk and takes three requests
+// per copy, at most four times a second, and any other host at most once
+// every two seconds.
 export interface Gaps {
   readonly gap: Duration.Duration
   readonly hosts: Readonly<Record<string, Duration.Duration>>
@@ -57,7 +59,10 @@ export interface Gaps {
 
 export const gaps: Gaps = {
   gap: Duration.seconds(2),
-  hosts: { "api.openalex.org": Duration.seconds(1) },
+  hosts: {
+    "api.openalex.org": Duration.seconds(1),
+    "pmc-oa-opendata.s3.amazonaws.com": Duration.millis(250),
+  },
 }
 
 const isHost = Schema.is(Host)

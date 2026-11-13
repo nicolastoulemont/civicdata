@@ -5,6 +5,18 @@ import { getDomain } from "tldts"
 import { Copy, Https, PaperUnavailable, type Seed, Work } from "./archive.ts"
 import { metaOf } from "./html.ts"
 import { bodyOf, briefOf } from "./http.ts"
+import {
+  type Article,
+  articleOf,
+  bucket,
+  Deposit,
+  depositsOf,
+  listingOf,
+  metadataOf,
+  pdfOf,
+  pdfUrlOf,
+  pmcidOf,
+} from "./pmc.ts"
 
 export interface Download {
   readonly bytes: Uint8Array
@@ -103,9 +115,17 @@ const decoded = (results: ReadonlyArray<unknown>) => {
   return { works, skipped: results.length - works.length }
 }
 
+// OpenAlex lists many PubMed Central copies without a PDF URL; the gather
+// finds their PDF by PMC id, so such a copy gets PMC's address for it.
+const located = (location: Work["locations"][number]) => {
+  const pmcid = location.id === null || location.pdf_url !== null ? undefined : pmcidOf(location.id)
+
+  return pmcid === undefined ? location : { ...location, pdf_url: pdfOf(pmcid) }
+}
+
 export const copiesOf = (work: Work) => {
   const copies = work.locations.flatMap((location) =>
-    Option.toArray(Schema.decodeUnknownOption(Copy)(location)),
+    Option.toArray(Schema.decodeUnknownOption(Copy)(located(location))),
   )
 
   // A copy's native id, URL and version stay separate from the catalogue's
@@ -140,6 +160,11 @@ const linkOf = (html: string, { page, copy }: { readonly page: string; readonly 
     .map(({ content }) => content)
     .find((link) => link !== page && link !== copy.pdf_url && sites.has(domainOf(link) ?? ""))
 }
+
+// The host the gather asks for a copy's PDF: PMC's bucket for a PubMed
+// Central copy, the PDF URL's host for any other.
+export const hostOf = (copy: Copy) =>
+  articleOf(copy) === undefined ? new URL(copy.pdf_url).host : bucket
 
 const now = Effect.map(Clock.currentTimeMillis, (millis) => new Date(millis).toISOString())
 
@@ -215,10 +240,47 @@ export class OpenAlex extends Context.Service<OpenAlex, Interface>()("papers/Ope
           ),
         )
 
-      // The copy's PDF. When its PDF URL answers a landing page instead,
-      // follows the page's `citation_pdf_url` tag once, to the same site.
+      // A PubMed Central article's PDF in PMC's bucket: of the article's
+      // deposits, the first, highest number first, that is the version the
+      // copy names and has a PDF.
+      const deposited = Effect.fnUntraced(function* (article: Article) {
+        const listing = yield* client.get(listingOf(article.pmcid)).pipe(
+          Effect.flatMap((response) => bodyOf(response, 1024 * 1024)),
+          Effect.map((bytes) => new TextDecoder().decode(bytes)),
+        )
+
+        for (const number of depositsOf(listing, article.pmcid)) {
+          const deposit = yield* client.get(metadataOf(article.pmcid, number)).pipe(
+            Effect.flatMap(HttpClientResponse.schemaBodyJson(Deposit)),
+            Effect.catchTag("SchemaError", () =>
+              Effect.fail("PMC's metadata for the article did not decode"),
+            ),
+          )
+
+          const url = pdfUrlOf(deposit, article)
+
+          if (url !== undefined) return yield* fetched(url)
+        }
+
+        return yield* Effect.fail("PMC's bucket holds no PDF of this version")
+      })
+
+      // The copy's PDF: a PubMed Central copy's from PMC's bucket, any
+      // other's from its PDF URL. When a PDF URL answers a landing page
+      // instead, follows the page's `citation_pdf_url` tag once, to the same
+      // site.
       const download = Effect.fn("OpenAlex.download")(
         function* (copy: Copy) {
+          const article = articleOf(copy)
+
+          if (article !== undefined) {
+            const found = yield* deposited(article)
+
+            if (!isPdf(found.bytes)) return yield* Effect.fail("Copy did not return a PDF")
+
+            return { ...found, landing: null, retrievedAt: yield* now }
+          }
+
           const first = yield* fetched(copy.pdf_url)
 
           if (isPdf(first.bytes)) return { ...first, landing: null, retrievedAt: yield* now }
