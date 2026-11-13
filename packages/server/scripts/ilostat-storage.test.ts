@@ -3,7 +3,7 @@ import { IndicatorId, Year } from "@repo/domain"
 import { DateTime, Effect, Redacted, Stream } from "effect"
 import { FetchHttpClient } from "effect/http"
 
-import { Store } from "../src/Store.ts"
+import { Store } from "../src/series/Store.ts"
 import { storage } from "./ilostat-storage.ts"
 
 const objects = () => {

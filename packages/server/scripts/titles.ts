@@ -1,4 +1,4 @@
-// Writes src/titles.gen.ts: a plain-language title for each World Bank
+// Writes src/views/titles.gen.ts: a plain-language title for each World Bank
 // indicator, written by the agent's OpenAI model. Run it after the World Bank
 // adds indicators, with OPENAI_API_KEY set (and OPENAI_MODEL to try another
 // model):
@@ -15,13 +15,13 @@ import { Array as Arr, Config, Effect, Layer, Option, Schema } from "effect"
 import { LanguageModel } from "effect/ai"
 import { FetchHttpClient } from "effect/http"
 
-import { Cache } from "../src/Cache.ts"
-import { about } from "../src/model.ts"
-import { languageModel } from "../src/OpenAi.ts"
-import { fits } from "../src/Titles.ts"
-import { WorldBank } from "../src/WorldBank.ts"
+import { about } from "../src/assistant/model.ts"
+import { languageModel } from "../src/assistant/OpenAi.ts"
+import { Cache } from "../src/platform/Cache.ts"
+import { WorldBank } from "../src/sources/WorldBank.ts"
+import { fits } from "../src/views/Titles.ts"
 
-const target = new URL("../src/titles.gen.ts", import.meta.url)
+const target = new URL("../src/views/titles.gen.ts", import.meta.url)
 
 const perRequest = 40
 

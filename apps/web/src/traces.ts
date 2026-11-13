@@ -7,7 +7,7 @@ import { requestLocale } from "./locale.tsx"
 // The browser's spans: each question from the moment it is asked to its last
 // step, each API request, which the server's spans continue, and each error
 // the page did not catch. They go to this origin, whose Worker passes them on
-// to the stage's destination (packages/server/src/Traces.ts), as JSON, which
+// to the stage's destination (packages/server/src/platform/Traces.ts), as JSON, which
 // the browser's network panel can show.
 
 // Sends with keepalive, so a batch sent as the page goes away still arrives.

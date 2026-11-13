@@ -5,7 +5,7 @@ openfacts charts public data about countries from the World Bank, Eurostat and t
 ## Product rules
 
 - Every charted value comes from a fetched observation that carries its provenance: source, dataset, URL, retrieval time. Code never computes a charted value from memory or model output. The assistant's prose sits beside the charts, unchecked against the data.
-- Every cause the assistant gives cites a reviewed finding from `packages/server/src/research/findings.json` or a retrieved paper with an author-reported causal estimate and identification strategy. Research prose passes the sentence-support check before display; unsupported or uncertain prose states no cause. Events stay causeless: a summary says what happened, never what it did to a chart.
+- Every cause the assistant gives cites a reviewed finding from `packages/server/src/research/assets/findings.json` or a retrieved paper with an author-reported causal estimate and identification strategy. Research prose passes the sentence-support check before display; unsupported or uncertain prose states no cause. Events stay causeless: a summary says what happened, never what it did to a chart.
 - A finding holds our own wording and each study's bibliographic data, never a paper's text, and links each study to an open-access copy that someone read before adding it. Read `packages/server/src/research/README.md` before changing findings, paper retrieval, support checks or research citations.
 - Source attribution stays visible on every chart, including shared and embedded ones: the World Bank, Eurostat and the OECD all require it.
 
@@ -16,6 +16,12 @@ openfacts charts public data about countries from the World Bank, Eurostat and t
 - Before writing or reviewing Effect code, read `.agents/skills/effect/SKILL.md` and the references its branch chooser names. This file wins where they disagree.
 - We run Effect 4.1, and most web examples target 3.x or 4.0 prereleases. Read `node_modules/effect/ai-docs` and `node_modules/effect/src` before guessing an API. The HTTP, HttpApi and AI modules import from `effect/http`, `effect/http-api` and `effect/ai`.
 - `typecheck` runs the Effect language service and fails on its warnings. `allowedUnstableApis` in `tsconfig.base.json` lists the unstable modules we accept; add one as a deliberate choice, never to silence a diagnostic.
+
+## Server layout
+
+- `packages/server/src` groups files by domain, with the Worker's entry files at the root. A domain imports only the domains before it in this order: `platform`, `series`, `sources`, `politics`, `catalog`, `gather`, `views`, `research`, `assistant`. The one exception is `series/Outlines.ts`, which imports `sources/sdmx/Csv.ts` until its SDMX parsers move to `sources/sdmx/`.
+- A domain keeps its tests in `tests/` and its data files in `assets/`. Fakes and fixtures that several domains share live in `src/tests/`.
+- A helper goes in `utils/` when it imports nothing from `src/`, holds no service or binding, and at least two files use it: the domain's own `utils/` while its users sit in one domain, `src/utils/` once they span two. Every domain may import `src/utils/`.
 
 ## State machines
 
@@ -42,7 +48,7 @@ openfacts charts public data about countries from the World Bank, Eurostat and t
 ## Cloudflare Workers
 
 - Workers forbid timers, random values and I/O at module scope. Build Effect runtimes and handlers on the first request, as `packages/server/src/index.ts` does.
-- Read each binding from `cloudflare:workers` inside its own Effect layer, importing the module dynamically and falling back when it is missing, as `Cache.layer` in `packages/server/src/Cache.ts` does. `pnpm dev:web` and the Node build run outside Workers, where the module does not exist.
+- Read each binding from `cloudflare:workers` inside its own Effect layer, importing the module dynamically and falling back when it is missing, as `Cache.layer` in `packages/server/src/platform/Cache.ts` does. `pnpm dev:web` and the Node build run outside Workers, where the module does not exist.
 - Only `packages/infra` imports Alchemy, and `vite.config.ts` gets no Cloudflare plugin: Alchemy adds its own at build time.
 - Production's D1 database serves every search and every preview without `own-catalog`, and D1 refuses all its queries for a while once they use too much time in a 10-second window. Against it, run only `EXPLAIN QUERY PLAN` and `SELECT`s that read a few rows by an index; one unindexed join over the labels reads 35 million rows. Read what production's queries cost with `wrangler d1 insights`, and run anything heavier on a preview with `own-catalog` or locally.
 

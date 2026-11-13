@@ -5,11 +5,11 @@ import { DateTime, Duration, Effect, Layer, Schema, Stream } from "effect"
 import { HttpClient } from "effect/http"
 import { SqlClient } from "effect/sql"
 
-import { AssetId, Release } from "../src/Adapter.ts"
-import { collect } from "../src/Inputs.ts"
-import { Stored } from "../src/Store.ts"
-import { table } from "../src/Table.ts"
-import { income, WidArchive } from "../src/Wid.ts"
+import { collect } from "../src/gather/Inputs.ts"
+import { AssetId, Release } from "../src/series/Adapter.ts"
+import { Stored } from "../src/series/Store.ts"
+import { income, WidArchive } from "../src/sources/Wid.ts"
+import { table } from "../src/utils/Table.ts"
 import { metadata as Metadata, record } from "./wid-record.ts"
 
 const { indicator, name, definition, dataset, units, selection } = income

@@ -19,10 +19,11 @@ import {
 import { HttpClient, HttpClientRequest } from "effect/http"
 import { SqlClient } from "effect/sql"
 
-import { Step, type StepFailed } from "../CatalogBuild.ts"
-import { fingerprint } from "../fingerprint.ts"
-import { type Gaps, gaps } from "../Pace.ts"
+import { type Gaps, gaps } from "../platform/Pace.ts"
+import { Step, type StepFailed } from "../platform/Step.ts"
+import { fingerprint } from "../utils/fingerprint.ts"
 import { Attempt, Content, Digest, Paper, PaperUnavailable, Seed, Work } from "./archive.ts"
+import file from "./assets/topics.json" with { type: "json" }
 import type { Bucket } from "./Bucket.ts"
 import { admit, qualifies } from "./copies.ts"
 import { Licences } from "./Licences.ts"
@@ -30,7 +31,6 @@ import { hostOf, metadataUrl, OpenAlex } from "./OpenAlex.ts"
 import { extraction } from "./pdf.ts"
 import { Record, write } from "./publication.ts"
 import { Reason, tables } from "./store.ts"
-import file from "./topics.json" with { type: "json" }
 
 // What the app charts, which each topic serves.
 const Area = Schema.Literals([

@@ -14,7 +14,7 @@ Requests only read the store. Three writers fill it, and only they create its ta
 
 The publication command and the gather write through one writer, `write` in `packages/server/src/research/publication.ts`, so both write the same rows in the same order.
 
-A reader never creates, alters or drops a table, for the reason `packages/server/src/built.ts` gives: a preview may read production's store.
+A reader never creates, alters or drops a table, for the reason `packages/server/src/platform/built.ts` gives: a preview may read production's store.
 
 ## Bindings and stages
 
@@ -92,7 +92,7 @@ The gather finds works on OpenAlex for each reviewed topic, checks each work's c
 
 ### Topics
 
-`packages/server/src/research/topics.json` lists the searches, each with the area of the app it serves: labour, prices, growth, public finance, pensions, inequality, health, education, emissions and energy, and democracy. The first eleven are the queries the folder gather ran, kept as they were. The others follow the catalog's indicators and the reviewed findings: minimum wages, short-time work and labour reforms; the inflation of the 1970s and of 2021 to 2023; fiscal multipliers, consolidation and crises; pension ages and spending; and so on. `repository: true` keeps a search to EconStor's copies, whose item pages carry their licence. The file is bundled with the Worker; change it in a pull request the owner reviews.
+`packages/server/src/research/assets/topics.json` lists the searches, each with the area of the app it serves: labour, prices, growth, public finance, pensions, inequality, health, education, emissions and energy, and democracy. The first eleven are the queries the folder gather ran, kept as they were. The others follow the catalog's indicators and the reviewed findings: minimum wages, short-time work and labour reforms; the inflation of the 1970s and of 2021 to 2023; fiscal multipliers, consolidation and crises; pension ages and spending; and so on. `repository: true` keeps a search to EconStor's copies, whose item pages carry their licence. The file is bundled with the Worker; change it in a pull request the owner reviews.
 
 Every search asks for open-access works, not retracted, in English and published from 1990. A topic reads at most `pages` pages of `size` works each, through OpenAlex's cursor (`Limits` in `Gather.ts`: 2 pages of 50 by default). A record that does not decode, such as a work without a title, is skipped and counted.
 
@@ -154,7 +154,7 @@ Two runs never gather the same work at once. Before a batch, a run claims its wo
 
 ### Pacing
 
-Every request waits between two requests to the same host: 1 second for `api.openalex.org`, 250 milliseconds for PMC's bucket, `pmc-oa-opendata.s3.amazonaws.com`, which serves scripts in bulk and takes three requests per copy, and 2 seconds for any other host (`gaps` in `packages/server/src/Pace.ts`). Other hosts go on meanwhile, so one slow publisher holds back only its own works. The PaperGather Workflow paces each host through its own `PaceObject`, the Durable Object the series gather paces each source through (`Pace.hosts`), so every run and every Worker of a stage shares one pace per host. A request waits up to a minute for its slot; past that, or after the host answers 429, it fails as a 429 and the host rests for a minute. The local gather paces in its own process (`paced` in `Gather.ts`). Requests to OpenAlex and to publishers name the client `openfacts-papers/1.0 (+https://openfacts.app)` (`anonymous` and `paced` in `Gather.ts`), with no email or `mailto`. OpenAlex's requests carry the stage's API key ([OpenAlex key](#openalex-key)).
+Every request waits between two requests to the same host: 1 second for `api.openalex.org`, 250 milliseconds for PMC's bucket, `pmc-oa-opendata.s3.amazonaws.com`, which serves scripts in bulk and takes three requests per copy, and 2 seconds for any other host (`gaps` in `packages/server/src/platform/Pace.ts`). Other hosts go on meanwhile, so one slow publisher holds back only its own works. The PaperGather Workflow paces each host through its own `PaceObject`, the Durable Object the series gather paces each source through (`Pace.hosts`), so every run and every Worker of a stage shares one pace per host. A request waits up to a minute for its slot; past that, or after the host answers 429, it fails as a 429 and the host rests for a minute. The local gather paces in its own process (`paced` in `Gather.ts`). Requests to OpenAlex and to publishers name the client `openfacts-papers/1.0 (+https://openfacts.app)` (`anonymous` and `paced` in `Gather.ts`), with no email or `mailto`. OpenAlex's requests carry the stage's API key ([OpenAlex key](#openalex-key)).
 
 ### OpenAlex key
 
@@ -172,11 +172,11 @@ To fill a stage the first time, label its pull request `own-catalog` and name th
 
 The command prints counts per outcome, each topic's counts, and every work that failed or that the store refused, with its id, title and problem, never a passage. It exits 1 when a work failed, the store refused one, or a topic stopped early; a rerun asks only for what failed.
 
-`packages/server/test/PaperGather.test.ts` runs the gather inside workerd against D1 and R2, with OpenAlex, publishers and EconStor faked at the HTTP client and real PDFs: paging, admission and exclusion, a rerun with nothing changed, a changed record, a failed PDF host, a landing page's PDF tag followed on its own site and refused to another, a refused copy followed by a repository copy, a PubMed Central copy fetched from PMC's bucket (with and without a PDF URL from OpenAlex, and missing from the bucket), a licence notice broken over lines, a work whose every copy failed, the client name, the attempt limit, the refusal to drop served text, a hand-audited copy and per-host pacing. `packages/server/scripts/papers/gather.test.ts` runs the local gather over Cloudflare's wire after publishing the corpus record of the same work.
+`packages/server/src/research/tests/PaperGather.test.ts` runs the gather inside workerd against D1 and R2, with OpenAlex, publishers and EconStor faked at the HTTP client and real PDFs: paging, admission and exclusion, a rerun with nothing changed, a changed record, a failed PDF host, a landing page's PDF tag followed on its own site and refused to another, a refused copy followed by a repository copy, a PubMed Central copy fetched from PMC's bucket (with and without a PDF URL from OpenAlex, and missing from the bucket), a licence notice broken over lines, a work whose every copy failed, the client name, the attempt limit, the refusal to drop served text, a hand-audited copy and per-host pacing. `packages/server/scripts/papers/gather.test.ts` runs the local gather over Cloudflare's wire after publishing the corpus record of the same work.
 
 ### Weekly gather
 
-`PaperGatherWorkflow` (`packages/server/src/PaperGatherWorkflow.ts`, bound as `PAPER_GATHER`) runs the gather with Workflow steps and records each run. `packages/server/src/research/Runs.ts` holds its work. Like the other Workflows, it exists only in a stage that owns its paper store: production and previews with the `own-catalog` label. A shared preview binds none. It calls no model.
+`PaperGatherWorkflow` (`packages/server/src/research/PaperGatherWorkflow.ts`, bound as `PAPER_GATHER`) runs the gather with Workflow steps and records each run. `packages/server/src/research/Runs.ts` holds its work. Like the other Workflows, it exists only in a stage that owns its paper store: production and previews with the `own-catalog` label. A shared preview binds none. It calls no model.
 
 In production, a native Workflow schedule (`0 3 * * 1` in `packages/infra/alchemy.run.ts`, no Cron Trigger) starts a run every Monday at 03:00 UTC, an hour before the catalog build. An `own-catalog` preview has no schedule and runs only when someone starts a run.
 
@@ -258,7 +258,7 @@ FROM gather_topic JOIN gather_run USING (run) WHERE complete = 1 GROUP BY topic;
 
 To search a topic over every year again, delete its `gather_topic` rows.
 
-`packages/server/test/Runs.test.ts` runs the Workflow's work inside workerd against D1 and R2, with OpenAlex and the publishers faked at the HTTP client and a fake Workflows step runner: incremental selection, a new topic's backfill, the caps, a failed host, a resumed run and two runs at once.
+`packages/server/src/research/tests/Runs.test.ts` runs the Workflow's work inside workerd against D1 and R2, with OpenAlex and the publishers faked at the HTTP client and a fake Workflows step runner: incremental selection, a new topic's backfill, the caps, a failed host, a resumed run and two runs at once.
 
 ## Local reproduction
 
@@ -288,7 +288,7 @@ Ranking:
 
 - bm25 weighs a word in a title ten times one in a passage.
 - The search reads the index's 100 best rows of published papers: a title of a paper with text or a metadata reason, or a passage of a paper's active version. The index leads the join; `version` and `paper` are read by primary key.
-- A passage that reads as a reference list (dense author initials, years before titles, volumes, page ranges, DOIs) is dropped, so a paper is not found for the titles it cites. On the 502 labelled passages of the corpus fixture (`packages/server/test/fixtures/papers/corpus.json`) the check flags 34 of the 42 reference passages and 6 of the 460 others, mostly tables and title pages.
+- A passage that reads as a reference list (dense author initials, years before titles, volumes, page ranges, DOIs) is dropped, so a paper is not found for the titles it cites. On the 502 labelled passages of the corpus fixture (`packages/server/src/tests/fixtures/papers/corpus.json`) the check flags 34 of the 42 reference passages and 6 of the 460 others, mostly tables and title pages.
 - Rows group by paper. A paper scores its title's bm25 plus that of its best three passages, and search returns the best ten papers.
 
 Each `Match` is one of:
@@ -298,7 +298,7 @@ Each `Match` is one of:
 
 A match carries no citation and does not decode as the domain's `Paper`. Search never reads an annotation's scope: an unannotated paper is found like an annotated one, and no publication year, affiliation or keyword stands in for a study's period or population. A withdrawn paper or one whose publication has not finished is not found. Search only reads `PAPERS_DB`: it never touches `CATALOG_DB` or the bucket, records no demand and schedules nothing. It fails with `PapersUnavailable` when D1 fails, the tables are missing, or the Worker binds no store.
 
-`packages/server/test/Discovery.test.ts` runs search inside workerd against D1, and against a sample: the eight papers of the corpus fixture, unannotated, and the metadata of the 93 other records the corpus run found (`docs/research/papers/corpus-run.json`). Each of its 12 queries ranks its wanted papers in the first two results.
+`packages/server/src/research/tests/Discovery.test.ts` runs search inside workerd against D1, and against a sample: the eight papers of the corpus fixture, unannotated, and the metadata of the 93 other records the corpus run found (`docs/research/papers/corpus-run.json`). Each of its 12 queries ranks its wanted papers in the first two results.
 
 ## Demand
 
@@ -323,7 +323,7 @@ ORDER BY count DESC
 
 ## Annotation
 
-`AnnotateWorkflow` (`packages/server/src/AnnotateWorkflow.ts`, bound as `ANNOTATE`) annotates a list of paper versions. `packages/server/src/research/Annotate.ts` holds its work and `Annotator.ts` its model calls, which the local annotator in `scripts/papers` shares. Like the Catalog and Gather Workflows, it exists only in a stage that owns its paper store: production and previews with the `own-catalog` label. A shared preview binds none. Only production runs it on a schedule, once a day ([daily run](#daily-run)); an `own-catalog` preview runs it only when someone starts a run.
+`AnnotateWorkflow` (`packages/server/src/research/AnnotateWorkflow.ts`, bound as `ANNOTATE`) annotates a list of paper versions. `packages/server/src/research/Annotate.ts` holds its work and `Annotator.ts` its model calls, which the local annotator in `scripts/papers` shares. Like the Catalog and Gather Workflows, it exists only in a stage that owns its paper store: production and previews with the `own-catalog` label. A shared preview binds none. Only production runs it on a schedule, once a day ([daily run](#daily-run)); an `own-catalog` preview runs it only when someone starts a run.
 
 ### What a run does
 
@@ -447,11 +447,11 @@ FROM annotation_run GROUP BY run ORDER BY ended DESC LIMIT 10;
 
 Demand lives in the stage's `DB`, not `PapersDatabase`: read it with the query under [Demand](#demand), with `-30 days` for what the next run considers.
 
-`packages/server/test/Annotate.test.ts` runs the Workflow's work against D1 and R2 inside workerd, with OpenAI faked on the wire and a fake Workflows step runner that saves, replays, retries, loses and crashes steps. Its `Demand` runs read the real demand record in the test's `DB`.
+`packages/server/src/research/tests/Annotate.test.ts` runs the Workflow's work against D1 and R2 inside workerd, with OpenAI faked on the wire and a fake Workflows step runner that saves, replays, retries, loses and crashes steps. Its `Demand` runs read the real demand record in the test's `DB`.
 
 ## Conversations
 
-`search_papers` in `packages/server/src/Agent.ts` asks `Library.search` (`packages/server/src/research/Library.ts`), which reads only the store: it runs `Discovery.search` on the question's words, then `Papers.read` for each match whose version has an annotation. The Worker bundles no paper: the corpus that used to ship as `corpus.json` is now a test fixture, and a stage answers from whatever its store holds.
+`search_papers` in `packages/server/src/assistant/Agent.ts` asks `Library.search` (`packages/server/src/research/Library.ts`), which reads only the store: it runs `Discovery.search` on the question's words, then `Papers.read` for each match whose version has an annotation. The Worker bundles no paper: the corpus that used to ship as `corpus.json` is now a test fixture, and a stage answers from whatever its store holds.
 
 The lookup answers, per paper, one of:
 
@@ -476,8 +476,8 @@ A stage answers from its own store, which starts empty: until a publication fill
 
 A `pr-<n>` preview without the `own-catalog` label, and `alchemy dev` without `OWN_CATALOG=true`, read production's `PAPERS_DB` and `PAPERS` ([bindings and stages](#bindings-and-stages)), so they show production's evidence and readings. Their demand goes to their own `DB`, never production's. A preview with the label reads its own empty store until someone publishes to it.
 
-`packages/server/test/conversation.test.ts` runs these paths through the conversation's API inside workerd, with the model scripted and the store filled by `test/papers.ts`: evidence from an annotation, cold matches, no match, a demand write that fails or hangs, a paper annotated between two questions, and a withdrawn citation in a saved turn. Its scripted model fails any request other than an answer's round or a support review, so a test that called the annotation model would fail. These tests do not show how a real model treats the count of readings; that rests on the instructions until an eval covers it.
+`packages/server/src/assistant/tests/conversation.test.ts` runs these paths through the conversation's API inside workerd, with the model scripted and the store filled by `test/papers.ts`: evidence from an annotation, cold matches, no match, a demand write that fails or hangs, a paper annotated between two questions, and a withdrawn citation in a saved turn. Its scripted model fails any request other than an answer's round or a support review, so a test that called the annotation model would fail. These tests do not show how a real model treats the count of readings; that rests on the instructions until an eval covers it.
 
 ## Tests
 
-`packages/server/test/papers.ts` fills a test store the way the writers must: `publish` for a paper with text, `list` for a metadata-only paper, `withdraw` for a withdrawn one. Each is valid by default and takes only what a test changes. `packages/server/test/Papers.test.ts` runs the reader against D1 and R2 inside workerd. `papersPlanned` records how SQLite plans each statement on the test store: the gather's tests fail if any statement scans a store table, since a scan of `copy` for each metadata-only work read 17.6 million rows in one production run.
+`packages/server/src/research/tests/papers.ts` fills a test store the way the writers must: `publish` for a paper with text, `list` for a metadata-only paper, `withdraw` for a withdrawn one. Each is valid by default and takes only what a test changes. `packages/server/src/research/tests/Papers.test.ts` runs the reader against D1 and R2 inside workerd. `papersPlanned` records how SQLite plans each statement on the test store: the gather's tests fail if any statement scans a store table, since a scan of `copy` for each metadata-only work read 17.6 million rows in one production run.

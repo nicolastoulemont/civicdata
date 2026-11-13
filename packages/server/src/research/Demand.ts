@@ -7,7 +7,7 @@ import { D1Client } from "@effect/sql-d1"
 import { Context, DateTime, Effect, Layer, Schema } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
-import { once } from "../built.ts"
+import { once } from "../platform/built.ts"
 import { Version } from "./store.ts"
 
 // A paper version's identity, as search returns it.

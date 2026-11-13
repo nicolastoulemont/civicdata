@@ -13,8 +13,8 @@ import { Clock, Context, Effect, Layer, Option, Redacted, Schema } from "effect"
 import { FetchHttpClient } from "effect/http"
 import { SqlClient } from "effect/sql"
 
-import { Step } from "../CatalogBuild.ts"
-import { Pace } from "../Pace.ts"
+import { Pace } from "../platform/Pace.ts"
+import { Step } from "../platform/Step.ts"
 import { Bucket } from "./Bucket.ts"
 import {
   anonymous,

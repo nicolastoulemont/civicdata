@@ -8,7 +8,7 @@ Run, retry, archive and restore through [docs/evals.md](../../../docs/evals.md).
 
 ## Reviewing
 
-Give the run folder to a strong model, or read it yourself. Before reading answers, read the product rules in `AGENTS.md`, the findings in `packages/server/src/research/findings.json`, and the coverage of the political records in the README. A good answer meets all of these:
+Give the run folder to a strong model, or read it yourself. Before reading answers, read the product rules in `AGENTS.md`, the findings in `packages/server/src/research/assets/findings.json`, and the coverage of the political records in the README. A good answer meets all of these:
 
 - It finds the measurable question inside the person's words and says which country, indicator and years it chose, and why.
 - It says plainly what no chart can answer, and names the nearest measure it charts instead.

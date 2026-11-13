@@ -1,7 +1,7 @@
 import { Country, Observation, Qualification } from "@repo/domain"
 import { Effect, Schema } from "effect"
 
-import { income } from "../src/Wid.ts"
+import { income } from "../src/sources/Wid.ts"
 
 const quality = [
   "Imputed regional average",

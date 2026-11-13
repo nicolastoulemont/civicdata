@@ -7,7 +7,7 @@ import { D1Client } from "@effect/sql-d1"
 import { Context, Effect, Layer, Option, Schema } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
-import { fingerprint } from "../fingerprint.ts"
+import { fingerprint } from "../utils/fingerprint.ts"
 import { Passage } from "./archive.ts"
 import {
   Bibliography,

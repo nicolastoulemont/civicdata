@@ -1,7 +1,7 @@
 import { Array as Arr, Effect, Option } from "effect"
 import { extractText, getDocumentProxy } from "unpdf"
 
-import { fingerprint } from "../fingerprint.ts"
+import { fingerprint } from "../utils/fingerprint.ts"
 import { Content, type Copy, Evidence, PaperUnavailable, Passage } from "./archive.ts"
 import { licenceOf } from "./Licences.ts"
 import type { Download } from "./OpenAlex.ts"

@@ -1,7 +1,7 @@
 import { Paper, Reading } from "@repo/domain"
 import { Array as Arr, Context, Effect, Layer, Option, Schema } from "effect"
 
-import { fingerprint } from "../fingerprint.ts"
+import { fingerprint } from "../utils/fingerprint.ts"
 import { Scope, evidenceOf } from "./annotation.ts"
 import { Discovery, Match, type QueryInvalid } from "./Discovery.ts"
 import { Held, Papers } from "./Papers.ts"

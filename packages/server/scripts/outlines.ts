@@ -18,9 +18,9 @@ import { Config, Duration, Effect, Layer, Redacted, Schema } from "effect"
 import { FetchHttpClient, HttpClient, HttpClientRequest, HttpClientResponse } from "effect/http"
 import { SqlClient } from "effect/sql"
 
-import { tables } from "../src/Catalog.ts"
-import { Outlines } from "../src/Outlines.ts"
-import { fill, Structures } from "../src/Structures.ts"
+import { tables } from "../src/catalog/Catalog.ts"
+import { Outlines } from "../src/series/Outlines.ts"
+import { fill, Structures } from "../src/sources/sdmx/Structures.ts"
 import { d1 } from "./d1.ts"
 
 const Profile = Schema.fromJsonString(

@@ -4,5 +4,5 @@
     "lib": ["es2024", "dom"],
     "resolveJsonModule": true
   },
-  "include": ["src", "test", "eval", "vitest.config.ts", "vitest.eval.config.ts"]
+  "include": ["src", "eval", "vitest.config.ts", "vitest.eval.config.ts"]
 }

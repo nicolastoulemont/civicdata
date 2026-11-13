@@ -75,7 +75,7 @@ export default Alchemy.Stack(
     const catalog = `${prefix}-catalog`
 
     // Only production runs its Workflows on a schedule. Every stage paces
-    // its own requests (packages/server/src/Pace.ts), so each scheduled
+    // its own requests (packages/server/src/platform/Pace.ts), so each scheduled
     // stage adds a full stage's traffic against the publishers. Another
     // stage with its own catalog builds once after each deploy, which CI
     // starts, and gathers only when someone starts a run
@@ -115,7 +115,7 @@ export default Alchemy.Stack(
         // papers and annotate them. A stage with its own catalog needs them even
         // unscheduled: only a Workflow writes its tables and buckets, and a
         // build refuses to run in a Worker that binds the catalog's or the
-        // gather's alone (`database` in packages/server/src/CatalogBuild.ts).
+        // gather's alone (`database` in packages/server/src/platform/built.ts).
         workflows: Option.some({
           // Builds the indicator catalog, in production every Monday at
           // 04:00 UTC: a native Workflow schedule, no Cron Trigger. CI starts

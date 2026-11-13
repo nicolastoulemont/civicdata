@@ -69,7 +69,7 @@ const matchOf = (text: string) =>
 // A reference list cites titles that share a query's words without being
 // about them. It reads as dense citations: author initials, years followed
 // by a title, volumes with issues, page numbers and DOIs. Measured on the 502
-// labelled passages of the corpus fixture in test/fixtures/papers, this
+// labelled passages of the corpus fixture in src/tests/fixtures/papers, this
 // finds 34 of the 42 reference passages and 6 of the 460 others, mostly
 // tables and title pages.
 const citations = [

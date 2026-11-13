@@ -41,7 +41,7 @@ is shown as missing, never as an assertion that the paper has no limitations.
 
 ## Legacy findings, reviewed by hand
 
-`findings.json` holds the findings the agent may cite when it says why a figure moved. `Findings.ts` decodes it with the domain's `Finding` schema and `find_research` reads it. Nothing here is fetched at runtime.
+`assets/findings.json` holds the findings the agent may cite when it says why a figure moved. `Findings.ts` decodes it with the domain's `Finding` schema and `find_research` reads it. Nothing here is fetched at runtime.
 
 A finding is one research result, in our own words, with the studies behind it:
 

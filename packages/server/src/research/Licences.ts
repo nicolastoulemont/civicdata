@@ -1,10 +1,10 @@
 import { Clock, Context, Effect, Layer, Option, Schema } from "effect"
 import { HttpClient } from "effect/http"
 
-import { fingerprint } from "../fingerprint.ts"
+import { fingerprint } from "../utils/fingerprint.ts"
 import { type Copy, Evidence, Licence, PaperUnavailable } from "./archive.ts"
-import { metaOf } from "./html.ts"
-import { bodyOf, briefOf } from "./http.ts"
+import { metaOf } from "./utils/html.ts"
+import { bodyOf, briefOf } from "./utils/http.ts"
 
 export const licenceOf = (value: string) => {
   const canonical = value

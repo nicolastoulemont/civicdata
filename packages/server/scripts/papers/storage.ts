@@ -1,8 +1,8 @@
 import { Context, Effect, Layer, Option, Schema } from "effect"
 import { FileSystem } from "effect/FileSystem"
 
-import { fingerprint } from "../../src/fingerprint.ts"
 import { Content, Paper, PaperUnavailable, type Seed } from "../../src/research/archive.ts"
+import { fingerprint } from "../../src/utils/fingerprint.ts"
 
 interface Interface {
   readonly read: (seed: Seed) => Effect.Effect<Option.Option<Paper>, PaperUnavailable>

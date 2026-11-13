@@ -4,7 +4,7 @@ import { expect, it } from "@effect/vitest"
 import { Effect, Layer, Stream } from "effect"
 import { FetchHttpClient } from "effect/http"
 
-import { asti, FaostatArchive } from "../src/Faostat.ts"
+import { asti, FaostatArchive } from "../src/sources/Faostat.ts"
 import { faoArchive } from "./faostat-archive.ts"
 
 const { archiveUrl, manifestUrl, versionOf } = asti

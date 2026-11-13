@@ -3,8 +3,8 @@ import { HttpClient, HttpClientResponse } from "effect/http"
 import { getDomain } from "tldts"
 
 import { Copy, Https, PaperUnavailable, type Seed, Work } from "./archive.ts"
-import { metaOf } from "./html.ts"
-import { bodyOf, briefOf } from "./http.ts"
+import { metaOf } from "./utils/html.ts"
+import { bodyOf, briefOf } from "./utils/http.ts"
 import {
   type Article,
   articleOf,

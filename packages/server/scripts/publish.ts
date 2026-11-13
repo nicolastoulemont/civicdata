@@ -7,7 +7,7 @@ import { parseArgs } from "node:util"
 import { NodeFileSystem } from "@effect/platform-node"
 import { Config, Console, Effect, Layer, Schema } from "effect"
 
-import * as Fetch from "../src/Fetch.ts"
+import * as Fetch from "../src/platform/Fetch.ts"
 import { Bucket } from "../src/research/Bucket.ts"
 import { withdraw } from "../src/research/publication.ts"
 import { Withdrawal } from "../src/research/store.ts"

@@ -21,8 +21,8 @@ import {
 import { FetchHttpClient } from "effect/http"
 import { SqlClient, SqlSchema } from "effect/sql"
 
-import { Step, type StepFailed } from "../CatalogBuild.ts"
-import { fingerprint } from "../fingerprint.ts"
+import { Step, type StepFailed } from "../platform/Step.ts"
+import { fingerprint } from "../utils/fingerprint.ts"
 import {
   Classification,
   complete,

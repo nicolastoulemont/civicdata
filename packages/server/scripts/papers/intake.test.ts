@@ -2,7 +2,7 @@ import { expect, it } from "@effect/vitest"
 import { Effect } from "effect"
 
 import { Content, PaperUnavailable } from "../../src/research/archive.ts"
-import { pdf } from "../../test/pdf.ts"
+import { pdf } from "../../src/research/tests/pdf.ts"
 import { intake, Source } from "./intake.ts"
 import { recorded, work } from "./testing.ts"
 

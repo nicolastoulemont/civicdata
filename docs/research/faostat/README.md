@@ -45,7 +45,7 @@ Read-only retrieval on 11 November 2026:
   annual questionnaire and national agricultural R&D aggregates.
 - [UN M49 country/area table](https://unstats.un.org/unsd/methodology/m49/overview/):
   the FAO area dictionary's M49 codes were joined to the UN country/area rows'
-  ISO alpha-3 codes. `packages/server/src/faostat.json` records every AE area,
+  ISO alpha-3 codes. `packages/server/src/sources/assets/faostat.json` records every AE area,
   its original code, label and M49 code, and an explicit country or null exclusion.
   The adapter also requires the app's supported Country. No numeric code range
   implies national status. FAO China (M49 159) and China, mainland (156) are both

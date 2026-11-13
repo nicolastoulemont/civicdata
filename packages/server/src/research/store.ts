@@ -2,7 +2,7 @@ import { Withdrawal } from "@repo/domain"
 import { Effect, Schema, Struct } from "effect"
 import { SqlClient } from "effect/sql"
 
-import { fingerprint } from "../fingerprint.ts"
+import { fingerprint } from "../utils/fingerprint.ts"
 import { Annotation } from "./annotation.ts"
 import { Content, Digest, Evidence, Copy as Location, Passage, Seed, Work } from "./archive.ts"
 

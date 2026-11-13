@@ -5,7 +5,7 @@
 import { Array as Arr, Data, Effect, Option, Schema } from "effect"
 import { SqlClient, type SqlError } from "effect/sql"
 
-import { fingerprint } from "../fingerprint.ts"
+import { fingerprint } from "../utils/fingerprint.ts"
 import type { Annotation } from "./annotation.ts"
 import { Attempt, Content, Copy, Evidence, type Paper, Seed, Work } from "./archive.ts"
 import { Bucket, type BucketUnavailable } from "./Bucket.ts"

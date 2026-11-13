@@ -1,7 +1,6 @@
 import { Clock, Context, Effect, Layer, Option, Schema } from "effect"
 import { FileSystem } from "effect/FileSystem"
 
-import { fingerprint } from "../../src/fingerprint.ts"
 import {
   Annotation,
   complete,
@@ -16,6 +15,7 @@ import {
 import { Annotator } from "../../src/research/Annotator.ts"
 import { Content, Paper } from "../../src/research/archive.ts"
 import { Document, type Entry } from "../../src/research/entry.ts"
+import { fingerprint } from "../../src/utils/fingerprint.ts"
 import { Folder } from "./storage.ts"
 
 const Scoped = Schema.Struct({ stamp: Stamp, scope: Scope })

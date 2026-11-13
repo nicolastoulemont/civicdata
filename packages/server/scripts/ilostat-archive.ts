@@ -17,8 +17,8 @@ import {
   record,
   tocUrl,
   versionOf,
-} from "../src/Ilostat.ts"
-import { table } from "../src/Table.ts"
+} from "../src/sources/Ilostat.ts"
+import { table } from "../src/utils/Table.ts"
 import { scratch, sortRows, series } from "./series.ts"
 
 const unavailable = () => new SourceUnavailable({ source: "ILOSTAT" })

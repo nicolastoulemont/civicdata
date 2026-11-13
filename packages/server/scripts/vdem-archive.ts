@@ -9,7 +9,7 @@ import { SourceUnavailable } from "@repo/domain"
 import { Config, DateTime, Effect, Layer, Schema, Stream } from "effect"
 import { HttpClient } from "effect/http"
 
-import { polyarchy, VdemArchive } from "../src/Vdem.ts"
+import { polyarchy, VdemArchive } from "../src/sources/Vdem.ts"
 import { jsonRows, scratch, series, sortRows } from "./series.ts"
 
 const unavailable = () => new SourceUnavailable({ source: "V-Dem" })
