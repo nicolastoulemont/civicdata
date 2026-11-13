@@ -1,0 +1,762 @@
+{
+  "stamp": {
+    "rubric": "research-2",
+    "model": "gpt-6-luna",
+    "input": "c43acb4dcba25fc7c4fae070d100c92d9926ae40ab5bbdae46e1a44bff8b8e22",
+    "createdAt": "2026-11-12T15:54:27.471Z"
+  },
+  "scope": {
+    "findings": [
+      {
+        "page": 23,
+        "quote": "As we are pooling two years of EU-SILC data in order to achieve a greater sample size and increase the precision of the estimates, the time period relates to 2016 and 2017.8 For Ireland, we calculate the incidence of minimum wage employment for this period at 9.6 per cent."
+      },
+      {
+        "page": 23,
+        "quote": "Countries with a relatively high incidence of minimum wage employment include Portugal (15.6%), Germany (15.1%), Poland (14.8%), Hungary (14.2%), Spain (14.0%), United Kingdom (13.6%), Luxembourg (13.0%) and Estonia (10.7%)."
+      },
+      {
+        "page": 42,
+        "quote": "Table 6 shows the results from the probit model that pools data from all countries and includes country fixed effects.13 Controlling for other factors, males are three percentage points less likely to be on the minimum wage compared to females."
+      },
+      {
+        "page": 45,
+        "quote": "In the majority of countries (9 out of 14), non-nationals are more likely to be on the minimum wage than nationals, with estimates ranging from one percentage point in Belgium to nine percentage points in Estonia and Spain."
+      },
+      {
+        "page": 45,
+        "quote": "The sector of work, particularly accommodation and food, is a strong predictor of minimum wage employment."
+      },
+      {
+        "page": 49,
+        "quote": "We see that, in all countries, the percentage of employees that report being satisfied with their job is lower among minimum wage employees compared to higher-paid employees."
+      },
+      {
+        "page": 51,
+        "quote": "In most (9 out of 14) countries, minimum wage employees are statistically significantly less likely to be satisfied in their job compared to higher-paid workers."
+      },
+      {
+        "page": 56,
+        "quote": "Results from the pooled model, including all 14 countries, are reported in Table 10 and indicate that, after controlling for other worker and job characteristics, minimum wage employees are 14 percentage points more likely to belong"
+      }
+    ],
+    "countries": [
+      {
+        "code": "IRL",
+        "evidence": {
+          "page": 20,
+          "quote": "The selection of countries we consider in this paper includes the top eight countries in terms of both nominal and PPS minimum wages shown in Figure 1: Ireland (IE), Belgium (BE), Germany (DE), Spain (ES), France (FR), Luxembourg (LU), the Netherlands (NL) and the United Kingdom (UK), as well as a selection of some of the lower-wage countries: Estonia (EE), Greece (EL), Hungary (HU), Latvia (LV), Poland (PL) and Portugal (PT)."
+        }
+      },
+      {
+        "code": "BEL",
+        "evidence": {
+          "page": 20,
+          "quote": "The selection of countries we consider in this paper includes the top eight countries in terms of both nominal and PPS minimum wages shown in Figure 1: Ireland (IE), Belgium (BE), Germany (DE), Spain (ES), France (FR), Luxembourg (LU), the Netherlands (NL) and the United Kingdom (UK), as well as a selection of some of the lower-wage countries: Estonia (EE), Greece (EL), Hungary (HU), Latvia (LV), Poland (PL) and Portugal (PT)."
+        }
+      },
+      {
+        "code": "DEU",
+        "evidence": {
+          "page": 20,
+          "quote": "The selection of countries we consider in this paper includes the top eight countries in terms of both nominal and PPS minimum wages shown in Figure 1: Ireland (IE), Belgium (BE), Germany (DE), Spain (ES), France (FR), Luxembourg (LU), the Netherlands (NL) and the United Kingdom (UK), as well as a selection of some of the lower-wage countries: Estonia (EE), Greece (EL), Hungary (HU), Latvia (LV), Poland (PL) and Portugal (PT)."
+        }
+      },
+      {
+        "code": "ESP",
+        "evidence": {
+          "page": 20,
+          "quote": "The selection of countries we consider in this paper includes the top eight countries in terms of both nominal and PPS minimum wages shown in Figure 1: Ireland (IE), Belgium (BE), Germany (DE), Spain (ES), France (FR), Luxembourg (LU), the Netherlands (NL) and the United Kingdom (UK), as well as a selection of some of the lower-wage countries: Estonia (EE), Greece (EL), Hungary (HU), Latvia (LV), Poland (PL) and Portugal (PT)."
+        }
+      },
+      {
+        "code": "FRA",
+        "evidence": {
+          "page": 20,
+          "quote": "The selection of countries we consider in this paper includes the top eight countries in terms of both nominal and PPS minimum wages shown in Figure 1: Ireland (IE), Belgium (BE), Germany (DE), Spain (ES), France (FR), Luxembourg (LU), the Netherlands (NL) and the United Kingdom (UK), as well as a selection of some of the lower-wage countries: Estonia (EE), Greece (EL), Hungary (HU), Latvia (LV), Poland (PL) and Portugal (PT)."
+        }
+      },
+      {
+        "code": "LUX",
+        "evidence": {
+          "page": 20,
+          "quote": "The selection of countries we consider in this paper includes the top eight countries in terms of both nominal and PPS minimum wages shown in Figure 1: Ireland (IE), Belgium (BE), Germany (DE), Spain (ES), France (FR), Luxembourg (LU), the Netherlands (NL) and the United Kingdom (UK), as well as a selection of some of the lower-wage countries: Estonia (EE), Greece (EL), Hungary (HU), Latvia (LV), Poland (PL) and Portugal (PT)."
+        }
+      },
+      {
+        "code": "NLD",
+        "evidence": {
+          "page": 20,
+          "quote": "The selection of countries we consider in this paper includes the top eight countries in terms of both nominal and PPS minimum wages shown in Figure 1: Ireland (IE), Belgium (BE), Germany (DE), Spain (ES), France (FR), Luxembourg (LU), the Netherlands (NL) and the United Kingdom (UK), as well as a selection of some of the lower-wage countries: Estonia (EE), Greece (EL), Hungary (HU), Latvia (LV), Poland (PL) and Portugal (PT)."
+        }
+      },
+      {
+        "code": "GBR",
+        "evidence": {
+          "page": 20,
+          "quote": "The selection of countries we consider in this paper includes the top eight countries in terms of both nominal and PPS minimum wages shown in Figure 1: Ireland (IE), Belgium (BE), Germany (DE), Spain (ES), France (FR), Luxembourg (LU), the Netherlands (NL) and the United Kingdom (UK), as well as a selection of some of the lower-wage countries: Estonia (EE), Greece (EL), Hungary (HU), Latvia (LV), Poland (PL) and Portugal (PT)."
+        }
+      },
+      {
+        "code": "EST",
+        "evidence": {
+          "page": 20,
+          "quote": "The selection of countries we consider in this paper includes the top eight countries in terms of both nominal and PPS minimum wages shown in Figure 1: Ireland (IE), Belgium (BE), Germany (DE), Spain (ES), France (FR), Luxembourg (LU), the Netherlands (NL) and the United Kingdom (UK), as well as a selection of some of the lower-wage countries: Estonia (EE), Greece (EL), Hungary (HU), Latvia (LV), Poland (PL) and Portugal (PT)."
+        }
+      },
+      {
+        "code": "GRC",
+        "evidence": {
+          "page": 20,
+          "quote": "The selection of countries we consider in this paper includes the top eight countries in terms of both nominal and PPS minimum wages shown in Figure 1: Ireland (IE), Belgium (BE), Germany (DE), Spain (ES), France (FR), Luxembourg (LU), the Netherlands (NL) and the United Kingdom (UK), as well as a selection of some of the lower-wage countries: Estonia (EE), Greece (EL), Hungary (HU), Latvia (LV), Poland (PL) and Portugal (PT)."
+        }
+      },
+      {
+        "code": "HUN",
+        "evidence": {
+          "page": 20,
+          "quote": "The selection of countries we consider in this paper includes the top eight countries in terms of both nominal and PPS minimum wages shown in Figure 1: Ireland (IE), Belgium (BE), Germany (DE), Spain (ES), France (FR), Luxembourg (LU), the Netherlands (NL) and the United Kingdom (UK), as well as a selection of some of the lower-wage countries: Estonia (EE), Greece (EL), Hungary (HU), Latvia (LV), Poland (PL) and Portugal (PT)."
+        }
+      },
+      {
+        "code": "LVA",
+        "evidence": {
+          "page": 20,
+          "quote": "The selection of countries we consider in this paper includes the top eight countries in terms of both nominal and PPS minimum wages shown in Figure 1: Ireland (IE), Belgium (BE), Germany (DE), Spain (ES), France (FR), Luxembourg (LU), the Netherlands (NL) and the United Kingdom (UK), as well as a selection of some of the lower-wage countries: Estonia (EE), Greece (EL), Hungary (HU), Latvia (LV), Poland (PL) and Portugal (PT)."
+        }
+      },
+      {
+        "code": "POL",
+        "evidence": {
+          "page": 20,
+          "quote": "The selection of countries we consider in this paper includes the top eight countries in terms of both nominal and PPS minimum wages shown in Figure 1: Ireland (IE), Belgium (BE), Germany (DE), Spain (ES), France (FR), Luxembourg (LU), the Netherlands (NL) and the United Kingdom (UK), as well as a selection of some of the lower-wage countries: Estonia (EE), Greece (EL), Hungary (HU), Latvia (LV), Poland (PL) and Portugal (PT)."
+        }
+      },
+      {
+        "code": "PRT",
+        "evidence": {
+          "page": 20,
+          "quote": "The selection of countries we consider in this paper includes the top eight countries in terms of both nominal and PPS minimum wages shown in Figure 1: Ireland (IE), Belgium (BE), Germany (DE), Spain (ES), France (FR), Luxembourg (LU), the Netherlands (NL) and the United Kingdom (UK), as well as a selection of some of the lower-wage countries: Estonia (EE), Greece (EL), Hungary (HU), Latvia (LV), Poland (PL) and Portugal (PT)."
+        }
+      }
+    ],
+    "regions": [],
+    "periods": [
+      {
+        "from": 2016,
+        "to": 2017,
+        "evidence": {
+          "page": 23,
+          "quote": "As we are pooling two years of EU-SILC data in order to achieve a greater sample size and increase the precision of the estimates, the time period relates to 2016 and 2017.8 For Ireland, we calculate the incidence of minimum wage employment for this period at 9.6 per cent."
+        }
+      },
+      {
+        "from": 2018,
+        "to": 2018,
+        "evidence": {
+          "page": 49,
+          "quote": "46 | Comparative Assessment of Minimum Wage Employment in Europe (0.02) (0.02) (0.08) (0.01) (0.01) (0.01) (0.02) Part-time 0.04** 0.00 0.07*** 0.01*** 0.05*** 0.07*** 0.08*** (0.02) (0.01) (0.02) (0.00) (0.01) (0.02) (0.01) Observations 9,260 7,392 7,645 8,223 16,930 19,525 12,359 Notes: Standard errors in parentheses . *** p<0.01, ** p<0.05, * p<0.1 Data source: EU-SILC UDB 2017-2018, version of 20/03/2020. 4.2 JOB SATISFACTION We use a question on job satisfaction in the EU-SILC 2018 data to analyse whether minimum wage employees are more, or less, satisfied with their job compared to higher-paid employees."
+        }
+      }
+    ],
+    "design": {
+      "_tag": "Association",
+      "evidence": {
+        "page": 42,
+        "quote": "We estimate the probit model for the pooled sample of countries, including country dummies in order to control for any country-specific factors that may influence the probability of minimum wage employment."
+      }
+    }
+  },
+  "labels": [
+    {
+      "page": 1,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.93
+    },
+    {
+      "page": 2,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.89
+    },
+    {
+      "page": 4,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.93
+    },
+    {
+      "page": 4,
+      "part": 1,
+      "category": "Other",
+      "confidence": 0.81
+    },
+    {
+      "page": 5,
+      "part": 0,
+      "category": "Other",
+      "confidence": 1
+    },
+    {
+      "page": 6,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.97
+    },
+    {
+      "page": 8,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.85
+    },
+    {
+      "page": 10,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.45
+    },
+    {
+      "page": 10,
+      "part": 1,
+      "category": "Association",
+      "confidence": 0.94
+    },
+    {
+      "page": 11,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.44
+    },
+    {
+      "page": 11,
+      "part": 1,
+      "category": "Description",
+      "confidence": 0.58
+    },
+    {
+      "page": 12,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.71
+    },
+    {
+      "page": 14,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.41
+    },
+    {
+      "page": 14,
+      "part": 1,
+      "category": "Background",
+      "confidence": 0.95
+    },
+    {
+      "page": 15,
+      "part": 0,
+      "category": "Method",
+      "confidence": 0.43
+    },
+    {
+      "page": 15,
+      "part": 1,
+      "category": "Other",
+      "confidence": 0.59
+    },
+    {
+      "page": 16,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.33
+    },
+    {
+      "page": 16,
+      "part": 1,
+      "category": "Method",
+      "confidence": 0.62
+    },
+    {
+      "page": 18,
+      "part": 0,
+      "category": "Background",
+      "confidence": 0.74
+    },
+    {
+      "page": 19,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.43
+    },
+    {
+      "page": 20,
+      "part": 0,
+      "category": "Method",
+      "confidence": 0.78
+    },
+    {
+      "page": 20,
+      "part": 1,
+      "category": "Background",
+      "confidence": 0.9
+    },
+    {
+      "page": 21,
+      "part": 0,
+      "category": "Method",
+      "confidence": 0.63
+    },
+    {
+      "page": 21,
+      "part": 1,
+      "category": "Method",
+      "confidence": 0.63
+    },
+    {
+      "page": 22,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.55
+    },
+    {
+      "page": 22,
+      "part": 1,
+      "category": "Limitation",
+      "confidence": 0.31
+    },
+    {
+      "page": 23,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.53
+    },
+    {
+      "page": 23,
+      "part": 1,
+      "category": "Description",
+      "confidence": 0.92
+    },
+    {
+      "page": 24,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.54
+    },
+    {
+      "page": 24,
+      "part": 1,
+      "category": "Description",
+      "confidence": 0.37
+    },
+    {
+      "page": 25,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.47
+    },
+    {
+      "page": 26,
+      "part": 0,
+      "category": "Method",
+      "confidence": 0.58
+    },
+    {
+      "page": 27,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.99
+    },
+    {
+      "page": 27,
+      "part": 1,
+      "category": "Description",
+      "confidence": 0.44
+    },
+    {
+      "page": 28,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.94
+    },
+    {
+      "page": 28,
+      "part": 1,
+      "category": "Description",
+      "confidence": 0.84
+    },
+    {
+      "page": 29,
+      "part": 0,
+      "category": "Description",
+      "confidence": 1
+    },
+    {
+      "page": 30,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.71
+    },
+    {
+      "page": 30,
+      "part": 1,
+      "category": "Description",
+      "confidence": 0.54
+    },
+    {
+      "page": 31,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.45
+    },
+    {
+      "page": 31,
+      "part": 1,
+      "category": "Description",
+      "confidence": 0.81
+    },
+    {
+      "page": 32,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.58
+    },
+    {
+      "page": 32,
+      "part": 1,
+      "category": "Other",
+      "confidence": 0.66
+    },
+    {
+      "page": 33,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.76
+    },
+    {
+      "page": 33,
+      "part": 1,
+      "category": "Other",
+      "confidence": 0.74
+    },
+    {
+      "page": 34,
+      "part": 0,
+      "category": "Description",
+      "confidence": 1
+    },
+    {
+      "page": 34,
+      "part": 1,
+      "category": "Description",
+      "confidence": 0.94
+    },
+    {
+      "page": 35,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.81
+    },
+    {
+      "page": 36,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.68
+    },
+    {
+      "page": 37,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.97
+    },
+    {
+      "page": 37,
+      "part": 1,
+      "category": "Description",
+      "confidence": 0.9
+    },
+    {
+      "page": 38,
+      "part": 0,
+      "category": "Background",
+      "confidence": 0.3
+    },
+    {
+      "page": 39,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.81
+    },
+    {
+      "page": 40,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.63
+    },
+    {
+      "page": 42,
+      "part": 0,
+      "category": "Association",
+      "confidence": 0.9
+    },
+    {
+      "page": 42,
+      "part": 1,
+      "category": "Association",
+      "confidence": 0.99
+    },
+    {
+      "page": 43,
+      "part": 0,
+      "category": "Association",
+      "confidence": 0.9
+    },
+    {
+      "page": 44,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.54
+    },
+    {
+      "page": 44,
+      "part": 1,
+      "category": "Association",
+      "confidence": 0.93
+    },
+    {
+      "page": 45,
+      "part": 0,
+      "category": "Association",
+      "confidence": 0.97
+    },
+    {
+      "page": 46,
+      "part": 0,
+      "category": "Association",
+      "confidence": 0.66
+    },
+    {
+      "page": 47,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.37
+    },
+    {
+      "page": 48,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.43
+    },
+    {
+      "page": 49,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.53
+    },
+    {
+      "page": 49,
+      "part": 1,
+      "category": "Limitation",
+      "confidence": 0.41
+    },
+    {
+      "page": 50,
+      "part": 0,
+      "category": "Association",
+      "confidence": 0.7
+    },
+    {
+      "page": 51,
+      "part": 0,
+      "category": "Association",
+      "confidence": 0.95
+    },
+    {
+      "page": 51,
+      "part": 1,
+      "category": "Association",
+      "confidence": 1
+    },
+    {
+      "page": 52,
+      "part": 0,
+      "category": "Association",
+      "confidence": 0.97
+    },
+    {
+      "page": 53,
+      "part": 0,
+      "category": "Association",
+      "confidence": 0.81
+    },
+    {
+      "page": 54,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.38
+    },
+    {
+      "page": 55,
+      "part": 0,
+      "category": "Association",
+      "confidence": 0.62
+    },
+    {
+      "page": 56,
+      "part": 0,
+      "category": "Association",
+      "confidence": 0.49
+    },
+    {
+      "page": 56,
+      "part": 1,
+      "category": "Association",
+      "confidence": 1
+    },
+    {
+      "page": 57,
+      "part": 0,
+      "category": "Association",
+      "confidence": 0.98
+    },
+    {
+      "page": 58,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.61
+    },
+    {
+      "page": 59,
+      "part": 0,
+      "category": "Association",
+      "confidence": 0.78
+    },
+    {
+      "page": 59,
+      "part": 1,
+      "category": "Association",
+      "confidence": 0.62
+    },
+    {
+      "page": 60,
+      "part": 0,
+      "category": "Association",
+      "confidence": 0.78
+    },
+    {
+      "page": 61,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.47
+    },
+    {
+      "page": 62,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.89
+    },
+    {
+      "page": 62,
+      "part": 1,
+      "category": "Description",
+      "confidence": 0.55
+    },
+    {
+      "page": 63,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.58
+    },
+    {
+      "page": 63,
+      "part": 1,
+      "category": "Description",
+      "confidence": 0.74
+    },
+    {
+      "page": 64,
+      "part": 0,
+      "category": "Reference",
+      "confidence": 1
+    },
+    {
+      "page": 66,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.55
+    },
+    {
+      "page": 67,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.78
+    },
+    {
+      "page": 68,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.95
+    },
+    {
+      "page": 69,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.84
+    },
+    {
+      "page": 70,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.91
+    }
+  ],
+  "results": [
+    {
+      "page": 23,
+      "quote": "As we are pooling two years of EU-SILC data in order to achieve a greater sample size and increase the precision of the estimates, the time period relates to 2016 and 2017.8 For Ireland, we calculate the incidence of minimum wage employment for this period at 9.6 per cent.",
+      "category": "Description",
+      "confidence": 0.99
+    },
+    {
+      "page": 23,
+      "quote": "Countries with a relatively high incidence of minimum wage employment include Portugal (15.6%), Germany (15.1%), Poland (14.8%), Hungary (14.2%), Spain (14.0%), United Kingdom (13.6%), Luxembourg (13.0%) and Estonia (10.7%).",
+      "category": "Description",
+      "confidence": 1
+    },
+    {
+      "page": 42,
+      "quote": "Table 6 shows the results from the probit model that pools data from all countries and includes country fixed effects.13 Controlling for other factors, males are three percentage points less likely to be on the minimum wage compared to females.",
+      "category": "Association",
+      "confidence": 1
+    },
+    {
+      "page": 45,
+      "quote": "In the majority of countries (9 out of 14), non-nationals are more likely to be on the minimum wage than nationals, with estimates ranging from one percentage point in Belgium to nine percentage points in Estonia and Spain.",
+      "category": "Association",
+      "confidence": 0.99
+    },
+    {
+      "page": 45,
+      "quote": "The sector of work, particularly accommodation and food, is a strong predictor of minimum wage employment.",
+      "category": "Association",
+      "confidence": 0.98
+    },
+    {
+      "page": 49,
+      "quote": "We see that, in all countries, the percentage of employees that report being satisfied with their job is lower among minimum wage employees compared to higher-paid employees.",
+      "category": "Description",
+      "confidence": 1
+    },
+    {
+      "page": 51,
+      "quote": "In most (9 out of 14) countries, minimum wage employees are statistically significantly less likely to be satisfied in their job compared to higher-paid workers.",
+      "category": "Association",
+      "confidence": 0.74
+    },
+    {
+      "page": 56,
+      "quote": "Results from the pooled model, including all 14 countries, are reported in Table 10 and indicate that, after controlling for other worker and job characteristics, minimum wage employees are 14 percentage points more likely to belong",
+      "category": "Association",
+      "confidence": 1
+    }
+  ]
+}

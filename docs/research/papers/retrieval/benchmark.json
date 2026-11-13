@@ -1,0 +1,344 @@
+{
+  "documents": 3,
+  "passages": 186,
+  "classification": [
+    {
+      "split": "Calibration",
+      "count": 6,
+      "correct": 6,
+      "acceptedAtThreshold": [
+        {
+          "threshold": 0.8,
+          "count": 5,
+          "correct": 5
+        },
+        {
+          "threshold": 0.9,
+          "count": 4,
+          "correct": 4
+        },
+        {
+          "threshold": 0.95,
+          "count": 2,
+          "correct": 2
+        }
+      ]
+    },
+    {
+      "split": "Holdout",
+      "count": 6,
+      "correct": 5,
+      "acceptedAtThreshold": [
+        {
+          "threshold": 0.8,
+          "count": 3,
+          "correct": 3
+        },
+        {
+          "threshold": 0.9,
+          "count": 3,
+          "correct": 3
+        },
+        {
+          "threshold": 0.95,
+          "count": 2,
+          "correct": 2
+        }
+      ]
+    }
+  ],
+  "acceptedLabelErrors": 0,
+  "labels": [
+    {
+      "paper": "044ad0ae7f444c988bdd489fc29ebc822fec116a1c16e06cf28f53b2710af8b4",
+      "page": 64,
+      "part": 0,
+      "category": "Reference",
+      "split": "Calibration",
+      "predicted": "Reference",
+      "confidence": 1,
+      "correct": true
+    },
+    {
+      "paper": "044ad0ae7f444c988bdd489fc29ebc822fec116a1c16e06cf28f53b2710af8b4",
+      "page": 20,
+      "part": 0,
+      "category": "Method",
+      "split": "Calibration",
+      "predicted": "Method",
+      "confidence": 0.78,
+      "correct": true
+    },
+    {
+      "paper": "424e4d77864c4923223882924712acd717b8b1a5878c824ad82871715e53a894",
+      "page": 13,
+      "part": 0,
+      "category": "Method",
+      "split": "Calibration",
+      "predicted": "Method",
+      "confidence": 0.97,
+      "correct": true
+    },
+    {
+      "paper": "424e4d77864c4923223882924712acd717b8b1a5878c824ad82871715e53a894",
+      "page": 8,
+      "part": 1,
+      "category": "Description",
+      "split": "Calibration",
+      "predicted": "Description",
+      "confidence": 0.93,
+      "correct": true
+    },
+    {
+      "paper": "fd99324201ce47ed2e4e9602659de79d1aa051908c3207c0b0d6448ce4729f91",
+      "page": 5,
+      "part": 1,
+      "category": "Background",
+      "split": "Calibration",
+      "predicted": "Background",
+      "confidence": 0.91,
+      "correct": true
+    },
+    {
+      "paper": "fd99324201ce47ed2e4e9602659de79d1aa051908c3207c0b0d6448ce4729f91",
+      "page": 6,
+      "part": 1,
+      "category": "Method",
+      "split": "Calibration",
+      "predicted": "Method",
+      "confidence": 0.84,
+      "correct": true
+    },
+    {
+      "paper": "044ad0ae7f444c988bdd489fc29ebc822fec116a1c16e06cf28f53b2710af8b4",
+      "page": 10,
+      "part": 1,
+      "category": "Association",
+      "split": "Holdout",
+      "predicted": "Association",
+      "confidence": 0.94,
+      "correct": true
+    },
+    {
+      "paper": "044ad0ae7f444c988bdd489fc29ebc822fec116a1c16e06cf28f53b2710af8b4",
+      "page": 22,
+      "part": 0,
+      "category": "Limitation",
+      "split": "Holdout",
+      "predicted": "Other",
+      "confidence": 0.55,
+      "correct": false
+    },
+    {
+      "paper": "424e4d77864c4923223882924712acd717b8b1a5878c824ad82871715e53a894",
+      "page": 40,
+      "part": 1,
+      "category": "Description",
+      "split": "Holdout",
+      "predicted": "Description",
+      "confidence": 0.95,
+      "correct": true
+    },
+    {
+      "paper": "424e4d77864c4923223882924712acd717b8b1a5878c824ad82871715e53a894",
+      "page": 41,
+      "part": 1,
+      "category": "Limitation",
+      "split": "Holdout",
+      "predicted": "Limitation",
+      "confidence": 0.41,
+      "correct": true
+    },
+    {
+      "paper": "424e4d77864c4923223882924712acd717b8b1a5878c824ad82871715e53a894",
+      "page": 42,
+      "part": 0,
+      "category": "Reference",
+      "split": "Holdout",
+      "predicted": "Reference",
+      "confidence": 1,
+      "correct": true
+    },
+    {
+      "paper": "fd99324201ce47ed2e4e9602659de79d1aa051908c3207c0b0d6448ce4729f91",
+      "page": 4,
+      "part": 1,
+      "category": "Association",
+      "split": "Holdout",
+      "predicted": "Association",
+      "confidence": 0.42,
+      "correct": true
+    }
+  ],
+  "retrieval": {
+    "total": 14,
+    "correct": 14,
+    "falsePositives": 0,
+    "answers": [
+      {
+        "text": "minimum wage incidence Ireland",
+        "expected": [
+          "044ad0ae7f444c988bdd489fc29ebc822fec116a1c16e06cf28f53b2710af8b4",
+          "424e4d77864c4923223882924712acd717b8b1a5878c824ad82871715e53a894"
+        ],
+        "status": "Passages",
+        "matches": [
+          {
+            "paper": "424e4d77864c4923223882924712acd717b8b1a5878c824ad82871715e53a894",
+            "page": 21,
+            "part": null,
+            "category": "Description",
+            "url": "https://www.esri.ie/pubs/RS209.pdf#page=21"
+          },
+          {
+            "paper": "044ad0ae7f444c988bdd489fc29ebc822fec116a1c16e06cf28f53b2710af8b4",
+            "page": 23,
+            "part": null,
+            "category": "Description",
+            "url": "https://www.esri.ie/pubs/RS123.pdf#page=23"
+          }
+        ],
+        "correct": true
+      },
+      {
+        "text": "minimum wage job satisfaction",
+        "expected": ["044ad0ae7f444c988bdd489fc29ebc822fec116a1c16e06cf28f53b2710af8b4"],
+        "status": "Passages",
+        "matches": [
+          {
+            "paper": "044ad0ae7f444c988bdd489fc29ebc822fec116a1c16e06cf28f53b2710af8b4",
+            "page": 68,
+            "part": 0,
+            "category": "Description",
+            "url": "https://www.esri.ie/pubs/RS123.pdf#page=68"
+          }
+        ],
+        "correct": true
+      },
+      {
+        "text": "online vacancies Ireland skills",
+        "expected": ["424e4d77864c4923223882924712acd717b8b1a5878c824ad82871715e53a894"],
+        "status": "Passages",
+        "matches": [
+          {
+            "paper": "424e4d77864c4923223882924712acd717b8b1a5878c824ad82871715e53a894",
+            "page": 40,
+            "part": 0,
+            "category": "Description",
+            "url": "https://www.esri.ie/pubs/RS209.pdf#page=40"
+          }
+        ],
+        "correct": true
+      },
+      {
+        "text": "minimum wage experience requirements",
+        "expected": ["424e4d77864c4923223882924712acd717b8b1a5878c824ad82871715e53a894"],
+        "status": "Passages",
+        "matches": [
+          {
+            "paper": "424e4d77864c4923223882924712acd717b8b1a5878c824ad82871715e53a894",
+            "page": 40,
+            "part": 1,
+            "category": "Description",
+            "url": "https://www.esri.ie/pubs/RS209.pdf#page=40"
+          }
+        ],
+        "correct": true
+      },
+      {
+        "text": "democracy economic growth Indonesia",
+        "expected": ["fd99324201ce47ed2e4e9602659de79d1aa051908c3207c0b0d6448ce4729f91"],
+        "status": "Passages",
+        "matches": [
+          {
+            "paper": "fd99324201ce47ed2e4e9602659de79d1aa051908c3207c0b0d6448ce4729f91",
+            "page": 7,
+            "part": null,
+            "category": "Association",
+            "url": "https://www.econstor.eu/bitstream/10419/304100/1/10.1080_23322039.2023.2220244.pdf#page=7"
+          }
+        ],
+        "correct": true
+      },
+      {
+        "text": "democracy income inequality Indonesia",
+        "expected": ["fd99324201ce47ed2e4e9602659de79d1aa051908c3207c0b0d6448ce4729f91"],
+        "status": "Passages",
+        "matches": [
+          {
+            "paper": "fd99324201ce47ed2e4e9602659de79d1aa051908c3207c0b0d6448ce4729f91",
+            "page": 7,
+            "part": null,
+            "category": "Association",
+            "url": "https://www.econstor.eu/bitstream/10419/304100/1/10.1080_23322039.2023.2220244.pdf#page=7"
+          }
+        ],
+        "correct": true
+      },
+      {
+        "text": "causal effect democracy economic growth Indonesia",
+        "expected": [],
+        "status": "NoEvidence",
+        "reason": "causal-design-not-covered",
+        "matches": [],
+        "correct": true
+      },
+      {
+        "text": "causal effect minimum wage employment Ireland",
+        "expected": [],
+        "status": "NoEvidence",
+        "reason": "causal-design-not-covered",
+        "matches": [],
+        "correct": true
+      },
+      {
+        "text": "minimum wage employment Denmark",
+        "expected": [],
+        "status": "NoEvidence",
+        "reason": "scope-not-covered",
+        "matches": [],
+        "correct": true
+      },
+      {
+        "text": "minimum wage employment Ireland 2050",
+        "expected": [],
+        "status": "NoEvidence",
+        "reason": "scope-not-covered",
+        "matches": [],
+        "correct": true
+      },
+      {
+        "text": "fiscal multipliers Greece austerity",
+        "expected": [],
+        "status": "NoEvidence",
+        "reason": "no-matching-trusted-result",
+        "matches": [],
+        "correct": true
+      },
+      {
+        "text": "pension reform retirement France",
+        "expected": [],
+        "status": "NoEvidence",
+        "reason": "no-matching-trusted-result",
+        "matches": [],
+        "correct": true
+      },
+      {
+        "text": "carbon tax emissions Sweden",
+        "expected": [],
+        "status": "NoEvidence",
+        "reason": "scope-not-covered",
+        "matches": [],
+        "correct": true
+      },
+      {
+        "text": "education literacy Brazil",
+        "expected": [],
+        "status": "NoEvidence",
+        "reason": "scope-not-covered",
+        "matches": [],
+        "correct": true
+      }
+    ]
+  }
+}

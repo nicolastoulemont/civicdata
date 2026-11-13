@@ -1,0 +1,16 @@
+{
+  "date": "2026-11-12",
+  "paper": "089037b64cab74294afcdd011058c99d0f1da8930e664d6f4cb0f42f32f0b7a7",
+  "input": "7606dbbf1262db304d1851ae3e70982443b5419a6f1cda4084540467263225dc",
+  "original": {
+    "_tag": "AuthorCausalEstimate",
+    "evidence": {
+      "page": 23,
+      "quote": "Then various policy parameters are adjusted and a new long-run equilibrium is computed."
+    }
+  },
+  "corrected": {
+    "_tag": "Unknown"
+  },
+  "reason": "A calibrated equilibrium simulation is not empirical causal identification. The quoted adjustment of policy parameters establishes a simulated counterfactual only. Causal result labels were already absent, so the causal retrieval fixture remains NoEvidence. This audited scope correction is outside the passage-label accuracy score. No model request was repeated."
+}

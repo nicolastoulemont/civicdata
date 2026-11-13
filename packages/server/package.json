@@ -23,6 +23,7 @@
     "wid": "node scripts/wid.ts",
     "imf": "node scripts/imf.ts",
     "papers": "node scripts/papers.ts",
+    "research": "node scripts/research.ts",
     "papers:intake": "node scripts/intake.ts"
   },
   "dependencies": {
@@ -33,7 +34,8 @@
     "aws4fetch": "1.0.20",
     "effect": "catalog:",
     "entities": "7.0.1",
-    "fflate": "0.8.3"
+    "fflate": "0.8.3",
+    "stemmer": "2.0.1"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.6.0",

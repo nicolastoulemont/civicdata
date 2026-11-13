@@ -1,0 +1,258 @@
+{
+  "date": "2026-11-12",
+  "discoveryQueries": 11,
+  "records": 201,
+  "papers": [
+    {
+      "id": "044ad0ae7f444c988bdd489fc29ebc822fec116a1c16e06cf28f53b2710af8b4",
+      "title": "A comparative assessment of minimum wage employment in Europe",
+      "doi": "10.26504/rs123",
+      "authors": [
+        "ESRI",
+        "Paul H. Redmond",
+        "Bertrand Maître",
+        "ESRI",
+        "Séamus McGuinness",
+        "ESRI",
+        "Konstantina Maragkou",
+        "ESRI"
+      ],
+      "publisher": "Economic and Social Research Institute",
+      "url": "https://www.esri.ie/pubs/RS123.pdf",
+      "sha256": "542500f7d8e5e9231397b64c5028a2083a81aa55ee525526f39c1d3675139d9c",
+      "version": "publishedVersion",
+      "pages": 70,
+      "passages": 90,
+      "excerpts": 10,
+      "design": "Association",
+      "licences": [
+        {
+          "_tag": "Pdf",
+          "url": "https://www.esri.ie/pubs/RS123.pdf",
+          "sha256": "542500f7d8e5e9231397b64c5028a2083a81aa55ee525526f39c1d3675139d9c",
+          "page": 2,
+          "licence": "https://creativecommons.org/licenses/by/4.0/",
+          "retrievedAt": "2026-11-12T15:15:38.038Z"
+        }
+      ],
+      "annotationInput": "c58c633cf1ccf31a16db7ae5ffc25b8d20c3b2f3aea33aebde02731ba56af59a"
+    },
+    {
+      "id": "089037b64cab74294afcdd011058c99d0f1da8930e664d6f4cb0f42f32f0b7a7",
+      "title": "Optimal retirement with disability pensions",
+      "doi": "10.1017/s1474747223000227",
+      "authors": ["Hans Fehr", "Adrian Fröhlich"],
+      "publisher": "Journal of Pension Economics and Finance",
+      "url": "https://www.cambridge.org/core/services/aop-cambridge-core/content/view/8016602FDAF6ED243F962AB6A859C5E5/S1474747223000227a.pdf/div-class-title-optimal-retirement-with-disability-pensions-div.pdf",
+      "sha256": "3aff75ee629e04a43beeb72489f37a5fb4da07307f897c517c5915cd7fc0c6c7",
+      "version": "publishedVersion",
+      "pages": 30,
+      "passages": 76,
+      "excerpts": 14,
+      "design": "Unknown",
+      "licences": [
+        {
+          "_tag": "Pdf",
+          "url": "https://www.cambridge.org/core/services/aop-cambridge-core/content/view/8016602FDAF6ED243F962AB6A859C5E5/S1474747223000227a.pdf/div-class-title-optimal-retirement-with-disability-pensions-div.pdf",
+          "sha256": "3aff75ee629e04a43beeb72489f37a5fb4da07307f897c517c5915cd7fc0c6c7",
+          "page": 1,
+          "licence": "https://creativecommons.org/licenses/by/4.0/",
+          "retrievedAt": "2026-11-12T16:53:19.296Z"
+        }
+      ],
+      "annotationInput": "7606dbbf1262db304d1851ae3e70982443b5419a6f1cda4084540467263225dc"
+    },
+    {
+      "id": "2ac931d9dba6f14b6d72a5ded917de0aa7c42713e4836fa0ed3d5fa9ecf946c4",
+      "title": "Carbon pricing and emissions: Causal effects of Britain's carbon tax",
+      "doi": "10.1016/j.eneco.2023.106655",
+      "authors": ["Klaus Peter Gugler", "Adhurim Haxhimusa", "Mario Liebensteiner"],
+      "publisher": "Energy Economics",
+      "url": "https://www.wu.ac.at/fileadmin/wu/d/economics/Department_of_Economics/AE_Gugler_Quantitative_VWL_VW6/Gugler_Publikationen/Artikel/ghl_ee_2023.pdf",
+      "sha256": "f9e9a0f8f864ecbe93814124543a7a10242ecdc2e62651efecd27d966d1f16d2",
+      "version": "publishedVersion",
+      "pages": 21,
+      "passages": 70,
+      "excerpts": 16,
+      "design": "AuthorCausalEstimate",
+      "licences": [
+        {
+          "_tag": "Pdf",
+          "url": "https://www.wu.ac.at/fileadmin/wu/d/economics/Department_of_Economics/AE_Gugler_Quantitative_VWL_VW6/Gugler_Publikationen/Artikel/ghl_ee_2023.pdf",
+          "sha256": "f9e9a0f8f864ecbe93814124543a7a10242ecdc2e62651efecd27d966d1f16d2",
+          "page": 1,
+          "licence": "https://creativecommons.org/licenses/by/4.0/",
+          "retrievedAt": "2026-11-12T16:55:14.963Z"
+        }
+      ],
+      "annotationInput": "f2b8bdedca248ab9f9a628c2398e138875ebddab8e533884457255ac4d488edf"
+    },
+    {
+      "id": "424e4d77864c4923223882924712acd717b8b1a5878c824ad82871715e53a894",
+      "title": "A study of minimum wage employment in Ireland using online job vacancy data",
+      "doi": "10.26504/rs209",
+      "authors": ["Paul H. Redmond", "Lorcan Kelly", "Elisa Staffa"],
+      "publisher": "Economic and Social Research Institute",
+      "url": "https://www.esri.ie/pubs/RS209.pdf",
+      "sha256": "3bf28617b633b81d9b60968f5378fcec01d83e166c190b78861fa204f93dae4d",
+      "version": "publishedVersion",
+      "pages": 46,
+      "passages": 70,
+      "excerpts": 16,
+      "design": "Description",
+      "licences": [
+        {
+          "_tag": "Pdf",
+          "url": "https://www.esri.ie/pubs/RS209.pdf",
+          "sha256": "3bf28617b633b81d9b60968f5378fcec01d83e166c190b78861fa204f93dae4d",
+          "page": 2,
+          "licence": "https://creativecommons.org/licenses/by/4.0/",
+          "retrievedAt": "2026-11-12T15:15:38.702Z"
+        }
+      ],
+      "annotationInput": "41e9a5a5709adf9cc9ca6c4aebd6364ff7edb0ca95b97cc0f9ad336fd6c88cfc"
+    },
+    {
+      "id": "76009032c5f9d51912ec3bf42bcccf13124e9ad131d24955361b77f9ef6b83e4",
+      "title": "What Explains Differences in Minimum Wage Growth Between EU Member States?",
+      "doi": "10.1515/jbnst-2023-0039",
+      "authors": ["Arne Baumann"],
+      "publisher": "Jahrbücher für Nationalökonomie und Statistik",
+      "url": "https://www.econstor.eu/bitstream/10419/333304/1/1920418555.pdf",
+      "sha256": "0f30e873061855a6394f9a4f5fd97a101d714520fc6d6af84272a8187537909a",
+      "version": "submittedVersion",
+      "pages": 39,
+      "passages": 74,
+      "excerpts": 12,
+      "design": "Association",
+      "licences": [
+        {
+          "_tag": "Page",
+          "url": "https://www.econstor.eu/handle/10419/333304",
+          "sha256": "351fe9895dc4735c8879277c26c8bba28059aa1da34ce6ceba22a9240022c2d2",
+          "record": "10419/333304",
+          "pdf": "https://www.econstor.eu/bitstream/10419/333304/1/1920418555.pdf",
+          "licence": "https://creativecommons.org/licenses/by/4.0/",
+          "retrievedAt": "2026-11-12T16:53:20.238Z"
+        },
+        {
+          "_tag": "Pdf",
+          "url": "https://www.econstor.eu/bitstream/10419/333304/1/1920418555.pdf",
+          "sha256": "0f30e873061855a6394f9a4f5fd97a101d714520fc6d6af84272a8187537909a",
+          "page": 1,
+          "licence": "https://creativecommons.org/licenses/by/4.0/",
+          "retrievedAt": "2026-11-12T16:53:20.531Z"
+        }
+      ],
+      "annotationInput": "8b56fa4b883303381ee4399bdb244db197ac3004bdc6b3c3681b25020c68497b"
+    },
+    {
+      "id": "c4b61da3ea56374102a9604b9e8185d9582a19ba119dff298cbff7afbb291b4c",
+      "title": "Does fiscal consolidation hurt economic growth? Empirical evidence from Spanish regions",
+      "doi": "10.5018/economics-ejournal.ja.2019-42",
+      "authors": [
+        "Santiago Lago Peñas",
+        "Alberto Vaquero García",
+        "Patricio Sánchez Fernández",
+        "Beatriz López-Bermúdez"
+      ],
+      "publisher": "Economics",
+      "url": "https://www.econstor.eu/bitstream/10419/204781/1/1679281356.pdf",
+      "sha256": "f830a259cdc81949a599cf1292336fd9c1869f3e12fbc8715181ef99aefd89ea",
+      "version": "publishedVersion",
+      "pages": 21,
+      "passages": 30,
+      "excerpts": 10,
+      "design": "AuthorCausalEstimate",
+      "licences": [
+        {
+          "_tag": "Page",
+          "url": "https://www.econstor.eu/handle/10419/204781",
+          "sha256": "0e8cc8ee482cccbd0dcb965e69689cbcd6ff945deaca8a2c5f169e70974d8a34",
+          "record": "10419/204781",
+          "pdf": "https://www.econstor.eu/bitstream/10419/204781/1/1679281356.pdf",
+          "licence": "https://creativecommons.org/licenses/by/4.0/",
+          "retrievedAt": "2026-11-12T17:03:30.540Z"
+        },
+        {
+          "_tag": "Pdf",
+          "url": "https://www.econstor.eu/bitstream/10419/204781/1/1679281356.pdf",
+          "sha256": "f830a259cdc81949a599cf1292336fd9c1869f3e12fbc8715181ef99aefd89ea",
+          "page": 1,
+          "licence": "https://creativecommons.org/licenses/by/4.0/",
+          "retrievedAt": "2026-11-12T17:03:31.099Z"
+        }
+      ],
+      "annotationInput": "b89888663853dc88bd0f153f5b2cee2b690441a2c6319223205acb5fdb6246e2"
+    },
+    {
+      "id": "cf63281cd93c2987130bfe70f68632ae0375dd22ad494a4e4e06767ca43e6adf",
+      "title": "Biases in Fiscal Multiplier Estimates",
+      "doi": "10.1016/j.ejpoleco.2020.101861",
+      "authors": ["Zareh Asatryan", "Annika Havlik", "Friedrich Heinemann", "Justus Nover"],
+      "publisher": "European Journal of Political Economy",
+      "url": "https://d-nb.info/1231712589/34",
+      "sha256": "e6a7c023e965bf07e592269f543336e4efa1bc4923200b3c32e06e61aca92767",
+      "version": "publishedVersion",
+      "pages": 25,
+      "passages": 66,
+      "excerpts": 16,
+      "design": "Association",
+      "licences": [
+        {
+          "_tag": "Pdf",
+          "url": "https://d-nb.info/1231712589/34",
+          "sha256": "e6a7c023e965bf07e592269f543336e4efa1bc4923200b3c32e06e61aca92767",
+          "page": 1,
+          "licence": "https://creativecommons.org/licenses/by/4.0/",
+          "retrievedAt": "2026-11-12T17:02:47.061Z"
+        }
+      ],
+      "annotationInput": "ede5b55f365d485f5982dcb36ef39e6654579f5543c672750db9495d101322b1"
+    },
+    {
+      "id": "fd99324201ce47ed2e4e9602659de79d1aa051908c3207c0b0d6448ce4729f91",
+      "title": "Democracy, economic growth, and income inequality: Evidence from province level data",
+      "doi": "10.1080/23322039.2023.2220244",
+      "authors": [
+        "Irwan Trinugroho",
+        "Aldy Fariz Achsanta",
+        "Putra Pamungkas",
+        "Nugroho Saputro",
+        "Sari Yuniarti"
+      ],
+      "publisher": "Cogent Economics &amp; Finance",
+      "url": "https://www.econstor.eu/bitstream/10419/304100/1/10.1080_23322039.2023.2220244.pdf",
+      "sha256": "047736a83b4ab499bc4c17376f584b0608025f2922344f70127b1db6a81d3b13",
+      "version": "submittedVersion",
+      "pages": 14,
+      "passages": 26,
+      "excerpts": 13,
+      "design": "Association",
+      "licences": [
+        {
+          "_tag": "Page",
+          "url": "https://www.econstor.eu/handle/10419/304100",
+          "sha256": "7fc110077a2fb206580a3e7215bde493c8a9918a85ebda237c8c373095bb9e37",
+          "record": "10419/304100",
+          "pdf": "https://www.econstor.eu/bitstream/10419/304100/1/10.1080_23322039.2023.2220244.pdf",
+          "licence": "https://creativecommons.org/licenses/by/4.0/",
+          "retrievedAt": "2026-11-12T15:15:40.477Z"
+        },
+        {
+          "_tag": "Pdf",
+          "url": "https://www.econstor.eu/bitstream/10419/304100/1/10.1080_23322039.2023.2220244.pdf",
+          "sha256": "047736a83b4ab499bc4c17376f584b0608025f2922344f70127b1db6a81d3b13",
+          "page": 1,
+          "licence": "https://creativecommons.org/licenses/by/4.0/",
+          "retrievedAt": "2026-11-12T15:15:40.814Z"
+        }
+      ],
+      "annotationInput": "a7eaa7f7a6513c41eb6bba5dd10225fe68d0838f2d07497d1c0bcc1fc25f66bf"
+    }
+  ],
+  "documents": 8,
+  "pages": 266,
+  "passages": 502,
+  "excerpts": 107
+}

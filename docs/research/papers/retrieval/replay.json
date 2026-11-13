@@ -1,0 +1,21 @@
+{
+  "date": "2026-11-12",
+  "documents": 3,
+  "passages": 186,
+  "selectedSentences": 24,
+  "files": 109,
+  "changedFiles": 0,
+  "retrievalCases": 14,
+  "commands": [
+    {
+      "command": "--check",
+      "networkAttempts": 0,
+      "exitCode": 0
+    },
+    {
+      "command": "--annotate",
+      "networkAttempts": 0,
+      "exitCode": 0
+    }
+  ]
+}

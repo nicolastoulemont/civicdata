@@ -1,0 +1,25 @@
+{
+  "date": "2026-11-12",
+  "archiveSha256": "fdb54699975c03fcf2d5e7913ea369f5d02dde2bbd21f504b3d60546f38a8c88",
+  "freshDirectory": true,
+  "files": 230,
+  "changedFiles": 0,
+  "benchmarkMatches": true,
+  "commands": [
+    {
+      "command": "research --check",
+      "exit": 0,
+      "networkAttempts": 0
+    },
+    {
+      "command": "research --annotate",
+      "exit": 0,
+      "networkAttempts": 0
+    },
+    {
+      "command": "intake",
+      "exit": 0,
+      "networkAttempts": 0
+    }
+  ]
+}

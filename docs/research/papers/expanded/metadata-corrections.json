@@ -1,0 +1,26 @@
+{
+  "reason": "Correct publication names and metadata request URLs from the already-fetched OpenAlex work. Annotation inputs contain only the identical source passages; their content and PDF hashes were checked unchanged before rekeying the record checkpoints. No new model request.",
+  "changes": [
+    {
+      "paper": "2ac931d9dba6f14b6d72a5ded917de0aa7c42713e4836fa0ed3d5fa9ecf946c4",
+      "oldInput": "1ebfcbbbbac4ba88b843372d0b3620bd7f763cc2202ef0090faf2e00566b0f87",
+      "input": "f2b8bdedca248ab9f9a628c2398e138875ebddab8e533884457255ac4d488edf",
+      "publisher": "Energy Economics",
+      "metadataUrl": "https://api.openalex.org/works/https%3A%2F%2Fdoi.org%2F10.1016%2Fj.eneco.2023.106655"
+    },
+    {
+      "paper": "cf63281cd93c2987130bfe70f68632ae0375dd22ad494a4e4e06767ca43e6adf",
+      "oldInput": "6027addbd69ab1b0c4c1febc7182a87caf67defa2ffc84056de7d3714c6ce8a3",
+      "input": "ede5b55f365d485f5982dcb36ef39e6654579f5543c672750db9495d101322b1",
+      "publisher": "European Journal of Political Economy",
+      "metadataUrl": "https://api.openalex.org/works/https%3A%2F%2Fdoi.org%2F10.1016%2Fj.ejpoleco.2020.101861"
+    },
+    {
+      "paper": "c4b61da3ea56374102a9604b9e8185d9582a19ba119dff298cbff7afbb291b4c",
+      "oldInput": "27ec3d56d0fda3a2eba2f82f585a3cf0058b412b5dbb572c85ab5f65f31231c1",
+      "input": "b89888663853dc88bd0f153f5b2cee2b690441a2c6319223205acb5fdb6246e2",
+      "publisher": "Economics",
+      "metadataUrl": "https://api.openalex.org/works/https%3A%2F%2Fdoi.org%2F10.5018%2Feconomics-ejournal.ja.2019-42"
+    }
+  ]
+}

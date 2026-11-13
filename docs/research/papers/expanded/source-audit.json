@@ -1,0 +1,22 @@
+[
+  {
+    "url": "https://www.econstor.eu/handle/10419/339046",
+    "outcome": "Excluded",
+    "reason": "Item-level CC BY-NC 4.0 rights do not meet the permissive licence gate."
+  },
+  {
+    "url": "https://www.diva-portal.org/smash/get/diva2%3A1888332/FULLTEXT01.pdf",
+    "outcome": "Unavailable",
+    "reason": "Connection timeout from this environment; alternative identified uu.diva-portal.org copy also timed out."
+  },
+  {
+    "url": "https://publicatt.unicatt.it/retrieve/72394bb0-38bd-4860-87ad-8dc1fafadfe5/1.%20Journal%20of%20Policy%20Modeling.pdf",
+    "outcome": "Unavailable",
+    "reason": "HTTP 403; identified ricerca.uniba.it copy also returned 403. No access control bypass attempted."
+  },
+  {
+    "url": "https://d-nb.info/1231712589/34",
+    "outcome": "Retained",
+    "reason": "CC BY 4.0 notice wraps after http://. Parser now recognises that explicit wrapped URL; a non-commercial wrapped notice still fails the gate."
+  }
+]

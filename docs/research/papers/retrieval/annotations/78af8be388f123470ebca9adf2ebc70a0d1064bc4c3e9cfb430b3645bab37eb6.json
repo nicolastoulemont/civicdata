@@ -1,0 +1,543 @@
+{
+  "stamp": {
+    "rubric": "research-2",
+    "model": "gpt-6-luna",
+    "input": "78af8be388f123470ebca9adf2ebc70a0d1064bc4c3e9cfb430b3645bab37eb6",
+    "createdAt": "2026-11-12T15:54:42.062Z"
+  },
+  "scope": {
+    "findings": [
+      {
+        "page": 16,
+        "quote": "On average, between 2018 and 2024, it was approximately 7.6 per cent.9 A notable feature of Table 3.1 is the sharp increase in the incidence of minimum wage job vacancies that occurred in 2024 – from 7.4 per cent in 2023 to over 15 per cent in 2024."
+      },
+      {
+        "page": 21,
+        "quote": "Focusing on the average incidence over the four years, Dublin had the lowest incidence of minimum wage job vacancies among all counties, with 7 per cent of all hourly-paid positions advertised between 2021 and 2024 being a minimum wage job."
+      },
+      {
+        "page": 21,
+        "quote": "The two counties with the highest incidence of advertised minimum wage jobs were Donegal (22 per cent) and Sligo (19 per cent)."
+      },
+      {
+        "page": 24,
+        "quote": "The top five occupations alone account for half of all minimum wage vacancies: food preparation assistants (14.0 per cent); waiters and bartenders (12.75 per cent); shop salespersons (11.58 per cent); building and housekeeping supervisors (8.7 per cent); and client information workers (4.9 per cent)."
+      },
+      {
+        "page": 28,
+        "quote": "The top three most required skills are ‘customer service’, ‘communication’ and ‘sales’, which are mentioned in approximately 31 per cent, 23 per cent and 19 per cent of all minimum wage vacancies, respectively."
+      },
+      {
+        "page": 30,
+        "quote": "Approximately 20 per cent of minimum wage jobs require no previous experience, compared to just 3 per cent of higher paid jobs (above €20 per hour)."
+      },
+      {
+        "page": 30,
+        "quote": "Just 41 per cent of minimum wage job vacancies are for full-time work, compared to 63 per cent of higher-paid vacancies."
+      },
+      {
+        "page": 41,
+        "quote": "Our analysis suggests that minimum wage positions are no more difficult (or easy) to fill than higher paid jobs, as the time it takes to fill each type of job is very similar."
+      }
+    ],
+    "countries": [
+      {
+        "code": "IRL",
+        "evidence": {
+          "page": 8,
+          "quote": "In this report, we use data from the near universe of online job vacancies in Ireland, for the period 2018 to 2024, to examine minimum wage employment across a number of dimensions."
+        }
+      }
+    ],
+    "regions": [],
+    "periods": [
+      {
+        "from": 2018,
+        "to": 2024,
+        "evidence": {
+          "page": 8,
+          "quote": "In this report, we use data from the near universe of online job vacancies in Ireland, for the period 2018 to 2024, to examine minimum wage employment across a number of dimensions."
+        }
+      }
+    ],
+    "design": {
+      "_tag": "Description",
+      "evidence": {
+        "page": 8,
+        "quote": "In this report, we use data from the near universe of online job vacancies in Ireland, for the period 2018 to 2024, to examine minimum wage employment across a number of dimensions."
+      }
+    }
+  },
+  "labels": [
+    {
+      "page": 1,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.89
+    },
+    {
+      "page": 2,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.94
+    },
+    {
+      "page": 3,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.99
+    },
+    {
+      "page": 4,
+      "part": 0,
+      "category": "Other",
+      "confidence": 1
+    },
+    {
+      "page": 5,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.97
+    },
+    {
+      "page": 6,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.87
+    },
+    {
+      "page": 6,
+      "part": 1,
+      "category": "Other",
+      "confidence": 0.81
+    },
+    {
+      "page": 7,
+      "part": 0,
+      "category": "Other",
+      "confidence": 0.97
+    },
+    {
+      "page": 8,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.87
+    },
+    {
+      "page": 8,
+      "part": 1,
+      "category": "Description",
+      "confidence": 0.93
+    },
+    {
+      "page": 9,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.86
+    },
+    {
+      "page": 10,
+      "part": 0,
+      "category": "Background",
+      "confidence": 1
+    },
+    {
+      "page": 10,
+      "part": 1,
+      "category": "Background",
+      "confidence": 0.53
+    },
+    {
+      "page": 11,
+      "part": 0,
+      "category": "Background",
+      "confidence": 0.89
+    },
+    {
+      "page": 11,
+      "part": 1,
+      "category": "Background",
+      "confidence": 1
+    },
+    {
+      "page": 12,
+      "part": 0,
+      "category": "Background",
+      "confidence": 0.92
+    },
+    {
+      "page": 13,
+      "part": 0,
+      "category": "Method",
+      "confidence": 0.97
+    },
+    {
+      "page": 13,
+      "part": 1,
+      "category": "Method",
+      "confidence": 0.9
+    },
+    {
+      "page": 14,
+      "part": 0,
+      "category": "Method",
+      "confidence": 0.62
+    },
+    {
+      "page": 14,
+      "part": 1,
+      "category": "Description",
+      "confidence": 0.71
+    },
+    {
+      "page": 15,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.63
+    },
+    {
+      "page": 16,
+      "part": 0,
+      "category": "Description",
+      "confidence": 1
+    },
+    {
+      "page": 16,
+      "part": 1,
+      "category": "Description",
+      "confidence": 0.59
+    },
+    {
+      "page": 17,
+      "part": 0,
+      "category": "Background",
+      "confidence": 0.37
+    },
+    {
+      "page": 17,
+      "part": 1,
+      "category": "Other",
+      "confidence": 0.85
+    },
+    {
+      "page": 18,
+      "part": 0,
+      "category": "Background",
+      "confidence": 0.85
+    },
+    {
+      "page": 18,
+      "part": 1,
+      "category": "Background",
+      "confidence": 0.79
+    },
+    {
+      "page": 19,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.55
+    },
+    {
+      "page": 19,
+      "part": 1,
+      "category": "Description",
+      "confidence": 0.97
+    },
+    {
+      "page": 20,
+      "part": 0,
+      "category": "Method",
+      "confidence": 0.98
+    },
+    {
+      "page": 21,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.94
+    },
+    {
+      "page": 22,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.94
+    },
+    {
+      "page": 22,
+      "part": 1,
+      "category": "Method",
+      "confidence": 0.69
+    },
+    {
+      "page": 23,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.93
+    },
+    {
+      "page": 24,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.98
+    },
+    {
+      "page": 24,
+      "part": 1,
+      "category": "Description",
+      "confidence": 0.91
+    },
+    {
+      "page": 25,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.91
+    },
+    {
+      "page": 26,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.99
+    },
+    {
+      "page": 27,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.78
+    },
+    {
+      "page": 27,
+      "part": 1,
+      "category": "Method",
+      "confidence": 0.86
+    },
+    {
+      "page": 28,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.97
+    },
+    {
+      "page": 28,
+      "part": 1,
+      "category": "Description",
+      "confidence": 0.91
+    },
+    {
+      "page": 29,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.85
+    },
+    {
+      "page": 29,
+      "part": 1,
+      "category": "Description",
+      "confidence": 0.76
+    },
+    {
+      "page": 30,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.98
+    },
+    {
+      "page": 30,
+      "part": 1,
+      "category": "Description",
+      "confidence": 0.99
+    },
+    {
+      "page": 31,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.91
+    },
+    {
+      "page": 32,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.54
+    },
+    {
+      "page": 32,
+      "part": 1,
+      "category": "Method",
+      "confidence": 0.21
+    },
+    {
+      "page": 33,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.75
+    },
+    {
+      "page": 33,
+      "part": 1,
+      "category": "Description",
+      "confidence": 1
+    },
+    {
+      "page": 34,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.99
+    },
+    {
+      "page": 35,
+      "part": 0,
+      "category": "Method",
+      "confidence": 0.55
+    },
+    {
+      "page": 36,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.92
+    },
+    {
+      "page": 37,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.92
+    },
+    {
+      "page": 37,
+      "part": 1,
+      "category": "Other",
+      "confidence": 0.38
+    },
+    {
+      "page": 38,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.65
+    },
+    {
+      "page": 38,
+      "part": 1,
+      "category": "Description",
+      "confidence": 0.7
+    },
+    {
+      "page": 39,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.58
+    },
+    {
+      "page": 40,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.99
+    },
+    {
+      "page": 40,
+      "part": 1,
+      "category": "Description",
+      "confidence": 0.95
+    },
+    {
+      "page": 41,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.87
+    },
+    {
+      "page": 41,
+      "part": 1,
+      "category": "Limitation",
+      "confidence": 0.41
+    },
+    {
+      "page": 42,
+      "part": 0,
+      "category": "Reference",
+      "confidence": 1
+    },
+    {
+      "page": 42,
+      "part": 1,
+      "category": "Reference",
+      "confidence": 0.93
+    },
+    {
+      "page": 43,
+      "part": 0,
+      "category": "Reference",
+      "confidence": 0.97
+    },
+    {
+      "page": 43,
+      "part": 1,
+      "category": "Reference",
+      "confidence": 0.93
+    },
+    {
+      "page": 44,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.84
+    },
+    {
+      "page": 45,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.97
+    },
+    {
+      "page": 46,
+      "part": 0,
+      "category": "Description",
+      "confidence": 0.98
+    }
+  ],
+  "results": [
+    {
+      "page": 16,
+      "quote": "On average, between 2018 and 2024, it was approximately 7.6 per cent.9 A notable feature of Table 3.1 is the sharp increase in the incidence of minimum wage job vacancies that occurred in 2024 – from 7.4 per cent in 2023 to over 15 per cent in 2024.",
+      "category": "Description",
+      "confidence": 1
+    },
+    {
+      "page": 21,
+      "quote": "Focusing on the average incidence over the four years, Dublin had the lowest incidence of minimum wage job vacancies among all counties, with 7 per cent of all hourly-paid positions advertised between 2021 and 2024 being a minimum wage job.",
+      "category": "Description",
+      "confidence": 0.98
+    },
+    {
+      "page": 21,
+      "quote": "The two counties with the highest incidence of advertised minimum wage jobs were Donegal (22 per cent) and Sligo (19 per cent).",
+      "category": "Description",
+      "confidence": 1
+    },
+    {
+      "page": 24,
+      "quote": "The top five occupations alone account for half of all minimum wage vacancies: food preparation assistants (14.0 per cent); waiters and bartenders (12.75 per cent); shop salespersons (11.58 per cent); building and housekeeping supervisors (8.7 per cent); and client information workers (4.9 per cent).",
+      "category": "Description",
+      "confidence": 0.99
+    },
+    {
+      "page": 28,
+      "quote": "The top three most required skills are ‘customer service’, ‘communication’ and ‘sales’, which are mentioned in approximately 31 per cent, 23 per cent and 19 per cent of all minimum wage vacancies, respectively.",
+      "category": "Description",
+      "confidence": 1
+    },
+    {
+      "page": 30,
+      "quote": "Approximately 20 per cent of minimum wage jobs require no previous experience, compared to just 3 per cent of higher paid jobs (above €20 per hour).",
+      "category": "Description",
+      "confidence": 1
+    },
+    {
+      "page": 30,
+      "quote": "Just 41 per cent of minimum wage job vacancies are for full-time work, compared to 63 per cent of higher-paid vacancies.",
+      "category": "Description",
+      "confidence": 0.97
+    },
+    {
+      "page": 41,
+      "quote": "Our analysis suggests that minimum wage positions are no more difficult (or easy) to fill than higher paid jobs, as the time it takes to fill each type of job is very similar.",
+      "category": "Description",
+      "confidence": 1
+    }
+  ]
+}
