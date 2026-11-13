@@ -144,7 +144,7 @@ ORDER BY count DESC
 
 ## Annotation
 
-`AnnotateWorkflow` (`packages/server/src/AnnotateWorkflow.ts`, bound as `ANNOTATE`) annotates a list of paper versions. `packages/server/src/research/Annotate.ts` holds its work and `Annotator.ts` its model calls, which the local annotator in `scripts/papers` shares. Like the Catalog and Gather Workflows, it exists only in a stage that owns its paper store: production and previews with the `own-catalog` label. A shared preview binds none, and no stage runs it on a schedule.
+`AnnotateWorkflow` (`packages/server/src/AnnotateWorkflow.ts`, bound as `ANNOTATE`) annotates a list of paper versions. `packages/server/src/research/Annotate.ts` holds its work and `Annotator.ts` its model calls, which the local annotator in `scripts/papers` shares. Like the Catalog and Gather Workflows, it exists only in a stage that owns its paper store: production and previews with the `own-catalog` label. A shared preview binds none. Only production runs it on a schedule, once a day ([daily run](#daily-run)); an `own-catalog` preview runs it only when someone starts a run.
 
 ### What a run does
 
@@ -160,6 +160,24 @@ A run first groups its list by annotation key: two versions with identical text 
 Each step is a Workflow step. Its answer is a small JSON value; the scope, the labels and the text stay in `PAPERS_DB` and `PAPERS`, and each step reads them by key or version. A run makes two model requests per paper, one per stage, and none for a stage whose output is already saved: a later run for the same key reuses the saved scope and labels, so a failed classification or publication never repeats the scope call.
 
 A step retries a provider or store failure 3 times, 10, 20 and 40 seconds apart. Invalid output does not retry: malformed JSON, an unknown sentence, an ungrounded quote or period, or missing or duplicate labels fails the paper for this run and counts as an attempt. The checks, prompts and rubric are the local annotator's.
+
+### Daily run
+
+In production, a native Workflow schedule (`0 6 * * *` in `packages/infra/alchemy.run.ts`, no Cron Trigger) starts a `Demand` run every day at 06:00 UTC, an hour after the 05:00 gather. A scheduled instance carries no params, and the Workflow treats it as `Demand`. A question never makes a paper annotate sooner than the next run, which keeps paid work off the request path.
+
+A `Demand` run's first step, `select`, reads `Demand.since` once, for the last 30 days, and filters what it returns against `PAPERS_DB`. A version is listed when:
+
+- a question asked for it in the last 30 days;
+- it is its paper's active version, so its copy is admitted and its text is published;
+- its annotation key under the current settings is not `Ready`, `Running` or `Abandoned`, and its active annotation is not already that key. A new key and a `Failed` one under the attempt limit qualify.
+
+Versions with no active annotation come first, then versions whose active annotation is under older settings. Within each group, the most asked comes first, then the lower version id. The run then annotates that list as if someone had listed it by hand: it groups the versions by key, takes the first 20 keys, and claims each through the same statement. Everything past a cap, the 20 keys or the 3,000,000 tokens, is `NotStarted` in `annotation_run` and waits for the next run. Demand changes which papers a run annotates, never how many, so production's daily spend stays within one run's caps whatever the traffic.
+
+`select` is a Workflow step, so a replayed or restarted instance lists the same versions and does not read demand again. The run reads key states from `annotation_key`, never from Workflow history, so a `Ready` key is not listed again after Workflows' retention has removed the run that made it. A run with no demand makes no model call and writes nothing; one whose demand lists nothing eligible writes no `annotation_run` row.
+
+A key left `Running` by an instance that ended without giving it back is not listed. A run started by hand that lists one of its versions takes the claim over ([key states](#key-states)).
+
+A run started by hand on the same day, with a list or with `demand`, claims through the same statement, so each key is annotated once. Each such run adds up to one run's caps to the day's spend.
 
 ### Key states
 
@@ -211,6 +229,15 @@ pnpm --filter @repo/server run annotate --stage pr-123 <version> <version>
 
 A version's id is `version.id`. Each run costs up to two model requests per listed key, so list only the versions that need an annotation.
 
+To run the daily selection now, for example on an `own-catalog` preview, which has no schedule, or to retry a scheduled run that failed, use the `demand` command with no versions:
+
+```sh
+gh workflow run annotate.yml -f stage=pr-123 -f command=demand
+pnpm --filter @repo/server run annotate --stage pr-123 --command demand
+```
+
+A preview's demand comes from questions asked on that preview, in its own `DB`. A failed scheduled instance can also be restarted from the Cloudflare dashboard: its saved steps, the selection among them, replay.
+
 ### Retry an Abandoned key
 
 Start a run with the `retry` command, or `--command retry`, listing a version of the key. That run may claim the key's `Abandoned` state and resets its attempts to 0. It reuses the key's saved scope and labels; a person who wants new ones deletes the key's `annotation_stage` rows first.
@@ -221,7 +248,7 @@ Start a run with the `retire` command, or `--command retire`, listing the versio
 
 ### Read run outcomes
 
-The Workflow instance's output lists each version's outcome: the Cloudflare dashboard shows it under Workers & Pages, Workflows, and the API returns it at `/accounts/<account>/workflows/civicdata-<stage>-annotate/instances/<id>`. The stage's `PapersDatabase` keeps them after the instance is gone:
+The Workflow instance's output lists each version's outcome: the Cloudflare dashboard shows it under Workers & Pages, Workflows, and the API returns it at `/accounts/<account>/workflows/civicdata-<stage>-annotate/instances/<id>`. A scheduled instance's id is Cloudflare's; the dashboard lists it with its start time. The stage's `PapersDatabase` keeps the outcomes after the instance is gone:
 
 ```sql
 SELECT version, json_extract(outcome, '$._tag') AS outcome, outcome AS detail, attempts,
@@ -229,7 +256,19 @@ SELECT version, json_extract(outcome, '$._tag') AS outcome, outcome AS detail, a
 FROM annotation_run WHERE run = '<instance id>';
 ```
 
-`packages/server/test/Annotate.test.ts` runs the Workflow's work against D1 and R2 inside workerd, with OpenAI faked on the wire and a fake Workflows step runner that saves, replays, retries, loses and crashes steps.
+To see what each recent run did and spent, newest first:
+
+```sql
+SELECT run, min(ended_at) AS ended, count(*) AS versions,
+  sum(json_extract(outcome, '$._tag') = 'Annotated') AS annotated,
+  sum(json_extract(outcome, '$._tag') = 'NotStarted') AS waiting,
+  sum(requests) AS requests, sum(input_tokens) + sum(output_tokens) AS tokens
+FROM annotation_run GROUP BY run ORDER BY ended DESC LIMIT 10;
+```
+
+Demand lives in the stage's `DB`, not `PapersDatabase`: read it with the query under [Demand](#demand), with `-30 days` for what the next run considers.
+
+`packages/server/test/Annotate.test.ts` runs the Workflow's work against D1 and R2 inside workerd, with OpenAI faked on the wire and a fake Workflows step runner that saves, replays, retries, loses and crashes steps. Its `Demand` runs read the real demand record in the test's `DB`.
 
 ## Tests
 

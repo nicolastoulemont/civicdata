@@ -8,6 +8,7 @@ import {
   Array as Arr,
   Clock,
   Context,
+  DateTime,
   Effect,
   Layer,
   Option,
@@ -32,6 +33,7 @@ import {
 } from "./annotation.ts"
 import { AnnotationInvalid, Annotator, ProviderFailed, Usage } from "./Annotator.ts"
 import { Digest, Passage } from "./archive.ts"
+import { Demand } from "./Demand.ts"
 import {
   annotationKey,
   Body,
@@ -70,14 +72,19 @@ export const retries = {
 
 const VersionId = Version.fields.id
 
+// How far back a Demand run reads what questions asked for.
+const recent = { days: 30 }
+
 // What a run is started with. Annotate annotates the listed versions' keys;
-// `retry` lets it claim an Abandoned one again. Retire clears a listed
+// `retry` lets it claim an Abandoned one again. Demand annotates the versions
+// questions asked for, as the daily run does. Retire clears a listed
 // version's active annotation when that annotation is under other settings.
 export const Params = Schema.TaggedUnion({
   Annotate: {
     versions: Schema.NonEmptyArray(VersionId),
     retry: Schema.optionalKey(Schema.Boolean),
   },
+  Demand: {},
   Retire: { versions: Schema.NonEmptyArray(VersionId) },
 })
 
@@ -313,6 +320,7 @@ export class Annotate extends Context.Service<Annotate, Interface>()(
         const d1 = yield* D1Client.D1Client
         const annotator = yield* Annotator
         const instances = yield* Instances
+        const demand = yield* Demand
 
         const versionsOf = SqlSchema.findAll({
           Request: Schema.Array(VersionId),
@@ -320,6 +328,30 @@ export class Annotate extends Context.Service<Annotate, Interface>()(
           execute: (ids) => sql`
             SELECT id, text, extraction FROM version
             WHERE id IN (SELECT value FROM json_each(${JSON.stringify(ids)}))
+          `,
+        })
+
+        // Listed versions that are their paper's active one, with the
+        // annotation they point to.
+        const candidates = SqlSchema.findAll({
+          Request: Schema.Array(VersionId),
+          Result: Schema.Struct({ ...VersionRow.fields, annotation: Schema.NullOr(Digest) }),
+          execute: (ids) => sql`
+            SELECT version.id, version.text, version.extraction, version.annotation
+            FROM version JOIN paper ON paper.active = version.id
+            WHERE version.id IN (SELECT value FROM json_each(${JSON.stringify(ids)}))
+          `,
+        })
+
+        const statesOf = SqlSchema.findAll({
+          Request: Schema.Array(Digest),
+          Result: Schema.Struct({
+            key: Digest,
+            state: Schema.Literals(["Running", "Ready", "Failed", "Abandoned"]),
+          }),
+          execute: (keys) => sql`
+            SELECT key, state FROM annotation_key
+            WHERE key IN (SELECT value FROM json_each(${JSON.stringify(keys)}))
           `,
         })
 
@@ -718,6 +750,50 @@ export class Annotate extends Context.Service<Annotate, Interface>()(
           )
         })
 
+        // The versions a Demand run lists: asked for in the last 30 days,
+        // with text, and whose current key is new or Failed. Versions with
+        // no active annotation come first, then those whose active one is
+        // under older settings, each group most asked first. Reads DB once,
+        // then PAPERS_DB; with no demand it touches no store.
+        const select = Effect.fnUntraced(function* () {
+          const asked = yield* demand.since(DateTime.subtract(yield* DateTime.now, recent))
+
+          if (asked.length === 0) return []
+
+          yield* tables.pipe(Effect.provideService(SqlClient.SqlClient, sql))
+
+          const rows = yield* Effect.forEach(
+            yield* candidates(asked.map(({ version }) => version)),
+            (row) => Effect.map(keyOf(row), (key) => ({ ...row, key })),
+          )
+
+          const states = new Map(
+            (yield* statesOf(rows.map(({ key }) => key))).map(({ key, state }) => [key, state]),
+          )
+
+          const byId = new Map(rows.map((row) => [row.id, row]))
+
+          // A key no run has claimed, or one a run gave back under the
+          // attempt limit. A Ready, Running or Abandoned key waits.
+          const open = ({ key, annotation }: (typeof rows)[number]) => {
+            const state = states.get(key)
+
+            return annotation !== key && (state === undefined || state === "Failed")
+          }
+
+          // In demand's order: most asked, then by version id.
+          const eligible = asked.flatMap(({ version }) => {
+            const row = byId.get(version)
+
+            return row !== undefined && open(row) ? [row] : []
+          })
+
+          return [
+            ...eligible.filter(({ annotation }) => annotation === null),
+            ...eligible.filter(({ annotation }) => annotation !== null),
+          ].map(({ id }) => id)
+        })
+
         const annotate = Effect.fn("Annotate.annotate")(function* (
           params: typeof Params.cases.Annotate.Type,
           run: string,
@@ -880,6 +956,22 @@ export class Annotate extends Context.Service<Annotate, Interface>()(
           return results.flat()
         })
 
+        // Annotates what `select` lists. The selection is a step, so a
+        // replayed run lists the same versions and reads demand once.
+        const demanded = Effect.fn("Annotate.demand")(function* (run: string) {
+          const versions = yield* kept(
+            Schema.Array(VersionId),
+            "select",
+            select().pipe(Effect.mapError((error) => thrown({ message: String(error) }))),
+          )
+
+          const listed = [...versions]
+
+          if (!Arr.isArrayNonEmpty(listed)) return []
+
+          return yield* annotate(Params.cases.Annotate.make({ versions: listed }), run)
+        })
+
         // Clears each listed version's active annotation when it is under
         // settings other than the current ones.
         const retire = Effect.fn("Annotate.retire")(function* (
@@ -908,6 +1000,7 @@ export class Annotate extends Context.Service<Annotate, Interface>()(
         const run = (params: Params, instance: string) =>
           Params.match(params, {
             Annotate: (command) => annotate(command, instance),
+            Demand: () => demanded(instance),
             Retire: (command) => retire(command),
           })
 
@@ -915,7 +1008,8 @@ export class Annotate extends Context.Service<Annotate, Interface>()(
       }),
     )
 
-  // Inside Workers: PAPERS_DB, PAPERS, OpenAI and the ANNOTATE binding.
+  // Inside Workers: PAPERS_DB, PAPERS, OpenAI, the ANNOTATE binding and the
+  // demand in DB.
   // A Worker without them binds no Annotate Workflow, so this never runs
   // there.
   static readonly layer = Layer.unwrap(
@@ -938,6 +1032,7 @@ export class Annotate extends Context.Service<Annotate, Interface>()(
               ),
             ),
             Layer.provide(Instances.make(ANNOTATE)),
+            Layer.provide(Demand.layer),
           ),
         )
       }),

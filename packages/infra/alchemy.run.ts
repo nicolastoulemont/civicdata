@@ -132,13 +132,15 @@ export default Alchemy.Stack(
             className: "GatherWorkflow",
             schedules: scheduled ? ["0 5 * * *"] : [],
           }),
-          // Annotates a list of stored paper versions with the model
-          // (docs/papers.md#annotation), only when someone starts a run
-          // (.github/workflows/annotate.yml): each run costs model calls.
+          // Annotates stored paper versions with the model
+          // (docs/papers.md#annotation), in production every day at 06:00
+          // UTC, after the gather: each run annotates the versions questions
+          // asked for, up to its caps. Elsewhere only when someone starts a
+          // run (.github/workflows/annotate.yml): each run costs model calls.
           ANNOTATE: Cloudflare.Workflow("Annotate", {
             workflowName: `${prefix}-annotate`,
             className: "AnnotateWorkflow",
-            schedules: [],
+            schedules: scheduled ? ["0 6 * * *"] : [],
           }),
         }),
       }
