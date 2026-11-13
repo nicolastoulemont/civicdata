@@ -2,12 +2,19 @@
 // on a machine, step by step at once, against a stage's paper store over
 // Cloudflare's D1 and R2 APIs. It gathers more works at once than the
 // Workflow, and still paces each host, Cloudflare's API included.
-import { Duration, Layer, type Redacted } from "effect"
+import { Duration, Layer, Option, type Redacted } from "effect"
 
 import { Step } from "../../src/CatalogBuild.ts"
 import { type Gaps, gaps } from "../../src/Pace.ts"
 import { Bucket } from "../../src/research/Bucket.ts"
-import { type Limits, Outcome, paced, type Report, sources } from "../../src/research/Gather.ts"
+import {
+  keyed,
+  type Limits,
+  Outcome,
+  paced,
+  type Report,
+  sources,
+} from "../../src/research/Gather.ts"
 import { d1 } from "../d1.ts"
 
 export interface Stage {
@@ -28,10 +35,14 @@ const pacing: Gaps = {
 }
 
 // The gather's services over the caller's HTTP client: the stage's store,
-// OpenAlex and the licence pages, and steps that run at once.
+// OpenAlex and the licence pages, and steps that run at once. `openalex`
+// signs OpenAlex's requests (`keyed`).
 export const local = (
   { account, database, bucket, token }: Stage,
-  options: { readonly pacing?: Gaps } = {},
+  options: {
+    readonly pacing?: Gaps
+    readonly openalex?: Option.Option<Redacted.Redacted>
+  } = {},
 ) => {
   const store = d1({ account, database, token })
 
@@ -42,7 +53,10 @@ export const local = (
       Bucket.r2({ account, bucket, token }),
       sources,
       Step.immediate,
-    ).pipe(Layer.provide(paced(options.pacing ?? pacing))),
+    ).pipe(
+      Layer.provide(paced(options.pacing ?? pacing)),
+      Layer.provide(keyed(options.openalex ?? Option.none())),
+    ),
   }
 }
 

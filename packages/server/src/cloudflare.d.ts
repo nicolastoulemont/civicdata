@@ -61,6 +61,9 @@ declare module "cloudflare:workers" {
     // disk, through vitest.eval.config.ts. Only the eval has it.
     readonly RUNS?: { readonly fetch: (request: Request) => Promise<Response> }
     readonly OPENAI_API_KEY?: string
+    // Signs the paper gather's OpenAlex requests (research/Gather.ts). Without
+    // it a run reads only each search's first page.
+    readonly OPENALEX_API_KEY?: string
     readonly TURNSTILE_SECRET_KEY?: string
     // "on" where the catalog Workflow classifies directions, production
     // only; "off" elsewhere (packages/infra/alchemy.run.ts).
