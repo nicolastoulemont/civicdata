@@ -2,6 +2,9 @@
   "$schema": "./node_modules/fallow/schema.json",
   // Vendored code follows its upstream; see each folder's UPSTREAM.md.
   "ignorePatterns": ["tools/oxlint/anti-slop/**", ".claude/**", ".agents/**"],
+  // Vitest loads a custom environment by the path in its config, which
+  // Fallow's Vitest plugin does not follow.
+  "supportEntry": ["apps/web/test/environment.ts"],
   "ignoreDependencies": [
     // The tsconfig plugin name. @effect/tsgo provides it.
     "@effect/language-service",
@@ -17,6 +20,8 @@
     // Alchemy loads the archive stack through its deploy command argument.
     { "file": "packages/infra/evals.run.ts", "exports": ["default"] },
     { "file": "packages/infra/maps.run.ts", "exports": ["default"] },
+    // Vitest reads the web tests' environment through its config path.
+    { "file": "apps/web/test/environment.ts", "exports": ["default"] },
     // TanStack Router generates this file and decides what it exports.
     { "file": "apps/web/src/routeTree.gen.ts", "exports": ["*"] },
     // shadcn components export every sub-part; pages use a few. An unused
