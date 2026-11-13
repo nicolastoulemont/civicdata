@@ -14,10 +14,15 @@ export default defineConfig({
     },
   ],
   test: {
-    environment: "happy-dom",
+    // happy-dom, with its console errors routed to the test that caused them.
+    environment: "./test/environment.ts",
     // The app only calls its own origin (/api/...), so give the page one.
     // happy-dom preflights cross-origin requests, which the app never sends.
     environmentOptions: { happyDOM: { url: "http://localhost:3000" } },
     setupFiles: ["./test/setup.ts"],
+    // Tests of failed requests log the failures they expect, and Recharts warns
+    // about every chart happy-dom gives no size. Print a test's logs only when
+    // it fails, as Vitest already does when it detects an agent.
+    silent: "passed-only",
   },
 })

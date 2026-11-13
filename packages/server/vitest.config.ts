@@ -22,5 +22,9 @@ export default defineConfig({
     // Cloudflare inlines Vitest's cached module graph into one WebSocket
     // message, which can exceed workerd's message limit. Fetch modules alone.
     fsModuleCache: false,
+    // Every request logs its response, and tests of failing sources log the
+    // warnings they expect. Print a test's logs only when it fails, as Vitest
+    // already does when it detects an agent.
+    silent: "passed-only",
   },
 })
