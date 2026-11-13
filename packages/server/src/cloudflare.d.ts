@@ -18,6 +18,10 @@ declare module "cloudflare:workers" {
     // bookkeeping: production's in a preview without the own-catalog label,
     // the same database as DB everywhere else. Requests only read it.
     readonly CATALOG_DB?: import("@cloudflare/workers-types").D1Database
+    // The paper store (research/store.ts, docs/papers.md): production's in a
+    // preview without the own-catalog label. Requests only read them.
+    readonly PAPERS_DB?: import("@cloudflare/workers-types").D1Database
+    readonly PAPERS?: import("@cloudflare/workers-types").R2Bucket
     readonly AI?: import("./Vectors.ts").Ai
     readonly VECTORS?: import("./Vectors.ts").Index
     // The catalog and gathering Workflows, bound only where the stage owns

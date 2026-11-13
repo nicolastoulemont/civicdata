@@ -3,7 +3,7 @@ import { Schema } from "effect"
 
 const Https = Schema.String.check(Schema.isPattern(/^https:\/\/[^\s]+$/))
 
-const Digest = Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/))
+export const Digest = Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/))
 const Page = Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: 200 }))
 
 export type Mode = "Resume" | "Refresh" | "Offline"
