@@ -10,6 +10,23 @@ import { textOf } from "./pdf.ts"
 // a notice in the PDF itself (`textOf`).
 const admitted = new Set(["cc-by", "cc0", "public-domain"])
 
+// A copy worth downloading: one OpenAlex labels CC BY or public domain, or
+// an EconStor item whose page may give its licence.
+export const qualifies = (copy: Copy) => admitted.has(copy.license ?? "") || supported(copy)
+
+// How likely a copy is to serve its PDF to a script, most likely first: a
+// labelled repository copy, which OpenAlex harvested over OAI-PMH (PubMed
+// Central, Europe PMC, arXiv, EconStor and other repositories), then a
+// labelled published version, then the rest in OpenAlex's order.
+// Publishers refuse scripts more often than repositories do.
+const rank = (copy: Copy) => {
+  if (!admitted.has(copy.license ?? "")) return 2
+
+  if (copy.id.startsWith("pmh:")) return 0
+
+  return copy.version === "publishedVersion" ? 1 : 2
+}
+
 const tryCopy = Effect.fn("Papers.copy")(function* (copy: Copy) {
   const rights = yield* Licences
   const source = yield* OpenAlex
@@ -29,7 +46,13 @@ const tryCopy = Effect.fn("Papers.copy")(function* (copy: Copy) {
   }
 
   const download = yield* source.download(copy)
-  const content = yield* textOf(download, { copy, evidence })
+
+  // An item page vouches for the PDF it names, not for one a landing page
+  // led to.
+  const content = yield* textOf(download, {
+    copy,
+    evidence: download.landing === null ? evidence : [],
+  })
 
   return { content, pdf: Content.guards.Text(content) ? download.bytes : null }
 })
@@ -40,16 +63,19 @@ const excluded = (reason: typeof Content.cases.Metadata.Type.reason) => {
   return "licence-not-admitted"
 }
 
-// Tries at most three of a work's identified copies, licensed ones first,
-// and keeps the first whose text is admitted. Every other copy tried leaves
-// a receipt: excluded, or failed when its host or its PDF failed.
+// Tries at most three of a work's identified copies, those worth
+// downloading first, most likely to serve their PDF first, and keeps the
+// first whose text is admitted. A copy that fails moves the work on to the
+// next. Every other copy tried leaves a receipt: excluded, or failed when
+// its host or its PDF failed.
 export const admit = Effect.fn("Papers.admit")(function* (work: Work) {
   const attempts: Array<Attempt> = []
-
   const listed = copiesOf(work)
-  const eligible = listed.filter((copy) => admitted.has(copy.license ?? "") || supported(copy))
-  const eligibleSet = new Set(eligible)
-  const candidates = [...eligible, ...listed.filter((copy) => !eligibleSet.has(copy))].slice(0, 3)
+
+  const candidates = [
+    ...listed.filter(qualifies).toSorted((a, b) => rank(a) - rank(b)),
+    ...listed.filter((copy) => !qualifies(copy)),
+  ].slice(0, 3)
 
   for (const copy of candidates) {
     const result = yield* tryCopy(copy).pipe(

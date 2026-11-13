@@ -301,7 +301,7 @@ export const gather = Effect.fn("Papers.run")(function* (
 })
 
 // The paper gather's requests: each host paced through its shared limiter,
-// under a generic client name.
+// under the project's client name.
 const http = Pace.hosts.pipe(Layer.provide(anonymous), Layer.provide(FetchHttpClient.layer))
 
 // Inside Workers: PAPERS_DB, PAPERS and the PACE limiters. A Worker without

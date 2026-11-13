@@ -13,7 +13,7 @@ import { fingerprint } from "../fingerprint.ts"
 import { type Gaps, gaps } from "../Pace.ts"
 import { Attempt, Content, Digest, Paper, PaperUnavailable, Seed, Work } from "./archive.ts"
 import type { Bucket } from "./Bucket.ts"
-import { admit } from "./copies.ts"
+import { admit, qualifies } from "./copies.ts"
 import { Licences } from "./Licences.ts"
 import { metadataUrl, OpenAlex } from "./OpenAlex.ts"
 import { extraction } from "./pdf.ts"
@@ -102,8 +102,8 @@ export const Outcome = Schema.TaggedUnion({
   // The store refused the work's rows, such as metadata for a paper whose
   // text it serves. Nothing changes until the record does.
   Refused: { paper: Digest, problem: Schema.String },
-  // A copy's host, its PDF or the store failed. The next run tries again,
-  // up to `attempts` times on one record.
+  // Every copy worth downloading that the gather tried failed, or the store
+  // failed. The next run tries again, up to `attempts` times on one record.
   Failed: { operation: Schema.String, problem: Schema.String },
 })
 
@@ -313,8 +313,10 @@ const coverOf = Effect.fnUntraced(function* (work: Work, { paper }: { readonly p
 })
 
 // What the store holds for a work once its paper is published: its text,
-// or its metadata with why. A copy whose host or PDF failed makes the work
-// fail, so the next run tries it again.
+// or its metadata with why. When every copy worth downloading that the
+// gather tried failed, the work fails, naming each copy's host and problem,
+// so the next run tries it again. A copy excluded on its own evidence
+// decides the work.
 const outcomeOf = Effect.fnUntraced(function* (
   gathered: Effect.Success<ReturnType<typeof admit>>,
   { paper }: { readonly paper: Seed["id"] },
@@ -327,13 +329,21 @@ const outcomeOf = Effect.fnUntraced(function* (
       version: yield* fingerprint(`${content.id}|${extraction}`),
     })
 
-  const failed = gathered.attempts.flatMap(({ result }) =>
-    Attempt.fields.result.guards.Failed(result) ? [result] : [],
-  )[0]
+  const tried = gathered.attempts.filter(({ copy }) => qualifies(copy))
 
-  return failed === undefined
-    ? Outcome.cases.Metadata.make({ paper, reason: content.reason })
-    : Outcome.cases.Failed.make({ operation: failed.operation, problem: failed.problem })
+  const failed = tried.flatMap(({ copy, result }) =>
+    Attempt.fields.result.guards.Failed(result)
+      ? [{ host: new URL(copy.pdf_url).host, result }]
+      : [],
+  )
+
+  if (failed.length === 0 || failed.length < tried.length)
+    return Outcome.cases.Metadata.make({ paper, reason: content.reason })
+
+  return Outcome.cases.Failed.make({
+    operation: [...new Set(failed.map(({ result }) => result.operation))].join(", "),
+    problem: failed.map(({ host, result }) => `${host}: ${result.problem}`).join("; "),
+  })
 })
 
 // The store failed under a write; the next run tries again.
@@ -764,10 +774,12 @@ export const run = Effect.fn("Papers.gather")(function* (
   } satisfies Report
 })
 
-// A generic client name, without a contact address or API key.
-const named = HttpClient.mapRequest(HttpClientRequest.setHeader("user-agent", "papers-gather/1.0"))
+// The project's client name, without a contact address or API key.
+const agent = "openfacts-papers/1.0 (+https://openfacts.app)"
 
-// The caller's HTTP client, naming the client generically.
+const named = HttpClient.mapRequest(HttpClientRequest.setHeader("user-agent", agent))
+
+// The caller's HTTP client, naming the project's client.
 export const anonymous = Layer.effect(
   HttpClient.HttpClient,
   Effect.map(HttpClient.HttpClient, named),
@@ -775,7 +787,7 @@ export const anonymous = Layer.effect(
 
 // Waits between requests to one host in this process, so no publisher sees
 // more than one request per gap from us (`gaps` in Pace.ts), and names the
-// client generically. Other hosts go on meanwhile. A Workflow paces through
+// project's client. Other hosts go on meanwhile. A Workflow paces through
 // the shared limiters instead (`Pace.hosts`).
 export const paced = (options: Gaps = gaps) =>
   Layer.effect(
