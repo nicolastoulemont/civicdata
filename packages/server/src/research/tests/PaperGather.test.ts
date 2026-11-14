@@ -1066,4 +1066,47 @@ describe("the paper gather", () => {
       expect((yield* gather()).works).toEqual([])
     }).pipe(Effect.provide(layerOf(place.http, { key })))
   })
+
+  it.effect("reads an article's CC BY notice beside the CC0 waiver for its data", () => {
+    const place = world({
+      searches: { [topic.query]: [[work(1)]] },
+      respond: (url) =>
+        url === copy(1).pdf_url
+          ? new Response(
+              pdf(
+                "visit http://creativecommons.org/licenses/by/4.0/.\nThe Creative Commons Public Domain Dedication waiver\n(http://creativecommons.org/publicdomain/zero/1.0/) applies to the data made available in this article.",
+              ),
+            )
+          : undefined,
+    })
+
+    return Effect.gen(function* () {
+      expect(outcomes(yield* gather())).toEqual({ [work(1).id]: "Text" })
+
+      const text = yield* held(work(1))
+
+      assert(Held.guards.Text(text), "Expected the article's text")
+      expect(text.copy.evidence).toMatchObject([
+        { page: 1, licence: "https://creativecommons.org/licenses/by/4.0/" },
+      ])
+    }).pipe(Effect.provide(layerOf(place.http)))
+  })
+
+  it.effect("excludes a PDF whose CC0 notice is not a waiver for its data", () => {
+    const place = world({
+      searches: { [topic.query]: [[work(1)]] },
+      respond: (url) =>
+        url === copy(1).pdf_url
+          ? new Response(
+              pdf(
+                "http://creativecommons.org/licenses/by/4.0/\nhttp://creativecommons.org/publicdomain/zero/1.0/",
+              ),
+            )
+          : undefined,
+    })
+
+    return Effect.gen(function* () {
+      expect(outcomes(yield* gather())).toEqual({ [work(1).id]: "Metadata" })
+    }).pipe(Effect.provide(layerOf(place.http)))
+  })
 })

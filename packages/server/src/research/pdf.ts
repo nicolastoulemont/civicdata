@@ -53,6 +53,17 @@ const joined = (text: string) =>
     .replace(/(https?:\/\/)\s+(?=creativecommons\.org)/gi, "$1")
     .replace(/(creativecommons\.org\/(?:licenses|publicdomain)\/[a-z-]+\/)\s+(?=\d\.\d)/gi, "$1")
 
+// A page's text without the waiver BMC and SpringerOpen print for an
+// article's data: "The Creative Commons Public Domain Dedication waiver
+// (http://creativecommons.org/publicdomain/zero/1.0/) applies to the data
+// made available in this article". Its CC0 URL licenses the data, not the
+// text, so it is no second licence. A CC0 URL anywhere else still counts.
+const unwaived = (text: string) =>
+  text.replace(
+    /Public\s+Domain\s+Dedication\s+waiver\s*\(\s*https?:\/\/creativecommons\.org\/publicdomain\/zero\/1\.0\/?\s*\)\s*applies\s+to\s+the\s+data/gi,
+    "",
+  )
+
 export const textOf = Effect.fn("Papers.text")(function* (
   download: Omit<Download, "landing">,
   options: { readonly copy: Copy; readonly evidence: ReadonlyArray<Evidence> },
@@ -69,7 +80,7 @@ export const textOf = Effect.fn("Papers.text")(function* (
 
   const notices = cover.flatMap((text, index) =>
     [
-      ...joined(text).matchAll(
+      ...unwaived(joined(text)).matchAll(
         /https?:\/\/creativecommons\.org\/(?:licenses|publicdomain)\/[^\s<>)]+/gi,
       ),
     ].map(([value]) => ({ value: value.replace(/[.,;]+$/, ""), page: index + 1 })),
