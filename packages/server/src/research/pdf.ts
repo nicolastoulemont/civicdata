@@ -1,4 +1,4 @@
-import { Array as Arr, Effect, Option } from "effect"
+import { Array as Arr, Effect, Option, Schema } from "effect"
 import { extractText, getDocumentProxy } from "unpdf"
 
 import { fingerprint } from "../utils/fingerprint.ts"
@@ -26,6 +26,15 @@ const passagesOf = (pages: ReadonlyArray<string>) =>
     return passages
   })
 
+// A link a page puts on its text, as pdf.js reads its annotations.
+const Link = Schema.Struct({ subtype: Schema.Literal("Link"), url: Schema.String })
+
+const isCreativeCommons = (url: string) =>
+  /^https?:\/\/creativecommons\.org\/(?:licenses|publicdomain)\//i.test(url)
+
+// A PDF's text, page by page, and the Creative Commons URLs its first two
+// pages link from their text, as MDPI links its notice "Creative Commons
+// Attribution (CC BY) license" without printing the URL.
 const readPdf = (bytes: Uint8Array) =>
   Effect.tryPromise({
     try: async () => {
@@ -35,7 +44,20 @@ const readPdf = (bytes: Uint8Array) =>
         if (pdf.numPages > 200) throw new Error("PDF exceeds 200 pages")
         const { text } = await extractText(pdf, { mergePages: false })
 
-        return text
+        const links = await Promise.all(
+          text.slice(0, 2).map(async (_, index) => {
+            const page = await pdf.getPage(index + 1)
+            const annotations: ReadonlyArray<unknown> = await page.getAnnotations()
+
+            return annotations.flatMap((annotation) =>
+              Option.toArray(Schema.decodeUnknownOption(Link)(annotation)).flatMap(({ url }) =>
+                isCreativeCommons(url) ? [url] : [],
+              ),
+            )
+          }),
+        )
+
+        return { text, links }
       } finally {
         await pdf.loadingTask.destroy()
       }
@@ -53,15 +75,22 @@ const joined = (text: string) =>
     .replace(/(https?:\/\/)\s+(?=creativecommons\.org)/gi, "$1")
     .replace(/(creativecommons\.org\/(?:licenses|publicdomain)\/[a-z-]+\/)\s+(?=\d\.\d)/gi, "$1")
 
+// The waiver's sentence, with whatever its parentheses hold.
+const waiver = /Public\s+Domain\s+Dedication\s+waiver\s*\(([^)]*)\)\s*applies\s+to\s+the\s+data/gi
+
+const cc0 = "https://creativecommons.org/publicdomain/zero/1.0/"
+
 // A page's text without the waiver BMC and SpringerOpen print for an
 // article's data: "The Creative Commons Public Domain Dedication waiver
 // (http://creativecommons.org/publicdomain/zero/1.0/) applies to the data
 // made available in this article". Its CC0 URL licenses the data, not the
-// text, so it is no second licence. A CC0 URL anywhere else still counts.
+// text, so it is no second licence, even where the layout broke the URL
+// over lines. A CC0 URL anywhere else still counts.
 const unwaived = (text: string) =>
-  text.replace(
-    /Public\s+Domain\s+Dedication\s+waiver\s*\(\s*https?:\/\/creativecommons\.org\/publicdomain\/zero\/1\.0\/?\s*\)\s*applies\s+to\s+the\s+data/gi,
-    "",
+  text.replaceAll(waiver, (sentence, url: string) =>
+    /^https?:\/\/creativecommons\.org\/publicdomain\/zero\/1\.0\/?$/i.test(url.replace(/\s+/g, ""))
+      ? ""
+      : sentence,
   )
 
 export const textOf = Effect.fn("Papers.text")(function* (
@@ -71,20 +100,44 @@ export const textOf = Effect.fn("Papers.text")(function* (
   const { bytes, url, retrievedAt } = download
   const { copy } = options
   const sha256 = yield* fingerprint(bytes)
-  const pages = yield* readPdf(new Uint8Array(bytes))
+  const { text: pages, links } = yield* readPdf(new Uint8Array(bytes))
   const cover = pages.slice(0, 2)
 
   if (cover.some((page) => /all\s+rights\s+reserved/i.test(page))) {
     return Content.cases.Metadata.make({ reason: "licence-conflict" })
   }
 
-  const notices = cover.flatMap((text, index) =>
+  const printed = cover.flatMap((text, index) =>
     [
       ...unwaived(joined(text)).matchAll(
         /https?:\/\/creativecommons\.org\/(?:licenses|publicdomain)\/[^\s<>)]+/gi,
       ),
     ].map(([value]) => ({ value: value.replace(/[.,;]+$/, ""), page: index + 1 })),
   )
+
+  // A link is a notice too, unless its page prints the same licence, or
+  // it is CC0 on a page that prints the waiver for the article's data,
+  // whose URL the waiver links.
+  const linked = links.flatMap((urls, index) => {
+    const page = index + 1
+    const text = joined(cover[index] ?? "")
+    const waived = unwaived(text) !== text
+
+    const same = (link: string) =>
+      printed.some(
+        (notice) =>
+          notice.page === page &&
+          Option.getOrUndefined(licenceOf(notice.value)) === Option.getOrUndefined(licenceOf(link)),
+      )
+
+    return [...new Set(urls)].flatMap((link) =>
+      same(link) || (waived && Option.getOrUndefined(licenceOf(link)) === cc0)
+        ? []
+        : [{ value: link, page }],
+    )
+  })
+
+  const notices = [...printed, ...linked]
 
   if (notices.some(({ value }) => Option.isNone(licenceOf(value)))) {
     return Content.cases.Metadata.make({ reason: "licence-conflict" })

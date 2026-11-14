@@ -1109,4 +1109,79 @@ describe("the paper gather", () => {
       expect(outcomes(yield* gather())).toEqual({ [work(1).id]: "Metadata" })
     }).pipe(Effect.provide(layerOf(place.http)))
   })
+
+  it.effect("admits a PDF whose CC BY URL is only a link on its notice", () => {
+    const place = world({
+      searches: { [topic.query]: [[work(1)]] },
+      respond: (url) =>
+        url === copy(1).pdf_url
+          ? new Response(
+              pdf("Creative Commons Attribution (CC BY) license.", {
+                links: ["https://creativecommons.org/licenses/by/4.0/"],
+              }),
+            )
+          : undefined,
+    })
+
+    return Effect.gen(function* () {
+      expect(outcomes(yield* gather())).toEqual({ [work(1).id]: "Text" })
+
+      const text = yield* held(work(1))
+
+      assert(Held.guards.Text(text), "Expected the paper's text")
+      expect(text.copy.evidence).toMatchObject([
+        { page: 1, licence: "https://creativecommons.org/licenses/by/4.0/" },
+      ])
+    }).pipe(Effect.provide(layerOf(place.http)))
+  })
+
+  it.effect("excludes a PDF whose notice links a non-commercial licence", () => {
+    const place = world({
+      searches: { [topic.query]: [[work(1)]] },
+      respond: (url) =>
+        url === copy(1).pdf_url
+          ? new Response(
+              pdf("Creative Commons Attribution (CC BY-NC) license.", {
+                links: ["https://creativecommons.org/licenses/by-nc/4.0/"],
+              }),
+            )
+          : undefined,
+    })
+
+    return Effect.gen(function* () {
+      expect(outcomes(yield* gather())).toEqual({ [work(1).id]: "Metadata" })
+    }).pipe(Effect.provide(layerOf(place.http)))
+  })
+
+  it.effect("reads the CC0 link of a data waiver as the waiver's, not a second licence", () => {
+    const place = world({
+      searches: { [topic.query]: [[work(1)]] },
+      respond: (url) =>
+        url === copy(1).pdf_url
+          ? new Response(
+              pdf(
+                "visit http://creativecommons.org/licenses/by/4.0/.\nThe Creative Commons Public Domain Dedication waiver\n(http://creativeco\nmmons.org/publicdomain/zero/1.0/) applies to the data.",
+                {
+                  links: [
+                    "http://creativecommons.org/licenses/by/4.0/",
+                    "http://creativecommons.org/publicdomain/zero/1.0/",
+                  ],
+                },
+              ),
+            )
+          : undefined,
+    })
+
+    return Effect.gen(function* () {
+      expect(outcomes(yield* gather())).toEqual({ [work(1).id]: "Text" })
+
+      const text = yield* held(work(1))
+
+      assert(Held.guards.Text(text), "Expected the article's text")
+      expect(text.copy.evidence).toMatchObject([
+        { page: 1, licence: "https://creativecommons.org/licenses/by/4.0/" },
+      ])
+      expect(text.copy.evidence).toHaveLength(1)
+    }).pipe(Effect.provide(layerOf(place.http)))
+  })
 })
