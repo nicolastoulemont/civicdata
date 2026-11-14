@@ -7,6 +7,7 @@ import { TestClock } from "effect/testing"
 import { getResolvedPDFJS } from "unpdf"
 
 import { Step } from "../../platform/Step.ts"
+import { scansOf } from "../../tests/plans.ts"
 import { fingerprint } from "../../utils/fingerprint.ts"
 import { Work } from "../archive.schemas.ts"
 import { Bucket } from "../Bucket.ts"
@@ -528,13 +529,7 @@ describe("the paper gather", () => {
 
       // A scan reads every row of a table: on production's store, a scan of
       // `copy` per metadata-only work read 17 million rows in one run.
-      const scans = (yield* planned.plans).flatMap(({ query, steps }) =>
-        steps
-          .filter((step) => /^SCAN (paper|copy|version|passage|annotation|work_\w+)\b/.test(step))
-          .map((step) => ({ query, step })),
-      )
-
-      expect(scans).toEqual([])
+      expect(scansOf(yield* planned.plans)).toEqual([])
     }).pipe(Effect.provide(layerOf(place.http)))
   })
 

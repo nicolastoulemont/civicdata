@@ -275,7 +275,7 @@ export class Annotate extends Context.Service<Annotate, Interface>()(
           Result: Schema.Struct({ ...VersionRow.fields, annotation: Schema.NullOr(Digest) }),
           execute: (ids) => sql`
             SELECT version.id, version.text, version.extraction, version.annotation
-            FROM version JOIN paper ON paper.active = version.id
+            FROM version JOIN paper ON paper.id = version.paper AND paper.active = version.id
             WHERE version.id IN (SELECT value FROM json_each(${JSON.stringify(ids)}))
           `,
         })
@@ -924,8 +924,10 @@ export class Annotate extends Context.Service<Annotate, Interface>()(
               yield* sql`
                 UPDATE version SET annotation = NULL
                 WHERE id IN (SELECT value FROM json_each(${JSON.stringify(params.versions)}))
-                AND annotation IN (
-                  SELECT key FROM annotation WHERE model <> ${model} OR rubric <> ${rubric}
+                AND EXISTS (
+                  SELECT 1 FROM annotation
+                  WHERE annotation.key = version.annotation
+                    AND (annotation.model <> ${model} OR annotation.rubric <> ${rubric})
                 )
               `
             }).pipe(Effect.mapError((error) => thrown({ message: String(error) }))),

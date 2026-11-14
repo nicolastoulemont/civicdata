@@ -118,6 +118,11 @@ const ledger = Effect.gen(function* () {
     at TEXT NOT NULL
   )`
 
+  // The ledger's queries in docs/papers.md, such as the requeue, find works
+  // by outcome.
+  yield* sql`CREATE INDEX IF NOT EXISTS work_gathered_outcome
+    ON work_gathered (json_extract(outcome, '$._tag'))`
+
   yield* sql`CREATE TABLE IF NOT EXISTS work_claim (
     work TEXT PRIMARY KEY,
     run TEXT NOT NULL,

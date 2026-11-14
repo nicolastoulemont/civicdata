@@ -140,6 +140,8 @@ The writer's rules hold: the gather never turns a paper whose text the store ser
 | `attempts` | failed attempts on this record in a row; any other outcome, or a new record, resets it |
 | `at`       | when the gather last asked for the work, as ISO 8601 UTC                               |
 
+An index on the outcome's tag, `work_gathered_outcome` on `json_extract(outcome, '$._tag')`, lets the queries below read only the rows of one outcome; a query must spell the expression exactly so for SQLite to use it.
+
 The hash leaves out `updated_date` because OpenAlex moves it whenever anything in the record changes, citation counts included: a weekly run would otherwise download most PDFs again. A new copy, licence, title or retraction changes the hash. The hash also leaves out `has_content` and `best_oa_location`, which the gather began reading after it had stored works: with them in, every stored work would read as changed and be gathered again. A work that failed three times on one record before OpenAlex cached its PDF therefore waits for another change. To give such works their cached try:
 
 ```sql
