@@ -480,4 +480,4 @@ A `pr-<n>` preview without the `own-catalog` label, and `alchemy dev` without `O
 
 ## Tests
 
-`packages/server/test/papers.ts` fills a test store the way the writers must: `publish` for a paper with text, `list` for a metadata-only paper, `withdraw` for a withdrawn one. Each is valid by default and takes only what a test changes. `packages/server/test/Papers.test.ts` runs the reader against D1 and R2 inside workerd.
+`packages/server/test/papers.ts` fills a test store the way the writers must: `publish` for a paper with text, `list` for a metadata-only paper, `withdraw` for a withdrawn one. Each is valid by default and takes only what a test changes. `packages/server/test/Papers.test.ts` runs the reader against D1 and R2 inside workerd. `papersPlanned` records how SQLite plans each statement on the test store: the gather's tests fail if any statement scans a store table, since a scan of `copy` for each metadata-only work read 17.6 million rows in one production run.

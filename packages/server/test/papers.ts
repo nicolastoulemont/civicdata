@@ -21,6 +21,7 @@ import {
   type Withdrawal,
 } from "../src/research/store.ts"
 import corpus from "./fixtures/papers/corpus.json"
+import { plansOf } from "./plans.ts"
 
 export const paper = () =>
   Paper.make({
@@ -63,6 +64,14 @@ export const papersBucket = bucket
 
 // The test's PAPERS_DB, for builders and for a reader under test.
 export const papersDb = D1Client.layer({ db: PapersDb }).pipe(Layer.orDie)
+
+// The test's PAPERS_DB, and how SQLite plans each statement a writer or
+// reader runs on it (plans.ts).
+export const papersPlanned = () => {
+  const { database, plans } = plansOf(PapersDb)
+
+  return { layer: D1Client.layer({ db: database }).pipe(Layer.orDie), plans }
+}
 
 const licence = "https://creativecommons.org/licenses/by/4.0/"
 const retrievedAt = "2026-11-01T00:00:00.000Z"

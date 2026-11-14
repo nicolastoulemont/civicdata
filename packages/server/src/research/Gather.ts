@@ -248,6 +248,8 @@ const wantedOf = Effect.fnUntraced(function* (
 ) {
   const sql = yield* SqlClient.SqlClient
 
+  if (works.length === 0) return []
+
   const rows = yield* sql`SELECT work, hash, outcome, attempts FROM work_gathered WHERE ${sql.in(
     "work",
     works.map((work) => work.id),
