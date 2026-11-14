@@ -24,11 +24,22 @@ import { type Gaps } from "../platform/Pace.types.ts"
 import { type StepFailed } from "../platform/Step.schemas.ts"
 import { Step } from "../platform/Step.ts"
 import { fingerprint } from "../utils/fingerprint.ts"
-import { Attempt, Content, Digest, Paper, PaperUnavailable, Seed, Work } from "./archive.schemas.ts"
+import {
+  Attempt,
+  Content,
+  type Copy,
+  Digest,
+  Paper,
+  PaperUnavailable,
+  Seed,
+  Spent,
+  Work,
+} from "./archive.schemas.ts"
 import file from "./assets/topics.json" with { type: "json" }
 import type { Bucket } from "./Bucket.ts"
 import { caps } from "./constants/caps.ts"
 import { extraction } from "./constants/extraction.ts"
+import { cache } from "./constants/openalex/cache.ts"
 import { admit } from "./copies.ts"
 import { Gathered, Outcome, Topic } from "./Gather.schemas.ts"
 import type { Cap, Fetched, Limits, Report, Searched } from "./Gather.types.ts"
@@ -43,9 +54,18 @@ import { qualifies } from "./utils/qualifies.ts"
 
 const Topics = Schema.Struct({ format: Schema.Literal(1), topics: Schema.NonEmptyArray(Topic) })
 
-const defaults: Limits = { pages: 2, size: 100, batch: 10, concurrency: 2, attempts: 3 }
+// A work downloads at most four PDFs, three copies and OpenAlex's cached
+// one, each within 15 seconds: 8 works, 2 at once, keep a Workflow step
+// within its five minutes.
+const defaults: Limits = { pages: 2, size: 100, batch: 8, concurrency: 2, attempts: 3 }
 
-const unlimited: Fetched = { requests: Infinity, works: Infinity, pdfs: Infinity, bytes: Infinity }
+const unlimited: Fetched = {
+  requests: Infinity,
+  works: Infinity,
+  pdfs: Infinity,
+  bytes: Infinity,
+  cached: Infinity,
+}
 
 // The first cap `fetched` reached, if any.
 const reached = (fetched: Fetched, limit: Fetched): Cap | null =>
@@ -75,6 +95,9 @@ const Batch = Schema.Struct({
   works: Schema.Int,
   pdfs: Schema.Int,
   bytes: Schema.Int,
+  cached: Schema.Int,
+  // Whether OpenAlex refused a cached PDF for the key's spent budget.
+  spent: Schema.Boolean,
 })
 
 // The ledger: one row per OpenAlex work the gather asked for. `hash` is the
@@ -142,7 +165,13 @@ const Row = Schema.Struct({
   attempts: Schema.Int,
 })
 
-const hashOf = (work: Work) => fingerprint(JSON.stringify(Struct.omit(work, ["updated_date"])))
+// `has_content` and `best_oa_location` stay out too: a work stored before
+// the gather read them would otherwise read as changed, and be gathered
+// again.
+const hashOf = (work: Work) =>
+  fingerprint(
+    JSON.stringify(Struct.omit(work, ["updated_date", "has_content", "best_oa_location"])),
+  )
 
 // The works of a page the run should ask for: new ones, ones whose record
 // changed, and ones whose last attempt on this record failed under the limit.
@@ -374,7 +403,9 @@ const Done = Schema.TaggedUnion({
 type Done = typeof Done.Type
 
 // Gathers a batch of works the run wants, from their current records, while
-// `left` allows: the works, PDFs and bytes the run may still fetch. It
+// `left` allows: the works, PDFs, bytes and cached PDFs the run may still
+// fetch. A work whose cached PDF `left` or OpenAlex refuses waits for the
+// next run, and so does every later one that needs one. It
 // claims the batch first, and asks the ledger again under the claim, so a
 // retried step or another run's finished work is not gathered twice. A
 // work OpenAlex no longer lists records nothing: the next run asks again.
@@ -398,19 +429,32 @@ const batch = Effect.fnUntraced(function* (
     )).map((work) => work.id),
   )
 
-  const used = yield* Ref.make({ works: 0, pdfs: 0, bytes: 0 })
+  const used = yield* Ref.make({ works: 0, pdfs: 0, bytes: 0, cached: 0, spent: false })
 
-  // Counts every PDF the batch downloads, and its bytes.
+  // Takes one more cached PDF, if `left` allows.
+  const paid = (copy: Copy) =>
+    hostOf(copy) !== cache
+      ? Effect.void
+      : Ref.modify(used, (count) => {
+          const free = !count.spent && count.cached < left.cached
+
+          return [free, free ? { ...count, cached: count.cached + 1 } : count]
+        }).pipe(Effect.flatMap((free) => (free ? Effect.void : Effect.fail(new Spent()))))
+
+  // Counts every PDF the batch downloads, and its bytes. Once OpenAlex
+  // refuses a cached PDF, the batch asks for no other.
   const counted = OpenAlex.of({
     lookup: openalex.lookup,
     page: openalex.page,
     works: openalex.works,
     download: (copy) =>
-      Ref.update(used, (count) => ({ ...count, pdfs: count.pdfs + 1 })).pipe(
+      paid(copy).pipe(
+        Effect.andThen(Ref.update(used, (count) => ({ ...count, pdfs: count.pdfs + 1 }))),
         Effect.andThen(openalex.download(copy)),
         Effect.tap(({ bytes }) =>
           Ref.update(used, (count) => ({ ...count, bytes: count.bytes + bytes.length })),
         ),
+        Effect.tapErrorTag("Spent", () => Ref.update(used, (count) => ({ ...count, spent: true }))),
       ),
   })
 
@@ -442,9 +486,11 @@ const batch = Effect.fnUntraced(function* (
 
     if (!(yield* room)) return Done.cases.Waiting.make({})
 
-    return Done.cases.Gathered.make({
-      gathered: yield* gatherOne(work).pipe(Effect.provideService(OpenAlex, counted)),
-    })
+    return yield* gatherOne(work).pipe(
+      Effect.map((gathered) => Done.cases.Gathered.make({ gathered })),
+      Effect.catchTag("Spent", () => Effect.succeed(Done.cases.Waiting.make({}))),
+      Effect.provideService(OpenAlex, counted),
+    )
   })
 
   const done: ReadonlyArray<Done> = yield* Effect.forEach(ids, one, {
@@ -474,8 +520,9 @@ const messageOf = (cause: unknown) =>
 type Services = OpenAlex | Licences | SqlClient.SqlClient | Bucket
 
 // What a topic's steps share: the run's settings, the works it already
-// asked for under an earlier topic or page (`seen`), and what it fetched so
-// far (`fetched`), which each step adds to.
+// asked for under an earlier topic or page (`seen`), what it fetched so far
+// (`fetched`), which each step adds to, and whether OpenAlex refused a
+// cached PDF for the key's spent budget (`budget`).
 interface Scan {
   readonly index: number
   readonly limits: Limits
@@ -483,6 +530,7 @@ interface Scan {
   readonly run: string
   readonly seen: Set<string>
   readonly fetched: { -readonly [K in keyof Fetched]: Fetched[K] }
+  readonly budget: { spent: boolean }
 }
 
 // What a topic's steps found and left so far.
@@ -525,7 +573,7 @@ const gatherWanted = Effect.fnUntraced(function* (
   wanted: ReadonlyArray<Work["id"]>,
   { page, scan, tally }: { readonly page: number; readonly scan: Scan; readonly tally: Tally },
 ) {
-  const { index, limits, caps: limit, run, seen, fetched } = scan
+  const { index, limits, caps: limit, run, seen, fetched, budget } = scan
 
   for (const [part, ids] of chunks(wanted, limits.batch).entries()) {
     if (reached(fetched, limit) !== null) {
@@ -541,6 +589,7 @@ const gatherWanted = Effect.fnUntraced(function* (
       works: limit.works - fetched.works,
       pdfs: limit.pdfs - fetched.pdfs,
       bytes: limit.bytes - fetched.bytes,
+      cached: budget.spent ? 0 : limit.cached - fetched.cached,
     }
 
     const done = yield* Effect.result(
@@ -561,6 +610,8 @@ const gatherWanted = Effect.fnUntraced(function* (
     fetched.works += result.works
     fetched.pdfs += result.pdfs
     fetched.bytes += result.bytes
+    fetched.cached += result.cached
+    budget.spent ||= result.spent
   }
 })
 
@@ -663,7 +714,8 @@ export const run = Effect.fn("Papers.gather")(function* (
   yield* step.run("tables", Effect.andThen(tables, ledger).pipe(Effect.provideContext(context)))
 
   const seen = new Set<string>()
-  const fetched = { requests: 0, works: 0, pdfs: 0, bytes: 0 }
+  const fetched = { requests: 0, works: 0, pdfs: 0, bytes: 0, cached: 0 }
+  const budget = { spent: false }
   const results: Array<Searched> = []
   const works: Array<typeof Gathered.Type> = []
 
@@ -675,6 +727,7 @@ export const run = Effect.fn("Papers.gather")(function* (
       run: claimant,
       seen,
       fetched,
+      budget,
     })
 
     results.push(done.topic)
@@ -700,12 +753,15 @@ export const anonymous = Layer.effect(
   Effect.map(HttpClient.HttpClient, named),
 )
 
+// OpenAlex's hosts: its API, and its cache of PDFs.
+const signed = new Set(["api.openalex.org", cache])
+
 // The caller's HTTP client, signing OpenAlex's requests with the stage's
 // API key and no other host's. Without a key OpenAlex refuses to page past
-// a search's first page and shares one small daily budget among every
-// client on the same address, Cloudflare's included. The key goes in the
-// Authorization header, which traces redact, never in the URL, which errors,
-// the ledger and run records keep.
+// a search's first page, shares one small daily budget among every client
+// on the same address, Cloudflare's included, and serves no cached PDF.
+// The key goes in the Authorization header, which traces redact, never in
+// the URL, which errors, the ledger and run records keep.
 export const keyed = (key: Option.Option<Redacted.Redacted>) =>
   Layer.effect(
     HttpClient.HttpClient,
@@ -715,7 +771,7 @@ export const keyed = (key: Option.Option<Redacted.Redacted>) =>
         onSome: (value) =>
           http.pipe(
             HttpClient.mapRequest((request) =>
-              new URL(request.url).host === "api.openalex.org"
+              signed.has(new URL(request.url).host)
                 ? HttpClientRequest.bearerToken(request, value)
                 : request,
             ),

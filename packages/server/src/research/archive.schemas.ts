@@ -44,6 +44,11 @@ export const Work = Schema.Struct({
   updated_date: Schema.NonEmptyString,
   is_retracted: Schema.Boolean,
   locations: Schema.Array(Location),
+  // Whether OpenAlex holds a cached PDF of the work, and the location it
+  // names as the work's best open-access copy. Records gathered before the
+  // gather read them have neither, and neither enters the ledger's hash.
+  has_content: Schema.optional(Schema.Struct({ pdf: Schema.Boolean })),
+  best_oa_location: Schema.optional(Schema.NullOr(Location)),
 })
 
 export interface Work extends Schema.Schema.Type<typeof Work> {}
@@ -139,6 +144,14 @@ export const Paper = Schema.Struct({
 })
 
 export interface Paper extends Schema.Schema.Type<typeof Paper> {}
+
+// OpenAlex refused a cached PDF because the key's budget is spent, or the
+// run's cap on cached PDFs is reached. The work waits for the next run,
+// with no attempt counted.
+export class Spent extends Schema.TaggedError<Spent, { readonly brand: unique symbol }>()(
+  "Spent",
+  {},
+) {}
 
 export class PaperUnavailable extends Schema.TaggedError<
   PaperUnavailable,

@@ -26,9 +26,17 @@ const megabyte = 1024 * 1024
 // requests, which leaves 128 batches of records. Extracting text is the
 // costly part of a step: 100 PDFs of 200 MB in all stay within the Worker's
 // five minutes of CPU even if every step of a run counted against one
-// invocation. Work past a cap waits for the next run.
+// invocation. 50 cached PDFs from OpenAlex cost half the key's daily
+// budget, and leave the rest for the run's searches. Work past a cap waits
+// for the next run.
 export const Caps = Context.Reference<Fetched>("@repo/server/research/Caps", {
-  defaultValue: () => ({ requests: 250, works: 300, pdfs: 100, bytes: 200 * megabyte }),
+  defaultValue: () => ({
+    requests: 250,
+    works: 300,
+    pdfs: 100,
+    bytes: 200 * megabyte,
+    cached: 50,
+  }),
 })
 
 // What a run did with one topic, as `gather_topic` holds it. A topic is

@@ -7,7 +7,7 @@ import { Config, Console, Effect, Layer } from "effect"
 import { FetchHttpClient } from "effect/http"
 
 import { run } from "../src/research/Gather.ts"
-import { limits, local, summaryOf } from "./papers/gather.ts"
+import { caps, limits, local, summaryOf } from "./papers/gather.ts"
 
 const { values } = parseArgs({ options: { pages: { type: "string" } } })
 
@@ -27,7 +27,7 @@ const program = Effect.gen(function* () {
     { openalex: yield* Config.option(Config.Redacted("OPENALEX_API_KEY")) },
   )
 
-  const report = yield* run({ limits: { ...limits, ...pages } }).pipe(
+  const report = yield* run({ limits: { ...limits, ...pages }, caps }).pipe(
     Effect.provide(layer.pipe(Layer.provide(FetchHttpClient.layer))),
   )
 
