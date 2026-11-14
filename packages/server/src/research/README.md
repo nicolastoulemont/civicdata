@@ -33,6 +33,12 @@ source does not require a per-paper human approval step. Rights proof, exact-cop
 identity, input hashes and complete annotations are required before packaging.
 Source audits and labelled quality samples test those rules.
 
+Rights proof is a CC BY or public-domain licence for the exact copy: CC BY
+1.0 to 4.0, CC BY 3.0 IGO, a CC BY version adapted to one country's law
+(`constants/ports.ts`), CC0 1.0 or the Public Domain Mark 1.0. A licence with
+NC, ND or SA keeps the copy's text out. The gather's rules are in
+[docs/papers.md](../../../../docs/papers.md#what-a-run-does).
+
 The `Paper` citation is separate from `Finding`. It preserves the source quote,
 physical PDF page, SHA-256, copy version, bibliography and licence. Citation cards
 show evidence kind, study population, scope, source text, available methods and

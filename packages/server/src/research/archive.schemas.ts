@@ -1,6 +1,8 @@
 import { Study } from "@repo/domain"
 import { Schema } from "effect"
 
+import { ports } from "./constants/ports.ts"
+
 export const Https = Schema.String.check(Schema.isPattern(/^https:\/\/[^\s]+$/))
 
 export const Digest = Schema.String.check(Schema.isPattern(/^[a-f0-9]{64}$/))
@@ -70,9 +72,25 @@ export const Passage = Schema.Struct({
   text: Schema.NonEmptyString,
 })
 
+// CC BY's own versions, each version Creative Commons adapted to one
+// jurisdiction's law (`ports`), and the public-domain tools, as canonical
+// URLs. A version with NC, ND or SA never matches.
+const versions = [
+  "1.0",
+  "2.0",
+  "2.5",
+  "3.0",
+  "4.0",
+  ...Object.entries(ports).flatMap(([version, places]) =>
+    places.map((place) => `${version}/${place}`),
+  ),
+]
+
 export const Licence = Schema.String.check(
   Schema.isPattern(
-    /^https:\/\/creativecommons\.org\/(?:licenses\/by\/(?:1\.0|2\.0|2\.5|3\.0|4\.0)|publicdomain\/(?:zero|mark)\/1\.0)\/$/,
+    new RegExp(
+      `^https://creativecommons\\.org/(?:licenses/by/(?:${versions.join("|").replaceAll(".", "\\.")})|publicdomain/(?:zero|mark)/1\\.0)/$`,
+    ),
   ),
 )
 

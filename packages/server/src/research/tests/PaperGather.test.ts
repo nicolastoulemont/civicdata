@@ -1005,6 +1005,47 @@ describe("the paper gather", () => {
     })
   })
 
+  it.effect("admits a CC BY 3.0 IGO notice, and excludes a CC BY-NC 3.0 IGO one", () => {
+    const records = { igo: work(1), noncommercial: work(2) }
+
+    const place = world({
+      searches: { [topic.query]: [Object.values(records)] },
+      respond: (url) => {
+        if (url === copy(1).pdf_url)
+          return new Response(
+            pdf("CC BY 3.0 IGO\nhttps://creativecommons.org/licenses/by/3.0/igo/"),
+          )
+
+        if (url === copy(2).pdf_url)
+          return new Response(
+            pdf("CC BY-NC 3.0 IGO\nhttps://creativecommons.org/licenses/by-nc/3.0/igo/"),
+          )
+
+        return undefined
+      },
+    })
+
+    return Effect.gen(function* () {
+      expect(outcomes(yield* gather())).toEqual({
+        [records.igo.id]: "Text",
+        [records.noncommercial.id]: "Metadata",
+      })
+
+      const text = yield* held(records.igo)
+
+      assert(Held.guards.Text(text), "Expected the IGO paper's text")
+      expect(text.copy.evidence).toMatchObject([
+        { page: 1, licence: "https://creativecommons.org/licenses/by/3.0/igo/" },
+      ])
+      expect(text.version.extraction).toBe("unpdf-2.1.0/300-words")
+
+      const listed = yield* held(records.noncommercial)
+
+      assert(Held.guards.Metadata(listed), "Expected metadata only")
+      expect(listed.reason).toBe("no-usable-copy")
+    }).pipe(Effect.provide(layerOf(place.http)))
+  })
+
   it.effect(
     "fetches OpenAlex's cached PDF, signed, when every copy worth downloading fails",
     () => {
