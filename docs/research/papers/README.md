@@ -61,8 +61,8 @@ rest. Completed metadata exclusions and admitted documents remain available.
 
 [OpenAlex availability](https://help.openalex.org/data/works/open-access/) and its
 licence label are discovery hints. A label alone cannot retain text. The pipeline
-requires an admitted licence notice in the PDF's first two pages, or a supported
-repository's item-level licence record tied to the exact PDF. An explicit
+requires an admitted licence notice on the PDF's first two pages, or on its last
+when the PDF has at most 40 pages, or a supported repository's item-level licence record tied to the exact PDF. An explicit
 restriction or conflicting licence evidence prevents admission.
 
 The first page adapter supports EconStor. It checks the final response host and
