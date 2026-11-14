@@ -260,11 +260,16 @@ const storeOf = Effect.fnUntraced(function* (plan: Plan) {
   const [paper] = yield* sql`SELECT id, openalex, study, work, metadata_url, retrieved_at, reason,
     active FROM paper WHERE id = ${id}`.pipe(Effect.flatMap(rows(Stored.paper)))
 
+  // Two searches by index. `paper = ? OR id IN (...)` scans every copy once
+  // the plan has none, as a metadata-only paper often does; the list also
+  // binds one value, whatever D1's cap of 100.
   const copies = yield* sql`SELECT id, paper, location, evidence, admission, withdrawal
-    FROM copy WHERE paper = ${id} OR ${sql.in(
-      "id",
+    FROM copy WHERE paper = ${id}
+    UNION
+    SELECT id, paper, location, evidence, admission, withdrawal
+    FROM copy WHERE id IN (SELECT value FROM json_each(${JSON.stringify(
       plan.copies.map((copy) => copy.id),
-    )}`.pipe(Effect.flatMap(rows(Stored.copy)))
+    )}))`.pipe(Effect.flatMap(rows(Stored.copy)))
 
   const [version] =
     plan.text === null

@@ -20,7 +20,14 @@ import {
 } from "../src/research/Gather.ts"
 import { Held, Papers } from "../src/research/Papers.ts"
 import { PaperId } from "../src/research/store.ts"
-import { bibliography, papersBucket, papersDb, publish, withdrawCopy } from "./papers.ts"
+import {
+  bibliography,
+  papersBucket,
+  papersDb,
+  papersPlanned,
+  publish,
+  withdrawCopy,
+} from "./papers.ts"
 import { pdf } from "./pdf.ts"
 import { copy, work } from "./works.ts"
 
@@ -214,7 +221,12 @@ const layerOf = (
   {
     gap = Duration.zero,
     key = Option.none(),
-  }: { readonly gap?: Duration.Duration; readonly key?: Option.Option<Redacted.Redacted> } = {},
+    db = papersDb,
+  }: {
+    readonly gap?: Duration.Duration
+    readonly key?: Option.Option<Redacted.Redacted>
+    readonly db?: Layer.Layer<SqlClient.SqlClient>
+  } = {},
 ) =>
   Layer.mergeAll(
     sources.pipe(
@@ -222,7 +234,7 @@ const layerOf = (
       Layer.provide(keyed(key)),
       Layer.provide(http),
     ),
-    papersDb,
+    db,
     Bucket.binding(papersBucket),
     Step.immediate,
     Papers.layer,
@@ -464,6 +476,39 @@ describe("the paper gather", () => {
       ])
       expect(place.urls(from).every((url) => url.includes("search="))).toBe(true)
       expect(yield* contents).toEqual(before)
+    }).pipe(Effect.provide(layerOf(place.http)))
+  })
+
+  it.effect("reads the store's rows by index, whatever the store holds", () => {
+    const later: Topic = { area: "labour", query: "pension reform employment" }
+
+    const place = world({
+      searches: {
+        [topic.query]: [[work(1), work(2, { locations: [copy(2, { license: null })] })]],
+        [later.query]: [[work(3), work(4, { locations: [] })]],
+      },
+    })
+
+    const planned = papersPlanned()
+
+    return Effect.gen(function* () {
+      yield* gather()
+
+      const report = yield* gather({}, [later]).pipe(
+        Effect.provide(layerOf(place.http, { db: planned.layer })),
+      )
+
+      expect(outcomes(report)).toEqual({ [work(3).id]: "Text", [work(4).id]: "Metadata" })
+
+      // A scan reads every row of a table: on production's store, a scan of
+      // `copy` per metadata-only work read 17 million rows in one run.
+      const scans = (yield* planned.plans).flatMap(({ query, steps }) =>
+        steps
+          .filter((step) => /^SCAN (paper|copy|version|passage|annotation|work_\w+)\b/.test(step))
+          .map((step) => ({ query, step })),
+      )
+
+      expect(scans).toEqual([])
     }).pipe(Effect.provide(layerOf(place.http)))
   })
 

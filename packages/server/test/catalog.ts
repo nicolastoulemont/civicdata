@@ -20,6 +20,7 @@ import metabase from "./fixtures/structures/metabase.txt?raw"
 import oecdCodelists from "./fixtures/structures/oecd-codelists.json?raw"
 import oecdConstraints from "./fixtures/structures/oecd-constraints.json?raw"
 import oecdStructures from "./fixtures/structures/oecd-structures.json?raw"
+import { type Database, plansOf, watched } from "./plans.ts"
 
 export const entry = (indicator: string, name: string, definition = ""): CatalogEntry => ({
   indicator: IndicatorId.make(indicator),
@@ -239,8 +240,6 @@ const db = env.CATALOG_DB
 
 if (db === undefined) throw new Error("vitest.config.ts must bind a D1 database as CATALOG_DB")
 
-type Database = NonNullable<typeof env.CATALOG_DB>
-
 // A read D1 refuses, with the error production's catalog database gave on
 // 2026-11-12.
 const refuse = () =>
@@ -249,41 +248,6 @@ const refuse = () =>
       "D1_ERROR: D1 DB is overloaded. Too many resources consumed within a 10 second window.",
     ),
   )
-
-type Statement = ReturnType<Database["prepare"]>
-
-// A statement a read binds: its SQL and its values.
-interface Bound {
-  readonly query: string
-  readonly values: ReadonlyArray<unknown>
-  readonly statement: Statement
-}
-
-// The test Worker's D1 database, telling `bound` of each statement a read
-// binds before it runs.
-const watched = (bound: (read: Bound) => void): Database => {
-  const watching = (query: string, statement: Statement) => {
-    const bind = statement.bind.bind(statement)
-
-    statement.bind = (...values) => {
-      const read = bind(...values)
-
-      bound({ query, values, statement: read })
-
-      return read
-    }
-
-    return statement
-  }
-
-  return {
-    prepare: (query) => watching(query, db.prepare(query)),
-    batch: (statements) => db.batch(statements),
-    exec: (query) => db.exec(query),
-    withSession: (constraint) => db.withSession(constraint),
-    dump: () => db.dump(),
-  }
-}
 
 // The catalog over `database`. Fresh: a test's catalog over the test
 // Worker's own database is the same layer.
@@ -303,7 +267,7 @@ export const overloaded = ({ refusals }: { refusals: number }) => {
   let left = refusals
 
   return catalogOn(
-    watched(({ statement }) => {
+    watched(db, ({ statement }) => {
       if (left === 0) return
 
       left -= 1
@@ -318,17 +282,7 @@ export const overloaded = ({ refusals }: { refusals: number }) => {
 // A build over `database` (catalogOver) has its reads planned too. Searches
 // by meaning read `index`.
 export const planned = ({ index }: { index?: Index } = {}) => {
-  const reads: Array<Bound> = []
-  const database = watched((read) => reads.push(read))
-
-  const plans = Effect.forEach(reads, ({ query, values }) =>
-    Effect.promise(() =>
-      db
-        .prepare(`EXPLAIN QUERY PLAN ${query}`)
-        .bind(...values)
-        .all<{ detail: string }>(),
-    ).pipe(Effect.map(({ results }) => ({ query, steps: results.map(({ detail }) => detail) }))),
-  )
+  const { database, plans } = plansOf(db)
 
   return { layer: catalogOn(database, index), database, plans }
 }
