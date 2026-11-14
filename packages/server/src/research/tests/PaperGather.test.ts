@@ -320,6 +320,21 @@ const walled = (n: number) => work(n, { has_content: { pdf: true }, best_oa_loca
 const refusing = (n: number) => (url: string) =>
   url === copy(n).pdf_url ? new Response("Access Denied", { status: 403 }) : undefined
 
+// A PDF of `pages` pages with its CC BY notice only on the last, as older
+// Springer layouts print it at the end of the article.
+const springer = (pages: number) =>
+  pdf("", {
+    pages,
+    last: "Open Access This article is distributed under the terms\nof the Creative Commons Attribution 4.0 International License\n(http://creativecommons.org/licenses/by/4.0/).",
+  })
+
+// Work 1, whose one copy's PDF is `body`.
+const publishing = (body: string) =>
+  world({
+    searches: { [topic.query]: [[work(1)]] },
+    respond: (url) => (url === copy(1).pdf_url ? new Response(body) : undefined),
+  })
+
 describe("the paper gather", () => {
   it.effect("discovers a topic page by page, up to the page limit", () => {
     const place = world({
@@ -949,6 +964,45 @@ describe("the paper gather", () => {
         { page: 1, licence: "https://creativecommons.org/licenses/by/4.0/" },
       ])
     }).pipe(Effect.provide(layerOf(place.http)))
+  })
+
+  describe("a notice on the last page", () => {
+    it.effect("admits a copy no longer than an article, with evidence on that page", () => {
+      const place = publishing(springer(11))
+
+      return Effect.gen(function* () {
+        expect(outcomes(yield* gather())).toEqual({ [work(1).id]: "Text" })
+
+        const text = yield* held(work(1))
+
+        assert(Held.guards.Text(text), "Expected the paper's text")
+        expect(text.copy.evidence).toMatchObject([
+          { page: 11, licence: "https://creativecommons.org/licenses/by/4.0/" },
+        ])
+      }).pipe(Effect.provide(layerOf(place.http)))
+    })
+
+    // An excluded copy keeps no reason in the store, so these two read the
+    // same: the PDF was read and its copy restricted.
+    it.effect("leaves a copy longer than an article unconfirmed", () => {
+      const place = publishing(springer(41))
+
+      return Effect.gen(function* () {
+        expect(outcomes(yield* gather())).toEqual({ [work(1).id]: "Metadata" })
+        expect(place.urls()).toContain(copy(1).pdf_url)
+        expect((yield* contents).copy).toMatchObject([{ admission: "Restricted" }])
+      }).pipe(Effect.provide(layerOf(place.http)))
+    })
+
+    it.effect("excludes a copy whose last page reserves all rights", () => {
+      const place = publishing(pdf(undefined, { pages: 11, last: "All rights reserved." }))
+
+      return Effect.gen(function* () {
+        expect(outcomes(yield* gather())).toEqual({ [work(1).id]: "Metadata" })
+        expect(place.urls()).toContain(copy(1).pdf_url)
+        expect((yield* contents).copy).toMatchObject([{ admission: "Restricted" }])
+      }).pipe(Effect.provide(layerOf(place.http)))
+    })
   })
 
   it.effect(

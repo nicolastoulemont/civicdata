@@ -3,6 +3,7 @@ import { extractText, getDocumentProxy } from "unpdf"
 
 import { fingerprint } from "../utils/fingerprint.ts"
 import { Content, type Copy, Evidence, PaperUnavailable, Passage } from "./archive.schemas.ts"
+import { articlePages } from "./constants/articlePages.ts"
 import type { Download } from "./OpenAlex.types.ts"
 import { licenceOf } from "./utils/licenceOf.ts"
 
@@ -32,8 +33,14 @@ const Link = Schema.Struct({ subtype: Schema.Literal("Link"), url: Schema.String
 const isCreativeCommons = (url: string) =>
   /^https?:\/\/creativecommons\.org\/(?:licenses|publicdomain)\//i.test(url)
 
-// A PDF's text, page by page, and the Creative Commons URLs its first two
-// pages link from their text, as MDPI links its notice "Creative Commons
+// The one-based pages of a PDF of `count` pages that may state its
+// licence: the first two, and the last when the PDF is short enough to be
+// one article, as older Springer layouts print the notice at its end.
+const coverOf = (count: number) =>
+  [...new Set([1, 2, ...(count <= articlePages ? [count] : [])])].filter((page) => page <= count)
+
+// A PDF's text, page by page, and the Creative Commons URLs each cover page
+// links from its text, as MDPI links its notice "Creative Commons
 // Attribution (CC BY) license" without printing the URL.
 const readPdf = (bytes: Uint8Array) =>
   Effect.tryPromise({
@@ -45,15 +52,18 @@ const readPdf = (bytes: Uint8Array) =>
         const { text } = await extractText(pdf, { mergePages: false })
 
         const links = await Promise.all(
-          text.slice(0, 2).map(async (_, index) => {
-            const page = await pdf.getPage(index + 1)
-            const annotations: ReadonlyArray<unknown> = await page.getAnnotations()
+          coverOf(text.length).map(async (page) => {
+            const annotations: ReadonlyArray<unknown> = await (
+              await pdf.getPage(page)
+            ).getAnnotations()
 
-            return annotations.flatMap((annotation) =>
+            const urls = annotations.flatMap((annotation) =>
               Option.toArray(Schema.decodeUnknownOption(Link)(annotation)).flatMap(({ url }) =>
                 isCreativeCommons(url) ? [url] : [],
               ),
             )
+
+            return { page, urls }
           }),
         )
 
@@ -101,26 +111,28 @@ export const textOf = Effect.fn("Papers.text")(function* (
   const { copy } = options
   const sha256 = yield* fingerprint(bytes)
   const { text: pages, links } = yield* readPdf(new Uint8Array(bytes))
-  const cover = pages.slice(0, 2)
 
-  if (cover.some((page) => /all\s+rights\s+reserved/i.test(page))) {
+  // The pages that may state the copy's licence, each with its one-based
+  // page number, its text and the Creative Commons URLs it links.
+  const cover = links.map(({ page, urls }) => ({ page, urls, text: pages[page - 1] ?? "" }))
+
+  if (cover.some(({ text }) => /all\s+rights\s+reserved/i.test(text))) {
     return Content.cases.Metadata.make({ reason: "licence-conflict" })
   }
 
-  const printed = cover.flatMap((text, index) =>
+  const printed = cover.flatMap(({ text, page }) =>
     [
       ...unwaived(joined(text)).matchAll(
         /https?:\/\/creativecommons\.org\/(?:licenses|publicdomain)\/[^\s<>)]+/gi,
       ),
-    ].map(([value]) => ({ value: value.replace(/[.,;]+$/, ""), page: index + 1 })),
+    ].map(([value]) => ({ value: value.replace(/[.,;]+$/, ""), page })),
   )
 
   // A link is a notice too, unless its page prints the same licence, or
   // it is CC0 on a page that prints the waiver for the article's data,
   // whose URL the waiver links.
-  const linked = links.flatMap((urls, index) => {
-    const page = index + 1
-    const text = joined(cover[index] ?? "")
+  const linked = cover.flatMap(({ page, urls, text: raw }) => {
+    const text = joined(raw)
     const waived = unwaived(text) !== text
 
     const same = (link: string) =>
