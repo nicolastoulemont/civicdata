@@ -23,13 +23,13 @@ question.ask                              browser: from the request to the answe
                       Resolver.series         ...
 ```
 
-| Part         | File                                        | Records                                                                                                                                                                 |
-| ------------ | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Browser      | `apps/web/src/traces.ts`                    | each question asked or followed (`question.ask`, `question.follow`), each API request, and each error the page did not catch (`page.error`)                             |
-| Worker       | `packages/server/src/index.ts`              | each `/api` request and the work behind it                                                                                                                              |
-| Conversation | `packages/server/src/ConversationObject.ts` | each request and the answer it starts; every span of a question carries `gen_ai.conversation.id`                                                                        |
-| Agent        | `packages/server/src/Agent.ts`              | the answer, each model request and each tool call, named and attributed as OpenTelemetry's [GenAI conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/) say |
-| Workflows    | `CatalogWorkflow.ts`, `GatherWorkflow.ts`   | each run, under `CatalogWorkflow.run` or `GatherWorkflow.run`, with the work and source requests of each step under the span that ran the step                          |
+| Part         | File                                                  | Records                                                                                                                                                                 |
+| ------------ | ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Browser      | `apps/web/src/traces.ts`                              | each question asked or followed (`question.ask`, `question.follow`), each API request, and each error the page did not catch (`page.error`)                             |
+| Worker       | `packages/server/src/index.ts`                        | each `/api` request and the work behind it                                                                                                                              |
+| Conversation | `packages/server/src/assistant/ConversationObject.ts` | each request and the answer it starts; every span of a question carries `gen_ai.conversation.id`                                                                        |
+| Agent        | `packages/server/src/assistant/Agent.ts`              | the answer, each model request and each tool call, named and attributed as OpenTelemetry's [GenAI conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/) say |
+| Workflows    | `CatalogWorkflow.ts`, `GatherWorkflow.ts`             | each run, under `CatalogWorkflow.run` or `GatherWorkflow.run`, with the work and source requests of each step under the span that ran the step                          |
 
 The agent's spans record:
 
@@ -57,7 +57,7 @@ Text attributes stop at 8,192 characters.
 
 Grafana Cloud drops the GenAI conventions' content attributes on ingest: `gen_ai.input.messages`, `gen_ai.output.messages`, `gen_ai.tool.call.arguments` and `gen_ai.tool.call.result` never reach Tempo, while `gen_ai.tool.name` and every `openfacts.` attribute do. The agent writes its content under the names above instead.
 
-A span that ends refusing a View ends as a success, with `openfacts.refusal` naming the refusal: `IndicatorNotFound`, `DimensionsMissing` or `TransformNotApplicable` (`settled` in `packages/server/src/Traces.ts`). The agent sends such a call back to the model and the page asks the person to pick, so nothing failed, and `status = error` finds only what did. An HTTP client span keeps OpenTelemetry's rule: a 4xx answer marks it failed, though the OECD answers 404 for a key without data.
+A span that ends refusing a View ends as a success, with `openfacts.refusal` naming the refusal: `IndicatorNotFound`, `DimensionsMissing` or `TransformNotApplicable` (`settled` in `packages/server/src/platform/utils/settled.ts`). The agent sends such a call back to the model and the page asks the person to pick, so nothing failed, and `status = error` finds only what did. An HTTP client span keeps OpenTelemetry's rule: a 4xx answer marks it failed, though the OECD answers 404 for a key without data.
 
 Spans record the questions people ask, the country each was asked from and what the model writes, never an IP address or a request's headers. Grafana Cloud keeps them 14 days.
 
@@ -153,4 +153,4 @@ A failing request's trace id is the second field of the `traceparent` header the
 
 Name an operation with `Effect.fn("Service.operation")`; it becomes a span with that name. Put facts a question about the trace would filter on in attributes, with `Effect.annotateCurrentSpan`. An attribute of the agent's follows the GenAI conventions where one exists and Grafana Cloud keeps it, and takes a `openfacts.` name otherwise.
 
-Tests read spans with `recording()` in `packages/server/test/fakes.ts`, and the spans the page exports with `exportedSpans()` in `apps/web/test/network.ts`.
+Tests read spans with `recording()` in `packages/server/src/tests/fakes.ts`, and the spans the page exports with `exportedSpans()` in `apps/web/test/network.ts`.

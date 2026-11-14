@@ -2,60 +2,19 @@
 // withdraws a copy's text (docs/papers.md). The publication command and the
 // gather share it, so both write the same rows in the same order. It asks no
 // model: an annotation comes with the record or not at all.
-import { Array as Arr, Data, Effect, Option, Schema } from "effect"
-import { SqlClient, type SqlError } from "effect/sql"
+import { Array as Arr, type Data, Effect, Option, Schema } from "effect"
+import { SqlClient } from "effect/sql"
 
-import { fingerprint } from "../fingerprint.ts"
-import type { Annotation } from "./annotation.ts"
-import { Attempt, Content, Copy, Evidence, type Paper, Seed, Work } from "./archive.ts"
-import { Bucket, type BucketUnavailable } from "./Bucket.ts"
-import type { Document } from "./entry.ts"
-import { extraction } from "./pdf.ts"
-import { annotationKey, Body, objectsOf, tables, Text, Withdrawal } from "./store.ts"
-
-// The store refuses what a record asks: text for a paper the record lists
-// as metadata-only while the store still serves its text (withdraw it
-// first), a copy the store holds for another paper, or other text under an
-// extraction the store already holds.
-export class Refused extends Schema.TaggedError<Refused, { readonly brand: unique symbol }>()(
-  "Refused",
-  { problem: Schema.String },
-) {}
-
-// An object R2 holds after an upload differs from the bytes sent.
-export class ObjectMismatch extends Schema.TaggedError<
-  ObjectMismatch,
-  { readonly brand: unique symbol }
->()("ObjectMismatch", { key: Schema.String }) {}
-
-// One gathered paper: its metadata alone, or its retained copy's text with
-// that copy's PDF and the saved annotation that still fits it, if any.
-export type Record = Data.TaggedEnum<{
-  Metadata: { readonly paper: Paper }
-  Text: {
-    readonly paper: Document
-    readonly pdf: Uint8Array
-    readonly annotation: typeof Annotation.Type | null
-  }
-}>
-
-export const Record = Data.taggedEnum<Record>()
-
-// What writing one paper did.
-type Published = Data.TaggedEnum<{
-  Unchanged: {}
-  Written: { readonly version: string | null; readonly annotation: string | null }
-}>
-
-export const Published = Data.taggedEnum<Published>()
-
-// Why one paper was not published. The store keeps what it held.
-export type Failure =
-  | Refused
-  | ObjectMismatch
-  | BucketUnavailable
-  | SqlError.SqlError
-  | Schema.SchemaError
+import { fingerprint } from "../utils/fingerprint.ts"
+import type { Annotation } from "./annotation.schemas.ts"
+import { Attempt, Content, Copy, Evidence, Seed, Work } from "./archive.schemas.ts"
+import { Bucket } from "./Bucket.ts"
+import { extraction } from "./constants/extraction.ts"
+import { ObjectMismatch, Refused } from "./publication.schemas.ts"
+import { Published, Record } from "./publication.types.ts"
+import { Body, Text } from "./store.schemas.ts"
+import { annotationKey, tables, Withdrawal } from "./store.ts"
+import { objectsOf } from "./utils/objectsOf.ts"
 
 // The columns publication writes, exactly as it writes them, so a run
 // compares them with what the store holds and skips a paper whose rows match.

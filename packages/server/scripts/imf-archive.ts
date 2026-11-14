@@ -5,10 +5,10 @@ import { DateTime, Duration, Effect, Layer, Schema, Stream } from "effect"
 import { HttpClient, HttpClientRequest } from "effect/http"
 import { SqlClient } from "effect/sql"
 
-import { AssetId, Release } from "../src/Adapter.ts"
-import { growth, ImfArchive } from "../src/Imf.ts"
-import { collect } from "../src/Inputs.ts"
-import { Stored } from "../src/Store.ts"
+import { collect } from "../src/gather/Inputs.ts"
+import { AssetId, Release } from "../src/series/Adapter.schemas.ts"
+import { Stored } from "../src/series/Store.schemas.ts"
+import { growth, ImfArchive } from "../src/sources/Imf.ts"
 import { record } from "./imf-record.ts"
 
 const { indicator, name, definition, dataset, units, selection } = growth

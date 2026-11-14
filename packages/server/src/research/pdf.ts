@@ -1,15 +1,10 @@
 import { Array as Arr, Effect, Option } from "effect"
 import { extractText, getDocumentProxy } from "unpdf"
 
-import { fingerprint } from "../fingerprint.ts"
-import { Content, type Copy, Evidence, PaperUnavailable, Passage } from "./archive.ts"
-import { licenceOf } from "./Licences.ts"
-import type { Download } from "./OpenAlex.ts"
-
-// What produced a version's passages: the PDF parser and how passages are
-// cut. Change it whenever either changes, so the store keeps the old text
-// apart from the new and an annotation never describes text it did not read.
-export const extraction = "unpdf-2.1.0/300-words"
+import { fingerprint } from "../utils/fingerprint.ts"
+import { Content, type Copy, Evidence, PaperUnavailable, Passage } from "./archive.schemas.ts"
+import type { Download } from "./OpenAlex.types.ts"
+import { licenceOf } from "./utils/licenceOf.ts"
 
 // Passages never cross a physical PDF page. The page is its one-based PDF
 // position, not the printed journal page number. No claim is extracted here.

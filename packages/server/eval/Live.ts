@@ -1,22 +1,24 @@
 import { ChartIndex, TurnIndex } from "@repo/domain"
 import { Clock, Effect, Layer, Option, Predicate, Schedule, Stream } from "effect"
 
-import { Agent } from "../src/Agent.ts"
-import { Answers } from "../src/Answers.ts"
-import { Catalog } from "../src/Catalog.ts"
-import { CatalogBuild, database, Step } from "../src/CatalogBuild.ts"
-import { Classifier } from "../src/Classifier.ts"
-import { Conversation } from "../src/Conversation.ts"
-import { Directions } from "../src/Directions.ts"
-import { Outlines } from "../src/Outlines.ts"
-import { Pace } from "../src/Pace.ts"
-import { Politics } from "../src/Politics.ts"
-import { PoliticsBuild } from "../src/PoliticsBuild.ts"
+import { Agent } from "../src/assistant/Agent.ts"
+import { Answers } from "../src/assistant/Answers.ts"
+import { Conversation } from "../src/assistant/Conversation.ts"
+import { Transcript } from "../src/assistant/Transcript.ts"
+import { Catalog } from "../src/catalog/Catalog.ts"
+import { CatalogBuild } from "../src/catalog/CatalogBuild.ts"
+import { Classifier } from "../src/catalog/Classifier.ts"
+import { Directions } from "../src/catalog/Directions.ts"
+import { Outlines } from "../src/catalog/Outlines.ts"
+import { Vectors } from "../src/catalog/Vectors.ts"
+import { database } from "../src/platform/built.ts"
+import { Pace } from "../src/platform/Pace.ts"
+import { Step } from "../src/platform/Step.ts"
+import { Politics } from "../src/politics/Politics.ts"
+import { PoliticsBuild } from "../src/politics/PoliticsBuild.ts"
 import { Papers } from "../src/research/Papers.ts"
-import { Resolver } from "../src/Resolver.ts"
-import { Structures } from "../src/Structures.ts"
-import { Transcript } from "../src/Transcript.ts"
-import { Vectors } from "../src/Vectors.ts"
+import { Structures } from "../src/sources/sdmx/Structures.ts"
+import { Resolver } from "../src/views/Resolver.ts"
 import type { Case } from "./cases.ts"
 import { Replayed } from "./Recordings.ts"
 import { Tally } from "./Tally.ts"
@@ -99,7 +101,7 @@ export const answer = Effect.fn("eval.answer")(
     ),
   ),
   // A run that asks the OECD what no recording answers can spend the budget
-  // in src/Pace.ts, which fails the answer with SourceUnavailable. That
+  // in src/platform/Pace.ts, which fails the answer with SourceUnavailable. That
   // measures the pacer, not the agent, so the questions are asked again in a
   // new conversation once the pacer's minute window has moved on.
   Effect.retry({

@@ -15,7 +15,7 @@ The conversation writes a row each time it keeps a turn: answered, asked back, u
 | `ending`    | how the answer ended, with its charts and text, as the domain's `Ending` in JSON                                                     |
 | `steps`     | what the agent did: searches, fetches and the calls the server sent back, as JSON                                                    |
 | `took`      | milliseconds from the question to the ending                                                                                         |
-| `model`     | the model that answered: `OPENAI_MODEL`, or the default in `packages/server/src/OpenAi.ts`                                           |
+| `model`     | the model that answered: `OPENAI_MODEL`, or the default in `packages/server/src/assistant/constants/defaultModel.ts`                 |
 | `version`   | the commit deployed, when CI set it                                                                                                  |
 | `trace`     | the trace id, to open the full trace in Grafana while it is kept                                                                     |
 | `vote`      | what the person thought of the answer, as the domain's `Vote` in JSON: `Up`, or `Down` with an optional reason; null until they vote |
@@ -46,7 +46,7 @@ in [traces](traces.md); it is removed from conversation history and the kept tur
 
 ## Scrubbing
 
-`scrub` in `packages/server/src/Answers.ts` replaces, in each question:
+`scrub` in `packages/server/src/assistant/utils/scrub.ts` replaces, in each question:
 
 - an email address with `[email]`
 - a run of nine or more digits with `[number]`, such as a phone, card or account number. Up to two spaces, dots, dashes or brackets may sit between digits. A run whose digits end in 000 is a round figure, such as "1 000 000 000 people", and stays.

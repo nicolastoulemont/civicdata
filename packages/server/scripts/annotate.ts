@@ -15,7 +15,7 @@ import { parseArgs } from "node:util"
 import { Effect, Schema } from "effect"
 import { FetchHttpClient } from "effect/http"
 
-import { Params } from "../src/research/Annotate.ts"
+import { Params } from "../src/research/Annotate.schemas.ts"
 import { start } from "./start.ts"
 
 const { values, positionals } = parseArgs({

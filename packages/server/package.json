@@ -5,8 +5,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./workflow": {
-      "workerd": "./src/workflows.ts",
-      "default": "./src/workflow.node.ts"
+      "workerd": "./src/workflows/workerd.ts",
+      "default": "./src/workflows/node.ts"
     }
   },
   "scripts": {

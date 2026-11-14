@@ -2,30 +2,19 @@ import { Clock, Context, Effect, Layer, Option, Schema } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
 import { getDomain } from "tldts"
 
-import { Copy, Https, PaperUnavailable, type Seed, Work } from "./archive.ts"
-import { metaOf } from "./html.ts"
-import { bodyOf, briefOf } from "./http.ts"
-import {
-  type Article,
-  articleOf,
-  bucket,
-  Deposit,
-  depositsOf,
-  listingOf,
-  metadataOf,
-  pdfOf,
-  pdfUrlOf,
-  pmcidOf,
-} from "./pmc.ts"
-
-export interface Download {
-  readonly bytes: Uint8Array
-  readonly url: string
-  // The page that named the PDF in its `citation_pdf_url` tag, when the
-  // copy's PDF URL answered that page instead of a PDF.
-  readonly landing: string | null
-  readonly retrievedAt: string
-}
+import { type Copy, Https, PaperUnavailable, type Seed, Work } from "./archive.schemas.ts"
+import type { Download } from "./OpenAlex.types.ts"
+import { Deposit } from "./pmc.schemas.ts"
+import type { Article } from "./pmc.types.ts"
+import { articleOf } from "./utils/articleOf.ts"
+import { bodyOf } from "./utils/bodyOf.ts"
+import { briefOf } from "./utils/briefOf.ts"
+import { depositsOf } from "./utils/depositsOf.ts"
+import { metaOf } from "./utils/html.ts"
+import { listingOf } from "./utils/listingOf.ts"
+import { metadataOf } from "./utils/metadataOf.ts"
+import { metadataUrl } from "./utils/metadataUrl.ts"
+import { pdfUrlOf } from "./utils/pdfUrlOf.ts"
 
 // One page of a search: the works that decode, how many did not, and the
 // cursor of the next page, or null after the last.
@@ -61,9 +50,6 @@ interface Interface {
   ) => Effect.Effect<ReadonlyMap<Work["id"], Work>, PaperUnavailable>
   readonly download: (copy: Copy) => Effect.Effect<Download, PaperUnavailable>
 }
-
-export const metadataUrl = (identity: string) =>
-  `https://api.openalex.org/works/${encodeURIComponent(identity.startsWith("https://openalex.org/") ? identity : `https://doi.org/${identity}`)}`
 
 // The fields `Work` reads, so a page of 200 works stays small.
 const select = "id,type,authorships,doi,title,publication_year,updated_date,is_retracted,locations"
@@ -115,26 +101,6 @@ const decoded = (results: ReadonlyArray<unknown>) => {
   return { works, skipped: results.length - works.length }
 }
 
-// OpenAlex lists many PubMed Central copies without a PDF URL; the gather
-// finds their PDF by PMC id, so such a copy gets PMC's address for it.
-const located = (location: Work["locations"][number]) => {
-  const pmcid = location.id === null || location.pdf_url !== null ? undefined : pmcidOf(location.id)
-
-  return pmcid === undefined ? location : { ...location, pdf_url: pdfOf(pmcid) }
-}
-
-export const copiesOf = (work: Work) => {
-  const copies = work.locations.flatMap((location) =>
-    Option.toArray(Schema.decodeUnknownOption(Copy)(located(location))),
-  )
-
-  // A copy's native id, URL and version stay separate from the catalogue's
-  // work/DOI grouping. Duplicate listing rows do not cause duplicate downloads.
-  return [
-    ...new Map(copies.map((copy) => [`${copy.id}|${copy.version}|${copy.pdf_url}`, copy])).values(),
-  ]
-}
-
 // A Highwire Press tag naming a page's PDF, as Google Scholar and Zotero
 // read it.
 const PdfTag = Schema.Struct({ name: Schema.Literal("citation_pdf_url"), content: Https })
@@ -160,11 +126,6 @@ const linkOf = (html: string, { page, copy }: { readonly page: string; readonly 
     .map(({ content }) => content)
     .find((link) => link !== page && link !== copy.pdf_url && sites.has(domainOf(link) ?? ""))
 }
-
-// The host the gather asks for a copy's PDF: PMC's bucket for a PubMed
-// Central copy, the PDF URL's host for any other.
-export const hostOf = (copy: Copy) =>
-  articleOf(copy) === undefined ? new URL(copy.pdf_url).host : bucket
 
 const now = Effect.map(Clock.currentTimeMillis, (millis) => new Date(millis).toISOString())
 

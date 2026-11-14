@@ -1,39 +1,17 @@
-import { Paper, Reading } from "@repo/domain"
+import { Paper } from "@repo/domain"
 import { Array as Arr, Context, Effect, Layer, Option, Schema } from "effect"
 
-import { fingerprint } from "../fingerprint.ts"
-import { Scope, evidenceOf } from "./annotation.ts"
-import { Discovery, Match, type QueryInvalid } from "./Discovery.ts"
-import { Held, Papers } from "./Papers.ts"
-import { type Annotated, Question, search } from "./search.ts"
-import { Version } from "./store.ts"
-
-// What a lookup found of one paper. Evidence is a passage of the version's
-// active annotation, as the domain's Paper, which an answer may cite once
-// Support accepts the sentence. A Reading is a paper search found that no
-// annotation covers: its domain Reading, shown under the answer and never
-// cited, and the version a demand records, or null for a paper the store
-// holds only the bibliography of. An annotated paper whose annotation gives
-// no passage for the question is neither.
-export const Lead = Schema.TaggedUnion({
-  Evidence: { paper: Paper },
-  Reading: { reading: Reading, version: Schema.NullOr(Version.fields.id) },
-})
-
-// The leads of a lookup in search's order, or why it found none.
-export const Found = Schema.TaggedUnion({
-  Papers: { papers: Schema.NonEmptyArray(Lead) },
-  NoEvidence: { reason: Schema.String },
-})
-
-export type Found = typeof Found.Type
-
-// The paper store could not answer, or holds a paper whose citation does
-// not decode.
-export class LibraryUnavailable extends Schema.TaggedError<
-  LibraryUnavailable,
-  { readonly brand: unique symbol }
->()("LibraryUnavailable", { cause: Schema.Unknown }) {}
+import { fingerprint } from "../utils/fingerprint.ts"
+import { Scope } from "./annotation.schemas.ts"
+import { Match, type QueryInvalid } from "./Discovery.schemas.ts"
+import { Discovery } from "./Discovery.ts"
+import { Found, Lead, LibraryUnavailable } from "./Library.schemas.ts"
+import { Held } from "./Papers.schemas.ts"
+import { Papers } from "./Papers.ts"
+import { Question } from "./search.schemas.ts"
+import { type Annotated } from "./search.types.ts"
+import { evidenceOf } from "./utils/evidenceOf.ts"
+import { search } from "./utils/search.ts"
 
 interface Interface {
   readonly search: (question: Question) => Effect.Effect<Found, QueryInvalid | LibraryUnavailable>

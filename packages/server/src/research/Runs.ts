@@ -13,21 +13,12 @@ import { Clock, Context, Effect, Layer, Option, Redacted, Schema } from "effect"
 import { FetchHttpClient } from "effect/http"
 import { SqlClient } from "effect/sql"
 
-import { Step } from "../CatalogBuild.ts"
-import { Pace } from "../Pace.ts"
+import { Pace } from "../platform/Pace.ts"
+import { Step } from "../platform/Step.ts"
 import { Bucket } from "./Bucket.ts"
-import {
-  anonymous,
-  keyed,
-  type Cap,
-  type Fetched,
-  Outcome,
-  type Report,
-  run,
-  type Searched,
-  sources,
-  type Topic,
-} from "./Gather.ts"
+import { Outcome, type Topic } from "./Gather.schemas.ts"
+import { anonymous, keyed, run, sources } from "./Gather.ts"
+import { type Cap, type Fetched, type Report, type Searched } from "./Gather.types.ts"
 
 const megabyte = 1024 * 1024
 

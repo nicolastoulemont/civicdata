@@ -4,17 +4,13 @@
 // Workflow, and still paces each host, Cloudflare's API included.
 import { Duration, Layer, Option, type Redacted } from "effect"
 
-import { Step } from "../../src/CatalogBuild.ts"
-import { type Gaps, gaps } from "../../src/Pace.ts"
+import { gaps } from "../../src/platform/constants/gaps.ts"
+import { type Gaps } from "../../src/platform/Pace.types.ts"
+import { Step } from "../../src/platform/Step.ts"
 import { Bucket } from "../../src/research/Bucket.ts"
-import {
-  keyed,
-  type Limits,
-  Outcome,
-  paced,
-  type Report,
-  sources,
-} from "../../src/research/Gather.ts"
+import { Outcome } from "../../src/research/Gather.schemas.ts"
+import { keyed, paced, sources } from "../../src/research/Gather.ts"
+import { type Limits, type Report } from "../../src/research/Gather.types.ts"
 import { d1 } from "../d1.ts"
 
 export interface Stage {

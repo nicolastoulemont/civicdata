@@ -3,11 +3,11 @@
 import { Effect, Schema } from "effect"
 import { FileSystem } from "effect/FileSystem"
 
-import { fingerprint } from "../../src/fingerprint.ts"
-import { Annotation } from "../../src/research/annotation.ts"
-import { Content, Paper } from "../../src/research/archive.ts"
-import { Document } from "../../src/research/entry.ts"
-import { Record } from "../../src/research/publication.ts"
+import { Annotation } from "../../src/research/annotation.schemas.ts"
+import { Content, Paper } from "../../src/research/archive.schemas.ts"
+import { Document } from "../../src/research/entry.schemas.ts"
+import { Record } from "../../src/research/publication.types.ts"
+import { fingerprint } from "../../src/utils/fingerprint.ts"
 import { fits, inputOf } from "./retrieval.ts"
 
 // A record that does not decode, does not match its file name or copy

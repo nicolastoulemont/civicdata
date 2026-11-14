@@ -1,0 +1,92 @@
+import type {
+  CatalogEntry,
+  DimensionsMissing,
+  IndicatorId,
+  IndicatorNotFound,
+  SourceUnavailable,
+} from "@repo/domain"
+import { Data, type Effect, type Stream } from "effect"
+
+import type { AssetId, Release, Versions } from "./Adapter.schemas.ts"
+import type { Codelist, Outline } from "./Outline.schemas.ts"
+import type { Answer, Described } from "./Series.schemas.ts"
+import type { Query } from "./Series.types.ts"
+import type { Stored } from "./Store.schemas.ts"
+
+// Read capability is independent of the assets selected for ingestion.
+export type Policy = Data.TaggedEnum<{
+  Api: {}
+  StoredApi: { readonly url: (query: Query, version: string) => string }
+  StoredOnly: { readonly url: (query: Query, version: string) => string }
+}>
+
+export const Policy = Data.taggedEnum<Policy>()
+
+export interface AssetEntry {
+  readonly indicator: IndicatorId
+  // Each candidate replaces a complete series, not a country/year partition.
+  // Partitioned inputs must be assembled before reaching this stream.
+  readonly series: Stream.Stream<Stored, SourceUnavailable>
+}
+
+// Download units share one stream contract; selection is either incremental
+// versions or a complete release, so coherent adapters need no unused method.
+export type Bulk = {
+  // Mutable inputs are rechecked immediately before conditional activation.
+  readonly verify?: (version: string) => Effect.Effect<void, SourceUnavailable>
+  // Entries strictly increase by indicator; each inner stream is consumed
+  // before pulling the next entry. Series strictly increase by codesOf.
+  // Producers must stream, or sort on disk outside Workers, never buffer an asset.
+  readonly gather: (
+    asset: AssetId,
+    options: { readonly version: string; readonly entries: ReadonlyArray<CatalogEntry> },
+  ) => Stream.Stream<AssetEntry, SourceUnavailable>
+} & (
+  | {
+      readonly changed: (
+        entries: ReadonlyArray<CatalogEntry>,
+      ) => Effect.Effect<Versions, SourceUnavailable>
+      readonly release?: never
+    }
+  | {
+      readonly release: (
+        entries: ReadonlyArray<CatalogEntry>,
+      ) => Effect.Effect<Release, SourceUnavailable>
+      readonly changed?: never
+    }
+)
+
+// No capability means metadata is unavailable. Null fields in an outline mean
+// unknown, false annual or an empty countries array mean confirmed exclusion.
+export interface Discovery {
+  readonly outlines: Stream.Stream<Outline, SourceUnavailable>
+  readonly codelists?: {
+    readonly perStep: number
+    readonly steps: number
+    readonly labels: (
+      key: Codelist,
+    ) => Effect.Effect<ReadonlyMap<string, string>, SourceUnavailable>
+  }
+}
+
+// One source, as the catalog, the gather and charts use it.
+export interface Adapter {
+  // Pin stored release reads even when this runtime has no local ingestion transport.
+  readonly coherent?: true
+  readonly snapshot?: Effect.Effect<Adapter, SourceUnavailable>
+  readonly discovery?: Discovery
+
+  readonly policy: Policy
+  readonly bulk?: Bulk
+  // Every catalog entry the source publishes: a World Bank indicator, a
+  // Eurostat dataset or an OECD dataflow.
+  readonly list: Effect.Effect<ReadonlyArray<CatalogEntry>, SourceUnavailable>
+  // An entry's name and definition, and the dataset a chart credits.
+  readonly describe: (
+    indicator: IndicatorId,
+  ) => Effect.Effect<Described, IndicatorNotFound | SourceUnavailable>
+  // One series' values for some countries and years, from the source's API.
+  readonly fetch: (
+    query: Query,
+  ) => Effect.Effect<Answer, IndicatorNotFound | SourceUnavailable | DimensionsMissing>
+}

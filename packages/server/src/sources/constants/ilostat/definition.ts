@@ -1,0 +1,2 @@
+export const definition =
+  "Female share of senior and middle management positions under the 19th ICLS employment definition, percent (multiplier 0). Not total management. Each survey/source is a separate series; no sex or age dimension is implied. Annual national observations only: quarter/semester/month reference periods and confirmed partial geography are excluded from plotted values, with publisher notes retained. Earlier-definition and working-poverty tables are not included."

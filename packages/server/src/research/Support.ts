@@ -1,18 +1,8 @@
-import { Cited, Text } from "@repo/domain"
+import { Cited, type Text } from "@repo/domain"
 import { Context, Effect, Layer, Match, Schema } from "effect"
 import { LanguageModel } from "effect/ai"
 
-export const Verdict = Schema.TaggedUnion({
-  NotResearch: {},
-  Supported: {
-    kind: Schema.Literals(["Description", "Association", "Cause"]),
-    evidence: Schema.Array(Schema.Int.check(Schema.isGreaterThanOrEqualTo(0))).check(
-      Schema.isMinLength(1),
-    ),
-  },
-  Unsupported: {},
-  Uncertain: {},
-})
+import { Checked, SupportUnavailable, Verdict } from "./Support.schemas.ts"
 
 const Review = Schema.Struct({
   sentences: Schema.Array(
@@ -22,16 +12,6 @@ const Review = Schema.Struct({
     }),
   ),
 })
-
-export const Checked = Schema.TaggedUnion({
-  Accepted: { text: Text },
-  Rejected: { reason: Schema.String },
-})
-
-export class SupportUnavailable extends Schema.TaggedError<
-  SupportUnavailable,
-  { readonly brand: unique symbol }
->()("SupportUnavailable", { cause: Schema.Unknown }) {}
 
 interface Interface {
   readonly review: (

@@ -9,7 +9,7 @@ the singleton dimensions. No sex is chosen implicitly.
 ## Evidence and meaning
 
 Checked 11 November 2026 against primary public endpoints. Exact response bodies,
-URLs and response dates live in `packages/server/test/fixtures/who/`. `requests.json`
+URLs and response dates live in `packages/server/src/tests/fixtures/who/`. `requests.json`
 records the three runtime requests. `dimensions.json` records a group-by probe of
 sex, value type, annual period and the first unused dimensions. It is evidence,
 not a data store. Runtime rows require all remaining dimension slots 2–9 to be null.

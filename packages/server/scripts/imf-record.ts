@@ -1,9 +1,9 @@
 import { Country, Year, Qualification, SourceUnavailable } from "@repo/domain"
 import { Effect, Schema } from "effect"
 
-import { growth } from "../src/Imf.ts"
-import { Stored } from "../src/Store.ts"
-import { table } from "../src/Table.ts"
+import { Stored } from "../src/series/Store.schemas.ts"
+import { growth } from "../src/sources/Imf.ts"
+import { table } from "../src/utils/Table.ts"
 
 const YearFromString = Schema.NumberFromString.check(
   Schema.isInt(),

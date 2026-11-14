@@ -6,7 +6,7 @@ import { HttpClient, HttpClientResponse } from "effect/http"
 import { expect, it } from "vitest"
 
 import records from "../../../docs/research/vdem/records.json" with { type: "json" }
-import { polyarchy, VdemArchive } from "../src/Vdem.ts"
+import { polyarchy, VdemArchive } from "../src/sources/Vdem.ts"
 import { scratch, series, sortRows } from "./series.ts"
 import { vdemArchive } from "./vdem-archive.ts"
 

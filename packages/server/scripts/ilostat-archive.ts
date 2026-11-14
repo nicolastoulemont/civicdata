@@ -7,18 +7,14 @@ import { SourceUnavailable } from "@repo/domain"
 import { DateTime, Effect, Layer, Stream } from "effect"
 import { HttpClient } from "effect/http"
 
-import {
-  archiveUrl,
-  dataset,
-  name,
-  definition,
-  IlostatArchive,
-  indicator,
-  record,
-  tocUrl,
-  versionOf,
-} from "../src/Ilostat.ts"
-import { table } from "../src/Table.ts"
+import { archiveUrl } from "../src/sources/constants/ilostat/archiveUrl.ts"
+import { dataset } from "../src/sources/constants/ilostat/dataset.ts"
+import { definition } from "../src/sources/constants/ilostat/definition.ts"
+import { indicator } from "../src/sources/constants/ilostat/indicator.ts"
+import { name } from "../src/sources/constants/ilostat/name.ts"
+import { tocUrl } from "../src/sources/constants/ilostat/tocUrl.ts"
+import { IlostatArchive, record, versionOf } from "../src/sources/Ilostat.ts"
+import { table } from "../src/utils/Table.ts"
 import { scratch, sortRows, series } from "./series.ts"
 
 const unavailable = () => new SourceUnavailable({ source: "ILOSTAT" })

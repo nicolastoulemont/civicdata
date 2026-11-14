@@ -1,11 +1,13 @@
 import { Clock, Effect, Option, Schema } from "effect"
 import { FileSystem } from "effect/FileSystem"
 
-import { fingerprint } from "../../src/fingerprint.ts"
-import { Content, Copy, Paper, PaperUnavailable, Seed } from "../../src/research/archive.ts"
-import { Licences, PageCheck } from "../../src/research/Licences.ts"
-import { metadataUrl, OpenAlex } from "../../src/research/OpenAlex.ts"
+import { Content, Copy, Paper, PaperUnavailable, Seed } from "../../src/research/archive.schemas.ts"
+import { PageCheck } from "../../src/research/Licences.schemas.ts"
+import { Licences } from "../../src/research/Licences.ts"
+import { OpenAlex } from "../../src/research/OpenAlex.ts"
 import { textOf } from "../../src/research/pdf.ts"
+import { metadataUrl } from "../../src/research/utils/metadataUrl.ts"
+import { fingerprint } from "../../src/utils/fingerprint.ts"
 import { Folder } from "./storage.ts"
 
 export const Source = Schema.Struct({

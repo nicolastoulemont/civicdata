@@ -7,10 +7,10 @@ declare module "cloudflare:workers" {
   // Keeps the request alive until the promise settles, after its response.
   export const waitUntil: (promise: Promise<unknown>) => void
   export const env: {
-    readonly CACHE?: import("./Cache.ts").Bucket
+    readonly CACHE?: import("./platform/Cache.types.ts").Bucket
     // Every stored series, filled by GatherWorkflow (Store.ts): production's
     // in a preview without the own-catalog label. Requests only read it.
-    readonly SERIES?: import("./Store.ts").SeriesBucket
+    readonly SERIES?: import("./series/Store.types.ts").SeriesBucket
     // The stage's own database, for what requests write. Never production's
     // in a preview (packages/infra/alchemy.run.ts).
     readonly DB?: import("@cloudflare/workers-types").D1Database
@@ -22,15 +22,15 @@ declare module "cloudflare:workers" {
     // preview without the own-catalog label. Requests only read them.
     readonly PAPERS_DB?: import("@cloudflare/workers-types").D1Database
     readonly PAPERS?: import("@cloudflare/workers-types").R2Bucket
-    readonly AI?: import("./Vectors.ts").Ai
-    readonly VECTORS?: import("./Vectors.ts").Index
+    readonly AI?: import("./catalog/Vectors.types.ts").Ai
+    readonly VECTORS?: import("./catalog/Vectors.types.ts").Index
     // The catalog and gathering Workflows, bound only where the stage owns
     // its catalog. A build runs only where both are bound (CatalogBuild.ts).
     readonly CATALOG?: unknown
     readonly GATHER?: unknown
     // The annotation and paper gather Workflows, bound only where the stage
     // owns its paper store (research/Annotate.ts, research/Runs.ts).
-    readonly ANNOTATE?: import("./research/Annotate.ts").AnnotateBinding
+    readonly ANNOTATE?: import("./research/Annotate.types.ts").AnnotateBinding
     readonly PAPER_GATHER?: unknown
     readonly ASK_LIMIT?: {
       readonly limit: (options: { readonly key: string }) => Promise<{ readonly success: boolean }>
@@ -53,7 +53,7 @@ declare module "cloudflare:workers" {
       }
     }
     // One PaceObject per source or paper host, named by it.
-    readonly PACE?: import("./Pace.ts").Namespace
+    readonly PACE?: import("./platform/Pace.types.ts").Namespace
     // The sources' answers the agent eval replays, served from disk by
     // vitest.eval.config.ts. Only the eval has it.
     readonly RECORDINGS?: { readonly fetch: (request: Request) => Promise<Response> }

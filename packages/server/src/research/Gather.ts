@@ -19,76 +19,31 @@ import {
 import { HttpClient, HttpClientRequest } from "effect/http"
 import { SqlClient } from "effect/sql"
 
-import { Step, type StepFailed } from "../CatalogBuild.ts"
-import { fingerprint } from "../fingerprint.ts"
-import { type Gaps, gaps } from "../Pace.ts"
-import { Attempt, Content, Digest, Paper, PaperUnavailable, Seed, Work } from "./archive.ts"
+import { gaps } from "../platform/constants/gaps.ts"
+import { type Gaps } from "../platform/Pace.types.ts"
+import { type StepFailed } from "../platform/Step.schemas.ts"
+import { Step } from "../platform/Step.ts"
+import { fingerprint } from "../utils/fingerprint.ts"
+import { Attempt, Content, Digest, Paper, PaperUnavailable, Seed, Work } from "./archive.schemas.ts"
+import file from "./assets/topics.json" with { type: "json" }
 import type { Bucket } from "./Bucket.ts"
-import { admit, qualifies } from "./copies.ts"
+import { caps } from "./constants/caps.ts"
+import { extraction } from "./constants/extraction.ts"
+import { admit } from "./copies.ts"
+import { Gathered, Outcome, Topic } from "./Gather.schemas.ts"
+import type { Cap, Fetched, Limits, Report, Searched } from "./Gather.types.ts"
 import { Licences } from "./Licences.ts"
-import { hostOf, metadataUrl, OpenAlex } from "./OpenAlex.ts"
-import { extraction } from "./pdf.ts"
-import { Record, write } from "./publication.ts"
-import { Reason, tables } from "./store.ts"
-import file from "./topics.json" with { type: "json" }
-
-// What the app charts, which each topic serves.
-const Area = Schema.Literals([
-  "labour",
-  "prices",
-  "growth",
-  "public-finance",
-  "pensions",
-  "inequality",
-  "health",
-  "education",
-  "emissions-energy",
-  "democracy",
-])
-
-// One OpenAlex search: its words, and whether it keeps to EconStor's
-// repository copies.
-export const Topic = Schema.Struct({
-  area: Area,
-  query: Schema.NonEmptyString,
-  repository: Schema.optional(Schema.Boolean),
-})
-
-export interface Topic extends Schema.Schema.Type<typeof Topic> {}
+import { OpenAlex } from "./OpenAlex.ts"
+import { write } from "./publication.ts"
+import { Record } from "./publication.types.ts"
+import { tables } from "./store.ts"
+import { hostOf } from "./utils/hostOf.ts"
+import { metadataUrl } from "./utils/metadataUrl.ts"
+import { qualifies } from "./utils/qualifies.ts"
 
 const Topics = Schema.Struct({ format: Schema.Literal(1), topics: Schema.NonEmptyArray(Topic) })
 
-// How much one run asks for. A page and a batch hold at most 100 works:
-// D1 binds at most 100 parameters, and OpenAlex filters at most 100 ids.
-export interface Limits {
-  // Pages of search results per topic.
-  readonly pages: number
-  // Works per page.
-  readonly size: number
-  // Works per gather step.
-  readonly batch: number
-  // Works gathered at once within a step.
-  readonly concurrency: number
-  // Failed attempts on one record before the work waits for its record to
-  // change.
-  readonly attempts: number
-}
-
 const defaults: Limits = { pages: 2, size: 100, batch: 10, concurrency: 2, attempts: 3 }
-
-// What a run fetched, and the most it may fetch: requests to OpenAlex
-// (search pages and batches of records), works gathered, PDFs downloaded and
-// their bytes.
-export interface Fetched {
-  readonly requests: number
-  readonly works: number
-  readonly pdfs: number
-  readonly bytes: number
-}
-
-const caps = ["requests", "works", "pdfs", "bytes"] as const
-
-export type Cap = (typeof caps)[number]
 
 const unlimited: Fetched = { requests: Infinity, works: Infinity, pdfs: Infinity, bytes: Infinity }
 
@@ -100,27 +55,6 @@ const reached = (fetched: Fetched, limit: Fetched): Cap | null =>
 // timeout, so a run that stopped without giving its claims back holds them
 // no longer than that.
 const lease = Duration.minutes(15)
-
-// What the gather did with one work, as the ledger records it.
-export const Outcome = Schema.TaggedUnion({
-  // The store serves text from an admitted copy.
-  Text: { paper: Digest, version: Digest },
-  // The store keeps only the bibliography, with why.
-  Metadata: { paper: Digest, reason: Reason },
-  // Another paper of the store, a hand-audited copy from `papers:intake`,
-  // already holds this work; the gather leaves it alone.
-  Covered: { paper: Digest },
-  // The store refused the work's rows, such as metadata for a paper whose
-  // text it serves. Nothing changes until the record does.
-  Refused: { paper: Digest, problem: Schema.String },
-  // Every copy worth downloading that the gather tried failed, or the store
-  // failed. The next run tries again, up to `attempts` times on one record.
-  Failed: { operation: Schema.String, problem: Schema.String },
-})
-
-export type Outcome = typeof Outcome.Type
-
-const Gathered = Schema.Struct({ work: Work.fields.id, title: Schema.String, outcome: Outcome })
 
 const Found = Schema.Struct({
   next: Schema.NullOr(Schema.String),
@@ -142,36 +76,6 @@ const Batch = Schema.Struct({
   pdfs: Schema.Int,
   bytes: Schema.Int,
 })
-
-// What a run did with one topic: the day it searched from (null for every
-// year), the works its pages listed, the records that did not decode, the
-// works the ledger already held unchanged, the works it asked for, those
-// another run held or a cap left waiting, those that failed, whether a cap
-// stopped it before its search or its works were done, and what failed.
-export interface Searched {
-  readonly key: string
-  readonly query: string
-  readonly since: string | null
-  readonly found: number
-  readonly skipped: number
-  readonly unchanged: number
-  readonly wanted: number
-  readonly held: number
-  readonly waiting: number
-  readonly failed: number
-  readonly capped: boolean
-  readonly problem: string | null
-}
-
-// What a run did: per topic, what its search found and left; per work it
-// asked for, the outcome; what it fetched; and the cap that stopped it, if
-// one did. A failure names the work and the problem, never the paper's text.
-export interface Report {
-  readonly topics: ReadonlyArray<Searched>
-  readonly works: ReadonlyArray<typeof Gathered.Type>
-  readonly fetched: Fetched
-  readonly stopped: Cap | null
-}
 
 // The ledger: one row per OpenAlex work the gather asked for. `hash` is the
 // SHA-256 of the record's fields the gather reads, without `updated_date`,

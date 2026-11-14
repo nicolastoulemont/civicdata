@@ -5,7 +5,9 @@ import { expect, it } from "@effect/vitest"
 import { Effect, Layer, Result, Stream } from "effect"
 import { FetchHttpClient } from "effect/http"
 
-import { archiveUrl, IlostatArchive, record, tocUrl } from "../src/Ilostat.ts"
+import { archiveUrl } from "../src/sources/constants/ilostat/archiveUrl.ts"
+import { tocUrl } from "../src/sources/constants/ilostat/tocUrl.ts"
+import { IlostatArchive, record } from "../src/sources/Ilostat.ts"
 import { archiveLayer } from "./ilostat-archive.ts"
 
 const csv = readFileSync(

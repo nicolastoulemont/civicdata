@@ -7,8 +7,9 @@ import { D1Client } from "@effect/sql-d1"
 import { Context, DateTime, Effect, Layer, Schema } from "effect"
 import { SqlClient, SqlSchema } from "effect/sql"
 
-import { once } from "../built.ts"
-import { Version } from "./store.ts"
+import { once } from "../platform/built.ts"
+import { DemandUnavailable } from "./Demand.schemas.ts"
+import { Version } from "./store.schemas.ts"
 
 // A paper version's identity, as search returns it.
 type VersionId = typeof Version.fields.id.Type
@@ -21,13 +22,6 @@ const Asked = Schema.Struct({
 })
 
 interface Asked extends Schema.Schema.Type<typeof Asked> {}
-
-// D1 failed, the Worker binds no DB, or the table holds a row the writer
-// never writes.
-export class DemandUnavailable extends Schema.TaggedError<
-  DemandUnavailable,
-  { readonly brand: unique symbol }
->()("DemandUnavailable", { cause: Schema.Defect() }) {}
 
 interface Interface {
   // Counts one more question for each version, once however often it

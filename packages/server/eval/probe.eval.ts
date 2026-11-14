@@ -4,7 +4,7 @@ import { env } from "cloudflare:workers"
 import { Cause, DateTime, Duration, Effect, Exit, Schema } from "effect"
 import { FetchHttpClient } from "effect/http"
 
-import { defaultModel } from "../src/model.ts"
+import { defaultModel } from "../src/assistant/constants/defaultModel.ts"
 import { answer, Live } from "./Live.ts"
 import { Probed, ProbedJson, probes } from "./probes.ts"
 import { Tally } from "./Tally.ts"

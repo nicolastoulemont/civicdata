@@ -2,7 +2,7 @@ import { AwsClient } from "aws4fetch"
 import { Effect, Redacted } from "effect"
 import { HttpClient, HttpClientRequest } from "effect/http"
 
-import type { SeriesBucket } from "../src/Store.ts"
+import type { SeriesBucket } from "../src/series/Store.types.ts"
 
 export const storage = Effect.fn("Ilostat.storage")(function* ({
   account,

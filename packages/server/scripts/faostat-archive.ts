@@ -9,9 +9,9 @@ import { Failure, SourceUnavailable } from "@repo/domain"
 import { DateTime, Effect, Layer, Stream } from "effect"
 import { HttpClient } from "effect/http"
 
-import { unavailable } from "../src/Failure.ts"
-import { asti, FaostatArchive } from "../src/Faostat.ts"
-import { table } from "../src/Table.ts"
+import { unavailable } from "../src/series/Failure.ts"
+import { asti, FaostatArchive } from "../src/sources/Faostat.ts"
+import { table } from "../src/utils/Table.ts"
 import { scratch, sortRows, series } from "./series.ts"
 
 const { archiveUrl, dataset, name, definition, indicator, record, currentVersion } = asti

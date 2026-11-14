@@ -1,22 +1,15 @@
-import { Clock, Context, Effect, Layer, Option, Schema } from "effect"
+import { Clock, Context, Effect, Layer, Option } from "effect"
 import { HttpClient } from "effect/http"
 
-import { fingerprint } from "../fingerprint.ts"
-import { type Copy, Evidence, Licence, PaperUnavailable } from "./archive.ts"
-import { metaOf } from "./html.ts"
-import { bodyOf, briefOf } from "./http.ts"
-
-export const licenceOf = (value: string) => {
-  const canonical = value
-    .trim()
-    .replace(/^http:/, "https:")
-    .replace(/\/?$/, "/")
-
-  return Schema.decodeOption(Licence)(canonical)
-}
-
-const handleOf = (value: string) =>
-  value.match(/(?:handle\/|handle.net\/|econstor\.eu:)(10419\/\d+)/)?.[1]
+import { fingerprint } from "../utils/fingerprint.ts"
+import { type Copy, Evidence, PaperUnavailable } from "./archive.schemas.ts"
+import { PageCheck } from "./Licences.schemas.ts"
+import { bodyOf } from "./utils/bodyOf.ts"
+import { briefOf } from "./utils/briefOf.ts"
+import { handleOf } from "./utils/handleOf.ts"
+import { metaOf } from "./utils/html.ts"
+import { licenceOf } from "./utils/licenceOf.ts"
+import { supported } from "./utils/supported.ts"
 
 // Read item-level metadata only. A footer licence, another item's licence,
 // or a licence attached to another PDF does not identify this copy.
@@ -41,12 +34,6 @@ const itemOf = (html: string, options: { copy: Copy; url: string }) => {
   return Option.some({ rights: values("dc.rights"), record })
 }
 
-export const PageCheck = Schema.TaggedUnion({
-  Unknown: {},
-  Denied: {},
-  Allowed: { evidence: Evidence },
-})
-
 const permission = (rights: ReadonlyArray<string>) => {
   const urls = rights.filter((value) => /^https?:\/\/creativecommons\.org\//i.test(value))
   const licences = urls.flatMap((value) => Option.toArray(licenceOf(value)))
@@ -58,26 +45,6 @@ const permission = (rights: ReadonlyArray<string>) => {
 
 interface Interface {
   readonly forCopy: (copy: Copy) => Effect.Effect<typeof PageCheck.Type, PaperUnavailable>
-}
-
-interface Item extends Copy {
-  readonly landing_page_url: string
-}
-
-export const supported = (copy: Copy): copy is Item => {
-  if (
-    !copy.id.startsWith("pmh:oai:econstor.eu:10419/") ||
-    copy.landing_page_url === null ||
-    !URL.canParse(copy.landing_page_url)
-  )
-    return false
-  const url = new URL(copy.landing_page_url)
-
-  return (
-    url.protocol === "https:" &&
-    (url.hostname === "www.econstor.eu" || url.hostname === "hdl.handle.net") &&
-    handleOf(url.href) === handleOf(copy.id)
-  )
 }
 
 export class Licences extends Context.Service<Licences, Interface>()("papers/Licences") {

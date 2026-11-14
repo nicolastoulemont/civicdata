@@ -1,21 +1,21 @@
 import { Clock, Context, Effect, Layer, Option, Schema } from "effect"
 import { FileSystem } from "effect/FileSystem"
 
-import { fingerprint } from "../../src/fingerprint.ts"
 import {
   Annotation,
-  complete,
-  grounded,
-  excerptsComplete,
-  model,
   ResearchUnavailable,
-  rubric,
   Scope,
   Stamp,
-} from "../../src/research/annotation.ts"
+} from "../../src/research/annotation.schemas.ts"
 import { Annotator } from "../../src/research/Annotator.ts"
-import { Content, Paper } from "../../src/research/archive.ts"
-import { Document, type Entry } from "../../src/research/entry.ts"
+import { Content, Paper } from "../../src/research/archive.schemas.ts"
+import { model } from "../../src/research/constants/model.ts"
+import { rubric } from "../../src/research/constants/rubric.ts"
+import { Document, type Entry } from "../../src/research/entry.schemas.ts"
+import { complete } from "../../src/research/utils/complete.ts"
+import { excerptsComplete } from "../../src/research/utils/excerptsComplete.ts"
+import { grounded } from "../../src/research/utils/grounded.ts"
+import { fingerprint } from "../../src/utils/fingerprint.ts"
 import { Folder } from "./storage.ts"
 
 const Scoped = Schema.Struct({ stamp: Stamp, scope: Scope })
