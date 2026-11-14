@@ -1,8 +1,9 @@
-import { Clock, Context, Effect, Layer, Option, Schema } from "effect"
-import { HttpClient, HttpClientResponse } from "effect/http"
+import { Cause, Clock, Context, Effect, Layer, Option, Predicate, Schema } from "effect"
+import { HttpClient, type HttpClientError, HttpClientResponse } from "effect/http"
 import { getDomain } from "tldts"
 
-import { type Copy, Https, PaperUnavailable, type Seed, Work } from "./archive.schemas.ts"
+import { type Copy, Https, PaperUnavailable, type Seed, Spent, Work } from "./archive.schemas.ts"
+import { cache } from "./constants/openalex/cache.ts"
 import type { Download } from "./OpenAlex.types.ts"
 import { Deposit } from "./pmc.schemas.ts"
 import type { Article } from "./pmc.types.ts"
@@ -48,11 +49,12 @@ interface Interface {
   readonly works: (
     ids: ReadonlyArray<Work["id"]>,
   ) => Effect.Effect<ReadonlyMap<Work["id"], Work>, PaperUnavailable>
-  readonly download: (copy: Copy) => Effect.Effect<Download, PaperUnavailable>
+  readonly download: (copy: Copy) => Effect.Effect<Download, PaperUnavailable | Spent>
 }
 
 // The fields `Work` reads, so a page of 200 works stays small.
-const select = "id,type,authorships,doi,title,publication_year,updated_date,is_retracted,locations"
+const select =
+  "id,type,authorships,doi,title,publication_year,updated_date,is_retracted,locations,has_content,best_oa_location"
 
 // Open access, not retracted, in English, published from 1990, or from
 // `since` when the query gives a day; EconStor's repository (S4306401696)
@@ -100,6 +102,14 @@ const decoded = (results: ReadonlyArray<unknown>) => {
 
   return { works, skipped: results.length - works.length }
 }
+
+// OpenAlex refusing a cached PDF for the key's spent budget: 402, or 429,
+// which the pace also answers when the host is resting.
+const spent = (cause: HttpClientError.HttpClientError | Cause.TimeoutError | string) =>
+  !Predicate.isString(cause) &&
+  !Cause.isTimeoutError(cause) &&
+  new URL(cause.request.url).host === cache &&
+  (cause.response?.status === 402 || cause.response?.status === 429)
 
 // A Highwire Press tag naming a page's PDF, as Google Scholar and Zotero
 // read it.
@@ -257,8 +267,10 @@ export class OpenAlex extends Context.Service<OpenAlex, Interface>()("papers/Ope
           return { ...linked, landing: first.url, retrievedAt: yield* now }
         },
         Effect.timeout("15 seconds"),
-        Effect.mapError(
-          (cause) => new PaperUnavailable({ operation: "download", cause: briefOf(cause) }),
+        Effect.mapError((cause) =>
+          spent(cause)
+            ? new Spent()
+            : new PaperUnavailable({ operation: "download", cause: briefOf(cause) }),
         ),
       )
 

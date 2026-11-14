@@ -309,6 +309,17 @@ const times = (
   host: string,
 ) => requests.flatMap(({ url, at }) => (new URL(url).host === host ? [at] : []))
 
+const key = Option.some(Redacted.make("openalex-key"))
+
+const cached = (n: number) => `https://content.openalex.org/works/W${n}.pdf`
+
+// Work `n`, of which OpenAlex caches a PDF, and whose one labelled copy its
+// publisher refuses, as MDPI's CDN refuses scripts.
+const walled = (n: number) => work(n, { has_content: { pdf: true }, best_oa_location: copy(n) })
+
+const refusing = (n: number) => (url: string) =>
+  url === copy(n).pdf_url ? new Response("Access Denied", { status: 403 }) : undefined
+
 describe("the paper gather", () => {
   it.effect("discovers a topic page by page, up to the page limit", () => {
     const place = world({
@@ -938,5 +949,121 @@ describe("the paper gather", () => {
         { page: 1, licence: "https://creativecommons.org/licenses/by/4.0/" },
       ])
     }).pipe(Effect.provide(layerOf(place.http)))
+  })
+
+  it.effect(
+    "fetches OpenAlex's cached PDF, signed, when every copy worth downloading fails",
+    () => {
+      const place = world({ searches: { [topic.query]: [[walled(1)]] }, respond: refusing(1) })
+
+      return Effect.gen(function* () {
+        expect(outcomes(yield* gather())).toEqual({ [work(1).id]: "Text" })
+        expect(place.urls().filter((url) => !url.startsWith("https://api."))).toEqual([
+          copy(1).pdf_url,
+          cached(1),
+        ])
+        expect(place.requests.find(({ url }) => url === cached(1))?.authorization).toBe(
+          "Bearer openalex-key",
+        )
+        expect(place.urls().some((url) => url.includes("openalex-key"))).toBe(false)
+
+        const text = yield* held(work(1))
+
+        assert(Held.guards.Text(text), "Expected the cached PDF's text")
+        expect(text.version.url).toBe(cached(1))
+        expect(text.copy.location).toMatchObject({
+          id: "openalex:content:W1",
+          version: "publishedVersion",
+          pdf_url: cached(1),
+        })
+        expect(text.copy.evidence).toMatchObject([{ url: cached(1), page: 1 }])
+      }).pipe(Effect.provide(layerOf(place.http, { key })))
+    },
+  )
+
+  it.effect("keeps a work as metadata when its cached PDF has no licence notice", () => {
+    const place = world({
+      searches: { [topic.query]: [[walled(1)]] },
+      respond: (url) => (url === cached(1) ? new Response(pdf("")) : refusing(1)(url)),
+    })
+
+    return Effect.gen(function* () {
+      expect(outcomes(yield* gather())).toEqual({ [work(1).id]: "Metadata" })
+      expect(yield* ledgerOf(work(1))).toMatchObject({
+        outcome: { reason: "no-usable-copy" },
+        attempts: 0,
+      })
+    }).pipe(Effect.provide(layerOf(place.http, { key })))
+  })
+
+  it.effect("asks for no cached PDF when the copies were excluded on their own evidence", () => {
+    const place = world({
+      searches: { [topic.query]: [[walled(1)]] },
+      respond: (url) => (url === copy(1).pdf_url ? new Response(pdf("")) : undefined),
+    })
+
+    return Effect.gen(function* () {
+      expect(outcomes(yield* gather())).toEqual({ [work(1).id]: "Metadata" })
+      expect(place.urls()).not.toContain(cached(1))
+    }).pipe(Effect.provide(layerOf(place.http, { key })))
+  })
+
+  it.effect(
+    "leaves works for the next run, with no attempt, once OpenAlex's budget is spent",
+    () => {
+      const place = world({
+        searches: { [topic.query]: [[walled(1), walled(2)]] },
+        respond: (url) =>
+          url.startsWith("https://content.openalex.org/")
+            ? new Response("Insufficient credits", { status: 429 })
+            : (refusing(1)(url) ?? refusing(2)(url)),
+      })
+
+      return Effect.gen(function* () {
+        const first = yield* gather({ concurrency: 1 })
+
+        expect(first.works).toEqual([])
+        expect(first.topics).toMatchObject([{ waiting: 2, capped: true }])
+        expect(place.urls().filter((url) => url.startsWith("https://content."))).toEqual([
+          cached(1),
+        ])
+        expect(yield* ledgerOf(work(1))).toBeUndefined()
+
+        place.respond((url) => refusing(1)(url) ?? refusing(2)(url))
+
+        expect(outcomes(yield* gather())).toEqual({ [work(1).id]: "Text", [work(2).id]: "Text" })
+      }).pipe(Effect.provide(layerOf(place.http, { key })))
+    },
+  )
+
+  it.effect("fetches no more cached PDFs than the run's cap", () => {
+    const place = world({
+      searches: { [topic.query]: [[walled(1), walled(2)]] },
+      respond: (url) => refusing(1)(url) ?? refusing(2)(url),
+    })
+
+    return Effect.gen(function* () {
+      const report = yield* run({
+        topics: [topic],
+        limits: { size: 10, concurrency: 1 },
+        caps: { cached: 1 },
+      })
+
+      expect(outcomes(report)).toEqual({ [work(1).id]: "Text" })
+      expect(report.topics).toMatchObject([{ waiting: 1, capped: true }])
+      expect(report.fetched).toMatchObject({ cached: 1 })
+      expect(report.stopped).toBeNull()
+    }).pipe(Effect.provide(layerOf(place.http, { key })))
+  })
+
+  it.effect("gathers no stored work again once its record lists a cached PDF", () => {
+    const place = world({ searches: { [topic.query]: [[work(1)]] } })
+
+    return Effect.gen(function* () {
+      yield* gather()
+      place.change(walled(1))
+
+      expect((yield* gather()).works).toEqual([])
+    }).pipe(Effect.provide(layerOf(place.http, { key })))
   })
 })

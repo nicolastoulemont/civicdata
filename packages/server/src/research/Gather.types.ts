@@ -19,12 +19,14 @@ export interface Limits {
 
 // What a run fetched, and the most it may fetch: requests to OpenAlex
 // (search pages and batches of records), works gathered, PDFs downloaded and
-// their bytes.
+// their bytes, and of those PDFs the ones OpenAlex cached, which cost the
+// key's budget.
 export interface Fetched {
   readonly requests: number
   readonly works: number
   readonly pdfs: number
   readonly bytes: number
+  readonly cached: number
 }
 
 export type Cap = (typeof caps)[number]

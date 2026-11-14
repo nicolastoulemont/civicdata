@@ -10,7 +10,7 @@ import { Step } from "../../src/platform/Step.ts"
 import { Bucket } from "../../src/research/Bucket.ts"
 import { Outcome } from "../../src/research/Gather.schemas.ts"
 import { keyed, paced, sources } from "../../src/research/Gather.ts"
-import { type Limits, type Report } from "../../src/research/Gather.types.ts"
+import { type Fetched, type Limits, type Report } from "../../src/research/Gather.types.ts"
 import { d1 } from "../d1.ts"
 
 export interface Stage {
@@ -22,6 +22,11 @@ export interface Stage {
 
 // A machine gathers more works at once and in larger steps than a Workflow.
 export const limits: Partial<Limits> = { batch: 50, concurrency: 8 }
+
+// The key's daily budget pays for search pages and cached PDFs alike, and a
+// cached PDF costs as much as 100 pages: 50 of them leave a full fill's
+// searches room in one day's budget.
+export const caps: Partial<Fetched> = { cached: 50 }
 
 // The Workflow's pacing, and Cloudflare's API: it takes 1,200 requests in
 // five minutes from one user, and D1's HTTP API sends one per statement.
