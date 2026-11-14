@@ -1,9 +1,10 @@
-import { assert, beforeEach, describe, expect, it } from "@effect/vitest"
+import { assert, beforeAll, beforeEach, describe, expect, it } from "@effect/vitest"
 import { reset } from "cloudflare:test"
 import { Duration, Effect, Layer, Option, Redacted, Schema } from "effect"
 import { HttpClient, HttpClientResponse } from "effect/http"
 import { SqlClient } from "effect/sql"
 import { TestClock } from "effect/testing"
+import { getResolvedPDFJS } from "unpdf"
 
 import { Step } from "../../platform/Step.ts"
 import { fingerprint } from "../../utils/fingerprint.ts"
@@ -29,6 +30,10 @@ import { copy, work } from "./works.ts"
 // The paper gather inside workerd, against PAPERS_DB and PAPERS, with
 // OpenAlex, the publishers and EconStor faked at the HTTP client. The PDFs
 // are real and go through the real parser.
+
+// unpdf loads pdf.js on the first parse, which took most of the first test's
+// five seconds on CI. Loading it here gives that cost the hook's timeout.
+beforeAll(() => getResolvedPDFJS())
 
 beforeEach(() => reset())
 
