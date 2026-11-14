@@ -56,3 +56,14 @@ export const plansOf = (database: Database) => {
 
   return { database: watching, plans }
 }
+
+// The steps of `plans` that read every row of a store table: `paper`,
+// `copy`, `version`, `passage`, or one named `annotation…` or `work_…`.
+export const scansOf = (
+  plans: ReadonlyArray<{ readonly query: string; readonly steps: ReadonlyArray<string> }>,
+) =>
+  plans.flatMap(({ query, steps }) =>
+    steps
+      .filter((step) => /^SCAN (paper|copy|version|passage|annotation\w*|work_\w+)\b/.test(step))
+      .map((step) => ({ query, step })),
+  )

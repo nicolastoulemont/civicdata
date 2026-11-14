@@ -6,6 +6,7 @@ import { HttpClient, HttpClientResponse } from "effect/http"
 import { SqlClient } from "effect/sql"
 import { TestClock } from "effect/testing"
 
+import { scansOf } from "../../tests/plans.ts"
 import { workflow as fake } from "../../tests/workflow.ts"
 import { fingerprint } from "../../utils/fingerprint.ts"
 import { Outcome, Params, Report } from "../Annotate.schemas.ts"
@@ -21,7 +22,7 @@ import { Papers } from "../Papers.ts"
 import { PaperId } from "../store.schemas.ts"
 import { annotationKey } from "../store.ts"
 import { objectsOf } from "../utils/objectsOf.ts"
-import { bibliography, body, papersBucket, papersDb, publish } from "./papers.ts"
+import { bibliography, body, papersBucket, papersDb, papersPlanned, publish } from "./papers.ts"
 
 beforeEach(() => reset())
 
@@ -203,6 +204,7 @@ interface Run {
   readonly steps?: ReturnType<typeof workflow>
   readonly settings?: typeof Settings.Service
   readonly limits?: Partial<typeof Limits.Service>
+  readonly db?: typeof papersDb
 }
 
 // One Workflow instance's run of `params`, against the test's D1, R2,
@@ -219,6 +221,7 @@ const annotating = (
     steps = workflow(),
     settings = { model, rubric: "research-3" },
     limits,
+    db = papersDb,
   }: Run = {},
 ) =>
   Effect.gen(function* () {
@@ -230,7 +233,7 @@ const annotating = (
       Layer.mergeAll(
         steps.layer,
         Annotate.make(papersBucket).pipe(
-          Layer.provide(papersDb),
+          Layer.provide(db),
           Layer.provide(world.provider.layer),
           Layer.provide(world.instances.layer),
           Layer.provide(world.demand.layer),
@@ -778,6 +781,28 @@ describe("the Annotate Workflow", () => {
 
       expect((yield* read(older.paper)).annotation).toBeNull()
       expect((yield* read(current.paper)).annotation).toEqual(body(textOf(2)))
+    }),
+  )
+
+  it.effect("reads the store's rows by index when it annotates and retires", () =>
+    Effect.gen(function* () {
+      const test = world()
+      const planned = papersPlanned()
+      const { version } = yield* paper(1)
+      yield* paper(2, textOf(1))
+
+      const results = yield* annotating(test, annotate(version), { db: planned.layer })
+
+      yield* annotating(test, Params.cases.Retire.make({ versions: [version] }), {
+        run: "run-2",
+        settings: { model, rubric: "research-4" },
+        db: planned.layer,
+      })
+
+      expect(results).toEqual([
+        annotated(version, Outcome.cases.Annotated.make({ key: keyOf(results) })),
+      ])
+      expect(scansOf(yield* planned.plans)).toEqual([])
     }),
   )
 })

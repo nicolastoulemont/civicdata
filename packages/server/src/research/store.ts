@@ -99,6 +99,9 @@ export const tables = Effect.gen(function* () {
 
   yield* sql`CREATE INDEX IF NOT EXISTS version_copy ON version (copy, paper, admission)`
 
+  // Annotate points every version with an annotation's text at it.
+  yield* sql`CREATE INDEX IF NOT EXISTS version_text ON version (text, extraction)`
+
   yield* sql`CREATE TABLE IF NOT EXISTS passage (
     version TEXT NOT NULL REFERENCES version (id) ON DELETE CASCADE,
     page INTEGER NOT NULL,
